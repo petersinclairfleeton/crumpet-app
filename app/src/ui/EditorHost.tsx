@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Editor } from '@crumpet/editor/editor';
+import { diffDocs } from '@crumpet/editor/diff';
+import { stepsOf } from '@crumpet/editor/sync/transform';
 import type { BlockType, Mark } from '@crumpet/editor/model';
 import type { Note } from '../data/types';
 import { useAppStore } from './hooks';
@@ -43,6 +45,8 @@ export function EditorHost({ note, readOnly, lead, trail, header, footer, onEdit
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<Editor | null>(null);
   const noteId = useRef(note.id);
+  /** The document this editor last showed or saved, to tell changes from elsewhere (sync) apart. */
+  const shown = useRef(note.doc);
   const [, setTick] = useState(0);
   const [linkOpen, setLinkOpen] = useState(false);
 
@@ -52,7 +56,10 @@ export function EditorHost({ note, readOnly, lead, trail, header, footer, onEdit
     editor.current = ed;
     onEditor?.(ed);
     ed.onChange((state, change) => {
-      if (change && change.ops.length && change.source !== 'remote') store.setDoc(noteId.current, state.doc);
+      if (change && change.ops.length && change.source !== 'remote') {
+        shown.current = state.doc;
+        store.setDoc(noteId.current, state.doc);
+      }
       setTick((t) => t + 1);
     });
     const onKey = (e: KeyboardEvent) => {
@@ -85,6 +92,7 @@ export function EditorHost({ note, readOnly, lead, trail, header, footer, onEdit
     if (noteId.current !== note.id) {
       store.flush();
       noteId.current = note.id;
+      shown.current = note.doc;
       ed.load(note.doc);
       setLinkOpen(false);
     }
@@ -92,6 +100,16 @@ export function EditorHost({ note, readOnly, lead, trail, header, footer, onEdit
     // Only the note's identity matters here: its doc changes come from the editor itself.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id, readOnly]);
+
+  // The open note changed somewhere else (synced from another device): apply the
+  // difference as edits, so the caret stays by the same words and undo still works.
+  useEffect(() => {
+    const ed = editor.current;
+    if (!ed || noteId.current !== note.id || note.doc === shown.current) return;
+    shown.current = note.doc;
+    const { ops, doc } = diffDocs(ed.state.doc, note.doc);
+    if (ops.length) ed.applyRemote(doc, stepsOf(ops));
+  }, [note.id, note.doc]);
 
   const ed = editor.current;
   const type = ed?.currentBlock().type;

@@ -169,7 +169,7 @@ test('Trash: move a note there, restore it, then delete it forever', async ({ pa
   await expect(list(page)).not.toContainText('Villain who is right');
   await sidebar(page).getByRole('button', { name: /^Trash/ }).click();
   await list(page).locator('.card', { hasText: 'Villain' }).click();
-  await expect(page.getByRole('status')).toContainText('This note is in the Trash');
+  await expect(page.getByRole('status').filter({ hasText: 'Trash' })).toContainText('This note is in the Trash');
   await expect(page.locator('.note-editor')).toHaveAttribute('contenteditable', 'false');
   await page.getByRole('button', { name: 'Restore' }).click();
   await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
@@ -269,4 +269,38 @@ test.describe('on a phone', () => {
     await expect(sidebar(page)).toBeHidden();
     await expect(list(page).locator('h1')).toHaveText('Journal');
   });
+});
+
+test('settings: notes start in this browser, and Google Drive can be connected', async ({ page }) => {
+  await open(page);
+  await sidebar(page).locator('.account').click();
+  const where = page.getByRole('group', { name: 'Where your notes live' });
+  await expect(where).toContainText('In this browser only');
+  await expect(sidebar(page).locator('.side-foot')).toContainText('saved on this device');
+  await where.getByRole('button', { name: 'Connect Google Drive' }).click();
+  await expect(where.getByLabel('Folder in your Drive')).toHaveValue('Crumpet');
+  await expect(where.getByLabel('Google client ID')).toBeVisible();
+  await where.getByRole('button', { name: 'Cancel' }).click();
+  await expect(where.getByRole('button', { name: 'Connect Google Drive' })).toBeVisible();
+});
+
+test('a synced change to the open note arrives without moving the caret', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Live', 'I am typing here');
+  // Another device adds a paragraph above and changes a word (as a sync would).
+  await page.evaluate(() => {
+    const store = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { id: string; type: string; runs: { text: string; marks: string[] }[] }[] } }[] }; setDoc(id: string, doc: unknown): void } }).crumpet;
+    const s = store.getState();
+    const note = s.notes.find((n) => n.id === s.selectedId)!;
+    const [first, ...rest] = note.doc.blocks;
+    store.setDoc(note.id, { blocks: [{ id: 'from-phone', type: 'paragraph', runs: [{ text: 'Added on the phone.', marks: [] }] }, { ...first, runs: [{ text: 'I am typing right here', marks: [] }] }, ...rest] });
+  });
+  const body = page.locator('.note-pane [contenteditable]');
+  await expect(body).toContainText('Added on the phone.');
+  await page.keyboard.type(', still');
+  await expect(body).toContainText('I am typing right here, still');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(body).toContainText('I am typing right here');
+  await expect(body).not.toContainText(', still');
+  await expect(body).toContainText('Added on the phone.');
 });

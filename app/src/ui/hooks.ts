@@ -1,5 +1,6 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import type { AppState, AppStore } from '../data/store';
+import type { ConnectionState, SyncConnection } from '../sync/connection';
 
 export const StoreContext = createContext<AppStore | null>(null);
 
@@ -32,3 +33,16 @@ export function keep(key: string, value: unknown): void {
     /* not kept; fine */
   }
 }
+
+export const SyncContext = createContext<SyncConnection | null>(null);
+
+const NO_SYNC: ConnectionState = { config: null, status: null, connecting: false };
+
+/** The sync connection and its state (none in tests that don't provide one). */
+export function useSync(): { sync: SyncConnection | null; state: ConnectionState } {
+  const sync = useContext(SyncContext);
+  const state = useSyncExternalStore(sync?.subscribe ?? noSubscribe, sync?.getState ?? (() => NO_SYNC));
+  return { sync, state };
+}
+
+const noSubscribe = () => () => {};

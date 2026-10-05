@@ -3,23 +3,29 @@ import { createRoot } from 'react-dom/client';
 import { openStorage } from './data/db';
 import { AppStore } from './data/store';
 import { App } from './ui/App';
-import { StoreContext } from './ui/hooks';
+import { StoreContext, SyncContext } from './ui/hooks';
+import { SyncConnection } from './sync/connection';
 import './ui/app.css';
 
 async function start() {
-  const store = new AppStore(await openStorage());
+  const storage = await openStorage();
+  const store = new AppStore(storage);
   await store.load();
+  const sync = new SyncConnection(store, storage);
+  sync.init().catch((err) => console.error('[crumpet] Sync could not start', err));
   // Save anything still waiting when the page is hidden or closed (phones rarely fire unload).
   const flush = () => store.flush();
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush();
   });
-  (window as unknown as { crumpet: AppStore }).crumpet = store;
+  Object.assign(window, { crumpet: store, crumpetSync: sync });
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <StoreContext.Provider value={store}>
-        <App />
+        <SyncContext.Provider value={sync}>
+          <App />
+        </SyncContext.Provider>
       </StoreContext.Provider>
     </StrictMode>,
   );

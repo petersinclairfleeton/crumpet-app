@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useAppState, useAppStore, keep, remember } from './hooks';
+import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
+import { SyncSettings, statusText } from './SyncSettings';
 import { allTags, displayTitle, noteCounts, notebookTree, recentNotes, sameView } from '../data/selectors';
 import { ACCENTS, NOTEBOOK_COLORS, type Notebook, type Stack, type Theme, type View } from '../data/types';
 import { IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
@@ -18,6 +19,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
   const [tagsOpen, setTagsOpen] = useState<boolean>(() => remember('tagsOpen', false));
   const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack'>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const { state: sync } = useSync();
   const { loose, stacks } = notebookTree(state.stacks, state.notebooks);
   const counts = noteCounts(state.notes);
   const tags = allTags(state.notes);
@@ -155,7 +157,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
 
       <div className="side-foot">
         <Logo size={16} />
-        <span>{state.temporary ? 'crumpet · not saving' : 'crumpet · saved on this device'}</span>
+        <span role="status">{footText(state.temporary, sync)}</span>
       </div>
     </nav>
   );
@@ -504,7 +506,17 @@ function SettingsPanel({ onClose }: { onClose(): void }) {
             ))}
           </div>
         </div>
+        <SyncSettings />
       </div>
     </Popover>
   );
+}
+
+function footText(temporary: boolean, sync: ReturnType<typeof useSync>['state']): string {
+  if (temporary) return 'crumpet · not saving';
+  if (!sync.config) return 'crumpet · saved on this device';
+  const s = sync.status;
+  if (s?.phase === 'syncing') return 'Syncing…';
+  if (s?.phase === 'error') return s.error?.kind === 'offline' ? 'Offline · saved on this device' : 'Sync needs attention';
+  return statusText(s).replace(/\.$/, '').replace(/^Synced/, 'Google Drive · synced');
 }

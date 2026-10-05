@@ -6,7 +6,7 @@
 import type { Note, Notebook, Settings, Stack } from './types';
 
 const DB_NAME = 'crumpet';
-const VERSION = 2;
+const VERSION = 3;
 
 export interface Persisted {
   stacks: Stack[];
@@ -24,6 +24,10 @@ export interface Storage {
   putStack(stack: Stack): Promise<void>;
   deleteStack(id: string): Promise<void>;
   putSettings(s: Settings): Promise<void>;
+  /** Sync's own records (connection, last agreed version), by key. */
+  getSync<T>(key: string): Promise<T | null>;
+  putSync(key: string, value: unknown): Promise<void>;
+  deleteSync(key: string): Promise<void>;
   /** True when changes are only kept in memory. */
   readonly temporary: boolean;
 }
@@ -44,6 +48,7 @@ function open(name: string): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('notebooks')) db.createObjectStore('notebooks', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
       if (!db.objectStoreNames.contains('stacks')) db.createObjectStore('stacks', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('sync')) db.createObjectStore('sync');
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -97,6 +102,16 @@ class IdbStorage implements Storage {
   deleteStack(id: string) {
     return this.write('stacks', (s) => s.delete(id));
   }
+  async getSync<T>(key: string): Promise<T | null> {
+    const tx = this.db.transaction('sync', 'readonly');
+    return ((await request(tx.objectStore('sync').get(key))) as T | undefined) ?? null;
+  }
+  putSync(key: string, value: unknown) {
+    return this.write('sync', (s) => s.put(value, key));
+  }
+  deleteSync(key: string) {
+    return this.write('sync', (s) => s.delete(key));
+  }
 }
 
 /** Keeps everything in memory only. Used when IndexedDB is unavailable, and in tests. */
@@ -129,6 +144,16 @@ export class MemoryStorage implements Storage {
   }
   async putSettings(s: Settings) {
     this.settings = s;
+  }
+  sync = new Map<string, unknown>();
+  async getSync<T>(key: string): Promise<T | null> {
+    return this.sync.has(key) ? (structuredClone(this.sync.get(key)) as T) : null;
+  }
+  async putSync(key: string, value: unknown) {
+    this.sync.set(key, structuredClone(value));
+  }
+  async deleteSync(key: string) {
+    this.sync.delete(key);
   }
 }
 
