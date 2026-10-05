@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crumpet editor prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+<div class="app">
+  <main class="page">
+    <div class="toolbar" role="toolbar" aria-label="Formatting">
+      <button type="button" data-mark="bold" aria-label="Bold" title="Bold (⌘B)"><b>B</b></button>
+      <button type="button" data-mark="italic" aria-label="Italic" title="Italic (⌘I)"><i>I</i></button>
+      <button type="button" data-mark="underline" aria-label="Underline" title="Underline (⌘U)"><u>U</u></button>
+      <button type="button" data-mark="strike" aria-label="Strikethrough" title="Strikethrough (⌘⇧X)"><s>S</s></button>
+      <button type="button" data-mark="code" aria-label="Code" title="Code (⌘E)"><code>&lt;/&gt;</code></button>
+      <span class="sep"></span>
+      <button type="button" data-block="heading1" title="Heading 1 (⌘⌥1)">H1</button>
+      <button type="button" data-block="heading2" title="Heading 2 (⌘⌥2)">H2</button>
+      <button type="button" data-block="todo" title="Checklist (⌘⌥T)">☐</button>
+      <button type="button" data-block="quote" title="Quote (⌘⌥Q)">❝</button>
+      <span class="sep"></span>
+      <button type="button" data-cmd="undo" aria-label="Undo" title="Undo (⌘Z)">↶</button>
+      <button type="button" data-cmd="redo" aria-label="Redo" title="Redo (⌘⇧Z)">↷</button>
+      <span class="grow"></span>
+      <button type="button" data-cmd="reset" class="text-btn">Reset sample</button>
+      <button type="button" data-cmd="debug" class="text-btn" aria-pressed="true">Debug</button>
+    </div>
+    <article class="note">
+      <div id="editor" aria-label="Note"></div>
+      <p class="hint">Try: <kbd># </kbd> heading, <kbd>## </kbd> subheading, <kbd>[] </kbd> checklist, <kbd>&gt; </kbd> quote. ⌘B / ⌘I / ⌘U, ⌘Z / ⌘⇧Z.</p>
+    </article>
+  </main>
+  <aside class="debug" id="debug">
+    <section>
+      <h2>Model</h2>
+      <pre id="model"></pre>
+    </section>
+    <section>
+      <h2>Last ops</h2>
+      <pre id="ops"></pre>
+    </section>
+    <section>
+      <h2>Browser input types</h2>
+      <pre id="inputs"></pre>
+    </section>
+  </aside>
+</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
