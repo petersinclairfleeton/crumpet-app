@@ -71,17 +71,28 @@ export class Editor {
     this.view = new View(root);
     this.view.render(doc);
 
-    root.addEventListener('beforeinput', (e) => this.onBeforeInput(e));
-    root.addEventListener('input', () => this.onInput());
-    root.addEventListener('keydown', (e) => this.onKeyDown(e));
-    root.addEventListener('compositionstart', () => this.onCompositionStart());
-    root.addEventListener('compositionend', () => this.onCompositionEnd());
-    root.addEventListener('paste', (e) => this.onPaste(e));
-    root.addEventListener('cut', (e) => this.onCut(e));
-    root.addEventListener('copy', (e) => this.onCopy(e));
-    root.addEventListener('drop', (e) => e.preventDefault());
-    root.addEventListener('mousedown', (e) => this.onMouseDown(e));
-    root.ownerDocument.addEventListener('selectionchange', () => this.onSelectionChange());
+    const signal = this.listening.signal;
+    root.addEventListener('beforeinput', (e) => this.onBeforeInput(e), { signal });
+    root.addEventListener('input', () => this.onInput(), { signal });
+    root.addEventListener('keydown', (e) => this.onKeyDown(e), { signal });
+    root.addEventListener('compositionstart', () => this.onCompositionStart(), { signal });
+    root.addEventListener('compositionend', () => this.onCompositionEnd(), { signal });
+    root.addEventListener('paste', (e) => this.onPaste(e), { signal });
+    root.addEventListener('cut', (e) => this.onCut(e), { signal });
+    root.addEventListener('copy', (e) => this.onCopy(e), { signal });
+    root.addEventListener('drop', (e) => e.preventDefault(), { signal });
+    root.addEventListener('mousedown', (e) => this.onMouseDown(e), { signal });
+    root.ownerDocument.addEventListener('selectionchange', () => this.onSelectionChange(), { signal });
+  }
+
+  private listening = new AbortController();
+
+  /** Stops listening to the page and clears the element, so it can be reused or removed. */
+  destroy(): void {
+    this.listening.abort();
+    this.listeners = [];
+    this.view.root.contentEditable = 'false';
+    this.view.root.replaceChildren();
   }
 
   onChange(fn: Listener): void {
@@ -133,8 +144,25 @@ export class Editor {
     this.state = { doc, selection: caret({ block: doc.blocks[0].id, offset: 0 }), storedMarks: null };
     this.history.clear();
     this.view.render(doc, new Set(doc.blocks.map((b) => b.id)));
-    this.view.writeSelection(this.state.selection);
+    // Don't pull the page selection into the note unless it already has focus (e.g. a title field may).
+    if (this.view.root.ownerDocument.activeElement === this.view.root) this.view.writeSelection(this.state.selection);
     this.emit({ ops: [], source: 'command' });
+  }
+
+  /** Stops (or allows) editing, e.g. for notes in the Trash. */
+  setReadOnly(readOnly: boolean): void {
+    this.view.root.contentEditable = readOnly ? 'false' : 'true';
+    this.view.root.setAttribute('aria-readonly', String(readOnly));
+  }
+
+  /** Puts the caret at the start or end of the note and focuses it. */
+  focusAt(where: 'start' | 'end'): void {
+    const blocks = this.state.doc.blocks;
+    const b = where === 'start' ? blocks[0] : blocks[blocks.length - 1];
+    this.state = { ...this.state, selection: caret({ block: b.id, offset: where === 'start' ? 0 : runsText(b.runs).length }) };
+    this.view.root.focus();
+    this.view.writeSelection(this.state.selection);
+    this.emit(null);
   }
 
   undo(): void {

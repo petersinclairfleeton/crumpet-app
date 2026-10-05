@@ -1,0 +1,180 @@
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { Editor } from '@crumpet/editor/editor';
+import { useAppState, useAppStore } from './hooks';
+import { allTags, longTime, notebookTree, wordCount } from '../data/selectors';
+import { EditorHost } from './EditorHost';
+import { IconBack, IconMore, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { InlineInput, Popover } from './Sidebar';
+
+export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const note = store.note(state.selectedId);
+  const editorRef = useRef<Editor | null>(null);
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const [menu, setMenu] = useState(false);
+  const [addingTag, setAddingTag] = useState(false);
+
+  // The title wraps onto more lines as needed.
+  useLayoutEffect(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  });
+
+  // A brand-new, empty note starts with the cursor in its title.
+  useEffect(() => {
+    if (note && !note.title && Date.now() - note.createdAt < 2000 && note.createdAt === note.updatedAt) titleRef.current?.focus();
+    setMenu(false);
+    setAddingTag(false);
+  }, [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!note) {
+    return (
+      <section className="pane-empty" aria-label="Note">
+        <p>Choose a note, or start a new one.</p>
+      </section>
+    );
+  }
+
+  const trashed = note.trashedAt !== null;
+  const nb = store.notebook(note.notebookId);
+  const { loose, stacks } = notebookTree(state.notebooks);
+  const knownTags = allTags(state.notes).map((t) => t.tag).filter((t) => !note.tags.includes(t));
+
+  const lead = narrow ? (
+    <button type="button" className="icon-btn back" aria-label="Back to notes" onClick={onBack}>
+      <IconBack size={18} />
+    </button>
+  ) : null;
+
+  const trail = trashed ? null : (
+    <div className="note-actions">
+      <button type="button" className={`icon-btn${note.pinned ? ' on' : ''}`} aria-pressed={note.pinned} aria-label={note.pinned ? 'Remove from Shortcuts' : 'Add to Shortcuts'} title={note.pinned ? 'Remove from Shortcuts' : 'Add to Shortcuts'} onClick={() => store.togglePin(note.id)}>
+        {note.pinned ? <IconStarFilled size={16} /> : <IconStar size={16} />}
+      </button>
+      <button type="button" className="icon-btn" aria-label="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+        <IconMore size={16} />
+      </button>
+      {menu && (
+        <Popover onClose={() => setMenu(false)} label="Note options">
+          <button
+            type="button"
+            className="menu-item danger"
+            onClick={() => {
+              setMenu(false);
+              store.trashNote(note.id);
+              if (narrow) onBack();
+            }}
+          >
+            <IconTrash size={14} /> Move to Trash
+          </button>
+        </Popover>
+      )}
+    </div>
+  );
+
+  const header = (
+    <>
+      {trashed && (
+        <div className="trash-banner" role="status">
+          <span>This note is in the Trash.</span>
+          <button type="button" className="btn" onClick={() => store.restoreNote(note.id)}>
+            <IconRestore size={14} /> Restore
+          </button>
+          <button type="button" className="btn danger" onClick={() => store.deleteForever(note.id)}>
+            Delete forever
+          </button>
+        </div>
+      )}
+      <textarea
+        ref={titleRef}
+        className="note-title"
+        aria-label="Title"
+        placeholder="Title"
+        rows={1}
+        value={note.title}
+        readOnly={trashed}
+        onChange={(e) => store.setTitle(note.id, e.target.value.replace(/\n/g, ' '))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.shiftKey)) {
+            e.preventDefault();
+            editorRef.current?.focusAt('start');
+          }
+        }}
+      />
+      <div className="note-meta">
+        <label className="nb-picker" title="Notebook">
+          {nb && <NotebookIcon color={nb.color} size={11} cut="var(--chip)" />}
+          <span className="visually-hidden">Notebook</span>
+          <select value={note.notebookId} disabled={trashed} onChange={(e) => store.moveNote(note.id, e.target.value)}>
+            {loose.map((n) => (
+              <option key={n.id} value={n.id}>
+                {n.name}
+              </option>
+            ))}
+            {stacks.map((s) => (
+              <optgroup key={s.name} label={s.name}>
+                {s.notebooks.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        {note.tags.map((t) => (
+          <span key={t} className="tag-chip">
+            #{t}
+            {!trashed && (
+              <button type="button" aria-label={`Remove tag ${t}`} onClick={() => store.removeTag(note.id, t)}>
+                ×
+              </button>
+            )}
+          </span>
+        ))}
+        {!trashed &&
+          (addingTag ? (
+            <InlineInput
+              label="New tag"
+              placeholder="tag"
+              list={knownTags}
+              onDone={(tag) => {
+                setAddingTag(false);
+                if (tag) store.addTag(note.id, tag);
+              }}
+            />
+          ) : (
+            <button type="button" className="add-tag" onClick={() => setAddingTag(true)}>
+              <IconTag size={12} /> Add tag
+            </button>
+          ))}
+      </div>
+    </>
+  );
+
+  const words = wordCount(note);
+  const footer = (
+    <p className="note-foot">
+      {words} word{words === 1 ? '' : 's'} · Edited {longTime(note.updatedAt)} · Created {longTime(note.createdAt)}
+    </p>
+  );
+
+  return (
+    <section className="pane" aria-label="Note">
+      <EditorHost
+        note={note}
+        readOnly={trashed}
+        lead={lead}
+        trail={trail}
+        header={header}
+        footer={footer}
+        onEditor={(ed) => {
+          editorRef.current = ed;
+        }}
+      />
+    </section>
+  );
+}

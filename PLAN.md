@@ -26,6 +26,12 @@ This is a clean restart: nothing is carried over from the previous Crumpet codeb
 3. **Word parity (v3)**: .docx import/export, comments, tracked changes.
 4. **Later**: blog post formatting, sharing, AI assist.
 
+## Status
+
+- **Notes app (v1)**: first version in `app/`: notebooks and stacks, tags, search, Shortcuts, Trash, settings, phone layout, notes saved on the device. Not yet: sync, images, desktop and mobile wrappers.
+- **Editor**: `packages/editor`, used by the app; lists, links, undo across devices.
+- **Sync**: works against a simulated server; needs a real backend.
+
 ## v1 scope: Notes
 
 - Create, edit and delete notes; trash with restore
