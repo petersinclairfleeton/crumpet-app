@@ -7,6 +7,9 @@
 // or stacks. Notes don't need a notebook; they can be filed later.
 
 import { makeBlock, type Doc } from '@crumpet/editor/model';
+import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
+import { matchIds } from '@crumpet/editor/diff';
+import type { Tree } from '../sync/tree';
 import type { Persisted, Storage } from './db';
 import { type Note, type Notebook, NOTEBOOK_COLORS, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
@@ -371,6 +374,69 @@ export class AppStore {
     this.reselectIfHidden();
   }
 
+  // ---------- sync ----------
+
+  /**
+   * Makes this device's notes, notebooks and stacks match a synced tree.
+   * Only what differs is replaced and saved; dates come from the tree.
+   */
+  applyTree(tree: Tree): void {
+    const { state } = this;
+    const stacks: Stack[] = Object.values(tree.stacks).map((t) => {
+      const cur = state.stacks.find((s) => s.id === t.id);
+      if (cur && cur.name === t.name && cur.createdAt === t.created) return cur;
+      const next: Stack = { id: t.id, name: t.name, createdAt: t.created };
+      this.save(this.storage.putStack(next));
+      return next;
+    });
+    const notebooks: Notebook[] = Object.values(tree.notebooks).map((t) => {
+      const cur = state.notebooks.find((n) => n.id === t.id);
+      if (cur && cur.name === t.name && cur.color === t.color && cur.stackId === t.stackId && cur.createdAt === t.created) return cur;
+      const next: Notebook = { id: t.id, name: t.name, color: t.color, stackId: t.stackId, createdAt: t.created };
+      this.save(this.storage.putNotebook(next));
+      return next;
+    });
+    const byId = new Map(state.notes.map((n) => [n.id, n]));
+    const notes: Note[] = Object.values(tree.notes).map((t) => {
+      const cur = byId.get(t.id);
+      const doc = cur && toMarkdown(cur.doc) === t.body ? cur.doc : matchIds(cur?.doc ?? emptyDoc(), fromMarkdown(t.body));
+      const next: Note = {
+        id: t.id,
+        notebookId: t.notebookId,
+        title: t.title,
+        doc,
+        tags: t.tags,
+        favorite: t.favorite,
+        createdAt: t.created,
+        updatedAt: t.updated,
+        trashedAt: t.trashed,
+        ...(t.extra ? { extra: t.extra } : {}),
+      };
+      if (cur && sameNoteRecord(cur, next)) return cur;
+      this.cancelSave(t.id);
+      this.save(this.storage.putNote(next));
+      return next;
+    });
+    for (const s of state.stacks) if (!tree.stacks[s.id]) this.save(this.storage.deleteStack(s.id));
+    for (const n of state.notebooks) if (!tree.notebooks[n.id]) this.save(this.storage.deleteNotebook(n.id));
+    for (const n of state.notes) {
+      if (tree.notes[n.id]) continue;
+      this.cancelSave(n.id);
+      this.save(this.storage.deleteNote(n.id));
+    }
+    // Keep the order things were in, with anything new at the end (notes: newest first).
+    const order = <T extends { id: string }>(prev: T[], next: T[]) => {
+      const pos = new Map(prev.map((x, i) => [x.id, i]));
+      return [...next].sort((a, b) => (pos.get(a.id) ?? Infinity) - (pos.get(b.id) ?? Infinity));
+    };
+    const newNotes = notes.filter((n) => !byId.has(n.id));
+    const kept = order(state.notes, notes.filter((n) => byId.has(n.id)));
+    let view = state.view;
+    if ((view.kind === 'notebook' && !tree.notebooks[view.id]) || (view.kind === 'stack' && !tree.stacks[view.id])) view = { kind: 'all' };
+    this.set({ stacks: order(state.stacks, stacks), notebooks: order(state.notebooks, notebooks), notes: [...newNotes, ...kept], view });
+    this.reselectIfHidden();
+  }
+
   // ---------- settings ----------
 
   updateSettings(patch: Partial<Settings>): void {
@@ -407,6 +473,21 @@ export class AppStore {
       if (note) this.save(this.storage.putNote(note));
     }
   }
+}
+
+function sameNoteRecord(a: Note, b: Note): boolean {
+  return (
+    a.doc === b.doc &&
+    a.notebookId === b.notebookId &&
+    a.title === b.title &&
+    a.tags.length === b.tags.length &&
+    a.tags.every((t, i) => t === b.tags[i]) &&
+    a.favorite === b.favorite &&
+    a.createdAt === b.createdAt &&
+    a.updatedAt === b.updatedAt &&
+    a.trashedAt === b.trashedAt &&
+    (a.extra ?? '') === (b.extra ?? '')
+  );
 }
 
 export function cleanTag(tag: string): string {

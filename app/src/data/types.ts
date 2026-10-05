@@ -29,6 +29,8 @@ export interface Note {
   updatedAt: number;
   /** When it was moved to Trash; null if not in Trash. */
   trashedAt: number | null;
+  /** Front matter from the note's file that Crumpet doesn't use, kept so syncing never drops it. */
+  extra?: string;
 }
 
 export type Theme = 'system' | 'light' | 'dark';
