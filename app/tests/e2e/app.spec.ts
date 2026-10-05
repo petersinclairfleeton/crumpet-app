@@ -271,17 +271,14 @@ test.describe('on a phone', () => {
   });
 });
 
-test('settings: notes start in this browser, and Google Drive can be connected', async ({ page }) => {
+test('settings: notes start on this device, with Google Drive one click away', async ({ page }) => {
   await open(page);
-  await sidebar(page).locator('.account').click();
-  const where = page.getByRole('group', { name: 'Where your notes live' });
-  await expect(where).toContainText('In this browser only');
   await expect(sidebar(page).locator('.side-foot')).toContainText('saved on this device');
-  await where.getByRole('button', { name: 'Connect Google Drive' }).click();
-  await expect(where.getByLabel('Folder in your Drive')).toHaveValue('Crumpet');
-  await expect(where.getByLabel('Google client ID')).toBeVisible();
-  await where.getByRole('button', { name: 'Cancel' }).click();
-  await expect(where.getByRole('button', { name: 'Connect Google Drive' })).toBeVisible();
+  await sidebar(page).getByRole('button', { name: 'Connect Google Drive' }).click();
+  const where = page.getByRole('group', { name: 'Where your notes live' });
+  await expect(where).toContainText('On this device only');
+  await expect(where.getByRole('button', { name: 'Continue with Google' })).toBeEnabled();
+  await expect(where).not.toContainText('client ID');
 });
 
 test('a synced change to the open note arrives without moving the caret', async ({ page }) => {

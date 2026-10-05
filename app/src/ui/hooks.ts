@@ -36,7 +36,7 @@ export function keep(key: string, value: unknown): void {
 
 export const SyncContext = createContext<SyncConnection | null>(null);
 
-const NO_SYNC: ConnectionState = { config: null, status: null, connecting: false };
+const NO_SYNC: ConnectionState = { config: null, status: null, connecting: false, choosing: null };
 
 /** The sync connection and its state (none in tests that don't provide one). */
 export function useSync(): { sync: SyncConnection | null; state: ConnectionState } {

@@ -149,7 +149,8 @@ input, select { font: inherit; color: inherit; }
 .stack-row:hover .row-more, .stack-row .row-more:focus-visible, .stack-row .row-more[aria-expanded='true'] { opacity: 1; }
 .stack { position: relative; }
 .side-heading { position: relative; }
-.side-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 6px 8px 0; font-size: 11px; color: var(--side-muted); }
+.side-foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 8px 0; font-size: 11px; color: var(--side-muted); }
+.foot-link { font-size: 11px; color: var(--accent); }
 
 /* ---- Popovers and menus ---- */
 .popover { position: absolute; z-index: 20; left: 8px; right: 8px; margin-top: 4px; padding: 6px; background: var(--page); color: var(--text); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 2px; min-width: 200px; }
@@ -176,6 +177,13 @@ input, select { font: inherit; color: inherit; }
 .sync-hint { color: var(--muted); }
 .sync-line.bad { color: var(--danger); }
 .sync-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn.google { height: 34px; padding: 0 14px; border-color: var(--line2); background: var(--page); color: var(--text); }
+.btn.google:hover:not(:disabled) { background: var(--field); }
+.sync-choices { display: flex; flex-direction: column; gap: 6px; }
+.sync-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border: 1px solid var(--line2); border-radius: 6px; background: var(--page); color: var(--text); text-align: left; cursor: pointer; }
+.sync-choice:hover:not(:disabled) { border-color: var(--accent); }
+.sync-choice b { font-size: 13px; }
+.sync-choice small { font-size: 12px; color: var(--muted); }
 .sync-settings a { color: var(--accent-ink, var(--accent)); }
 
 /* ---- Top bar ---- */

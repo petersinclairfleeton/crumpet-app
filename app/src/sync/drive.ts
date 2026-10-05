@@ -120,10 +120,14 @@ export class DriveProvider implements Provider {
 
   /** A folder directly inside the root, found or made. */
   async topFolder(name: string): Promise<string> {
+    return (await this.findTopFolder(name)) ?? this.folder(name);
+  }
+
+  /** A folder directly inside the root that Crumpet can see, if there is one. */
+  async findTopFolder(name: string): Promise<string | null> {
     const q = encodeURIComponent(`'${this.opts.rootId}' in parents and trashed = false and mimeType = '${FOLDER}' and name = '${name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`);
     const res = (await (await this.call(`${API}/files?q=${q}&fields=files(${FIELDS})&orderBy=createdTime`)).json()) as { files: DriveFile[] };
-    if (res.files[0]) return res.files[0].id;
-    return this.folder(name);
+    return res.files[0]?.id ?? null;
   }
 
   // ---- helpers
@@ -194,6 +198,11 @@ export class DriveProvider implements Provider {
 /** Finds the vault folder at the top of My Drive (one Crumpet made earlier, on any device), or makes it. */
 export async function findOrCreateFolder(name: string, getToken: DriveOptions['getToken'], fetchFn?: typeof fetch): Promise<string> {
   return new DriveProvider({ getToken, rootId: 'root', fetch: fetchFn }).topFolder(name);
+}
+
+/** The vault folder at the top of My Drive, if Crumpet made one earlier (on any device). */
+export async function findFolder(name: string, getToken: DriveOptions['getToken'], fetchFn?: typeof fetch): Promise<string | null> {
+  return new DriveProvider({ getToken, rootId: 'root', fetch: fetchFn }).findTopFolder(name);
 }
 
 function rev(f: DriveFile): string {

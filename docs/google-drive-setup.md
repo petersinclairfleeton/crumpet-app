@@ -1,75 +1,84 @@
-# Connecting Crumpet to Google Drive
+# Google Drive: one-time setup for whoever publishes Crumpet
 
-Crumpet keeps your notes as Markdown files in a folder in your own Google
-Drive. To talk to Drive, Crumpet needs a **Google OAuth client ID**: a public
-identifier that tells Google "this is Crumpet, running at this web address".
-You create it once in your own Google Cloud account, so nobody else holds the
-keys to your files. It takes about five minutes and costs nothing.
+People using Crumpet never see any of this. For them, connecting is:
 
-The client ID is not a secret (it sits in the web page), and there's no
-password or "client secret" to look after.
+1. **Continue with Google** (in Settings, or the "Connect Google Drive" link at
+   the bottom of the sidebar, or any link to Crumpet ending in `#connect`).
+2. Sign in to Google and allow Crumpet.
+3. Pick where the notes go: a new "Crumpet" folder, the Crumpet folder found
+   from another device, or **Choose a folder…** in Google's own folder picker.
 
-## 1. Create a project
+For that to work, Crumpet needs to be registered with Google once, by its
+publisher. It takes about 15 minutes and is free. Everything you copy below
+is a public value that ends up in the web page; none of it is a password.
 
-1. Go to <https://console.cloud.google.com/> and sign in with the Google account
-   whose Drive should hold your notes.
-2. In the project picker at the top, choose **New project**. Call it `Crumpet`
-   and create it. Make sure it's selected afterwards.
+## 1. A Google Cloud project
 
-## 2. Turn on the Drive API
+1. Go to <https://console.cloud.google.com/>, and in the project picker at the
+   top choose **New project**. Name it `Crumpet`, create it, and select it.
+2. **APIs & Services → Library**: enable **Google Drive API** and
+   **Google Picker API**.
 
-1. Open **APIs & Services → Library**.
-2. Search for **Google Drive API**, open it and click **Enable**.
+## 2. The sign-in screen people see
 
-## 3. Describe the app (consent screen)
+1. Open **Google Auth Platform** and click **Get started**.
+2. App name `Crumpet`, your support email, audience **External**, your contact
+   email. Create.
+3. **Data access → Add or remove scopes**: tick
+   `.../auth/drive.file` ("See, edit, create and delete only the specific Google
+   Drive files you use with this app"). Save.
+4. **Audience**: while testing, add your own Google address under **Test
+   users**. When you're ready for anyone to use it, press **Publish app**.
+   Crumpet asks only for `drive.file`, which Google treats as a non-sensitive
+   permission, so publishing doesn't need Google's security review.
 
-1. Open **Google Auth Platform** (in older consoles: **APIs & Services → OAuth
-   consent screen**) and click **Get started**.
-2. App name: `Crumpet`. Support email: your address.
-3. Audience: **External**.
-4. Contact email: your address. Agree and **Create**.
-5. Under **Audience → Test users**, add your own Google address (and anyone else
-   you want to let in while testing).
+## 3. The three values Crumpet needs
 
-While the app is in "Testing", Google shows a "Google hasn't verified this
-app" screen when you sign in. That's expected for your own app: choose
-**Continue**.
+1. **Client ID**: **Google Auth Platform → Clients → Create client**, type
+   **Web application**. Under **Authorised JavaScript origins** add:
+   - `https://petersinclairfleeton.github.io` (the published app)
+   - `http://localhost:5180` (running it on your computer)
 
-## 4. Create the client ID
+   Leave redirect URIs empty. Create, and copy the client ID
+   (`….apps.googleusercontent.com`).
+2. **API key** (for the folder picker): **APIs & Services → Credentials →
+   Create credentials → API key**. Edit it:
+   - Application restrictions: **Websites**, add
+     `https://petersinclairfleeton.github.io/*` and `http://localhost:5180/*`.
+   - API restrictions: **Google Picker API** only.
+3. **Project number**: **IAM & Admin → Settings** (or the project dashboard).
 
-1. Open **Clients** (or **Credentials → Create credentials → OAuth client ID**).
-2. Application type: **Web application**. Name: `Crumpet web`.
-3. Under **Authorised JavaScript origins**, add every address you open Crumpet
-   from, for example:
-   - `http://localhost:5180` (running it on your computer with `npm run dev`)
-   - your published address, e.g. `https://petersinclairfleeton.github.io`
+## 4. Give them to the app
 
-   Leave **Authorised redirect URIs** empty.
-4. **Create**, then copy the **Client ID** (it ends in
-   `.apps.googleusercontent.com`).
+For the published app (GitHub Pages):
 
-Google can take a few minutes to recognise a new origin.
+1. In the GitHub repository: **Settings → Pages → Source: GitHub Actions**.
+2. **Settings → Secrets and variables → Actions → Variables**, add:
+   - `GOOGLE_CLIENT_ID`: the client ID
+   - `GOOGLE_API_KEY`: the API key
+   - `GOOGLE_APP_ID`: the project number
+3. Every push to `main` publishes the app to
+   <https://petersinclairfleeton.github.io/crumpet-app/>. You can also run the
+   "Publish web app" workflow by hand from the **Actions** tab.
 
-## 5. Connect
-
-In Crumpet, open **Settings** (your name at the top of the sidebar) →
-**Where your notes live** → **Connect Google Drive**, paste the client ID,
-choose a folder name (default `Crumpet`) and press **Connect**.
-
-To build the client ID into your own copy instead, put it in `app/.env.local`:
+For running on your computer, put the same values in `app/.env.local`:
 
 ```
 VITE_GOOGLE_CLIENT_ID=1234-abcd.apps.googleusercontent.com
+VITE_GOOGLE_API_KEY=AIza...
+VITE_GOOGLE_APP_ID=123456789012
 ```
 
-## What Crumpet can see
+Google can take a few minutes to accept a newly added address.
 
-Crumpet asks only for the `drive.file` permission: it can see and change the
-files it created, on any of your devices, and nothing else in your Drive.
+## What Crumpet can see in someone's Drive
 
-One consequence: a brand-new file you add to the folder with another app or
-the Drive website isn't visible to Crumpet. Files Crumpet made can be edited,
-renamed and moved anywhere, by any app, and Crumpet picks the changes up.
+Only the `drive.file` permission: the files and folders Crumpet created, or
+that the person picked in Google's folder picker. Nothing else in their Drive.
+
+One consequence: a brand-new file that another app or the Drive website adds
+to the folder isn't visible to Crumpet. Files Crumpet made can be edited,
+renamed and moved by any app, and Crumpet picks the changes up.
 
 ## Where things go
 
@@ -88,8 +97,5 @@ Each note is Markdown with a short header (front matter) holding its title,
 tags and dates. Deleting a note in Crumpet moves its file to Drive's own bin,
 where it stays for 30 days.
 
-## It doesn't work in the preview page
-
-Google only signs you in on the addresses listed in step 4. The Crumpet
-preview published as a claude.ai artifact runs at an address you can't
-register, so connect from `localhost` or your own published copy.
+The claude.ai artifact preview of Crumpet can't sign in to Google: its address
+can't be registered in step 3.

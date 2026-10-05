@@ -7,7 +7,8 @@
 
 import type { Storage } from '../data/db';
 import type { AppStore } from '../data/store';
-import { DriveProvider, findOrCreateFolder } from './drive';
+import { DriveProvider, findFolder, findOrCreateFolder } from './drive';
+import { pickFolder } from './google-picker';
 import { SyncEngine, type SyncState, type SyncStatus } from './engine';
 import { GoogleAuth, SignInNeeded } from './google-auth';
 import { type Provider, ProviderError } from './provider';
@@ -26,17 +27,20 @@ export interface ConnectionState {
   status: SyncStatus | null;
   /** Connecting right now (signing in, finding the folder). */
   connecting: boolean;
+  /** Signed in to Google and choosing a folder; `existing` is a Crumpet folder found from before. */
+  choosing: { existing: { id: string; name: string } | null } | null;
 }
 
 const CONFIG = 'config';
 const STATE = 'state';
 const POLL_MS = 60_000;
+const DEFAULT_FOLDER = 'Crumpet';
 
-/** The Google OAuth client id built into this copy of Crumpet, if any (see docs/google-drive-setup.md). */
+/** Crumpet's Google OAuth client id, set when the app is built (see docs/google-drive-setup.md). Public, not a secret. */
 export const BUILT_IN_CLIENT_ID: string = (import.meta.env?.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '';
 
 export class SyncConnection {
-  private state: ConnectionState = { config: null, status: null, connecting: false };
+  private state: ConnectionState = { config: null, status: null, connecting: false, choosing: null };
   private listeners = new Set<() => void>();
   private engine: SyncEngine | null = null;
   private auth: GoogleAuth | null = null;
@@ -68,26 +72,59 @@ export class SyncConnection {
     if (config) this.start(config);
   }
 
-  /** Connects to Google Drive. Call from a click: it opens Google's sign-in window. */
-  async connectDrive(clientId: string, folderName: string): Promise<void> {
+  /**
+   * Step 1 of connecting Google Drive: signing in. Call from a click, as it
+   * opens Google's sign-in window. Then choose a folder with useFolder().
+   */
+  async signInToGoogle(): Promise<void> {
+    if (!BUILT_IN_CLIENT_ID) throw new ProviderError('Google sign-in isn’t set up in this copy of Crumpet.', 'other');
     this.set({ connecting: true });
     try {
-      const auth = new GoogleAuth(clientId.trim());
+      const auth = new GoogleAuth(BUILT_IN_CLIENT_ID);
       await auth.signIn().catch((e) => {
         throw new ProviderError(e instanceof Error ? e.message : String(e), 'auth');
       });
-      const name = folderName.trim() || 'Crumpet';
-      const folderId = await findOrCreateFolder(name, this.tokenFn(auth));
-      const config: DriveConfig = { kind: 'drive', clientId: clientId.trim(), folderName: name, folderId };
+      this.auth = auth;
+      const id = await findFolder(DEFAULT_FOLDER, this.tokenFn(auth));
+      this.set({ choosing: { existing: id ? { id, name: DEFAULT_FOLDER } : null } });
+    } finally {
+      this.set({ connecting: false });
+    }
+  }
+
+  /** Step 2: keep the notes in a folder: the one found, one picked, or a new "Crumpet" folder. */
+  async useFolder(folder: { id: string; name: string } | 'new'): Promise<void> {
+    const auth = this.auth;
+    if (!auth) throw new ProviderError('Sign in to Google first.', 'auth');
+    this.set({ connecting: true });
+    try {
+      const chosen = folder === 'new' ? { id: await findOrCreateFolder(DEFAULT_FOLDER, this.tokenFn(auth)), name: DEFAULT_FOLDER } : folder;
+      const config: DriveConfig = { kind: 'drive', clientId: auth.clientId, folderName: chosen.name, folderId: chosen.id };
       // A different folder means starting fresh: nothing agreed with it yet.
       const old = await this.storage.getSync<SyncConfig>(CONFIG);
-      if (!old || old.folderId !== folderId) await this.storage.deleteSync(STATE);
+      if (!old || old.folderId !== chosen.id) await this.storage.deleteSync(STATE);
       await this.storage.putSync(CONFIG, config);
-      this.auth = auth;
+      this.set({ choosing: null });
       this.start(config);
     } finally {
       this.set({ connecting: false });
     }
+  }
+
+  /** Opens Google's folder picker (call from a click). Picking a folder gives Crumpet access to it. */
+  async pickFolder(): Promise<void> {
+    if (!this.auth) throw new ProviderError('Sign in to Google first.', 'auth');
+    const folder = await pickFolder(await this.auth.getToken());
+    if (folder) await this.useFolder(folder);
+  }
+
+  /** Stops choosing a folder without connecting. */
+  cancelChoosing(): void {
+    if (!this.state.config) {
+      this.auth?.signOut();
+      this.auth = null;
+    }
+    this.set({ choosing: null });
   }
 
   /** Signs in again after Google asked (call from a click), then syncs. */

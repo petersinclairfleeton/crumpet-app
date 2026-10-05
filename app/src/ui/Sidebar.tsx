@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
 import { SyncSettings, statusText } from './SyncSettings';
+import { BUILT_IN_CLIENT_ID } from '../sync/connection';
 import { allTags, displayTitle, noteCounts, notebookTree, recentNotes, sameView } from '../data/selectors';
 import { ACCENTS, NOTEBOOK_COLORS, type Notebook, type Stack, type Theme, type View } from '../data/types';
 import { IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
@@ -18,8 +19,14 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
   const [collapsed, setCollapsed] = useState<string[]>(() => remember('collapsedStacks', []));
   const [tagsOpen, setTagsOpen] = useState<boolean>(() => remember('tagsOpen', false));
   const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack'>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // A link ending in #connect opens straight to connecting Google Drive.
+  const [settingsOpen, setSettingsOpen] = useState(() => typeof location !== 'undefined' && location.hash === '#connect');
   const { state: sync } = useSync();
+  useEffect(() => {
+    const onHash = () => location.hash === '#connect' && setSettingsOpen(true);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   const { loose, stacks } = notebookTree(state.stacks, state.notebooks);
   const counts = noteCounts(state.notes);
   const tags = allTags(state.notes);
@@ -158,6 +165,11 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
       <div className="side-foot">
         <Logo size={16} />
         <span role="status">{footText(state.temporary, sync)}</span>
+        {!state.temporary && !sync.config && BUILT_IN_CLIENT_ID && (
+          <button type="button" className="link-btn foot-link" onClick={() => setSettingsOpen(true)}>
+            Connect Google Drive
+          </button>
+        )}
       </div>
     </nav>
   );
