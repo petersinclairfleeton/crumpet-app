@@ -281,7 +281,7 @@ export function toggleMark(state: EditorState, mark: Mark): Transaction {
     if (s.to <= s.from) continue;
     const before: Run[] = sliceRuns(getBlock(b.doc, s.id).runs, s.from, s.to);
     const after = setMarkOnRuns(before, mark, on);
-    b.step({ type: 'format', block: s.id, offset: s.from, before, after });
+    b.step({ type: 'format', block: s.id, offset: s.from, before, after, mark, on });
   }
   return tx(state, b, state.selection);
 }

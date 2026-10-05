@@ -100,7 +100,7 @@ A filled accent circle with a few round "holes", like a crumpet. Used in the sid
 ## Risks
 
 - **Editor from scratch** is the largest and riskiest piece. Mitigation: build a throwaway prototype first, tested on iPhone, iPad, Mac and web, before anything else depends on it. Status: prototype started in `prototypes/editor` and passing in Chromium; real-device testing (Safari, iOS, Android, IMEs) is next.
-- **Sync conflicts**: two devices editing the same note offline. Must be solved in the operation model, not bolted on.
+- **Sync conflicts**: two devices editing the same note offline. Must be solved in the operation model, not bolted on. Status: first version in `prototypes/editor/src/sync` (server-ordered operations, devices rebase their pending edits); randomised three-device tests converge. Open: undo across other devices' edits, a real server and storage.
 - **Pagination (v2)** was the fragile part of the old Crumpet; design page layout as a separate layer over the document model, not inside the editor.
 
 ## Open questions

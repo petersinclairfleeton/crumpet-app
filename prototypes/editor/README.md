@@ -9,6 +9,7 @@ here is meant to ship as is.
 ```sh
 npm install
 npm run dev          # http://localhost:5173 (add ?fresh for the sample note, ?blank for an empty one)
+                     # http://localhost:5173/sync.html for the two-device sync demo
 npm test             # model and command unit tests
 npm run e2e          # browser tests (Chromium); set CHROMIUM_PATH if Playwright's browser isn't installed
 npm run typecheck
@@ -49,20 +50,56 @@ editors take. The alternative, a hidden text field with our own caret and text
 layout (as in Google Docs), would mean rebuilding selection, IME and accessibility
 too. That is far bigger and not justified until this approach is shown to fail.
 
+## Sync
+
+`src/sync/` holds a first version of syncing one note between devices, run against a
+server simulated in the page (`sync.html`: two editors side by side, each with an
+online/offline switch).
+
+- The **server** keeps one ordered list of operations and only accepts a batch built
+  on its latest version. Every device applies the same operations in the same order,
+  so every device ends up with the same note.
+- Each **device** keeps the last version the server confirmed plus its own edits the
+  server hasn't accepted yet. When other devices' edits arrive, it rewrites its own
+  pending edits to sit on top of them (`src/sync/transform.ts`): every position is
+  mapped back through its own earlier edits, forward through the other devices'
+  edits, then forward through its own rewritten edits. Positions inside text it typed
+  offline are remembered across that round trip, so formatting and further typing stay
+  attached to that text. The data each edit carries is then re-read from the note it
+  will apply to. Formatting ops record their intent ("bold on"), so they can be
+  re-applied to text that changed underneath them.
+- The caret is moved the same way, so it stays next to the same text when others'
+  edits arrive.
+
+Limits for now: undo history is cleared whenever another device's edits arrive
+(undo across other people's edits is a known hard problem we haven't tackled), each
+keystroke is a separate operation (no compression yet), and there is no real server,
+storage or network.
+
 ## What is proven so far
 
-- 13 unit tests, including a randomised test of 3,000 edits that checks every
-  transaction can be undone back to exactly the previous document.
-- 13 browser tests in Chromium driving real key events: typing, Enter/Backspace
+- 62 unit tests:
+  - Editing commands, plus a randomised test of 3,000 edits that checks every
+    transaction can be undone back to exactly the previous document.
+  - Seven sync conflict scenarios (simultaneous typing, formatting across a split the
+    other device made, typing into a paragraph the other device merged away, bold on
+    text typed offline, deleting around the other device's insert, and more), and caret
+    placement after a sync.
+  - A randomised sync test: three devices making 600 random edits while randomly going
+    offline and online, over 40 seeds. Every run ends with all devices identical and no
+    edit dropped.
+- 15 browser tests in Chromium driving real key events: typing, Enter/Backspace
   across blocks, shortcuts, formatting across blocks, markdown shortcuts,
   checklists, undo/redo, replacing a cross-block selection, word deletion, paste,
   emoji deletion, and IME composition (simulated Japanese input). Each test also
   checks that the page still shows exactly what the model holds, and one checks
-  that the device-test recorder notices when it doesn't.
+  that the device-test recorder notices when it doesn't. Two more drive the sync page:
+  live typing reaching the other device, and offline edits on both devices merging.
 
 ## Testing on real devices
 
-`npm run build:single` makes `dist-single/index.html`, one self-contained page that can be
+`npm run build:single` makes `dist-single/index.html` (the editor) and
+`dist-single-sync/sync.html` (the sync demo), each one self-contained page that can be
 opened on any device. The debug panel's **Device test** section records every keyboard,
 input and composition event, marks which ones the editor handled, and checks after each
 one that the page still matches the model. Anything that slips past shows up as a
@@ -83,5 +120,5 @@ These are the main risks, and automated Chromium on Linux can't cover them:
 ## Known gaps (deliberate for now)
 
 Nested lists, links, images, tables, rich paste (formatting is dropped on paste),
-drag and drop, soft line breaks, large-document performance, and any sync between
-devices.
+drag and drop, soft line breaks, large-document performance, a real sync server and
+storage, and undo across other devices' edits.

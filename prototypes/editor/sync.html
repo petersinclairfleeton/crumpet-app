@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crumpet sync prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/src/styles.css">
+<link rel="stylesheet" href="/src/sync.css">
+</head>
+<body>
+<div class="sync-page">
+  <header class="sync-header">
+    <h1>Two devices, one note</h1>
+    <p>Edit either side. Turn a device offline, edit both, then bring it back online: both end up identical, with each person’s edits where they made them.</p>
+    <p class="server" id="server">Server: version 0</p>
+  </header>
+  <div class="devices">
+    <section class="device" id="mac" aria-label="Mac">
+      <div class="device-bar">
+        <h2>Mac</h2>
+        <span class="state" data-state></span>
+        <label class="switch"><input type="checkbox" data-online checked> Online</label>
+      </div>
+      <div class="device-note"><div data-editor aria-label="Note on Mac"></div></div>
+    </section>
+    <section class="device" id="phone" aria-label="iPhone">
+      <div class="device-bar">
+        <h2>iPhone</h2>
+        <span class="state" data-state></span>
+        <label class="switch"><input type="checkbox" data-online checked> Online</label>
+      </div>
+      <div class="device-note"><div data-editor aria-label="Note on iPhone"></div></div>
+    </section>
+  </div>
+</div>
+<script type="module" src="/src/sync-main.ts"></script>
+</body>
+</html>

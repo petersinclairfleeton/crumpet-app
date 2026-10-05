@@ -40,7 +40,7 @@ import { View } from './view';
 
 export interface ChangeEvent {
   ops: Op[];
-  source: 'input' | 'undo' | 'redo' | 'native' | 'command';
+  source: 'input' | 'undo' | 'redo' | 'native' | 'command' | 'remote';
 }
 
 type Listener = (state: EditorState, change: ChangeEvent | null) => void;
@@ -100,6 +100,24 @@ export class Editor {
   private applyHistory(step: { ops: Op[]; selection: Selection } | null, source: 'undo' | 'redo'): void {
     if (!step) return;
     this.dispatch({ ops: step.ops, selectionBefore: this.state.selection, selectionAfter: step.selection }, source, false);
+  }
+
+  get isComposing(): boolean {
+    return this.composing !== null;
+  }
+
+  /**
+   * Shows a document that changed because of another device. The caret is moved
+   * so it stays next to the same text. Undo history is cleared: undoing across
+   * other people's edits is not solved in this prototype.
+   */
+  applyRemote(doc: Doc, mapSelection: (sel: Selection) => Selection): void {
+    this.state = { doc, selection: mapSelection(this.state.selection), storedMarks: this.state.storedMarks };
+    this.history.clear();
+    this.view.render(doc);
+    // Only touch the page selection if this editor has focus; otherwise we would steal it from wherever the person is.
+    if (this.view.root.ownerDocument.activeElement === this.view.root) this.view.writeSelection(this.state.selection);
+    this.emit({ ops: [], source: 'remote' });
   }
 
   /** Replaces the whole document (e.g. "reset sample"), clearing history. */

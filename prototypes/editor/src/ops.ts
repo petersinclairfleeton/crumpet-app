@@ -6,6 +6,7 @@ import {
   type BlockAttrs,
   type BlockType,
   type Doc,
+  type Mark,
   type Run,
   blockIndex,
   insertRuns,
@@ -27,8 +28,8 @@ export type Op =
   | { type: 'join'; block: string; second: string; offset: number; secondAttrs: BlockAttrs }
   /** Change a block's type/attributes. */
   | { type: 'setAttrs'; block: string; from: BlockAttrs; to: BlockAttrs }
-  /** Replace formatting on a span; `before` and `after` hold the same text. */
-  | { type: 'format'; block: string; offset: number; before: Run[]; after: Run[] };
+  /** Replace formatting on a span; `before` and `after` hold the same text. `mark`/`on` record the intent, for sync. */
+  | { type: 'format'; block: string; offset: number; before: Run[]; after: Run[]; mark: Mark; on: boolean };
 
 export class OpError extends Error {}
 
@@ -102,7 +103,7 @@ export function invertOp(op: Op): Op {
     case 'setAttrs':
       return { type: 'setAttrs', block: op.block, from: op.to, to: op.from };
     case 'format':
-      return { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before };
+      return { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, mark: op.mark, on: !op.on };
   }
 }
 

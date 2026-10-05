@@ -1,0 +1,16 @@
+.sync-page { min-height: 100vh; background: var(--list); padding-block: 24px 48px; padding-inline: 16px; }
+.sync-header { max-width: 1100px; margin: 0 auto 20px; }
+.sync-header h1 { margin: 0 0 6px; font-size: 24px; font-weight: 800; letter-spacing: -0.3px; text-wrap: balance; }
+.sync-header p { margin: 0; max-width: 65ch; color: var(--text2); line-height: 1.5; }
+.sync-header .server { margin-top: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.devices { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.device { min-width: 0; background: var(--page); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.device-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.device-bar h2 { margin: 0; font-size: 14px; font-weight: 800; }
+.device-bar .state { flex-grow: 1; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.device-bar .state.offline { color: var(--accent-ink); font-weight: 700; }
+.switch { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; min-height: 32px; }
+.switch input { width: 16px; height: 16px; accent-color: var(--accent); }
+.device-note { padding: 20px 22px 32px; }
+.device-note .editor { min-height: 280px; }
+.device:focus-within { border-color: var(--accent); }
