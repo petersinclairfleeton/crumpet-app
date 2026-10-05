@@ -3,7 +3,7 @@
 
 import { runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
-import type { Note, Notebook, View } from './types';
+import type { Note, Notebook, Stack, View } from './types';
 
 /** Plain text of a note's body, one line per block. */
 export function noteText(note: Note): string {
@@ -38,14 +38,17 @@ export function matches(note: Note, query: string, notebookName = ''): boolean {
 export function listedNotes(state: AppState): Note[] {
   if (!state.query.trim()) return visibleIn(state, state.view);
   const names = new Map(state.notebooks.map((n) => [n.id, n.name]));
-  return visibleIn(state, { kind: 'all' }).filter((n) => matches(n, state.query, names.get(n.notebookId)));
+  return visibleIn(state, { kind: 'all' }).filter((n) => matches(n, state.query, names.get(n.notebookId ?? '')));
 }
 
-/** Notebooks and stacks whose names match the search, to jump straight to. */
+/** Notebooks whose name, or whose stack's name, matches the search, to jump straight to. */
 export function matchingNotebooks(state: AppState): Notebook[] {
   const words = state.query.toLowerCase().split(/\s+/).filter(Boolean);
   if (!words.length) return [];
-  return state.notebooks.filter((nb) => words.every((w) => nb.name.toLowerCase().includes(w) || (nb.stack ?? '').toLowerCase().includes(w))).slice(0, 5);
+  const stackName = new Map(state.stacks.map((s) => [s.id, s.name.toLowerCase()]));
+  return state.notebooks
+    .filter((nb) => words.every((w) => nb.name.toLowerCase().includes(w) || (stackName.get(nb.stackId ?? '') ?? '').includes(w)))
+    .slice(0, 5);
 }
 
 export interface Group {
@@ -94,24 +97,24 @@ export function longTime(t: number): string {
   return new Date(t).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-export interface Stack {
-  name: string;
+export interface StackNode {
+  stack: Stack;
   notebooks: Notebook[];
 }
 
-/** Sidebar tree: notebooks outside stacks first (Inbox at the top), then stacks, all by name. */
-export function notebookTree(notebooks: Notebook[]): { loose: Notebook[]; stacks: Stack[] } {
-  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-  const loose = notebooks.filter((n) => !n.stack).sort(byName);
-  const map = new Map<string, Notebook[]>();
-  for (const nb of notebooks) if (nb.stack) map.set(nb.stack, [...(map.get(nb.stack) ?? []), nb]);
-  const stacks = [...map.entries()].map(([name, nbs]) => ({ name, notebooks: nbs.sort(byName) })).sort(byName);
-  return { loose, stacks };
+const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+
+/** Sidebar tree: notebooks outside stacks, then every stack (empty ones too) with its notebooks, all by name. */
+export function notebookTree(stacks: Stack[], notebooks: Notebook[]): { loose: Notebook[]; stacks: StackNode[] } {
+  const ids = new Set(stacks.map((s) => s.id));
+  const loose = notebooks.filter((n) => !n.stackId || !ids.has(n.stackId)).sort(byName);
+  const nodes = [...stacks].sort(byName).map((stack) => ({ stack, notebooks: notebooks.filter((n) => n.stackId === stack.id).sort(byName) }));
+  return { loose, stacks: nodes };
 }
 
 export function noteCounts(notes: Note[]): Map<string, number> {
   const m = new Map<string, number>();
-  for (const n of notes) if (n.trashedAt === null) m.set(n.notebookId, (m.get(n.notebookId) ?? 0) + 1);
+  for (const n of notes) if (n.trashedAt === null && n.notebookId) m.set(n.notebookId, (m.get(n.notebookId) ?? 0) + 1);
   return m;
 }
 
@@ -125,27 +128,27 @@ export function recentNotes(notes: Note[], n = 3): Note[] {
   return notes.filter((x) => x.trashedAt === null).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, n);
 }
 
-export function viewTitle(view: View, notebooks: Notebook[]): string {
+export function viewTitle(view: View, state: Pick<AppState, 'notebooks' | 'stacks'>): string {
   switch (view.kind) {
     case 'all':
       return 'All Notes';
-    case 'shortcuts':
-      return 'Shortcuts';
+    case 'favorites':
+      return 'Favorites';
     case 'trash':
       return 'Trash';
     case 'tag':
       return `#${view.tag}`;
     case 'stack':
-      return view.name;
+      return state.stacks.find((s) => s.id === view.id)?.name ?? 'Stack';
     case 'notebook':
-      return notebooks.find((n) => n.id === view.id)?.name ?? 'Notebook';
+      return state.notebooks.find((n) => n.id === view.id)?.name ?? 'Notebook';
   }
 }
 
 export function sameView(a: View, b: View): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === 'notebook' && b.kind === 'notebook') return a.id === b.id;
-  if (a.kind === 'stack' && b.kind === 'stack') return a.name === b.name;
+  if (a.kind === 'stack' && b.kind === 'stack') return a.id === b.id;
   if (a.kind === 'tag' && b.kind === 'tag') return a.tag === b.tag;
   return true;
 }

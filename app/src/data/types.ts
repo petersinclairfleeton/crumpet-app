@@ -1,23 +1,30 @@
 import type { Doc } from '@crumpet/editor/model';
 
+export interface Stack {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
 export interface Notebook {
   id: string;
   name: string;
   /** One of NOTEBOOK_COLORS. */
   color: string;
-  /** Name of the stack this notebook sits in, or null for none. */
-  stack: string | null;
+  /** The stack this notebook sits in, or null for none. */
+  stackId: string | null;
   createdAt: number;
 }
 
 export interface Note {
   id: string;
-  notebookId: string;
+  /** The notebook it's in, or null for a note that isn't in any notebook. */
+  notebookId: string | null;
   title: string;
   doc: Doc;
   tags: string[];
-  /** Shown under Shortcuts. */
-  pinned: boolean;
+  /** Shown under Favorites. */
+  favorite: boolean;
   createdAt: number;
   updatedAt: number;
   /** When it was moved to Trash; null if not in Trash. */
@@ -31,14 +38,16 @@ export interface Settings {
   accent: string;
   theme: Theme;
   listStyle: 'cards' | 'table';
+  /** Version of one-off data clean-ups already applied to this device's notes. */
+  dataVersion?: number;
 }
 
 /** What the note list is showing. */
 export type View =
   | { kind: 'all' }
-  | { kind: 'shortcuts' }
+  | { kind: 'favorites' }
   | { kind: 'notebook'; id: string }
-  | { kind: 'stack'; name: string }
+  | { kind: 'stack'; id: string }
   | { kind: 'tag'; tag: string }
   | { kind: 'trash' };
 

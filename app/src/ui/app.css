@@ -139,7 +139,16 @@ input, select { font: inherit; color: inherit; }
 .nb-row:hover .count, .nb-row:focus-within .count { display: none; }
 .nb { position: relative; }
 .tag-list { display: flex; flex-direction: column; }
-.side-empty { margin: 2px 8px 4px 28px; color: var(--side-muted); font-size: 12px; }
+.side-empty { margin: 2px 8px 6px; color: var(--side-muted); font-size: 12px; line-height: 1.45; }
+.side-empty p { margin: 0 0 4px; }
+.side-empty.indent { margin-left: 28px; }
+.side-link { border: none; background: none; padding: 2px 0; color: var(--side-text); font-size: 12.5px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; text-align: left; }
+.side-link.indent { margin: 0 0 4px 34px; color: var(--side-muted); }
+.stack-input { padding-left: 22px; }
+.stack-row .row-more { opacity: 0; width: 22px; height: 22px; }
+.stack-row:hover .row-more, .stack-row .row-more:focus-visible, .stack-row .row-more[aria-expanded='true'] { opacity: 1; }
+.stack { position: relative; }
+.side-heading { position: relative; }
 .side-foot { margin-top: auto; display: flex; align-items: center; gap: 8px; padding: 6px 8px 0; font-size: 11px; color: var(--side-muted); }
 
 /* ---- Popovers and menus ---- */
@@ -153,7 +162,7 @@ input, select { font: inherit; color: inherit; }
 .menu-confirm p { margin: 0; line-height: 1.45; }
 .inline-input { padding: 2px 4px; }
 .inline-input input { width: 100%; height: 30px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); }
-.sidebar > .side-section > .inline-input input { background: var(--side-hover); border-color: transparent; color: var(--side-text); }
+.sidebar > .side-section > .inline-input input, .stack-input .inline-input input { background: var(--side-hover); border-color: transparent; color: var(--side-text); }
 .settings { display: flex; flex-direction: column; gap: 12px; padding: 6px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > span { font-size: 12px; font-weight: 700; color: var(--text2); }
@@ -253,7 +262,7 @@ input, select { font: inherit; color: inherit; }
   .side-row, .side-row .row-main { min-height: 40px; font-size: 15px; }
   .side-row.strong { font-size: 15px; }
   .new-note { min-height: 44px; font-size: 15px; }
-  .nb-row .row-more { opacity: 1; width: 36px; height: 36px; }
+  .nb-row .row-more, .stack-row .row-more { opacity: 1; width: 36px; height: 36px; }
   .nb-row:hover .count { display: inline; }
   .topbar { padding-top: env(safe-area-inset-top, 0px); gap: 6px; padding-left: 8px; padding-right: 8px; }
   .menu-btn, .new-btn { display: inline-flex; width: 40px; height: 40px; }

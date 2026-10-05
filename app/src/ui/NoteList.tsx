@@ -20,7 +20,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
   const nb = state.view.kind === 'notebook' ? store.notebook(state.view.id) : undefined;
   const style = state.settings.listStyle;
   const jumps = searching ? matchingNotebooks(state) : [];
-  const title = searching ? 'Search results' : viewTitle(state.view, state.notebooks);
+  const title = searching ? 'Search results' : viewTitle(state.view, state);
 
   return (
     <section className="list" aria-label="Notes">
@@ -113,8 +113,8 @@ function Card({ note, selected, now, trash, showNotebook, onOpen }: { note: Note
     <button type="button" className={`card${selected ? ' selected' : ''}`} aria-current={selected ? 'true' : undefined} onClick={onOpen}>
       <span className="card-top">
         <span className="card-title ellipsis">{displayTitle(note)}</span>
-        {note.pinned && !trash && (
-          <span className="pin" title="In Shortcuts">
+        {note.favorite && !trash && (
+          <span className="pin" title="In Favorites">
             <IconStar size={11} />
           </span>
         )}
@@ -149,8 +149,10 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
   } else if (view.kind === 'trash') {
     text = 'The Trash is empty.';
     action = false;
-  } else if (view.kind === 'shortcuts') text = 'Star a note to keep it here.';
+  } else if (view.kind === 'favorites') text = 'Star a note to keep it in Favorites.';
+  else if (view.kind === 'stack') text = 'No notes in this stack’s notebooks yet.';
   else if (view.kind === 'tag') text = 'No notes have this tag any more.';
+  else if (view.kind === 'all') text = 'No notes yet. Write your first one, then file it in a notebook whenever you like.';
   else text = 'No notes here yet.';
   return (
     <div className="empty">

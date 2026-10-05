@@ -3,12 +3,13 @@
 // If it can't be opened (some private-browsing modes), the store falls back to
 // memory and the app says so, rather than silently losing work.
 
-import type { Note, Notebook, Settings } from './types';
+import type { Note, Notebook, Settings, Stack } from './types';
 
 const DB_NAME = 'crumpet';
-const VERSION = 1;
+const VERSION = 2;
 
 export interface Persisted {
+  stacks: Stack[];
   notebooks: Notebook[];
   notes: Note[];
   settings: Settings | null;
@@ -20,6 +21,8 @@ export interface Storage {
   deleteNote(id: string): Promise<void>;
   putNotebook(nb: Notebook): Promise<void>;
   deleteNotebook(id: string): Promise<void>;
+  putStack(stack: Stack): Promise<void>;
+  deleteStack(id: string): Promise<void>;
   putSettings(s: Settings): Promise<void>;
   /** True when changes are only kept in memory. */
   readonly temporary: boolean;
@@ -40,6 +43,7 @@ function open(name: string): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('notebooks')) db.createObjectStore('notebooks', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
+      if (!db.objectStoreNames.contains('stacks')) db.createObjectStore('stacks', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -52,13 +56,14 @@ class IdbStorage implements Storage {
   constructor(private db: IDBDatabase) {}
 
   async load(): Promise<Persisted> {
-    const tx = this.db.transaction(['notes', 'notebooks', 'settings'], 'readonly');
-    const [notes, notebooks, settings] = await Promise.all([
+    const tx = this.db.transaction(['notes', 'notebooks', 'stacks', 'settings'], 'readonly');
+    const [notes, notebooks, stacks, settings] = await Promise.all([
       request(tx.objectStore('notes').getAll() as IDBRequest<Note[]>),
       request(tx.objectStore('notebooks').getAll() as IDBRequest<Notebook[]>),
+      request(tx.objectStore('stacks').getAll() as IDBRequest<Stack[]>),
       request(tx.objectStore('settings').get('settings') as IDBRequest<Settings | undefined>),
     ]);
-    return { notes, notebooks, settings: settings ?? null };
+    return { notes, notebooks, stacks, settings: settings ?? null };
   }
 
   private async write(store: string, fn: (s: IDBObjectStore) => IDBRequest): Promise<void> {
@@ -86,6 +91,12 @@ class IdbStorage implements Storage {
   putSettings(settings: Settings) {
     return this.write('settings', (s) => s.put(settings, 'settings'));
   }
+  putStack(stack: Stack) {
+    return this.write('stacks', (s) => s.put(stack));
+  }
+  deleteStack(id: string) {
+    return this.write('stacks', (s) => s.delete(id));
+  }
 }
 
 /** Keeps everything in memory only. Used when IndexedDB is unavailable, and in tests. */
@@ -93,9 +104,16 @@ export class MemoryStorage implements Storage {
   readonly temporary = true;
   notes = new Map<string, Note>();
   notebooks = new Map<string, Notebook>();
+  stacks = new Map<string, Stack>();
   settings: Settings | null = null;
   async load(): Promise<Persisted> {
-    return { notes: [...this.notes.values()], notebooks: [...this.notebooks.values()], settings: this.settings };
+    return { notes: [...this.notes.values()], notebooks: [...this.notebooks.values()], stacks: [...this.stacks.values()], settings: this.settings };
+  }
+  async putStack(s: Stack) {
+    this.stacks.set(s.id, s);
+  }
+  async deleteStack(id: string) {
+    this.stacks.delete(id);
   }
   async putNote(n: Note) {
     this.notes.set(n.id, n);

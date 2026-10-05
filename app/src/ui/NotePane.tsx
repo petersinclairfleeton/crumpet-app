@@ -3,7 +3,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
 import { allTags, longTime, notebookTree, wordCount } from '../data/selectors';
 import { EditorHost } from './EditorHost';
-import { IconBack, IconMore, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconBack, IconMore, IconNotebook, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
 export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }) {
@@ -40,7 +40,7 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
 
   const trashed = note.trashedAt !== null;
   const nb = store.notebook(note.notebookId);
-  const { loose, stacks } = notebookTree(state.notebooks);
+  const { loose, stacks } = notebookTree(state.stacks, state.notebooks);
   const knownTags = allTags(state.notes).map((t) => t.tag).filter((t) => !note.tags.includes(t));
 
   const lead = narrow ? (
@@ -51,8 +51,8 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
 
   const trail = trashed ? null : (
     <div className="note-actions">
-      <button type="button" className={`icon-btn${note.pinned ? ' on' : ''}`} aria-pressed={note.pinned} aria-label={note.pinned ? 'Remove from Shortcuts' : 'Add to Shortcuts'} title={note.pinned ? 'Remove from Shortcuts' : 'Add to Shortcuts'} onClick={() => store.togglePin(note.id)}>
-        {note.pinned ? <IconStarFilled size={16} /> : <IconStar size={16} />}
+      <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} title={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} onClick={() => store.toggleFavorite(note.id)}>
+        {note.favorite ? <IconStarFilled size={16} /> : <IconStar size={16} />}
       </button>
       <button type="button" className="icon-btn" aria-label="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>
         <IconMore size={16} />
@@ -106,16 +106,17 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
       />
       <div className="note-meta">
         <label className="nb-picker" title="Notebook">
-          {nb && <NotebookIcon color={nb.color} size={11} cut="var(--chip)" />}
+          {nb ? <NotebookIcon color={nb.color} size={11} cut="var(--chip)" /> : <IconNotebook size={12} />}
           <span className="visually-hidden">Notebook</span>
-          <select value={note.notebookId} disabled={trashed} onChange={(e) => store.moveNote(note.id, e.target.value)}>
+          <select value={note.notebookId ?? ''} disabled={trashed} onChange={(e) => store.moveNote(note.id, e.target.value || null)}>
+            <option value="">No notebook</option>
             {loose.map((n) => (
               <option key={n.id} value={n.id}>
                 {n.name}
               </option>
             ))}
-            {stacks.map((s) => (
-              <optgroup key={s.name} label={s.name}>
+            {stacks.filter((s) => s.notebooks.length).map((s) => (
+              <optgroup key={s.stack.id} label={s.stack.name}>
                 {s.notebooks.map((n) => (
                   <option key={n.id} value={n.id}>
                     {n.name}

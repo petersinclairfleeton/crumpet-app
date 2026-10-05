@@ -28,7 +28,7 @@ This is a clean restart: nothing is carried over from the previous Crumpet codeb
 
 ## Status
 
-- **Notes app (v1)**: first version in `app/`: notebooks and stacks, tags, search, Shortcuts, Trash, settings, phone layout, notes saved on the device. Not yet: sync, images, desktop and mobile wrappers.
+- **Notes app (v1)**: first version in `app/`: notebooks and stacks (all created by the person; it starts empty), tags, search, Favorites, Trash, settings, phone layout, notes saved on the device. Not yet: sync, images, desktop and mobile wrappers.
 - **Editor**: `packages/editor`, used by the app; lists, links, undo across devices.
 - **Sync**: works against a simulated server; needs a real backend.
 
@@ -38,7 +38,8 @@ This is a clean restart: nothing is carried over from the previous Crumpet codeb
 - Notebooks, stacks of notebooks, and tags
 - Full-text search
 - Rich text: headings, bold/italic/underline/strike, lists, checklists, links, quotes, code, images
-- Shortcuts (pinned notes and notebooks), a colour per notebook, a featured image per note
+- Favorites (starred notes), a colour per notebook, a featured image per note
+- Starts empty: the person creates every notebook and stack; notes don't have to be in a notebook
 - Account sign-in; offline editing; sync across all four platforms
 - Light and dark themes, user-selectable accent colour
 
@@ -79,14 +80,14 @@ Softly rounded, never bubbly: sidebar rows 4 px, chips 4 px, buttons and fields 
 
 ### Desktop layout (Mac / web)
 
-1. **Sidebar** (Evernote order, tight ~23 px rows): account with avatar and menu → round accent "+ New Note" (⌘N) → Recent Notes (3) → All Notes, Shortcuts → Notebooks: stacks with disclosure triangles (e.g. 0 Inbox, 1 Projects, 2 Areas, 3 Resources, 4 Archive), each notebook with its coloured icon and count → Tags → Trash → logo and sync status at the bottom.
+1. **Sidebar** (Evernote order, tight ~23 px rows): account with avatar and menu → round accent "+ New Note" → Recent Notes (3) → All Notes, Favorites → Notebooks: the person's own stacks with disclosure triangles and their notebooks, each notebook with its coloured icon and count; a + to create a notebook or a stack → Tags → Trash → logo and sync status at the bottom.
 2. **Top bar**: notebook breadcrumb, centred ⌘K "Search or jump to…" field, Share button.
 3. **Note list**: notebook name with its colour, note count, Cards / Table switch. Cards are grouped by date (Today, This week, then month). Each card: featured-image thumbnail on the left (52 px) when the note has one, bold title and time, two-line preview, first tag. The selected card is white with a 1.5 px accent ring. Table view keeps the classic Created / Title / Notebook / Size columns.
 4. **Note**: formatting toolbar with "Edited" time; optional cover image (the note's featured image) with "Change cover"; large title; chips for notebook, tags and "+ tag"; body with callout blocks (accent tint), checklists, inline images with captions; word count and reading time at the end.
 
 ### iPhone
 
-- **List**: back link to the stack, notebook title with colour, search within the notebook, date-grouped cards with left thumbnails (56 px). A floating slate tab bar (Notes, Notebooks, Shortcuts, Search) and a separate accent "+" button.
+- **List**: back link to the stack, notebook title with colour, search within the notebook, date-grouped cards with left thumbnails (56 px). A floating slate tab bar (Notes, Notebooks, Favorites, Search) and a separate accent "+" button.
 - **Note**: back link, Share and More, cover image, title, notebook and tag chips, body. A floating formatting bar sits above the keyboard (style, bold, italic, checklist, image, tag, hide keyboard). Touch targets at least 44 px.
 - **iPad**: not designed yet; uses the desktop layout with taller rows for touch.
 

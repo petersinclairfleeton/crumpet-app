@@ -1,16 +1,20 @@
 // The app's state and every action on it. Components read a snapshot through
-// useStore() and call actions; the store saves changes in the background.
+// useAppState() and call actions; the store saves changes in the background.
 // Note bodies are saved a moment after typing pauses (and immediately when the
 // page is hidden or closed), everything else straight away.
+//
+// Nothing is created for the person: a new Crumpet starts with no notebooks
+// or stacks. Notes don't need a notebook; they can be filed later.
 
 import { makeBlock, type Doc } from '@crumpet/editor/model';
-import type { Storage } from './db';
-import { type Note, type Notebook, NOTEBOOK_COLORS, type Settings, TRASH_DAYS, type View } from './types';
+import type { Persisted, Storage } from './db';
+import { type Note, type Notebook, NOTEBOOK_COLORS, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
 export interface AppState {
   ready: boolean;
   /** Changes are only kept in memory (the browser refused storage). */
   temporary: boolean;
+  stacks: Stack[];
   notebooks: Notebook[];
   notes: Note[];
   settings: Settings;
@@ -20,6 +24,9 @@ export interface AppState {
 }
 
 export const DEFAULT_SETTINGS: Settings = { name: '', accent: '#D4A257', theme: 'system', listStyle: 'cards' };
+
+/** Bumped when a one-off clean-up of saved data is added to `upgrade()`. */
+export const DATA_VERSION = 2;
 
 const SAVE_DELAY_MS = 500;
 const DAY = 24 * 60 * 60 * 1000;
@@ -36,6 +43,7 @@ export class AppStore {
   private state: AppState = {
     ready: false,
     temporary: false,
+    stacks: [],
     notebooks: [],
     notes: [],
     settings: DEFAULT_SETTINGS,
@@ -65,8 +73,12 @@ export class AppStore {
     return id ? this.state.notes.find((n) => n.id === id) : undefined;
   }
 
-  notebook(id: string): Notebook | undefined {
-    return this.state.notebooks.find((n) => n.id === id);
+  notebook(id: string | null): Notebook | undefined {
+    return id ? this.state.notebooks.find((n) => n.id === id) : undefined;
+  }
+
+  stack(id: string | null): Stack | undefined {
+    return id ? this.state.stacks.find((s) => s.id === id) : undefined;
   }
 
   /** Saves that have failed (shown to the person; 0 normally). */
@@ -89,18 +101,74 @@ export class AppStore {
 
   // ---------- loading ----------
 
-  /** Loads saved data. `seed` fills an empty first run with example notebooks and notes. */
-  async load(seed?: (store: AppStore) => void): Promise<void> {
-    const data = await this.storage.load();
-    const settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) };
+  async load(): Promise<void> {
+    const data = this.upgrade(await this.storage.load());
     // Empty the Trash of anything older than 30 days.
     const cutoff = this.now() - TRASH_DAYS * DAY;
-    const expired = data.notes.filter((n) => n.trashedAt !== null && n.trashedAt < cutoff);
-    for (const n of expired) this.save(this.storage.deleteNote(n.id));
-    const notes = data.notes.filter((n) => !expired.includes(n));
-    this.set({ ready: true, temporary: this.storage.temporary, notebooks: data.notebooks, notes, settings });
-    if (!data.notebooks.length && !data.notes.length && seed) seed(this);
-    if (!this.state.notebooks.length) this.createNotebook('Inbox');
+    const expired = new Set(data.notes.filter((n) => n.trashedAt !== null && n.trashedAt < cutoff).map((n) => n.id));
+    for (const id of expired) this.save(this.storage.deleteNote(id));
+    const notes = data.notes.filter((n) => !expired.has(n.id));
+    const settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}), dataVersion: DATA_VERSION };
+    this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, settings });
+    if (data.settings?.dataVersion !== DATA_VERSION) this.save(this.storage.putSettings(settings));
+    this.set({ selectedId: visibleIn(this.state, this.state.view)[0]?.id ?? null });
+  }
+
+  /**
+   * Brings data saved by earlier versions up to date, saving what changes:
+   * - Version 1 filled a first run with example notes and notebooks. Untouched
+   *   examples are removed, and example notebooks left empty go too; anything
+   *   the person wrote or edited stays.
+   * - Stacks were names on notebooks; they become stacks of their own.
+   * - Notes "pinned" to Shortcuts become Favorites.
+   */
+  private upgrade(data: Persisted): Persisted {
+    if ((data.settings?.dataVersion ?? 1) >= DATA_VERSION) return data;
+    type Legacy = { stack?: string | null; stackId?: string | null; pinned?: boolean; favorite?: boolean };
+    const EXAMPLE_NOTES = new Set(['Welcome to Crumpet', 'Opening scene, first pass', 'Villain who is right', 'Names for the island', 'Weekly review', 'Tide tables for the finale']);
+    const EXAMPLE_NOTEBOOKS = new Set(['Inbox', 'Novel: The Lighthouse', 'Essay: Why tides lag', 'Journal', 'Reading list']);
+
+    const notes: Note[] = [];
+    for (const raw of data.notes) {
+      const n = raw as Note & Legacy;
+      if (EXAMPLE_NOTES.has(n.title) && n.createdAt === n.updatedAt) {
+        this.save(this.storage.deleteNote(n.id));
+        continue;
+      }
+      const { pinned, ...rest } = n;
+      const note: Note = { ...rest, favorite: n.favorite ?? !!pinned, notebookId: n.notebookId ?? null };
+      notes.push(note);
+      this.save(this.storage.putNote(note));
+    }
+    const used = new Set(notes.map((n) => n.notebookId));
+    const stacks = [...data.stacks];
+    const notebooks: Notebook[] = [];
+    for (const raw of data.notebooks) {
+      const nb = raw as Notebook & Legacy;
+      if (EXAMPLE_NOTEBOOKS.has(nb.name) && !used.has(nb.id)) {
+        this.save(this.storage.deleteNotebook(nb.id));
+        continue;
+      }
+      let stackId = nb.stackId ?? null;
+      if (!stackId && nb.stack) {
+        let st = stacks.find((s) => s.name === nb.stack);
+        if (!st) {
+          st = { id: newId(), name: nb.stack, createdAt: nb.createdAt };
+          stacks.push(st);
+          this.save(this.storage.putStack(st));
+        }
+        stackId = st.id;
+      }
+      const { stack: _legacy, ...rest } = nb;
+      void _legacy;
+      const notebook: Notebook = { ...rest, stackId };
+      notebooks.push(notebook);
+      this.save(this.storage.putNotebook(notebook));
+    }
+    // Notes whose notebook was an (empty) example notebook can't exist, but be safe.
+    const ids = new Set(notebooks.map((n) => n.id));
+    for (const n of notes) if (n.notebookId && !ids.has(n.notebookId)) n.notebookId = null;
+    return { ...data, notes, notebooks, stacks };
   }
 
   // ---------- navigation ----------
@@ -122,28 +190,23 @@ export class AppStore {
 
   // ---------- notes ----------
 
-  /** The notebook new notes go into when no notebook is open: Inbox if there is one. */
-  defaultNotebook(): Notebook {
-    const nbs = this.state.notebooks;
-    return nbs.find((n) => /^(0\s+)?inbox$/i.test(n.name)) ?? nbs[0] ?? this.createNotebook('Inbox');
-  }
-
-  createNote(init: Partial<Pick<Note, 'title' | 'doc' | 'notebookId' | 'tags' | 'pinned'>> = {}): Note {
+  createNote(init: Partial<Pick<Note, 'title' | 'doc' | 'notebookId' | 'tags' | 'favorite'>> = {}): Note {
     const view = this.state.view;
     const t = this.now();
     const note: Note = {
       id: newId(),
-      notebookId: init.notebookId ?? (view.kind === 'notebook' ? view.id : this.defaultNotebook().id),
+      notebookId: init.notebookId !== undefined ? init.notebookId : view.kind === 'notebook' ? view.id : null,
       title: init.title ?? '',
       doc: init.doc ?? emptyDoc(),
       tags: init.tags ?? (view.kind === 'tag' ? [view.tag] : []),
-      pinned: init.pinned ?? view.kind === 'shortcuts',
+      favorite: init.favorite ?? view.kind === 'favorites',
       createdAt: t,
       updatedAt: t,
       trashedAt: null,
     };
-    // A new note made from the Trash or a stack view goes to its notebook, so show that notebook.
-    const nextView: View = view.kind === 'trash' || view.kind === 'stack' ? { kind: 'notebook', id: note.notebookId } : view;
+    // Show the new note where it lives: its notebook, or All Notes if it isn't in one.
+    const nextView: View =
+      view.kind === 'trash' || view.kind === 'stack' ? (note.notebookId ? { kind: 'notebook', id: note.notebookId } : { kind: 'all' }) : view;
     this.set({ notes: [note, ...this.state.notes], selectedId: note.id, view: nextView, query: '' });
     this.save(this.storage.putNote(note));
     return note;
@@ -163,11 +226,6 @@ export class AppStore {
     else this.save(this.storage.putNote(updated));
   }
 
-  /** Sets a note's created and edited time (for example content). */
-  backdate(id: string, t: number): void {
-    this.updateNote(id, { createdAt: t, updatedAt: t }, { touch: false });
-  }
-
   setTitle(id: string, title: string): void {
     this.updateNote(id, { title }, { delaySave: true });
   }
@@ -176,7 +234,8 @@ export class AppStore {
     this.updateNote(id, { doc }, { delaySave: true });
   }
 
-  moveNote(id: string, notebookId: string): void {
+  /** Files a note in a notebook, or takes it out of any with null. */
+  moveNote(id: string, notebookId: string | null): void {
     this.updateNote(id, { notebookId });
   }
 
@@ -192,9 +251,9 @@ export class AppStore {
     if (note) this.updateNote(id, { tags: note.tags.filter((t) => t !== tag) });
   }
 
-  togglePin(id: string): void {
+  toggleFavorite(id: string): void {
     const note = this.note(id);
-    if (note) this.updateNote(id, { pinned: !note.pinned }, { touch: false });
+    if (note) this.updateNote(id, { favorite: !note.favorite }, { touch: false });
   }
 
   trashNote(id: string): void {
@@ -205,8 +264,8 @@ export class AppStore {
   restoreNote(id: string): void {
     const note = this.note(id);
     if (!note) return;
-    // If its notebook was deleted meanwhile, it comes back to the default notebook.
-    const notebookId = this.notebook(note.notebookId) ? note.notebookId : this.defaultNotebook().id;
+    // If its notebook was deleted meanwhile, it comes back without a notebook.
+    const notebookId = this.notebook(note.notebookId) ? note.notebookId : null;
     this.updateNote(id, { trashedAt: null, notebookId }, { touch: false });
     this.selectNeighbourIfHidden(id);
   }
@@ -230,15 +289,20 @@ export class AppStore {
     this.set({ selectedId: visible[0]?.id ?? null });
   }
 
+  private reselectIfHidden(): void {
+    const visible = visibleIn(this.state, this.state.view);
+    if (!visible.some((n) => n.id === this.state.selectedId)) this.set({ selectedId: visible[0]?.id ?? null });
+  }
+
   // ---------- notebooks ----------
 
-  createNotebook(name: string, stack: string | null = null): Notebook {
+  createNotebook(name: string, stackId: string | null = null): Notebook {
     const used = new Set(this.state.notebooks.map((n) => n.color));
     const nb: Notebook = {
       id: newId(),
       name: name.trim() || 'Untitled notebook',
       color: NOTEBOOK_COLORS.find((c) => !used.has(c)) ?? NOTEBOOK_COLORS[this.state.notebooks.length % NOTEBOOK_COLORS.length],
-      stack: stack?.trim() || null,
+      stackId: this.stack(stackId) ? stackId : null,
       createdAt: this.now(),
     };
     this.set({ notebooks: [...this.state.notebooks, nb] });
@@ -262,22 +326,13 @@ export class AppStore {
     this.updateNotebook(id, { color });
   }
 
-  /** Puts a notebook in a stack (by name; a new name makes a new stack), or takes it out with null. */
-  setStack(id: string, stack: string | null): void {
-    this.updateNotebook(id, { stack: stack?.trim() || null });
+  /** Puts a notebook in a stack, or takes it out with null. */
+  setStack(id: string, stackId: string | null): void {
+    this.updateNotebook(id, { stackId: this.stack(stackId) ? stackId : null });
   }
 
-  renameStack(from: string, to: string): void {
-    const name = to.trim();
-    if (!name) return;
-    for (const nb of this.state.notebooks.filter((n) => n.stack === from)) this.updateNotebook(nb.id, { stack: name });
-    const v = this.state.view;
-    if (v.kind === 'stack' && v.name === from) this.set({ view: { kind: 'stack', name } });
-  }
-
-  /** Deletes a notebook and moves its notes to the Trash (they can be restored to the default notebook). */
+  /** Deletes a notebook and moves its notes to the Trash (restoring one brings it back without a notebook). */
   deleteNotebook(id: string): void {
-    if (this.state.notebooks.length <= 1) return; // always keep one notebook
     const t = this.now();
     const notes = this.state.notes.map((n) => (n.notebookId === id && n.trashedAt === null ? { ...n, trashedAt: t } : n));
     for (const n of notes) if (n.notebookId === id && n.trashedAt === t) this.save(this.storage.putNote(n));
@@ -285,8 +340,35 @@ export class AppStore {
     const view: View = this.state.view.kind === 'notebook' && this.state.view.id === id ? { kind: 'all' } : this.state.view;
     this.set({ notes, notebooks, view });
     this.save(this.storage.deleteNotebook(id));
-    const visible = visibleIn(this.state, view);
-    if (!visible.some((n) => n.id === this.state.selectedId)) this.set({ selectedId: visible[0]?.id ?? null });
+    this.reselectIfHidden();
+  }
+
+  // ---------- stacks ----------
+
+  createStack(name: string): Stack {
+    const st: Stack = { id: newId(), name: name.trim() || 'Untitled stack', createdAt: this.now() };
+    this.set({ stacks: [...this.state.stacks, st] });
+    this.save(this.storage.putStack(st));
+    return st;
+  }
+
+  renameStack(id: string, name: string): void {
+    const clean = name.trim();
+    if (!clean) return;
+    let updated: Stack | undefined;
+    const stacks = this.state.stacks.map((s) => (s.id === id ? (updated = { ...s, name: clean }) : s));
+    if (!updated) return;
+    this.set({ stacks });
+    this.save(this.storage.putStack(updated));
+  }
+
+  /** Deletes a stack. Its notebooks and notes stay; the notebooks are simply no longer in a stack. */
+  deleteStack(id: string): void {
+    for (const nb of this.state.notebooks.filter((n) => n.stackId === id)) this.updateNotebook(nb.id, { stackId: null });
+    const view: View = this.state.view.kind === 'stack' && this.state.view.id === id ? { kind: 'all' } : this.state.view;
+    this.set({ stacks: this.state.stacks.filter((s) => s.id !== id), view });
+    this.save(this.storage.deleteStack(id));
+    this.reselectIfHidden();
   }
 
   // ---------- settings ----------
@@ -339,23 +421,22 @@ export function visibleIn(state: Pick<AppState, 'notes' | 'notebooks'>, view: Vi
     case 'all':
       out = live;
       break;
-    case 'shortcuts':
-      out = live.filter((n) => n.pinned);
+    case 'favorites':
+      out = live.filter((n) => n.favorite);
       break;
     case 'notebook':
       out = live.filter((n) => n.notebookId === view.id);
       break;
     case 'stack': {
-      const ids = new Set(state.notebooks.filter((nb) => nb.stack === view.name).map((nb) => nb.id));
-      out = live.filter((n) => ids.has(n.notebookId));
+      const ids = new Set(state.notebooks.filter((nb) => nb.stackId === view.id).map((nb) => nb.id));
+      out = live.filter((n) => n.notebookId !== null && ids.has(n.notebookId));
       break;
     }
     case 'tag':
       out = live.filter((n) => n.tags.includes(view.tag));
       break;
     case 'trash':
-      out = state.notes.filter((n) => n.trashedAt !== null).sort((a, b) => (b.trashedAt ?? 0) - (a.trashedAt ?? 0));
-      return out;
+      return state.notes.filter((n) => n.trashedAt !== null).sort((a, b) => (b.trashedAt ?? 0) - (a.trashedAt ?? 0));
   }
   return [...out].sort((a, b) => b.updatedAt - a.updatedAt);
 }

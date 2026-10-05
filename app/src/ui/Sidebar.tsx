@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppState, useAppStore, keep, remember } from './hooks';
 import { allTags, displayTitle, noteCounts, notebookTree, recentNotes, sameView } from '../data/selectors';
-import { ACCENTS, NOTEBOOK_COLORS, type Notebook, type Theme, type View } from '../data/types';
-import { IconChevron, IconClose, IconNote, IconPlus, IconMore, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { ACCENTS, NOTEBOOK_COLORS, type Notebook, type Stack, type Theme, type View } from '../data/types';
+import { IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenView(view: View): void;
@@ -16,17 +16,18 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
   const store = useAppStore();
   const [collapsed, setCollapsed] = useState<string[]>(() => remember('collapsedStacks', []));
   const [tagsOpen, setTagsOpen] = useState<boolean>(() => remember('tagsOpen', false));
-  const [adding, setAdding] = useState(false);
+  const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack'>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { loose, stacks } = notebookTree(state.notebooks);
+  const { loose, stacks } = notebookTree(state.stacks, state.notebooks);
   const counts = noteCounts(state.notes);
   const tags = allTags(state.notes);
   const recent = recentNotes(state.notes);
   const trashCount = state.notes.filter((n) => n.trashedAt !== null).length;
   const active = (v: View) => !state.query && sameView(state.view, v);
+  const nothingYet = !state.notebooks.length && !state.stacks.length;
 
-  const toggleStack = (name: string) => {
-    const next = collapsed.includes(name) ? collapsed.filter((n) => n !== name) : [...collapsed, name];
+  const toggleStack = (id: string) => {
+    const next = collapsed.includes(id) ? collapsed.filter((n) => n !== id) : [...collapsed, id];
     setCollapsed(next);
     keep('collapsedStacks', next);
   };
@@ -66,47 +67,67 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
 
       <section className="side-section">
         <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
-        <SideRow icon={<IconStar size={13} />} label="Shortcuts" count={state.notes.filter((n) => n.pinned && n.trashedAt === null).length || undefined} active={active({ kind: 'shortcuts' })} onClick={() => onOpenView({ kind: 'shortcuts' })} strong />
+        <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
 
         <div className="side-heading">
           <span>Notebooks</span>
-          <button type="button" className="icon-btn" aria-label="New notebook" title="New notebook" onClick={() => setAdding(true)}>
+          <button type="button" className="icon-btn" aria-label="New notebook or stack" title="New notebook or stack" aria-expanded={creating === 'menu'} onClick={() => setCreating(creating ? null : 'menu')}>
             <IconPlus size={13} />
           </button>
         </div>
-        {adding && (
+        {creating === 'menu' && (
+          <Popover onClose={() => setCreating(null)} label="Create">
+            <button type="button" className="menu-item" onClick={() => setCreating('notebook')}>
+              <IconNotebook size={14} /> New notebook
+            </button>
+            <button type="button" className="menu-item" onClick={() => setCreating('stack')}>
+              <IconStack size={14} /> New stack
+            </button>
+          </Popover>
+        )}
+        {creating === 'notebook' && (
           <InlineInput
             label="Notebook name"
             placeholder="Notebook name"
             onDone={(name) => {
-              setAdding(false);
+              setCreating(null);
               if (name) onOpenView({ kind: 'notebook', id: store.createNotebook(name).id });
             }}
           />
         )}
+        {creating === 'stack' && (
+          <InlineInput
+            label="Stack name"
+            placeholder="Stack name"
+            onDone={(name) => {
+              setCreating(null);
+              if (name) store.createStack(name);
+            }}
+          />
+        )}
+        {nothingYet && !creating && (
+          <div className="side-empty">
+            <p>Notebooks group your notes; stacks group notebooks.</p>
+            <button type="button" className="side-link" onClick={() => setCreating('notebook')}>
+              Create a notebook
+            </button>
+          </div>
+        )}
         {loose.map((nb) => (
-          <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={0} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} stacks={stacks.map((s) => s.name)} />
+          <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={0} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
         ))}
-        {stacks.map((st) => {
-          const open = !collapsed.includes(st.name);
-          return (
-            <div key={st.name} className="stack">
-              <div className={`side-row stack-row${active({ kind: 'stack', name: st.name }) ? ' active' : ''}`}>
-                <button type="button" className="disclosure" aria-label={open ? `Collapse ${st.name}` : `Expand ${st.name}`} aria-expanded={open} onClick={() => toggleStack(st.name)}>
-                  <IconChevron size={10} className={open ? 'rot90' : ''} />
-                </button>
-                <button type="button" className="row-main" onClick={() => onOpenView({ kind: 'stack', name: st.name })}>
-                  <IconStack size={12} />
-                  <span className="ellipsis">{st.name}</span>
-                </button>
-              </div>
-              {open &&
-                st.notebooks.map((nb) => (
-                  <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={1} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} stacks={stacks.map((s) => s.name)} />
-                ))}
-            </div>
-          );
-        })}
+        {stacks.map(({ stack, notebooks }) => (
+          <StackGroup
+            key={stack.id}
+            stack={stack}
+            notebooks={notebooks}
+            counts={counts}
+            open={!collapsed.includes(stack.id)}
+            onToggle={() => toggleStack(stack.id)}
+            active={active}
+            onOpenView={onOpenView}
+          />
+        ))}
 
         <button
           type="button"
@@ -123,7 +144,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
         </button>
         {tagsOpen && (
           <div className="tag-list">
-            {tags.length === 0 && <p className="side-empty">Tags you add to notes show up here.</p>}
+            {tags.length === 0 && <p className="side-empty indent">Tags you add to notes show up here.</p>}
             {tags.map((t) => (
               <SideRow key={t.tag} label={`#${t.tag}`} count={t.count} indent active={active({ kind: 'tag', tag: t.tag })} onClick={() => onOpenView({ kind: 'tag', tag: t.tag })} />
             ))}
@@ -156,14 +177,135 @@ function SideRow(props: { icon?: React.ReactNode; label: string; count?: number;
   );
 }
 
-function NotebookRow({ nb, count, depth, active, onOpen, stacks }: { nb: Notebook; count: number; depth: number; active: boolean; onOpen(): void; stacks: string[] }) {
+function StackGroup({
+  stack,
+  notebooks,
+  counts,
+  open,
+  onToggle,
+  active,
+  onOpenView,
+}: {
+  stack: Stack;
+  notebooks: Notebook[];
+  counts: Map<string, number>;
+  open: boolean;
+  onToggle(): void;
+  active(v: View): boolean;
+  onOpenView(v: View): void;
+}) {
   const store = useAppStore();
+  const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'add' | 'delete'>(null);
+  const [adding, setAdding] = useState(false);
+  const close = () => setMenu(null);
+  return (
+    <div className="stack">
+      <div className={`side-row stack-row${active({ kind: 'stack', id: stack.id }) ? ' active' : ''}`}>
+        <button type="button" className="disclosure" aria-label={open ? `Collapse ${stack.name}` : `Expand ${stack.name}`} aria-expanded={open} onClick={onToggle}>
+          <IconChevron size={10} className={open ? 'rot90' : ''} />
+        </button>
+        <button type="button" className="row-main" onClick={() => onOpenView({ kind: 'stack', id: stack.id })}>
+          <IconStack size={12} />
+          <span className="ellipsis">{stack.name}</span>
+        </button>
+        <button type="button" className="icon-btn row-more" aria-label={`${stack.name} options`} aria-expanded={menu !== null} onClick={() => setMenu(menu ? null : 'menu')}>
+          <IconMore size={13} />
+        </button>
+      </div>
+      {menu && (
+        <Popover onClose={close} label={`${stack.name} options`}>
+          {menu === 'menu' && (
+            <>
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => {
+                  close();
+                  setAdding(true);
+                  if (!open) onToggle();
+                }}
+              >
+                New notebook in this stack…
+              </button>
+              <button type="button" className="menu-item" onClick={() => setMenu('rename')}>
+                Rename stack…
+              </button>
+              <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
+                Delete stack…
+              </button>
+            </>
+          )}
+          {menu === 'rename' && (
+            <InlineInput
+              label="New stack name"
+              initial={stack.name}
+              onDone={(name) => {
+                if (name) store.renameStack(stack.id, name);
+                close();
+              }}
+            />
+          )}
+          {menu === 'delete' && (
+            <div className="menu-confirm">
+              <p>
+                Delete the stack “{stack.name}”?{' '}
+                {notebooks.length ? `Its ${notebooks.length} notebook${notebooks.length === 1 ? '' : 's'} and their notes stay; they just won’t be in a stack.` : 'It has no notebooks.'}
+              </p>
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => {
+                  store.deleteStack(stack.id);
+                  close();
+                }}
+              >
+                Delete stack
+              </button>
+              <button type="button" className="btn" onClick={close}>
+                Cancel
+              </button>
+            </div>
+          )}
+        </Popover>
+      )}
+      {open && (
+        <>
+          {adding && (
+            <div className="stack-input">
+              <InlineInput
+                label={`New notebook in ${stack.name}`}
+                placeholder="Notebook name"
+                onDone={(name) => {
+                  setAdding(false);
+                  if (name) onOpenView({ kind: 'notebook', id: store.createNotebook(name, stack.id).id });
+                }}
+              />
+            </div>
+          )}
+          {notebooks.map((nb) => (
+            <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={1} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
+          ))}
+          {!notebooks.length && !adding && (
+            <button type="button" className="side-link indent" onClick={() => setAdding(true)}>
+              Add a notebook
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function NotebookRow({ nb, count, depth, active, onOpen }: { nb: Notebook; count: number; depth: number; active: boolean; onOpen(): void }) {
+  const store = useAppStore();
+  const state = useAppState();
   const [menu, setMenu] = useState(false);
-  const [mode, setMode] = useState<'menu' | 'rename' | 'stack' | 'delete'>('menu');
+  const [mode, setMode] = useState<'menu' | 'rename' | 'stack' | 'newstack' | 'delete'>('menu');
   const close = () => {
     setMenu(false);
     setMode('menu');
   };
+  const current = store.stack(nb.stackId);
   return (
     <div className="nb">
       <div className={`side-row nb-row${active ? ' active' : ''}`} style={{ paddingLeft: 8 + depth * 18 }}>
@@ -184,9 +326,9 @@ function NotebookRow({ nb, count, depth, active, onOpen, stacks }: { nb: Noteboo
                 Rename…
               </button>
               <button type="button" className="menu-item" onClick={() => setMode('stack')}>
-                {nb.stack ? 'Move to another stack…' : 'Put in a stack…'}
+                {current ? 'Move to another stack…' : 'Put in a stack…'}
               </button>
-              {nb.stack && (
+              {current && (
                 <button
                   type="button"
                   className="menu-item"
@@ -195,7 +337,7 @@ function NotebookRow({ nb, count, depth, active, onOpen, stacks }: { nb: Noteboo
                     close();
                   }}
                 >
-                  Take out of “{nb.stack}”
+                  Take out of “{current.name}”
                 </button>
               )}
               <div className="menu-colours" role="group" aria-label="Colour">
@@ -220,53 +362,51 @@ function NotebookRow({ nb, count, depth, active, onOpen, stacks }: { nb: Noteboo
           )}
           {mode === 'stack' && (
             <>
-              <InlineInput
-                label="Stack name"
-                placeholder="New or existing stack"
-                list={stacks}
-                finishOnBlur={false}
-                initial={nb.stack ?? ''}
-                onDone={(name) => {
-                  if (name) store.setStack(nb.id, name);
-                  close();
-                }}
-              />
-              {stacks.filter((s) => s !== nb.stack).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className="menu-item"
-                  onClick={() => {
-                    store.setStack(nb.id, s);
-                    close();
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </>
-          )}
-          {mode === 'delete' && (
-            <div className="menu-confirm">
-              {store.getState().notebooks.length <= 1 ? (
-                <p>You need at least one notebook, so this one can’t be deleted.</p>
-              ) : (
-                <>
-                  <p>
-                    Delete “{nb.name}”? {count ? `Its ${count} note${count === 1 ? '' : 's'} will move to the Trash.` : 'It has no notes.'}
-                  </p>
+              {state.stacks
+                .filter((s) => s.id !== nb.stackId)
+                .map((s) => (
                   <button
+                    key={s.id}
                     type="button"
-                    className="btn danger"
+                    className="menu-item"
                     onClick={() => {
-                      store.deleteNotebook(nb.id);
+                      store.setStack(nb.id, s.id);
                       close();
                     }}
                   >
-                    Delete notebook
+                    <IconStack size={13} /> {s.name}
                   </button>
-                </>
-              )}
+                ))}
+              <button type="button" className="menu-item" onClick={() => setMode('newstack')}>
+                <IconPlus size={13} /> New stack…
+              </button>
+            </>
+          )}
+          {mode === 'newstack' && (
+            <InlineInput
+              label="New stack name"
+              placeholder="Stack name"
+              onDone={(name) => {
+                if (name) store.setStack(nb.id, store.createStack(name).id);
+                close();
+              }}
+            />
+          )}
+          {mode === 'delete' && (
+            <div className="menu-confirm">
+              <p>
+                Delete “{nb.name}”? {count ? `Its ${count} note${count === 1 ? '' : 's'} will move to the Trash.` : 'It has no notes.'}
+              </p>
+              <button
+                type="button"
+                className="btn danger"
+                onClick={() => {
+                  store.deleteNotebook(nb.id);
+                  close();
+                }}
+              >
+                Delete notebook
+              </button>
               <button type="button" className="btn" onClick={close}>
                 Cancel
               </button>
@@ -278,7 +418,6 @@ function NotebookRow({ nb, count, depth, active, onOpen, stacks }: { nb: Noteboo
   );
 }
 
-/** A small panel under the item that opened it; closes on Escape or a click outside. */
 export function Popover({ children, onClose, label }: { children: React.ReactNode; onClose(): void; label: string }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

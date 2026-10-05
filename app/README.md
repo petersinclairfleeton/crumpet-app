@@ -8,7 +8,7 @@ The notes app itself (v1 in `PLAN.md`), built on our own editor engine in
 ```sh
 npm install
 npm run dev            # http://localhost:5173
-npm test               # data layer: storage, notebooks, tags, Trash, search, date groups
+npm test               # data layer: storage, notebooks, stacks, tags, Trash, search, upgrades
 npm run e2e            # browser tests (set CHROMIUM_PATH if Playwright's browser isn't installed)
 npm run typecheck
 npm run build:single   # dist-single/index.html: the whole app in one file, to open on any device
@@ -17,14 +17,16 @@ npm run build:single   # dist-single/index.html: the whole app in one file, to o
 ## What's in it
 
 - **Notebooks and stacks**, as in the design: a slate sidebar with your name and
-  settings, New Note, Recent Notes, All Notes, Shortcuts, notebooks grouped into
-  stacks you can open and close, Tags and Trash. A notebook's menu renames it,
-  changes its colour, puts it in or takes it out of a stack, or deletes it (its
-  notes go to the Trash).
+  settings, New Note, Recent Notes, All Notes, Favorites, your notebooks and stacks,
+  Tags and Trash. Crumpet starts empty: the + next to Notebooks creates a notebook or
+  a stack. A notebook's menu renames it, changes its colour, moves it into, between or
+  out of stacks, or deletes it (its notes go to the Trash). A stack's menu adds a
+  notebook to it, renames it, or deletes it (its notebooks stay). Notes don't have to
+  be in a notebook.
 - **Note list**: cards grouped by Today, Yesterday, This week and month, with
   title, time, a two-line preview, notebook and tags; or a table. Starred notes
   show a star.
-- **Notes**: a wrapping title, a notebook picker, tags, the star for Shortcuts,
+- **Notes**: a wrapping title, a notebook picker, tags, the star for Favorites,
   and the editor with its formatting toolbar, lists, checklists, quotes and links.
   Word count and dates at the end.
 - **Search** (⌘K / Ctrl+K when not editing selected text) covers titles, text,
@@ -35,8 +37,9 @@ npm run build:single   # dist-single/index.html: the whole app in one file, to o
 - **Settings**: your name, light/dark/match device, and the five accent colours.
 - **Phones**: one pane at a time (list, then note, with the notebooks behind the menu
   button), with touch-sized controls.
-- **First run** shows a welcome note and a few example notebooks and notes, all
-  ordinary and deletable.
+- **Upgrading**: notes saved by the first version are tidied once: untouched example
+  notes and empty example notebooks are removed, stacks become real stacks, and
+  Shortcuts become Favorites. Anything you wrote or edited stays.
 
 ## How it's built
 

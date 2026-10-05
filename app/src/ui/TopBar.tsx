@@ -8,19 +8,20 @@ export function TopBar({ onMenu, onNewNote }: { onMenu(): void; onNewNote(): voi
   const state = useAppState();
   const store = useAppStore();
   const nb = state.view.kind === 'notebook' ? store.notebook(state.view.id) : undefined;
+  const stack = store.stack(nb?.stackId ?? null);
   return (
     <header className="topbar">
       <button type="button" className="icon-btn menu-btn" aria-label="Notebooks and tags" onClick={onMenu}>
         <IconMenu size={18} />
       </button>
       <p className="crumbs">
-        {nb?.stack && (
+        {stack && (
           <>
-            <span>{nb.stack}</span>
+            <span>{stack.name}</span>
             <span aria-hidden="true">›</span>
           </>
         )}
-        <span className="here">{state.query ? 'Search' : viewTitle(state.view, state.notebooks)}</span>
+        <span className="here">{state.query ? 'Search' : viewTitle(state.view, state)}</span>
       </p>
       <label className="search">
         <IconSearch size={14} />
