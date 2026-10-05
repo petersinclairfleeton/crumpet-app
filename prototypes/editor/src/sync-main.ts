@@ -64,8 +64,8 @@ function syncDevice(d: Device): void {
   // Never redraw a note mid-composition (IME); try again shortly.
   if (d.editor.isComposing) return scheduleSync(d);
   const before = server.version;
-  const mapping = d.client.sync();
-  if (mapping) d.editor.applyRemote(d.client.doc, mapping);
+  const steps = d.client.sync();
+  if (steps) d.editor.applyRemote(d.client.doc, steps);
   if (server.version !== before) {
     // Tell the other online devices there's something new, as a push notification would.
     for (const other of devices) if (other !== d) scheduleSync(other);

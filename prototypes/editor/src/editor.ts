@@ -37,6 +37,7 @@ import {
 } from './commands';
 import { History } from './history';
 import { View } from './view';
+import { type Step, mapSelectionThrough } from './sync/transform';
 
 export interface ChangeEvent {
   ops: Op[];
@@ -91,7 +92,7 @@ export class Editor {
       selection: t.selectionAfter,
       storedMarks: t.storedMarks !== undefined ? t.storedMarks : t.ops.length ? null : this.state.storedMarks,
     };
-    if (record) this.history.record(t);
+    if (record) this.history.record(t, doc);
     this.view.render(doc);
     this.view.writeSelection(this.state.selection);
     this.emit({ ops: t.ops, source });
@@ -99,6 +100,7 @@ export class Editor {
 
   private applyHistory(step: { ops: Op[]; selection: Selection } | null, source: 'undo' | 'redo'): void {
     if (!step) return;
+    this.history.breakMerge();
     this.dispatch({ ops: step.ops, selectionBefore: this.state.selection, selectionAfter: step.selection }, source, false);
   }
 
@@ -107,13 +109,13 @@ export class Editor {
   }
 
   /**
-   * Shows a document that changed because of another device. The caret is moved
-   * so it stays next to the same text. Undo history is cleared: undoing across
-   * other people's edits is not solved in this prototype.
+   * Shows a document that changed because of another device. `steps` turn the
+   * current document into `doc`; they move the caret so it stays next to the
+   * same text, and keep the undo history valid.
    */
-  applyRemote(doc: Doc, mapSelection: (sel: Selection) => Selection): void {
-    this.state = { doc, selection: mapSelection(this.state.selection), storedMarks: this.state.storedMarks };
-    this.history.clear();
+  applyRemote(doc: Doc, steps: Step[]): void {
+    this.history.external(steps);
+    this.state = { doc, selection: mapSelectionThrough(this.state.selection, steps, doc), storedMarks: this.state.storedMarks };
     this.view.render(doc);
     // Only touch the page selection if this editor has focus; otherwise we would steal it from wherever the person is.
     if (this.view.root.ownerDocument.activeElement === this.view.root) this.view.writeSelection(this.state.selection);
@@ -130,11 +132,11 @@ export class Editor {
   }
 
   undo(): void {
-    this.applyHistory(this.history.undo(), 'undo');
+    this.applyHistory(this.history.undo(this.state.doc), 'undo');
   }
 
   redo(): void {
-    this.applyHistory(this.history.redo(), 'redo');
+    this.applyHistory(this.history.redo(this.state.doc), 'redo');
   }
 
   toggleMark(mark: Mark): void {
@@ -309,7 +311,7 @@ export class Editor {
       const t = syncBlockText(this.state, block.id, domText, domSel ?? this.state.selection);
       if (t) {
         this.state = { ...this.state, doc: applyOps(this.state.doc, t.ops), selection: t.selectionAfter, storedMarks: null };
-        this.history.record(t);
+        this.history.record(t, this.state.doc);
         this.emit({ ops: t.ops, source: 'native' });
       }
       force.add(block.id);

@@ -10,6 +10,7 @@ import {
   type Run,
   blockIndex,
   insertRuns,
+  normalizeRuns,
   removeRuns,
   replaceRuns,
   runsLength,
@@ -117,4 +118,34 @@ export function invertOps(ops: Op[]): Op[] {
 
 export function blockAttrs(type: BlockType, checked?: boolean): BlockAttrs {
   return type === 'todo' ? { type, checked: !!checked } : { type };
+}
+
+/**
+ * Merges neighbouring ops that are really one edit: consecutive typing becomes one
+ * insert, and a run of Backspace or Delete presses becomes one remove. The result
+ * applies to the same document and gives the same outcome.
+ */
+export function compressOps(ops: Op[]): Op[] {
+  const out: Op[] = [];
+  for (const op of ops) {
+    const last = out[out.length - 1];
+    if (last && last.type === 'insert' && op.type === 'insert' && last.block === op.block && op.offset === last.offset + runsLength(last.runs)) {
+      out[out.length - 1] = { ...last, runs: normalizeRuns([...last.runs, ...op.runs]) };
+      continue;
+    }
+    if (last && last.type === 'remove' && op.type === 'remove' && last.block === op.block) {
+      if (op.offset + runsLength(op.runs) === last.offset) {
+        // Backspace: the new removal sits just before the previous one.
+        out[out.length - 1] = { ...last, offset: op.offset, runs: normalizeRuns([...op.runs, ...last.runs]) };
+        continue;
+      }
+      if (op.offset === last.offset) {
+        // Forward delete: the new removal starts where the previous one did.
+        out[out.length - 1] = { ...last, runs: normalizeRuns([...last.runs, ...op.runs]) };
+        continue;
+      }
+    }
+    out.push(op);
+  }
+  return out;
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../../src/model';
 import { applyOps } from '../../src/ops';
+import { History } from '../../src/history';
 import {
   type EditorState,
   type Transaction,
@@ -13,6 +14,7 @@ import {
   toggleMark,
 } from '../../src/commands';
 import { SyncClient, SyncServer } from '../../src/sync/collab';
+import { mapSelectionThrough } from '../../src/sync/transform';
 
 function texts(doc: Doc): string[] {
   return doc.blocks.map((b) => runsText(b.runs));
@@ -119,18 +121,30 @@ function rng(seed: number) {
 
 describe('sync convergence (randomised)', () => {
   for (const seed of Array.from({ length: 40 }, (_, i) => i + 1)) {
-    it(`all devices end up identical (seed ${seed})`, () => {
+    it(`all devices end up identical, with undo mixed in (seed ${seed})`, () => {
       const r = rng(seed);
       const server = new SyncServer({ blocks: [makeBlock('paragraph', 'The quick brown fox'), makeBlock('todo', 'jumps over'), makeBlock('heading1', 'the lazy dog')] });
       const clients = ['mac', 'ipad', 'phone'].map((id) => new SyncClient(id, server));
+      const histories = new Map(clients.map((c) => [c, new History()]));
       const marks: Mark[] = ['bold', 'italic', 'code'];
+      const syncOne = (c: SyncClient) => {
+        const steps = c.sync();
+        if (steps) histories.get(c)!.external(steps);
+      };
       for (let step = 0; step < 600; step++) {
         const c = clients[Math.floor(r() * clients.length)];
+        const h = histories.get(c)!;
         const roll = r();
         if (roll < 0.1) {
           c.online = !c.online;
         } else if (roll < 0.3) {
-          c.sync();
+          syncOne(c);
+        } else if (roll < 0.38) {
+          // Undo this device's own last edit, rebased over whatever arrived since.
+          if (h.canUndo) {
+            const u = h.undo(c.doc)!;
+            c.local(u.ops, applyOps(c.doc, u.ops));
+          }
         } else {
           const doc = c.doc;
           const pick = () => {
@@ -138,23 +152,27 @@ describe('sync convergence (randomised)', () => {
             return { block: b.id, offset: Math.floor(r() * (runsText(b.runs).length + 1)) };
           };
           const sel: Selection = r() < 0.6 ? caret(pick()) : { anchor: pick(), focus: pick() };
+          const s: EditorState = { doc, selection: sel, storedMarks: null };
           const kind = Math.floor(r() * 7);
-          run(c, sel, (s) =>
+          const t =
             kind === 0 ? insertText(s, ['x', 'hello ', '日本', ' '][Math.floor(r() * 4)])
             : kind === 1 ? splitBlock(s)
             : kind === 2 ? deleteChar(s, -1)
             : kind === 3 ? deleteChar(s, 1)
             : kind === 4 ? deleteSelection(s)
             : kind === 5 ? toggleMark(s, marks[Math.floor(r() * marks.length)])
-            : setBlockType(s, (['paragraph', 'heading2', 'todo', 'quote'] as const)[Math.floor(r() * 4)]),
-          );
+            : setBlockType(s, (['paragraph', 'heading2', 'todo', 'quote'] as const)[Math.floor(r() * 4)]);
+          if (t && t.ops.length) {
+            const after = applyOps(doc, t.ops);
+            c.local(t.ops, after);
+            h.record(t, after, step * 1000);
+          }
         }
         if (server.doc.blocks.length > 40) break;
       }
       for (const c of clients) c.online = true;
       settle(server, ...clients);
       expect(clients.every((c) => c.dropped === 0)).toBe(true);
-      
     });
   }
 });
@@ -169,8 +187,7 @@ describe('caret after a sync', () => {
     run(b, at(b, 0, 0), (s) => insertText(s, 'My '));
     b.sync();
     a.online = true;
-    const mapping = a.sync()!;
-    const caret = mapping(caretBefore);
+    const caret = mapSelectionThrough(caretBefore, a.sync()!, a.doc);
     expect(texts(a.doc)).toEqual(['My note one two']);
     expect(caret.focus.offset).toBe('My note one two'.length);
     settle(server, a, b);
@@ -181,7 +198,7 @@ describe('caret after a sync', () => {
     const caretBefore = at(a, 0, 1);
     run(b, at(b, 0, 1), (s) => insertText(s, 'XYZ'));
     b.sync();
-    const caret = a.sync()!(caretBefore);
+    const caret = mapSelectionThrough(caretBefore, a.sync()!, a.doc);
     expect(texts(a.doc)).toEqual(['aXYZb']);
     expect(caret.focus.offset).toBe(1);
     settle(server, a, b);

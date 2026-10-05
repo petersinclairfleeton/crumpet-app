@@ -73,3 +73,21 @@ test('offline edits on both devices merge when they reconnect', async ({ page })
   const bold = await page.evaluate(() => (window as any).devices[0].editor.state.doc.blocks[1].runs[0].marks);
   expect(bold).toEqual(['bold']);
 });
+
+test('undo on one device removes only its own typing, after the other device has edited', async ({ page }) => {
+  await page.goto('/sync.html');
+  await placeCaret(page, 'mac', 1, 'Ferry leaves at 7:40, so pack the night before.'.length);
+  await page.keyboard.type(' Bring the map.');
+  await settled(page);
+  await placeCaret(page, 'phone', 1, 0);
+  await page.keyboard.type('Note: ');
+  await settled(page);
+
+  await page.locator('#mac [data-editor]').click();
+  await page.keyboard.press('ControlOrMeta+z');
+  await settled(page);
+  const d = await docs(page);
+  expect(d.mac[1]).toBe('Note: Ferry leaves at 7:40, so pack the night before.');
+  expect(d.phone).toEqual(d.mac);
+  expect(d.server).toEqual(d.mac);
+});

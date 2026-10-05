@@ -71,30 +71,45 @@ online/offline switch).
 - The caret is moved the same way, so it stays next to the same text when others'
   edits arrive.
 
-Limits for now: undo history is cleared whenever another device's edits arrive
-(undo across other people's edits is a known hard problem we haven't tackled), each
-keystroke is a separate operation (no compression yet), and there is no real server,
-storage or network.
+- **Undo works across devices.** Every change to the note, from anywhere, goes on a
+  timeline. When nothing from another device has come in since an edit, undo applies
+  its exact inverse. Otherwise the inverse is rebased over everything since, the same
+  way as pending sync edits, so it removes your words from where they are now and
+  leaves other people's edits alone (`src/history.ts`).
+- **Typing is compressed.** A burst of typing, or of Backspace presses, is merged
+  into one operation before it is sent, and into one undo step.
+
+Remembering positions inside text that is removed and later put back (by undo, redo
+or a sync round trip) is what makes this work. Each memory is tied to one pass of an
+edit (the edit, its undo, its redo), to the paragraph the text came from, and to the
+same text coming back. Several bugs found by the randomised tests lived here.
+
+Limits for now: there is no real server, storage or network.
 
 ## What is proven so far
 
-- 62 unit tests:
+- 67 unit tests:
   - Editing commands, plus a randomised test of 3,000 edits that checks every
     transaction can be undone back to exactly the previous document.
   - Seven sync conflict scenarios (simultaneous typing, formatting across a split the
     other device made, typing into a paragraph the other device merged away, bold on
     text typed offline, deleting around the other device's insert, and more), and caret
     placement after a sync.
-  - A randomised sync test: three devices making 600 random edits while randomly going
-    offline and online, over 40 seeds. Every run ends with all devices identical and no
-    edit dropped.
-- 15 browser tests in Chromium driving real key events: typing, Enter/Backspace
+  - A randomised sync test: three devices making 600 random edits and undos while
+    randomly going offline and online, over 40 seeds. Every run ends with all devices
+    identical and no edit dropped.
+  - Undo history: every undo returns to exactly the state before that edit and redo
+    replays them all; undoing everything with merged typing returns to the start; and
+    with a second device editing concurrently, undo removes only your own words. These
+    run 30 random histories each by default; `SEEDS=400 npm test` runs a long soak.
+- 16 browser tests in Chromium driving real key events: typing, Enter/Backspace
   across blocks, shortcuts, formatting across blocks, markdown shortcuts,
   checklists, undo/redo, replacing a cross-block selection, word deletion, paste,
   emoji deletion, and IME composition (simulated Japanese input). Each test also
   checks that the page still shows exactly what the model holds, and one checks
   that the device-test recorder notices when it doesn't. Two more drive the sync page:
-  live typing reaching the other device, and offline edits on both devices merging.
+  live typing reaching the other device, offline edits on both devices merging, and
+  undo on one device after the other has edited.
 
 ## Testing on real devices
 
@@ -120,5 +135,5 @@ These are the main risks, and automated Chromium on Linux can't cover them:
 ## Known gaps (deliberate for now)
 
 Nested lists, links, images, tables, rich paste (formatting is dropped on paste),
-drag and drop, soft line breaks, large-document performance, a real sync server and
-storage, and undo across other devices' edits.
+drag and drop, soft line breaks, large-document performance, and a real sync server
+and storage.

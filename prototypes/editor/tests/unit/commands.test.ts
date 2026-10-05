@@ -142,13 +142,14 @@ describe('history', () => {
     let now = 1000;
     for (const ch of 'hello') {
       const t = insertText(s, ch);
-      h.record(t, (now += 100));
       s = { ...s, doc: applyOps(s.doc, t.ops), selection: t.selectionAfter };
+      h.record(t, s.doc, (now += 100));
     }
     expect(texts(s.doc)).toEqual(['hello']);
-    const u = h.undo()!;
+    const u = h.undo(s.doc)!;
+    expect(u.ops).toHaveLength(1); // five keystrokes, one remove
     expect(texts(applyOps(s.doc, u.ops))).toEqual(['']);
-    expect(h.undo()).toBeNull();
+    expect(h.undo(s.doc)).toBeNull();
   });
 });
 

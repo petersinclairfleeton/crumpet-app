@@ -7,9 +7,9 @@
 // The server only accepts a batch built on its latest version, so every
 // device applies the same ops in the same order and ends up identical.
 
-import type { Doc, Selection } from '../model';
-import { type Op, applyOps } from '../ops';
-import { rebase } from './transform';
+import type { Doc } from '../model';
+import { type Op, applyOps, compressOps } from '../ops';
+import { type Step, rebase } from './transform';
 
 export interface LoggedOp {
   op: Op;
@@ -59,16 +59,16 @@ export class SyncClient {
 
   /** Record edits made on this device (already applied to `doc` by the editor). */
   local(ops: Op[], docAfter: Doc): void {
-    this.pending.push(...ops);
+    this.pending = compressOps([...this.pending, ...ops]);
     this.doc = docAfter;
   }
 
   /**
    * Fetches other devices' ops and rebases pending edits on top of them.
-   * Returns how to move a selection from the old document to the new one,
-   * or null if nothing new arrived. `doc` is updated either way.
+   * Returns the steps that turn this device's old document into the new one
+   * (for moving the caret and the undo history), or null if nothing arrived.
    */
-  pull(): ((sel: Selection) => Selection) | null {
+  pull(): Step[] | null {
     if (!this.online) return null;
     const incoming = this.server.since(this.version).map((l) => l.op);
     if (!incoming.length) return null;
@@ -78,7 +78,7 @@ export class SyncClient {
     this.pending = result.local;
     this.doc = result.doc;
     this.dropped += result.dropped;
-    return result.mapSelection;
+    return result.steps;
   }
 
   /** Pending ops that had to be dropped because they no longer applied (should stay 0). */
@@ -95,15 +95,18 @@ export class SyncClient {
     return true;
   }
 
-  /** Pull then push until confirmed (another device may push in between). Returns the combined selection mapping. */
-  sync(): ((sel: Selection) => Selection) | null {
-    const mappings: ((sel: Selection) => Selection)[] = [];
+  /** Pull then push until confirmed (another device may push in between). Returns all the steps pulled. */
+  sync(): Step[] | null {
+    const steps: Step[] = [];
+    let pulled = false;
     for (let i = 0; i < 10; i++) {
-      const m = this.pull();
-      if (m) mappings.push(m);
+      const s = this.pull();
+      if (s) {
+        steps.push(...s);
+        pulled = true;
+      }
       if (this.push()) break;
     }
-    return mappings.length ? (sel) => mappings.reduce((acc, m) => m(acc), sel) : null;
+    return pulled ? steps : null;
   }
-
 }

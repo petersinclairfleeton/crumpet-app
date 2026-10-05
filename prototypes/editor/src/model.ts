@@ -160,3 +160,15 @@ export function makeBlock(type: BlockType, text = '', marks: Mark[] = [], extra:
   if (type === 'todo') block.checked = !!block.checked;
   return block;
 }
+
+/** True if two documents have the same blocks, attributes, text and formatting. */
+export function docsEqual(a: Doc, b: Doc): boolean {
+  if (a === b) return true;
+  if (a.blocks.length !== b.blocks.length) return false;
+  return a.blocks.every((x, i) => {
+    const y = b.blocks[i];
+    if (x === y) return true;
+    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || x.runs.length !== y.runs.length) return false;
+    return x.runs.every((r, j) => r.text === y.runs[j].text && sameMarks(r.marks, y.runs[j].marks));
+  });
+}
