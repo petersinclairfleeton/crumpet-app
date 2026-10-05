@@ -9,8 +9,7 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": [],
-    "paths": { "@crumpet/editor/*": ["../../packages/editor/src/*"] }
+    "types": []
   },
-  "include": ["src", "tests", "../../packages/editor/src"]
+  "include": ["src", "tests"]
 }

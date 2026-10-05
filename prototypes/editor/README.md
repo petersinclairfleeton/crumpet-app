@@ -1,8 +1,9 @@
 # Editor prototype (throwaway)
 
-A first, deliberately small version of Crumpet's own rich-text editor. It exists to
-find out whether our approach holds up before the real app depends on it. Nothing
-here is meant to ship as is.
+Test pages for Crumpet's own rich-text editor. The engine itself now lives in
+`packages/editor` (imported here as `@crumpet/editor`); this folder keeps the
+prototype pages, the device-test recorder page, the two-device sync demo and the
+browser tests. File paths below under `src/` refer to `packages/editor/src/`.
 
 ## Run it
 
@@ -10,7 +11,6 @@ here is meant to ship as is.
 npm install
 npm run dev          # http://localhost:5173 (add ?fresh for the sample note, ?blank for an empty one)
                      # http://localhost:5173/sync.html for the two-device sync demo
-npm test             # model and command unit tests
 npm run e2e          # browser tests (Chromium); set CHROMIUM_PATH if Playwright's browser isn't installed
 npm run typecheck
 ```

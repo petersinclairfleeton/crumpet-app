@@ -2,9 +2,9 @@
 // sync client, talking to one in-page server. Network delay is simulated so
 // you can see edits arrive.
 
-import { type Doc, makeBlock } from './model';
-import { Editor } from './editor';
-import { SyncClient, SyncServer } from './sync/collab';
+import { type Doc, makeBlock } from '@crumpet/editor/model';
+import { Editor } from '@crumpet/editor/editor';
+import { SyncClient, SyncServer } from '@crumpet/editor/sync/collab';
 
 const DELAY_MS = 250;
 

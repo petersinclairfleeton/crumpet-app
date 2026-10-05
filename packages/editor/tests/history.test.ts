@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../../src/model';
-import { applyOps } from '../../src/ops';
-import { type EditorState, type Transaction, deleteChar, deleteSelection, indent, insertText, setBlockType, setLink, splitBlock, toggleMark } from '../../src/commands';
-import { History } from '../../src/history';
-import { SyncClient, SyncServer } from '../../src/sync/collab';
+import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../src/model';
+import { applyOps } from '../src/ops';
+import { type EditorState, type Transaction, deleteChar, deleteSelection, indent, insertText, setBlockType, setLink, splitBlock, toggleMark } from '../src/commands';
+import { History } from '../src/history';
+import { SyncClient, SyncServer } from '../src/sync/collab';
 
 /** How many random runs per test; raise with SEEDS=500 for a long soak. */
 const SEEDS = Number((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.SEEDS ?? 30);

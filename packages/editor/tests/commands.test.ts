@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../../src/model';
-import { applyOps, invertOps } from '../../src/ops';
+import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../src/model';
+import { applyOps, invertOps } from '../src/ops';
 import {
   type EditorState,
   deleteChar,
@@ -19,9 +19,9 @@ import {
   autoLink,
   pasteLink,
   currentLink,
-} from '../../src/commands';
-import { normalizeLink } from '../../src/model';
-import { History } from '../../src/history';
+} from '../src/commands';
+import { normalizeLink } from '../src/model';
+import { History } from '../src/history';
 
 function state(doc: Doc, selection?: Selection): EditorState {
   return { doc, selection: selection ?? caret({ block: doc.blocks[0].id, offset: 0 }), storedMarks: null };

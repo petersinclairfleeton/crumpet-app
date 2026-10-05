@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../../src/model';
-import { applyOps } from '../../src/ops';
-import { History } from '../../src/history';
+import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../src/model';
+import { applyOps } from '../src/ops';
+import { History } from '../src/history';
 import {
   type EditorState,
   type Transaction,
@@ -14,9 +14,9 @@ import {
   setBlockType,
   splitBlock,
   toggleMark,
-} from '../../src/commands';
-import { SyncClient, SyncServer } from '../../src/sync/collab';
-import { mapSelectionThrough } from '../../src/sync/transform';
+} from '../src/commands';
+import { SyncClient, SyncServer } from '../src/sync/collab';
+import { mapSelectionThrough } from '../src/sync/transform';
 
 function texts(doc: Doc): string[] {
   return doc.blocks.map((b) => runsText(b.runs));

@@ -1,7 +1,7 @@
-import { type Doc, makeBlock } from './model';
-import type { BlockType, Mark } from './model';
-import { Editor } from './editor';
-import { Recorder } from './recorder';
+import { type Doc, makeBlock } from '@crumpet/editor/model';
+import type { BlockType, Mark } from '@crumpet/editor/model';
+import { Editor } from '@crumpet/editor/editor';
+import { Recorder } from '@crumpet/editor/recorder';
 
 const STORAGE_KEY = 'crumpet-editor-prototype-doc';
 
