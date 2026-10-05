@@ -102,6 +102,15 @@ export class Editor {
     this.dispatch({ ops: step.ops, selectionBefore: this.state.selection, selectionAfter: step.selection }, source, false);
   }
 
+  /** Replaces the whole document (e.g. "reset sample"), clearing history. */
+  load(doc: Doc): void {
+    this.state = { doc, selection: caret({ block: doc.blocks[0].id, offset: 0 }), storedMarks: null };
+    this.history.clear();
+    this.view.render(doc, new Set(doc.blocks.map((b) => b.id)));
+    this.view.writeSelection(this.state.selection);
+    this.emit({ ops: [], source: 'command' });
+  }
+
   undo(): void {
     this.applyHistory(this.history.undo(), 'undo');
   }

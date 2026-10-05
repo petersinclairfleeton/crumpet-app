@@ -185,6 +185,8 @@ test('IME composition (e.g. Japanese input) lands in the model', async ({ page }
   // And typing continues normally afterwards, with undo removing the composed text.
   await page.keyboard.type('!');
   expect(await texts(page)).toEqual(['Tokyo: 東京!']);
+  await page.waitForTimeout(20);
+  expect(await page.evaluate(() => (window as any).recorder.problems)).toBe(0);
 });
 
 test('emoji are deleted as whole characters', async ({ page }) => {
@@ -198,4 +200,24 @@ test('the sample note loads and the DOM matches the model', async ({ page }) => 
   await page.goto('/?fresh');
   const s = await expectInSync(page);
   expect(s.blocks[0]).toMatchObject({ type: 'heading1', text: 'Opening scene, first pass' });
+});
+
+test('device-test recorder stays quiet when in sync and flags a desync', async ({ page }) => {
+  await blank(page);
+  await page.keyboard.type('# Heading');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Some text');
+  await page.keyboard.press('Control+Backspace');
+  await page.keyboard.press('ControlOrMeta+z');
+  await page.waitForTimeout(50);
+  expect(await page.evaluate(() => (window as any).recorder.problems)).toBe(0);
+  await expect(page.locator('#status')).toHaveText('No problems seen yet');
+
+  // Change the page behind the editor's back: the recorder must notice.
+  await page.evaluate(() => {
+    document.querySelector('#editor h1 .text')!.textContent = 'Tampered';
+    (window as any).recorder.check();
+  });
+  expect(await page.evaluate(() => (window as any).recorder.problems)).toBeGreaterThan(0);
+  await expect(page.locator('#status')).toContainText('problem');
 });

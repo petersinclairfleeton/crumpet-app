@@ -14,7 +14,7 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --page: #1e1f21;
     --list: #1a1b1d;
     --field: #2a2b2e;
@@ -27,6 +27,19 @@
     --code-bg: #2a2b2e;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --page: #1e1f21;
+  --list: #1a1b1d;
+  --field: #2a2b2e;
+  --text: #ececea;
+  --text2: #c8c8c6;
+  --muted: #9fa0a3;
+  --line: #2f3033;
+  --accent-ink: #ddb978;
+  --accent-soft: #3a3227;
+  --code-bg: #2a2b2e;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -71,3 +84,22 @@ kbd { font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 4px; back
 .blk-todo .text { flex: 1 1 auto; min-width: 0; }
 .editor code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.88em; padding: 1px 4px; border-radius: 4px; background: var(--code-bg); }
 .editor ::selection { background: #d4a25755; }
+
+.device-test .status { margin: 0 0 8px; padding: 8px 10px; border-radius: 6px; font-weight: 700; font-size: 12px; }
+.device-test .status.ok { background: #e3efe6; color: #24563a; }
+.device-test .status.bad { background: #f6e0e2; color: #7d2430; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .device-test .status.ok { background: #1f3326; color: #a9d6b7; }
+  :root:not([data-theme="light"]) .device-test .status.bad { background: #3d2125; color: #f0b3ba; }
+}
+:root[data-theme="dark"] .device-test .status.ok { background: #1f3326; color: #a9d6b7; }
+:root[data-theme="dark"] .device-test .status.bad { background: #3d2125; color: #f0b3ba; }
+.device-test details { margin-bottom: 8px; }
+.device-test summary { cursor: pointer; font-weight: 600; color: var(--text2); }
+.device-test ol { margin: 6px 0 0; padding-left: 18px; line-height: 1.5; color: var(--text2); }
+.device-test .actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.device-test .actions button { min-height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.device-test textarea { width: 100%; height: 160px; margin-bottom: 8px; font: 11px ui-monospace, Menlo, monospace; border-radius: 6px; border: 1px solid var(--line); background: var(--page); color: var(--text); }
+@media (max-width: 900px) {
+  .debug { max-width: none; max-height: none; position: static; border-left: none; border-top: 1px solid var(--line); }
+}

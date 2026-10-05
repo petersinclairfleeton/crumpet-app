@@ -35,6 +35,32 @@
     </article>
   </main>
   <aside class="debug" id="debug">
+    <section class="device-test">
+      <h2>Device test</h2>
+      <p id="status" class="status ok">No problems seen yet</p>
+      <details>
+        <summary>Things to try on this device</summary>
+        <ol>
+          <li>Type a few sentences quickly, letting autocorrect fix a typo.</li>
+          <li>Tap a predictive-text suggestion above the keyboard.</li>
+          <li>Swipe-type a word (iPhone/iPad keyboard or Gboard).</li>
+          <li>Dictate a sentence with the microphone key.</li>
+          <li>Type in Japanese, Chinese or Korean (add the keyboard in Settings).</li>
+          <li>Select a word with a double tap and type over it.</li>
+          <li>Select across two paragraphs and delete.</li>
+          <li>Hold Backspace to delete several words.</li>
+          <li>Paste a few lines copied from another app.</li>
+          <li>Undo: ⌘Z, or shake / three-finger swipe left on iPhone and iPad.</li>
+        </ol>
+      </details>
+      <div class="actions">
+        <button type="button" id="copy-report">Copy report</button>
+        <button type="button" id="show-report">Show report</button>
+        <button type="button" id="clear-log">Clear</button>
+      </div>
+      <textarea id="report" hidden readonly aria-label="Device test report"></textarea>
+      <pre id="trace"></pre>
+    </section>
     <section>
       <h2>Model</h2>
       <pre id="model"></pre>
@@ -42,10 +68,6 @@
     <section>
       <h2>Last ops</h2>
       <pre id="ops"></pre>
-    </section>
-    <section>
-      <h2>Browser input types</h2>
-      <pre id="inputs"></pre>
     </section>
   </aside>
 </div>

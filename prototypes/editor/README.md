@@ -53,11 +53,21 @@ too. That is far bigger and not justified until this approach is shown to fail.
 
 - 13 unit tests, including a randomised test of 3,000 edits that checks every
   transaction can be undone back to exactly the previous document.
-- 12 browser tests in Chromium driving real key events: typing, Enter/Backspace
+- 13 browser tests in Chromium driving real key events: typing, Enter/Backspace
   across blocks, shortcuts, formatting across blocks, markdown shortcuts,
   checklists, undo/redo, replacing a cross-block selection, word deletion, paste,
   emoji deletion, and IME composition (simulated Japanese input). Each test also
-  checks that the page still shows exactly what the model holds.
+  checks that the page still shows exactly what the model holds, and one checks
+  that the device-test recorder notices when it doesn't.
+
+## Testing on real devices
+
+`npm run build:single` makes `dist-single/index.html`, one self-contained page that can be
+opened on any device. The debug panel's **Device test** section records every keyboard,
+input and composition event, marks which ones the editor handled, and checks after each
+one that the page still matches the model. Anything that slips past shows up as a
+problem in red. **Copy report** puts the whole log, plus the device details, on the
+clipboard to send back.
 
 ## Not tested yet: needs real devices
 

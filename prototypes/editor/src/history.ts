@@ -38,6 +38,11 @@ export class History {
     }
   }
 
+  clear(): void {
+    this.undoStack = [];
+    this.redoStack = [];
+  }
+
   /** Stops the current typing run from merging with what comes next. */
   breakMerge(): void {
     const last = this.undoStack[this.undoStack.length - 1];

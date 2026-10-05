@@ -1,6 +1,7 @@
 import { type Doc, makeBlock } from './model';
 import type { BlockType, Mark } from './model';
 import { Editor } from './editor';
+import { Recorder } from './recorder';
 
 const STORAGE_KEY = 'crumpet-editor-prototype-doc';
 
@@ -49,7 +50,6 @@ const editor = new Editor(root, loadDoc());
 
 const modelEl = document.getElementById('model')!;
 const opsEl = document.getElementById('ops')!;
-const inputsEl = document.getElementById('inputs')!;
 const debugEl = document.getElementById('debug')!;
 const opLog: string[] = [];
 
@@ -68,7 +68,6 @@ function refresh() {
   const sel = s.selection;
   modelEl.textContent = `${describeDoc(s.doc)}\n\nselection ${sel.anchor.block}:${sel.anchor.offset} → ${sel.focus.block}:${sel.focus.offset}${s.storedMarks ? `\nstored marks: ${s.storedMarks.join(', ') || 'none'}` : ''}`;
   opsEl.textContent = opLog.slice(-25).join('\n');
-  inputsEl.textContent = editor.inputLog.slice(-20).join('\n');
   for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-mark]')) {
     btn.classList.toggle('active', editor.isMarkActive(btn.dataset.mark as Mark));
   }
@@ -107,13 +106,51 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>('.toolbar button'
       } catch {
         /* ignore */
       }
-      location.search = '?fresh';
+      editor.load(sampleDoc());
+      recorder.clear();
     } else if (btn.dataset.cmd === 'debug') {
       debugEl.hidden = !debugEl.hidden;
       btn.setAttribute('aria-pressed', String(!debugEl.hidden));
     }
   });
 }
+
+// ---- device-test recorder ----
+const recorder = new Recorder(editor);
+(window as unknown as { recorder: Recorder }).recorder = recorder;
+const statusEl = document.getElementById('status')!;
+const traceEl = document.getElementById('trace')!;
+const reportEl = document.getElementById('report') as HTMLTextAreaElement;
+let traceQueued = false;
+recorder.onUpdate(() => {
+  if (traceQueued) return;
+  traceQueued = true;
+  requestAnimationFrame(() => {
+    traceQueued = false;
+    traceEl.textContent = recorder.entries.slice(-40).map(Recorder.describe).reverse().join('\n');
+    statusEl.textContent = recorder.problems ? `${recorder.problems} problem${recorder.problems === 1 ? '' : 's'} seen: see the log` : 'No problems seen yet';
+    statusEl.className = `status ${recorder.problems ? 'bad' : 'ok'}`;
+  });
+});
+document.getElementById('copy-report')!.addEventListener('click', async (e) => {
+  const btn = e.currentTarget as HTMLButtonElement;
+  try {
+    await navigator.clipboard.writeText(recorder.report());
+    btn.textContent = 'Copied';
+  } catch {
+    // Clipboard blocked (e.g. inside an embedded page): show it to select by hand instead.
+    reportEl.hidden = false;
+    reportEl.value = recorder.report();
+    reportEl.select();
+    btn.textContent = 'Select the text below';
+  }
+  setTimeout(() => (btn.textContent = 'Copy report'), 2500);
+});
+document.getElementById('show-report')!.addEventListener('click', () => {
+  reportEl.hidden = !reportEl.hidden;
+  reportEl.value = recorder.report();
+});
+document.getElementById('clear-log')!.addEventListener('click', () => recorder.clear());
 
 refresh();
 editor.focus();
