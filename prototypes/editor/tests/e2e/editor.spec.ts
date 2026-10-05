@@ -4,7 +4,7 @@ import { type Page, expect, test } from '@playwright/test';
 // checks both the model and that the DOM still shows exactly the model.
 
 interface Snapshot {
-  blocks: { type: string; checked?: boolean; text: string; runs: { text: string; marks: string[] }[] }[];
+  blocks: { type: string; checked?: boolean; indent?: number; text: string; runs: { text: string; marks: string[] }[] }[];
   domTexts: string[];
   selection: { anchor: { block: string; offset: number }; focus: { block: string; offset: number } };
 }
@@ -15,6 +15,7 @@ async function snap(page: Page): Promise<Snapshot> {
     const blocks = ed.state.doc.blocks.map((b: any) => ({
       type: b.type,
       checked: b.checked,
+      indent: b.indent,
       text: b.runs.map((r: any) => r.text).join(''),
       runs: b.runs,
     }));
@@ -220,4 +221,63 @@ test('device-test recorder stays quiet when in sync and flags a desync', async (
   });
   expect(await page.evaluate(() => (window as any).recorder.problems)).toBeGreaterThan(0);
   await expect(page.locator('#status')).toContainText('problem');
+});
+
+test('lists: markdown shortcuts, Enter, Tab nesting and numbering', async ({ page }) => {
+  await blank(page);
+  await page.keyboard.type('1. First');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Second');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Nested');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.type('Third');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter'); // empty item leaves the list
+  await page.keyboard.type('- bullet');
+  const s = await expectInSync(page);
+  expect(s.blocks.map((b: any) => [b.type, b.indent ?? 0, b.text])).toEqual([
+    ['numbered', 0, 'First'],
+    ['numbered', 0, 'Second'],
+    ['numbered', 1, 'Nested'],
+    ['numbered', 0, 'Third'],
+    ['bullet', 0, 'bullet'],
+  ]);
+  // The page numbers them per level: 1. 2. a. 3.
+  const markers = await page.$$eval('#editor .blk-numbered', (els) => els.map((el) => getComputedStyle(el, '::before').content));
+  expect(markers).toEqual(['counter(n0) "."', 'counter(n0) "."', 'counter(n1, lower-alpha) "."', 'counter(n0) "."']);
+});
+
+test('links: ⌘K on a selection, typed addresses, and pasted addresses', async ({ page }) => {
+  await blank(page);
+  await page.keyboard.type('Read the guide');
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('ControlOrMeta+k');
+  await expect(page.locator('#link-input')).toBeFocused();
+  await page.keyboard.type('example.com/guide');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#editor a')).toHaveAttribute('href', 'https://example.com/guide');
+
+  await page.keyboard.press('End');
+  await page.keyboard.type(' or visit www.crumpet.app then');
+  await expect(page.locator('#editor a')).toHaveCount(2);
+  await expect(page.locator('#editor a').nth(1)).toHaveText('www.crumpet.app');
+
+  await page.keyboard.press('Enter');
+  await page.evaluate(() => {
+    const data = new DataTransfer();
+    data.setData('text/plain', 'https://example.org/notes');
+    document.getElementById('editor')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  });
+  await expect(page.locator('#editor a').nth(2)).toHaveAttribute('href', 'https://example.org/notes');
+  await expectInSync(page);
+
+  // A bad address shows an error instead of making a broken link.
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.locator('#link-input').fill('javascript:alert(1)');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#link-error')).toContainText('doesn’t look like a web address');
 });

@@ -18,9 +18,13 @@
       <button type="button" data-mark="strike" aria-label="Strikethrough" title="Strikethrough (⌘⇧X)"><s>S</s></button>
       <button type="button" data-mark="code" aria-label="Code" title="Code (⌘E)"><code>&lt;/&gt;</code></button>
       <span class="sep"></span>
+      <button type="button" data-cmd="link" aria-label="Link" title="Link (⌘K)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"></path><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"></path></svg></button>
+      <span class="sep"></span>
       <button type="button" data-block="heading1" title="Heading 1 (⌘⌥1)">H1</button>
       <button type="button" data-block="heading2" title="Heading 2 (⌘⌥2)">H2</button>
-      <button type="button" data-block="todo" title="Checklist (⌘⌥T)">☐</button>
+      <button type="button" data-block="bullet" aria-label="Bulleted list" title="Bulleted list (⌘⌥L)">•≡</button>
+      <button type="button" data-block="numbered" aria-label="Numbered list" title="Numbered list (⌘⌥N)">1≡</button>
+      <button type="button" data-block="todo" aria-label="Checklist" title="Checklist (⌘⌥T)">☐</button>
       <button type="button" data-block="quote" title="Quote (⌘⌥Q)">❝</button>
       <span class="sep"></span>
       <button type="button" data-cmd="undo" aria-label="Undo" title="Undo (⌘Z)">↶</button>
@@ -29,9 +33,16 @@
       <button type="button" data-cmd="reset" class="text-btn">Reset sample</button>
       <button type="button" data-cmd="debug" class="text-btn" aria-pressed="true">Debug</button>
     </div>
+    <form class="linkbar" id="linkbar" hidden>
+      <label for="link-input">Link</label>
+      <input id="link-input" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="Paste or type a web address">
+      <button type="submit">Apply</button>
+      <button type="button" id="link-remove">Remove link</button>
+      <span class="link-error" id="link-error" role="alert"></span>
+    </form>
     <article class="note">
       <div id="editor" aria-label="Note"></div>
-      <p class="hint">Try: <kbd># </kbd> heading, <kbd>## </kbd> subheading, <kbd>[] </kbd> checklist, <kbd>&gt; </kbd> quote. ⌘B / ⌘I / ⌘U, ⌘Z / ⌘⇧Z.</p>
+      <p class="hint">Try: <kbd># </kbd> heading, <kbd>## </kbd> subheading, <kbd>- </kbd> bullets, <kbd>1. </kbd> numbers, <kbd>[] </kbd> checklist, <kbd>&gt; </kbd> quote. Tab / ⇧Tab to nest list items. ⌘B / ⌘I / ⌘U, ⌘Z / ⌘⇧Z.</p>
     </article>
   </main>
   <aside class="debug" id="debug">

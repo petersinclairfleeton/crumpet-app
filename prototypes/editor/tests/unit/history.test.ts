@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../../src/model';
 import { applyOps } from '../../src/ops';
-import { type EditorState, type Transaction, deleteChar, deleteSelection, insertText, setBlockType, splitBlock, toggleMark } from '../../src/commands';
+import { type EditorState, type Transaction, deleteChar, deleteSelection, indent, insertText, setBlockType, setLink, splitBlock, toggleMark } from '../../src/commands';
 import { History } from '../../src/history';
 import { SyncClient, SyncServer } from '../../src/sync/collab';
 
@@ -15,7 +15,7 @@ function rng(seed: number) {
   };
 }
 
-const canon = (d: Doc) => JSON.stringify(d.blocks.map((b) => [b.id, b.type, !!b.checked, b.runs.map((r) => [r.text, [...r.marks]])]));
+const canon = (d: Doc) => JSON.stringify(d.blocks.map((b) => [b.id, b.type, !!b.checked, b.indent ?? 0, b.runs.map((r) => [r.text, [...r.marks], r.link ?? null])]));
 
 function texts(doc: Doc): string[] {
   return doc.blocks.map((b) => runsText(b.runs));
@@ -29,13 +29,15 @@ function randomTx(doc: Doc, r: () => number, words: string[]): Transaction | nul
   const sel: Selection = r() < 0.6 ? caret(pick()) : { anchor: pick(), focus: pick() };
   const s: EditorState = { doc, selection: sel, storedMarks: null };
   const marks: Mark[] = ['bold', 'italic'];
-  const k = Math.floor(r() * 6);
+  const k = Math.floor(r() * 8);
   return k === 0 ? insertText(s, words[Math.floor(r() * words.length)])
     : k === 1 ? splitBlock(s)
     : k === 2 ? deleteChar(s, -1)
     : k === 3 ? deleteSelection(s)
     : k === 4 ? toggleMark(s, marks[Math.floor(r() * 2)])
-    : setBlockType(s, (['paragraph', 'heading1', 'todo'] as const)[Math.floor(r() * 3)]);
+    : k === 6 ? indent(s, r() < 0.7 ? 1 : -1)
+    : k === 7 ? setLink(s, r() < 0.7 ? 'https://example.com/' + Math.floor(r() * 3) : null)
+    : setBlockType(s, (['paragraph', 'heading1', 'todo', 'bullet', 'numbered'] as const)[Math.floor(r() * 5)]);
 }
 
 describe('undo history', () => {

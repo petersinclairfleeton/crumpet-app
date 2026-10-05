@@ -8,13 +8,26 @@ export const MARK_ORDER: Mark[] = ['bold', 'italic', 'underline', 'strike', 'cod
 export interface Run {
   text: string;
   marks: Mark[]; // always sorted by MARK_ORDER, no duplicates
+  /** Link target, if this text is a link. */
+  link?: string;
 }
 
-export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'todo' | 'quote';
+export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'todo' | 'bullet' | 'numbered' | 'quote';
+
+/** Block types that are list items: they can be indented, and Enter continues them. */
+export const LIST_TYPES: readonly BlockType[] = ['todo', 'bullet', 'numbered'];
+export const MAX_INDENT = 6;
+
+export function isList(type: BlockType): boolean {
+  return LIST_TYPES.includes(type);
+}
 
 export interface BlockAttrs {
   type: BlockType;
+  /** Checklist items only. */
   checked?: boolean;
+  /** List items only; nesting level, 0 = not nested. */
+  indent?: number;
 }
 
 export interface Block extends BlockAttrs {
@@ -61,16 +74,25 @@ export function runsText(runs: Run[]): string {
   return runs.map((r) => r.text).join('');
 }
 
-/** Drops empty runs and merges neighbours with identical marks. */
+/** A copy of `r` with different text, keeping its formatting and link. */
+function withText(r: Run, text: string): Run {
+  return r.link ? { text, marks: r.marks, link: r.link } : { text, marks: r.marks };
+}
+
+export function sameFormat(a: Run, b: Run): boolean {
+  return sameMarks(a.marks, b.marks) && a.link === b.link;
+}
+
+/** Drops empty runs and merges neighbours with identical formatting. */
 export function normalizeRuns(runs: Run[]): Run[] {
   const out: Run[] = [];
   for (const r of runs) {
     if (!r.text) continue;
     const last = out[out.length - 1];
-    if (last && sameMarks(last.marks, r.marks)) {
-      out[out.length - 1] = { text: last.text + r.text, marks: last.marks };
+    if (last && sameFormat(last, r)) {
+      out[out.length - 1] = withText(last, last.text + r.text);
     } else {
-      out.push({ text: r.text, marks: sortMarks(r.marks) });
+      out.push(withText({ ...r, marks: sortMarks(r.marks) }, r.text));
     }
   }
   return out;
@@ -82,7 +104,7 @@ export function sliceRuns(runs: Run[], from: number, to: number): Run[] {
   for (const r of runs) {
     const end = pos + r.text.length;
     if (end > from && pos < to) {
-      out.push({ text: r.text.slice(Math.max(0, from - pos), Math.min(r.text.length, to - pos)), marks: r.marks });
+      out.push(withText(r, r.text.slice(Math.max(0, from - pos), Math.min(r.text.length, to - pos))));
     }
     pos = end;
     if (pos >= to) break;
@@ -120,10 +142,53 @@ export function marksAt(runs: Run[], offset: number): Mark[] {
 export function setMarkOnRuns(runs: Run[], mark: Mark, on: boolean): Run[] {
   return normalizeRuns(
     runs.map((r) => ({
-      text: r.text,
+      ...r,
       marks: on ? sortMarks([...r.marks.filter((m) => m !== mark), mark]) : r.marks.filter((m) => m !== mark),
     })),
   );
+}
+
+/** Sets (or, with null, removes) the link on every run, keeping the text and formatting. */
+export function setLinkOnRuns(runs: Run[], link: string | null): Run[] {
+  return normalizeRuns(runs.map((r) => (link ? { text: r.text, marks: r.marks, link } : { text: r.text, marks: r.marks })));
+}
+
+/** The link shared by every run, or null if they differ or have none. */
+export function commonLink(runs: Run[]): string | null {
+  const first = runs[0]?.link;
+  return first && runs.every((r) => r.link === first) ? first : null;
+}
+
+/** The link typed text at `offset` should join: only when it lands inside a link, not at its edge. */
+export function linkAt(runs: Run[], offset: number): string | undefined {
+  let pos = 0;
+  let before: string | undefined;
+  let after: string | undefined;
+  for (const r of runs) {
+    const end = pos + r.text.length;
+    if (offset > pos && offset <= end) before = r.link;
+    if (offset >= pos && offset < end) after = r.link;
+    pos = end;
+  }
+  return before && before === after ? before : undefined;
+}
+
+/**
+ * Turns what someone typed or pasted into a safe link target, or null if it isn't one.
+ * Bare domains get https://; only http(s) and mailto are allowed.
+ */
+export function normalizeLink(input: string): string | null {
+  const t = input.trim();
+  if (!t || /\s/.test(t)) return null;
+  if (/^mailto:[^@\s]+@[^@\s]+$/i.test(t)) return t;
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(t) ? t : /^(www\.|[a-z0-9-]+(\.[a-z0-9-]+)+)(\/|$|:)/i.test(t) ? `https://${t}` : null;
+  if (!withScheme) return null;
+  try {
+    const url = new URL(withScheme);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+  } catch {
+    return null;
+  }
 }
 
 export function blockIndex(doc: Doc, id: string): number {
@@ -158,6 +223,7 @@ export function caret(pos: Pos): Selection {
 export function makeBlock(type: BlockType, text = '', marks: Mark[] = [], extra: Partial<Block> = {}): Block {
   const block: Block = { id: newId(), type, runs: text ? [{ text, marks: sortMarks(marks) }] : [], ...extra };
   if (type === 'todo') block.checked = !!block.checked;
+  if (!isList(type) || !block.indent) delete block.indent;
   return block;
 }
 
@@ -168,7 +234,7 @@ export function docsEqual(a: Doc, b: Doc): boolean {
   return a.blocks.every((x, i) => {
     const y = b.blocks[i];
     if (x === y) return true;
-    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || x.runs.length !== y.runs.length) return false;
-    return x.runs.every((r, j) => r.text === y.runs[j].text && sameMarks(r.marks, y.runs[j].marks));
+    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || x.runs.length !== y.runs.length) return false;
+    return x.runs.every((r, j) => r.text === y.runs[j].text && sameFormat(r, y.runs[j]));
   });
 }

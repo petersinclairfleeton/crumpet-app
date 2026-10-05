@@ -7,7 +7,9 @@ import {
   type Transaction,
   deleteChar,
   deleteSelection,
+  indent,
   insertText,
+  setLink,
   joinBackward,
   setBlockType,
   splitBlock,
@@ -153,15 +155,17 @@ describe('sync convergence (randomised)', () => {
           };
           const sel: Selection = r() < 0.6 ? caret(pick()) : { anchor: pick(), focus: pick() };
           const s: EditorState = { doc, selection: sel, storedMarks: null };
-          const kind = Math.floor(r() * 7);
+          const kind = Math.floor(r() * 9);
           const t =
+            kind === 8 ? setLink(s, r() < 0.7 ? 'https://example.com/' + Math.floor(r() * 3) : null) :
+            kind === 7 ? indent(s, r() < 0.7 ? 1 : -1) :
             kind === 0 ? insertText(s, ['x', 'hello ', '日本', ' '][Math.floor(r() * 4)])
             : kind === 1 ? splitBlock(s)
             : kind === 2 ? deleteChar(s, -1)
             : kind === 3 ? deleteChar(s, 1)
             : kind === 4 ? deleteSelection(s)
             : kind === 5 ? toggleMark(s, marks[Math.floor(r() * marks.length)])
-            : setBlockType(s, (['paragraph', 'heading2', 'todo', 'quote'] as const)[Math.floor(r() * 4)]);
+            : setBlockType(s, (['paragraph', 'heading2', 'todo', 'bullet', 'numbered', 'quote'] as const)[Math.floor(r() * 6)]);
           if (t && t.ops.length) {
             const after = applyOps(doc, t.ops);
             c.local(t.ops, after);

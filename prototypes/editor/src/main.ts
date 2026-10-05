@@ -98,6 +98,7 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>('.toolbar button'
   btn.addEventListener('click', () => {
     if (btn.dataset.mark) editor.toggleMark(btn.dataset.mark as Mark);
     else if (btn.dataset.block) editor.setBlockType(btn.dataset.block as BlockType);
+    else if (btn.dataset.cmd === 'link') openLinkBar();
     else if (btn.dataset.cmd === 'undo') editor.undo();
     else if (btn.dataset.cmd === 'redo') editor.redo();
     else if (btn.dataset.cmd === 'reset') {
@@ -114,6 +115,59 @@ for (const btn of document.querySelectorAll<HTMLButtonElement>('.toolbar button'
     }
   });
 }
+
+// ---- link editor (⌘K or the toolbar button) ----
+const linkBar = document.getElementById('linkbar') as HTMLFormElement;
+const linkInput = document.getElementById('link-input') as HTMLInputElement;
+const linkError = document.getElementById('link-error')!;
+
+function openLinkBar() {
+  const current = editor.currentLink();
+  const sel = editor.currentSelection();
+  const collapsed = sel.anchor.block === sel.focus.block && sel.anchor.offset === sel.focus.offset;
+  if (collapsed && !current) {
+    linkBar.hidden = false;
+    linkInput.value = '';
+    linkError.textContent = 'Select some text first, then add a link to it.';
+    return;
+  }
+  linkBar.hidden = false;
+  linkError.textContent = '';
+  linkInput.value = current ?? '';
+  linkInput.focus();
+  linkInput.select();
+}
+
+function closeLinkBar() {
+  linkBar.hidden = true;
+  linkError.textContent = '';
+  editor.focus();
+}
+
+linkBar.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (!editor.setLink(linkInput.value || null)) {
+    linkError.textContent = 'That doesn’t look like a web address. Try something like example.com.';
+    return;
+  }
+  closeLinkBar();
+});
+document.getElementById('link-remove')!.addEventListener('click', () => {
+  editor.setLink(null);
+  closeLinkBar();
+});
+linkInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    closeLinkBar();
+  }
+});
+root.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openLinkBar();
+  }
+});
 
 // ---- device-test recorder ----
 const recorder = new Recorder(editor);

@@ -13,6 +13,7 @@ import {
   caret,
   getBlock,
   isCollapsed,
+  normalizeLink,
   orderedRange,
   runsText,
   sliceRuns,
@@ -23,8 +24,13 @@ import {
   type Transaction,
   deleteBetween,
   deleteChar,
+  autoLink,
+  currentLink,
   deleteSelection,
+  indent,
   insertText,
+  pasteLink,
+  setLink,
   joinBackward,
   joinForward,
   markActive,
@@ -206,7 +212,10 @@ export class Editor {
         e.preventDefault();
         if (e.data == null) return;
         this.dispatch(insertText(s, e.data));
-        if (e.data === ' ') this.dispatch(markdownShortcut(this.state));
+        if (e.data === ' ') {
+          this.dispatch(markdownShortcut(this.state));
+          this.dispatch(autoLink(this.state), 'command');
+        }
         return;
       }
       case 'insertReplacementText': {
@@ -344,7 +353,10 @@ export class Editor {
     if (e.isComposing || e.keyCode === 229) return;
     const mod = isMac ? e.metaKey : e.ctrlKey;
     if (e.key === 'Tab') {
+      // Tab nests list items (Shift+Tab un-nests); elsewhere it does nothing rather than leaving the note.
       e.preventDefault();
+      this.syncSelectionFromDom();
+      this.dispatch(indent(this.state, e.shiftKey ? -1 : 1), 'command');
       return;
     }
     if (!mod) return;
@@ -361,12 +373,21 @@ export class Editor {
     else if (e.altKey && e.code === 'Digit2') this.setBlockType('heading2');
     else if (e.altKey && e.code === 'Digit0') this.setBlockType('paragraph');
     else if (e.altKey && e.code === 'KeyT') this.setBlockType('todo');
+    else if (e.altKey && e.code === 'KeyL') this.setBlockType('bullet');
+    else if (e.altKey && e.code === 'KeyN') this.setBlockType('numbered');
     else if (e.altKey && e.code === 'KeyQ') this.setBlockType('quote');
     else handled = false;
     if (handled) e.preventDefault();
   }
 
   private onMouseDown(e: MouseEvent): void {
+    const link = (e.target as Element).closest?.('a[href]') as HTMLAnchorElement | null;
+    if (link && (isMac ? e.metaKey : e.ctrlKey)) {
+      // ⌘/Ctrl-click opens a link; a plain click just places the caret, so links stay editable.
+      e.preventDefault();
+      window.open(link.href, '_blank', 'noopener');
+      return;
+    }
     const box = (e.target as Element).closest?.('.check');
     if (!box) return;
     e.preventDefault();
@@ -378,7 +399,27 @@ export class Editor {
     e.preventDefault();
     this.syncSelectionFromDom();
     const text = e.clipboardData?.getData('text/plain');
-    if (text) this.dispatch(insertText(this.state, text));
+    if (!text) return;
+    this.dispatch(pasteLink(this.state, text) ?? insertText(this.state, text));
+  }
+
+  /** Links the selection (or the link under the caret) to `href`; empty or null removes it. Returns false if `href` isn't a valid link. */
+  setLink(href: string | null): boolean {
+    const target = href ? normalizeLink(href) : null;
+    if (href && !target) return false;
+    this.dispatch(setLink(this.state, target), 'command');
+    return true;
+  }
+
+  currentLink(): string | null {
+    this.syncSelectionFromDom();
+    return currentLink(this.state);
+  }
+
+  /** The selection as the page currently shows it (the model can lag a moment behind keyboard selection). */
+  currentSelection(): Selection {
+    this.syncSelectionFromDom();
+    return this.state.selection;
   }
 
   private onCopy(e: ClipboardEvent): void {

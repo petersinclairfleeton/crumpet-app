@@ -7,6 +7,9 @@ import {
   type BlockType,
   type Doc,
   type Mark,
+  MAX_INDENT,
+  commonLink,
+  isList,
   type Run,
   blockIndex,
   insertRuns,
@@ -29,8 +32,11 @@ export type Op =
   | { type: 'join'; block: string; second: string; offset: number; secondAttrs: BlockAttrs }
   /** Change a block's type/attributes. */
   | { type: 'setAttrs'; block: string; from: BlockAttrs; to: BlockAttrs }
-  /** Replace formatting on a span; `before` and `after` hold the same text. `mark`/`on` record the intent, for sync. */
-  | { type: 'format'; block: string; offset: number; before: Run[]; after: Run[]; mark: Mark; on: boolean };
+  /**
+   * Replace formatting on a span; `before` and `after` hold the same text. The intent is recorded
+   * for sync: either a mark switched on/off, or a link set (a URL) or removed (null).
+   */
+  | ({ type: 'format'; block: string; offset: number; before: Run[]; after: Run[] } & ({ mark: Mark; on: boolean; link?: undefined } | { link: string | null; mark?: undefined }));
 
 export class OpError extends Error {}
 
@@ -38,8 +44,15 @@ function check(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new OpError(msg);
 }
 
-function attrsOf(b: BlockAttrs): BlockAttrs {
-  return b.type === 'todo' ? { type: b.type, checked: !!b.checked } : { type: b.type };
+/** A block's attributes in canonical form: `checked` only on checklist items, `indent` only on nested list items. */
+export function attrsOf(b: BlockAttrs): BlockAttrs {
+  return blockAttrs(b.type, b.checked, b.indent);
+}
+
+export function sameAttrs(a: BlockAttrs, b: BlockAttrs): boolean {
+  const x = attrsOf(a);
+  const y = attrsOf(b);
+  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0);
 }
 
 export function applyOp(doc: Doc, op: Op): Doc {
@@ -104,7 +117,9 @@ export function invertOp(op: Op): Op {
     case 'setAttrs':
       return { type: 'setAttrs', block: op.block, from: op.to, to: op.from };
     case 'format':
-      return { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, mark: op.mark, on: !op.on };
+      return op.link !== undefined
+        ? { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, link: commonLink(op.before) }
+        : { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, mark: op.mark, on: !op.on };
   }
 }
 
@@ -116,8 +131,11 @@ export function invertOps(ops: Op[]): Op[] {
   return ops.slice().reverse().map(invertOp);
 }
 
-export function blockAttrs(type: BlockType, checked?: boolean): BlockAttrs {
-  return type === 'todo' ? { type, checked: !!checked } : { type };
+export function blockAttrs(type: BlockType, checked?: boolean, indent?: number): BlockAttrs {
+  const a: BlockAttrs = { type };
+  if (type === 'todo') a.checked = !!checked;
+  if (isList(type) && indent) a.indent = Math.max(0, Math.min(MAX_INDENT, indent));
+  return a;
 }
 
 /**

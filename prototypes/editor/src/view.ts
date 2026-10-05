@@ -3,15 +3,19 @@
 // changed are rebuilt; the rest of the DOM is left alone.
 
 import type { Block, Doc, Mark, Pos, Selection } from './model';
-import { runsLength } from './model';
+import { isList, runsLength } from './model';
 
 const TAGS: Record<Block['type'], string> = {
   paragraph: 'p',
   heading1: 'h1',
   heading2: 'h2',
   todo: 'div',
+  bullet: 'div',
+  numbered: 'div',
   quote: 'blockquote',
 };
+
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 const MARK_TAGS: Record<Mark, string> = {
   bold: 'strong',
@@ -162,6 +166,11 @@ function buildBlock(block: Block): HTMLElement {
   const el = document.createElement(TAGS[block.type]);
   el.className = `blk blk-${block.type}`;
   el.dataset.block = block.id;
+  if (isList(block.type)) {
+    el.classList.add('blk-list');
+    el.dataset.indent = String(block.indent ?? 0);
+    el.style.setProperty('--indent', String(block.indent ?? 0));
+  }
   if (block.type === 'todo') {
     el.classList.toggle('checked', !!block.checked);
     const box = document.createElement('span');
@@ -183,6 +192,15 @@ function buildBlock(block: Block): HTMLElement {
       const wrap = document.createElement(MARK_TAGS[mark]);
       wrap.appendChild(node);
       node = wrap;
+    }
+    if (run.link) {
+      const a = document.createElement('a');
+      a.href = run.link;
+      a.title = `${run.link} (${isMac ? '⌘' : 'Ctrl'}-click to open)`;
+      a.rel = 'noopener noreferrer';
+      a.target = '_blank';
+      a.appendChild(node);
+      node = a;
     }
     text.appendChild(node);
   }

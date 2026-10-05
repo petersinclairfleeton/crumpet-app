@@ -76,7 +76,39 @@ kbd { font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 4px; back
 .blk-heading1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; margin: 0 0 14px; }
 .blk-heading2 { font-size: 19px; font-weight: 800; line-height: 1.35; margin: 18px 0 6px; }
 .blk-quote { margin: 4px 0 12px; padding: 10px 16px; border-radius: 7px; background: var(--accent-soft); }
+/* Lists are flat blocks with an indent level; markers and numbers come from CSS. */
+.blk-list { margin: 0 0 4px; margin-left: calc(var(--indent, 0) * 24px); }
+.blk-bullet, .blk-numbered { position: relative; padding-left: 24px; }
+.blk-bullet::before, .blk-numbered::before { position: absolute; left: 0; width: 20px; text-align: right; padding-right: 4px; box-sizing: border-box; color: var(--muted); font-variant-numeric: tabular-nums; user-select: none; }
+.blk-bullet::before { content: '•'; text-align: center; }
+.blk-bullet[data-indent="1"]::before, .blk-bullet[data-indent="4"]::before { content: '◦'; }
+.blk-bullet[data-indent="2"]::before, .blk-bullet[data-indent="5"]::before { content: '▪'; }
+/* Numbering: each level has its own counter. A numbered item counts at its level and restarts
+   deeper levels; anything else at a level restarts that level and deeper ones. */
+.editor { counter-reset: n0 n1 n2 n3 n4 n5 n6; }
+.blk:not(.blk-list), .blk-list:not(.blk-numbered)[data-indent="0"] { counter-reset: n0 n1 n2 n3 n4 n5 n6; }
+.blk-list:not(.blk-numbered)[data-indent="1"] { counter-reset: n1 n2 n3 n4 n5 n6; }
+.blk-list:not(.blk-numbered)[data-indent="2"] { counter-reset: n2 n3 n4 n5 n6; }
+.blk-list:not(.blk-numbered)[data-indent="3"] { counter-reset: n3 n4 n5 n6; }
+.blk-list:not(.blk-numbered)[data-indent="4"] { counter-reset: n4 n5 n6; }
+.blk-list:not(.blk-numbered)[data-indent="5"] { counter-reset: n5 n6; }
+.blk-list:not(.blk-numbered)[data-indent="6"] { counter-reset: n6; }
+.blk-numbered[data-indent="0"] { counter-increment: n0; counter-reset: n1 n2 n3 n4 n5 n6; }
+.blk-numbered[data-indent="1"] { counter-increment: n1; counter-reset: n2 n3 n4 n5 n6; }
+.blk-numbered[data-indent="2"] { counter-increment: n2; counter-reset: n3 n4 n5 n6; }
+.blk-numbered[data-indent="3"] { counter-increment: n3; counter-reset: n4 n5 n6; }
+.blk-numbered[data-indent="4"] { counter-increment: n4; counter-reset: n5 n6; }
+.blk-numbered[data-indent="5"] { counter-increment: n5; counter-reset: n6; }
+.blk-numbered[data-indent="6"] { counter-increment: n6; }
+.blk-numbered[data-indent="0"]::before { content: counter(n0) '.'; }
+.blk-numbered[data-indent="1"]::before { content: counter(n1, lower-alpha) '.'; }
+.blk-numbered[data-indent="2"]::before { content: counter(n2, lower-roman) '.'; }
+.blk-numbered[data-indent="3"]::before { content: counter(n3) '.'; }
+.blk-numbered[data-indent="4"]::before { content: counter(n4, lower-alpha) '.'; }
+.blk-numbered[data-indent="5"]::before { content: counter(n5, lower-roman) '.'; }
+.blk-numbered[data-indent="6"]::before { content: counter(n6) '.'; }
 .blk-todo { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 4px; }
+.blk-todo.blk-list { margin-left: calc(var(--indent, 0) * 24px); }
 .blk-todo .check { flex: 0 0 17px; width: 17px; height: 17px; margin-top: 5px; border-radius: 4px; border: 1.5px solid var(--muted); cursor: pointer; user-select: none; display: flex; align-items: center; justify-content: center; }
 .blk-todo.checked .check { background: var(--accent); border-color: var(--accent); }
 .blk-todo.checked .check::after { content: ''; width: 8px; height: 4px; border-left: 2px solid var(--on-accent); border-bottom: 2px solid var(--on-accent); transform: rotate(-45deg) translate(1px, -1px); }
@@ -103,3 +135,15 @@ kbd { font: inherit; font-size: 11px; padding: 1px 5px; border-radius: 4px; back
 @media (max-width: 900px) {
   .debug { max-width: none; max-height: none; position: static; border-left: none; border-top: 1px solid var(--line); }
 }
+
+/* ---- Links ---- */
+.editor a { color: var(--accent-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: text; }
+.linkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--list); position: sticky; top: 45px; z-index: 1; }
+.linkbar[hidden] { display: none; }
+.linkbar label { font-size: 12px; font-weight: 700; color: var(--text2); }
+.linkbar input { flex: 1 1 220px; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--page); color: var(--text); font: inherit; font-size: 14px; }
+.linkbar input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.linkbar button { height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.linkbar button[type="submit"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.linkbar .link-error { flex-basis: 100%; font-size: 12px; color: var(--accent-ink); }
+.linkbar .link-error:empty { display: none; }

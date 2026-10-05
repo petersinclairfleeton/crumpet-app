@@ -3,6 +3,7 @@
 // the DOM, so they can be tested directly.
 
 import {
+  type Block,
   type BlockType,
   type Doc,
   type Mark,
@@ -13,6 +14,11 @@ import {
   getBlock,
   blockIndex,
   isCollapsed,
+  isList,
+  commonLink,
+  linkAt,
+  normalizeLink,
+  setLinkOnRuns,
   marksAt,
   newId,
   orderedRange,
@@ -22,7 +28,7 @@ import {
   sliceRuns,
   sortMarks,
 } from './model';
-import { type Op, applyOp, blockAttrs } from './ops';
+import { type Op, applyOp, applyOps, attrsOf, blockAttrs } from './ops';
 
 export interface EditorState {
   doc: Doc;
@@ -87,7 +93,7 @@ function deleteRange(b: Builder, from: Pos, to: Pos): Pos {
       block: from.block,
       second: next.id,
       offset: runsLength(getBlock(b.doc, from.block).runs),
-      secondAttrs: blockAttrs(after.type, after.checked),
+      secondAttrs: attrsOf(after),
     });
     if (isLast) break;
   }
@@ -108,7 +114,9 @@ const MARKDOWN_PREFIXES: [string, BlockType, boolean?][] = [
   ['[]', 'todo', false],
   ['[ ]', 'todo', false],
   ['[x]', 'todo', true],
-  ['-', 'todo', false],
+  ['-', 'bullet'],
+  ['*', 'bullet'],
+  ['1.', 'numbered'],
   ['>', 'quote'],
 ];
 
@@ -118,12 +126,15 @@ export function insertText(state: EditorState, text: string): Transaction {
   const at = deleteRange(b, from, to);
   const block = getBlock(b.doc, at.block);
   const marks = state.storedMarks ?? marksAt(block.runs, at.offset);
+  // Typing inside a link keeps it linked; typing at its edge does not extend it.
+  const link = linkAt(block.runs, at.offset);
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   let pos = at;
   lines.forEach((line, n) => {
     if (n > 0) pos = splitAt(b, pos);
     if (line) {
-      b.step({ type: 'insert', block: pos.block, offset: pos.offset, runs: [{ text: line, marks: sortMarks(marks) }] });
+      const run: Run = link && n === 0 ? { text: line, marks: sortMarks(marks), link } : { text: line, marks: sortMarks(marks) };
+      b.step({ type: 'insert', block: pos.block, offset: pos.offset, runs: [run] });
       pos = { block: pos.block, offset: pos.offset + line.length };
     }
   });
@@ -144,25 +155,26 @@ export function markdownShortcut(state: EditorState): Transaction | null {
   const [, type, checked] = match;
   const b = new Builder(state.doc);
   b.step({ type: 'remove', block: block.id, offset: 0, runs: sliceRuns(block.runs, 0, pos.offset) });
-  b.step({ type: 'setAttrs', block: block.id, from: blockAttrs(block.type), to: blockAttrs(type, checked) });
+  b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: blockAttrs(type, checked) });
   return tx(state, b, caret({ block: block.id, offset: 0 }));
 }
 
-function nextBlockAttrs(type: BlockType) {
-  if (type === 'todo') return blockAttrs('todo', false);
-  if (type === 'quote') return blockAttrs('quote');
+/** What Enter at the end of a block creates: lists and quotes continue, headings become paragraphs. */
+function nextBlockAttrs(block: Block) {
+  if (isList(block.type)) return blockAttrs(block.type, false, block.indent);
+  if (block.type === 'quote') return blockAttrs('quote');
   return blockAttrs('paragraph');
 }
 
 function splitAt(b: Builder, pos: Pos): Pos {
   const block = getBlock(b.doc, pos.block);
   const atEnd = pos.offset === runsLength(block.runs);
-  const newAttrs = atEnd ? nextBlockAttrs(block.type) : blockAttrs(block.type, false);
+  const newAttrs = atEnd ? nextBlockAttrs(block) : blockAttrs(block.type, false, block.indent);
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
   // Enter at the very start of a heading keeps the heading below and leaves an empty paragraph above.
   if (!atEnd && pos.offset === 0 && (block.type === 'heading1' || block.type === 'heading2')) {
-    b.step({ type: 'setAttrs', block: block.id, from: blockAttrs(block.type), to: blockAttrs('paragraph') });
+    b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: blockAttrs('paragraph') });
   }
   return { block: newBlock, offset: 0 };
 }
@@ -172,9 +184,11 @@ export function splitBlock(state: EditorState): Transaction {
   const { from, to } = orderedRange(state.doc, state.selection);
   const at = deleteRange(b, from, to);
   const block = getBlock(b.doc, at.block);
-  // Enter on an empty todo/quote/heading leaves that block type instead of adding another.
+  // Enter on an empty list item moves it out one level, and out of the list at the top level.
+  // On an empty quote or heading it turns back into a paragraph instead of adding another.
   if (block.type !== 'paragraph' && runsLength(block.runs) === 0) {
-    b.step({ type: 'setAttrs', block: block.id, from: blockAttrs(block.type, block.checked), to: blockAttrs('paragraph') });
+    const to = isList(block.type) && block.indent ? blockAttrs(block.type, false, block.indent - 1) : blockAttrs('paragraph');
+    b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to });
     return tx(state, b, caret(at));
   }
   return tx(state, b, caret(splitAt(b, at)));
@@ -187,14 +201,14 @@ export function joinBackward(state: EditorState): Transaction | null {
   const b = new Builder(state.doc);
   const block = getBlock(state.doc, pos.block);
   if (block.type !== 'paragraph') {
-    b.step({ type: 'setAttrs', block: block.id, from: blockAttrs(block.type, block.checked), to: blockAttrs('paragraph') });
+    b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: blockAttrs('paragraph') });
     return tx(state, b, state.selection);
   }
   const i = blockIndex(state.doc, block.id);
   if (i === 0) return tx(state, b, state.selection);
   const prev = state.doc.blocks[i - 1];
   const prevLen = runsLength(prev.runs);
-  b.step({ type: 'join', block: prev.id, second: block.id, offset: prevLen, secondAttrs: blockAttrs(block.type, block.checked) });
+  b.step({ type: 'join', block: prev.id, second: block.id, offset: prevLen, secondAttrs: attrsOf(block) });
   return tx(state, b, caret({ block: prev.id, offset: prevLen }), { kind: 'delete' });
 }
 
@@ -208,7 +222,7 @@ export function joinForward(state: EditorState): Transaction | null {
   const b = new Builder(state.doc);
   const next = state.doc.blocks[i + 1];
   if (!next) return tx(state, b, state.selection);
-  b.step({ type: 'join', block: block.id, second: next.id, offset: len, secondAttrs: blockAttrs(next.type, next.checked) });
+  b.step({ type: 'join', block: block.id, second: next.id, offset: len, secondAttrs: attrsOf(next) });
   return tx(state, b, state.selection, { kind: 'delete' });
 }
 
@@ -296,7 +310,105 @@ export function setBlockType(state: EditorState, type: BlockType): Transaction {
   for (let i = start; i <= end; i++) {
     const blk = state.doc.blocks[i];
     if (blk.type === target) continue;
-    b.step({ type: 'setAttrs', block: blk.id, from: blockAttrs(blk.type, blk.checked), to: blockAttrs(target, false) });
+    // Switching between list types keeps the nesting level.
+    b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to: blockAttrs(target, false, isList(blk.type) ? blk.indent : 0) });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** The span of the link around a collapsed caret, if it sits inside or at the edge of one. */
+function linkSpanAt(doc: Doc, pos: Pos): { from: number; to: number; link: string } | null {
+  const runs = getBlock(doc, pos.block).runs;
+  let start = 0;
+  for (let i = 0; i < runs.length; i++) {
+    const r = runs[i];
+    const end = start + r.text.length;
+    if (r.link && pos.offset >= start && pos.offset <= end) {
+      // Extend over neighbouring runs with the same link (they differ only in other formatting).
+      let from = start;
+      let to = end;
+      for (let j = i - 1; j >= 0 && runs[j].link === r.link; j--) from -= runs[j].text.length;
+      for (let j = i + 1; j < runs.length && runs[j].link === r.link; j++) to += runs[j].text.length;
+      return { from, to, link: r.link };
+    }
+    start = end;
+  }
+  return null;
+}
+
+/** The link under the selection or caret, for showing in the link editor. */
+export function currentLink(state: EditorState): string | null {
+  if (isCollapsed(state.selection)) return linkSpanAt(state.doc, state.selection.focus)?.link ?? null;
+  const spans = selectedSpans(state.doc, state.selection).filter((x) => x.to > x.from);
+  return spans.length ? commonLink(spans.flatMap((x) => sliceRuns(getBlock(state.doc, x.id).runs, x.from, x.to))) : null;
+}
+
+/**
+ * Links the selected text to `href` (already normalised), or removes links with null.
+ * With nothing selected, it edits or removes the link the caret is in.
+ */
+export function setLink(state: EditorState, href: string | null): Transaction | null {
+  let sel = state.selection;
+  if (isCollapsed(sel)) {
+    const span = linkSpanAt(state.doc, sel.focus);
+    if (!span) return null;
+    sel = { anchor: { block: sel.focus.block, offset: span.from }, focus: { block: sel.focus.block, offset: span.to } };
+  }
+  const b = new Builder(state.doc);
+  for (const sp of selectedSpans(state.doc, sel)) {
+    if (sp.to <= sp.from) continue;
+    const before = sliceRuns(getBlock(b.doc, sp.id).runs, sp.from, sp.to);
+    const after = setLinkOnRuns(before, href);
+    if (JSON.stringify(before) === JSON.stringify(after)) continue;
+    b.step({ type: 'format', block: sp.id, offset: sp.from, before, after, link: href });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** After typing a space, turns a web address just before it into a link. */
+export function autoLink(state: EditorState): Transaction | null {
+  if (!isCollapsed(state.selection)) return null;
+  const pos = state.selection.focus;
+  const block = getBlock(state.doc, pos.block);
+  const before = runsText(block.runs).slice(0, pos.offset);
+  const m = /(?:^|\s)((?:https?:\/\/|www\.)[^\s]+)\s$/i.exec(before);
+  if (!m) return null;
+  const word = m[1].replace(/[.,;:!?)\]]+$/, ''); // leave trailing punctuation out of the link
+  const href = normalizeLink(word);
+  if (!href) return null;
+  const from = before.length - 1 - m[1].length;
+  const to = from + word.length;
+  const runs = sliceRuns(block.runs, from, to);
+  if (runs.some((r) => r.link)) return null;
+  const t = setLink({ ...state, selection: { anchor: { block: block.id, offset: from }, focus: { block: block.id, offset: to } } }, href);
+  return t && t.ops.length ? { ...t, selectionBefore: state.selection, selectionAfter: state.selection } : null;
+}
+
+/** Pasting a web address: links the selected text to it, or inserts it as a link. Returns null for other text. */
+export function pasteLink(state: EditorState, text: string): Transaction | null {
+  const href = normalizeLink(text);
+  if (!href || !/^(https?:\/\/|www\.|mailto:)/i.test(text.trim())) return null;
+  if (!isCollapsed(state.selection)) return setLink(state, href);
+  const t = insertText(state, text.trim());
+  const at = state.selection.focus;
+  const linked = setLink(
+    { ...state, doc: applyOps(state.doc, t.ops), selection: { anchor: at, focus: { block: at.block, offset: at.offset + text.trim().length } } },
+    href,
+  );
+  return linked ? { ...t, ops: [...t.ops, ...linked.ops] } : t;
+}
+
+/** Tab / Shift+Tab: nest or un-nest the selected list items. Returns null if none are list items. */
+export function indent(state: EditorState, delta: 1 | -1): Transaction | null {
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const start = blockIndex(state.doc, from.block);
+  const end = blockIndex(state.doc, to.block);
+  const items = state.doc.blocks.slice(start, end + 1).filter((x) => isList(x.type));
+  if (!items.length) return null;
+  const b = new Builder(state.doc);
+  for (const blk of items) {
+    const next = blockAttrs(blk.type, blk.checked, (blk.indent ?? 0) + delta);
+    if ((next.indent ?? 0) !== (blk.indent ?? 0)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to: next });
   }
   return tx(state, b, state.selection);
 }
@@ -305,7 +417,7 @@ export function toggleTodo(state: EditorState, id: string): Transaction {
   const blk = getBlock(state.doc, id);
   const b = new Builder(state.doc);
   if (blk.type !== 'todo') return tx(state, b, state.selection);
-  b.step({ type: 'setAttrs', block: id, from: blockAttrs('todo', blk.checked), to: blockAttrs('todo', !blk.checked) });
+  b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('todo', !blk.checked, blk.indent) });
   return tx(state, b, state.selection);
 }
 

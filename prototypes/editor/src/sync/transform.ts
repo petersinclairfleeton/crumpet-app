@@ -19,8 +19,8 @@
 // the same order, so they always end up identical. This file only has to make
 // the rewritten edits land where the person meant them.
 
-import { type Doc, type Pos, type Selection, blockIndex, getBlock, runsLength, runsText, setMarkOnRuns, sliceRuns } from '../model';
-import { type Op, applyOp, blockAttrs, invertOp } from '../ops';
+import { type Doc, type Pos, type Selection, blockIndex, getBlock, runsLength, runsText, setLinkOnRuns, setMarkOnRuns, sliceRuns } from '../model';
+import { type Op, applyOp, attrsOf, invertOp, sameAttrs } from '../ops';
 
 type Assoc = -1 | 1;
 
@@ -234,13 +234,13 @@ export function materialise(op: Op, map: MapFn, target: Doc): Op[] {
       if (i === 0) return [];
       const prev = target.blocks[i - 1];
       const second = target.blocks[i];
-      return [{ type: 'join', block: prev.id, second: second.id, offset: runsLength(prev.runs), secondAttrs: blockAttrs(second.type, second.checked) }];
+      return [{ type: 'join', block: prev.id, second: second.id, offset: runsLength(prev.runs), secondAttrs: attrsOf(second) }];
     }
     case 'setAttrs': {
       if (!has(target, op.block)) return [];
       const b = getBlock(target, op.block);
-      const from = blockAttrs(b.type, b.checked);
-      if (from.type === op.to.type && !!from.checked === !!op.to.checked) return [];
+      const from = attrsOf(b);
+      if (sameAttrs(from, op.to)) return [];
       return [{ type: 'setAttrs', block: op.block, from, to: op.to }];
     }
     case 'format': {
@@ -253,7 +253,9 @@ export function materialise(op: Op, map: MapFn, target: Doc): Op[] {
       }
       return spans(target, from, to).map((s) => {
         const before = sliceRuns(getBlock(target, s.id).runs, s.from, s.to);
-        return { type: 'format' as const, block: s.id, offset: s.from, before, after: setMarkOnRuns(before, op.mark, op.on), mark: op.mark, on: op.on };
+        return op.link !== undefined
+          ? { type: 'format' as const, block: s.id, offset: s.from, before, after: setLinkOnRuns(before, op.link), link: op.link }
+          : { type: 'format' as const, block: s.id, offset: s.from, before, after: setMarkOnRuns(before, op.mark, op.on), mark: op.mark, on: op.on };
       });
     }
   }

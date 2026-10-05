@@ -24,15 +24,20 @@ input events the browser sent.
 No editor library. We write the document model, operations, rendering and input
 handling ourselves.
 
-- **Model** (`src/model.ts`): a flat list of blocks (paragraph, heading 1/2,
-  checklist item, quote), each holding runs of text with marks (bold, italic,
-  underline, strike, code). Immutable, so unchanged blocks keep their identity.
+- **Model** (`src/model.ts`): a flat list of blocks (paragraph, heading 1/2, quote,
+  and list items: bulleted, numbered and checklist, each with a nesting level), each
+  holding runs of text with marks (bold, italic, underline, strike, code) and an
+  optional link. Immutable, so unchanged blocks keep their identity. Lists stay flat
+  blocks with an indent level; bullets and numbers are drawn by CSS, so the operation
+  set doesn't grow.
 - **Operations** (`src/ops.ts`): the only way the document changes. Six kinds:
   insert, remove, split, join, setAttrs, format. Each one is serialisable and has
   an exact inverse. This gives undo/redo now and is the unit we will sync between
   devices later.
 - **Commands** (`src/commands.ts`): typing, Enter, Backspace/Delete, word deletion,
-  formatting, block types, markdown shortcuts (`# `, `## `, `[] `, `> `), paste.
+  formatting, block types, markdown shortcuts (`# `, `## `, `- `, `1. `, `[] `, `> `),
+  list nesting with Tab and Shift+Tab, links (⌘K, typed and pasted web addresses;
+  only http(s) and mailto are accepted), paste.
   Pure functions from state to a transaction, so they are tested without a browser.
 - **History** (`src/history.ts`): undo/redo by applying inverted operations;
   quick typing merges into one step.
@@ -88,9 +93,9 @@ Limits for now: there is no real server, storage or network.
 
 ## What is proven so far
 
-- 67 unit tests:
-  - Editing commands, plus a randomised test of 3,000 edits that checks every
-    transaction can be undone back to exactly the previous document.
+- 76 unit tests:
+  - Editing commands, lists and links, plus a randomised test of 3,000 edits that
+    checks every transaction can be undone back to exactly the previous document.
   - Seven sync conflict scenarios (simultaneous typing, formatting across a split the
     other device made, typing into a paragraph the other device merged away, bold on
     text typed offline, deleting around the other device's insert, and more), and caret
@@ -102,10 +107,11 @@ Limits for now: there is no real server, storage or network.
     replays them all; undoing everything with merged typing returns to the start; and
     with a second device editing concurrently, undo removes only your own words. These
     run 30 random histories each by default; `SEEDS=400 npm test` runs a long soak.
-- 16 browser tests in Chromium driving real key events: typing, Enter/Backspace
+- 18 browser tests in Chromium driving real key events: typing, Enter/Backspace
   across blocks, shortcuts, formatting across blocks, markdown shortcuts,
   checklists, undo/redo, replacing a cross-block selection, word deletion, paste,
-  emoji deletion, and IME composition (simulated Japanese input). Each test also
+  emoji deletion, IME composition (simulated Japanese input), lists with nesting and
+  numbering, and links (⌘K, typed and pasted addresses, rejecting unsafe ones). Each test also
   checks that the page still shows exactly what the model holds, and one checks
   that the device-test recorder notices when it doesn't. Two more drive the sync page:
   live typing reaching the other device, offline edits on both devices merging, and
@@ -134,6 +140,6 @@ These are the main risks, and automated Chromium on Linux can't cover them:
 
 ## Known gaps (deliberate for now)
 
-Nested lists, links, images, tables, rich paste (formatting is dropped on paste),
+Images, tables, rich paste (formatting is dropped on paste),
 drag and drop, soft line breaks, large-document performance, and a real sync server
 and storage.
