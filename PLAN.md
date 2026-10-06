@@ -26,14 +26,21 @@ This is a clean restart: nothing is carried over from the previous Crumpet codeb
 3. **Word parity (v3)**: .docx import/export, comments, tracked changes.
 4. **Later**: blog post formatting, sharing, AI assist.
 
+## Status
+
+- **Notes app (v1)**: first version in `app/`: notebooks and stacks (all created by the person; it starts empty), tags, search, Favorites, Trash, settings, phone layout, notes saved on the device. Not yet: sync, images, desktop and mobile wrappers.
+- **Editor**: `packages/editor`, used by the app; lists, links, undo across devices.
+- **Your files, your cloud**: notes sync as Markdown files to a folder the person owns. Google Drive works (`app/src/sync`, setup in `docs/google-drive-setup.md`); a local folder on the computer is next, then other cloud services. No Crumpet server or account.
+
 ## v1 scope: Notes
 
 - Create, edit and delete notes; trash with restore
 - Notebooks, stacks of notebooks, and tags
 - Full-text search
 - Rich text: headings, bold/italic/underline/strike, lists, checklists, links, quotes, code, images
-- Shortcuts (pinned notes and notebooks), a colour per notebook, a featured image per note
-- Account sign-in; offline editing; sync across all four platforms
+- Favorites (starred notes), a colour per notebook, a featured image per note
+- Starts empty: the person creates every notebook and stack; notes don't have to be in a notebook
+- No Crumpet account: notes live on the device and, if connected, as Markdown files in the person's own cloud folder (Google Drive first, then a local folder, then others); offline editing; sync across all four platforms
 - Light and dark themes, user-selectable accent colour
 
 Out of v1: documents, pages, .docx, comments, sharing, AI.
@@ -73,14 +80,14 @@ Softly rounded, never bubbly: sidebar rows 4 px, chips 4 px, buttons and fields 
 
 ### Desktop layout (Mac / web)
 
-1. **Sidebar** (Evernote order, tight ~23 px rows): account with avatar and menu → round accent "+ New Note" (⌘N) → Recent Notes (3) → All Notes, Shortcuts → Notebooks: stacks with disclosure triangles (e.g. 0 Inbox, 1 Projects, 2 Areas, 3 Resources, 4 Archive), each notebook with its coloured icon and count → Tags → Trash → logo and sync status at the bottom.
+1. **Sidebar** (Evernote order, tight ~23 px rows): account with avatar and menu → round accent "+ New Note" → Recent Notes (3) → All Notes, Favorites → Notebooks: the person's own stacks with disclosure triangles and their notebooks, each notebook with its coloured icon and count; a + to create a notebook or a stack → Tags → Trash → logo and sync status at the bottom.
 2. **Top bar**: notebook breadcrumb, centred ⌘K "Search or jump to…" field, Share button.
 3. **Note list**: notebook name with its colour, note count, Cards / Table switch. Cards are grouped by date (Today, This week, then month). Each card: featured-image thumbnail on the left (52 px) when the note has one, bold title and time, two-line preview, first tag. The selected card is white with a 1.5 px accent ring. Table view keeps the classic Created / Title / Notebook / Size columns.
 4. **Note**: formatting toolbar with "Edited" time; optional cover image (the note's featured image) with "Change cover"; large title; chips for notebook, tags and "+ tag"; body with callout blocks (accent tint), checklists, inline images with captions; word count and reading time at the end.
 
 ### iPhone
 
-- **List**: back link to the stack, notebook title with colour, search within the notebook, date-grouped cards with left thumbnails (56 px). A floating slate tab bar (Notes, Notebooks, Shortcuts, Search) and a separate accent "+" button.
+- **List**: back link to the stack, notebook title with colour, search within the notebook, date-grouped cards with left thumbnails (56 px). A floating slate tab bar (Notes, Notebooks, Favorites, Search) and a separate accent "+" button.
 - **Note**: back link, Share and More, cover image, title, notebook and tag chips, body. A floating formatting bar sits above the keyboard (style, bold, italic, checklist, image, tag, hide keyboard). Touch targets at least 44 px.
 - **iPad**: not designed yet; uses the desktop layout with taller rows for touch.
 
@@ -95,17 +102,22 @@ A filled accent circle with a few round "holes", like a crumpet. Used in the sid
 - **iPhone/iPad:** Capacitor wrapper.
 - **Mac:** Tauri or Electron wrapper (to decide).
 - **Editor:** our own engine. Document model (tree of blocks and inline marks) is separate from rendering; every edit is a small, invertible operation (gives undo/redo and sync for free). Input handled via `beforeinput` events, our own selection model, custom rendering. IME/composition, mobile keyboards and accessibility are the known hard parts and need early prototypes on real devices.
-- **Data & sync:** local database on each device (IndexedDB), edits recorded as operations and synced through a hosted backend with accounts (e.g. Supabase). Conflict handling designed into the editor's operation model from day one.
+- **Data & sync:** local database on each device (IndexedDB). Sync goes through files the person owns, not a Crumpet server:
+  - Layout: stack folder / notebook folder / `Title.md`; `.trash/`; `.crumpet/vault.json` for notebook ids and colours.
+  - Each note is Markdown with YAML front matter (id, title, tags, favorite, dates). Other apps can read and edit the files; Crumpet notices renames and moves.
+  - A sync merges three versions: this device, the files, and the last version both agreed on. Edits in different places merge; overlapping edits keep both versions as a "conflicted copy".
+  - Providers only list, read, write, move and remove files, so adding a service is small. Google Drive uses the `drive.file` permission with the person's own OAuth client ID.
 
 ## Risks
 
-- **Editor from scratch** is the largest and riskiest piece. Mitigation: build a throwaway prototype first, tested on iPhone, iPad, Mac and web, before anything else depends on it.
-- **Sync conflicts**: two devices editing the same note offline. Must be solved in the operation model, not bolted on.
+- **Editor from scratch** is the largest and riskiest piece. Mitigation: build a throwaway prototype first, tested on iPhone, iPad, Mac and web, before anything else depends on it. Status: prototype started in `prototypes/editor` and passing in Chromium; real-device testing (Safari, iOS, Android, IMEs) is next.
+- **Sync conflicts**: two devices editing the same note offline. Must be solved in the operation model, not bolted on. Status: first version in `prototypes/editor/src/sync` (server-ordered operations, devices rebase their pending edits); randomised three-device tests converge. Undo across devices works too. Superseded for v1 by file sync (no server); the operation-based sync remains for live collaboration later.
 - **Pagination (v2)** was the fragile part of the old Crumpet; design page layout as a separate layer over the document model, not inside the editor.
 
 ## Open questions
 
 - iPad layout details; empty states and onboarding
 - Mac wrapper: Tauri vs Electron
-- Backend: Supabase vs alternatives; pricing once others use it
+- Where to publish the web app (needed for Google sign-in): GitHub Pages is the simplest
+- Which cloud services after Drive and a local folder (Dropbox, OneDrive, iCloud via the native apps)
 - Monetisation model if released
