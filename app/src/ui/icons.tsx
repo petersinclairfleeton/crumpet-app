@@ -37,6 +37,8 @@ export const IconTag = icon(
     <circle cx="7.5" cy="8.5" r="1.5" />
   </>,
 );
+export const IconBook = icon(<path d="M3 5.5C5.5 4 9 4 12 6c3-2 6.5-2 9-.5V19c-2.5-1.5-6-1.5-9 .5-3-2-6.5-2-9-.5zM12 6v13.5" />);
+export const IconPen = icon(<path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />);
 export const IconTrash = icon(<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />);
 export const IconSearch = icon(
   <>

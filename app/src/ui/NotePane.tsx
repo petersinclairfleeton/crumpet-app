@@ -3,7 +3,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
 import { allTags, longTime, notebookTree, wordCount } from '../data/selectors';
 import { EditorHost } from './EditorHost';
-import { IconBack, IconMore, IconNotebook, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconBack, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
 export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }) {
@@ -14,6 +14,15 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const [menu, setMenu] = useState(false);
   const [addingTag, setAddingTag] = useState(false);
+  const [reading, setReading] = useState(false);
+
+  // Escape leaves reading view.
+  useEffect(() => {
+    if (!reading) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setReading(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [reading]);
 
   // The title wraps onto more lines as needed.
   useLayoutEffect(() => {
@@ -51,6 +60,9 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
 
   const trail = trashed ? null : (
     <div className="note-actions">
+      <button type="button" className={`icon-btn read-toggle${reading ? ' on' : ''}`} aria-pressed={reading} aria-label={reading ? 'Back to editing' : 'Reading view'} title={reading ? 'Back to editing (Esc)' : 'Reading view'} onClick={() => setReading(!reading)}>
+        {reading ? <IconPen size={16} /> : <IconBook size={16} />}
+      </button>
       <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} title={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} onClick={() => store.toggleFavorite(note.id)}>
         {note.favorite ? <IconStarFilled size={16} /> : <IconStar size={16} />}
       </button>
@@ -95,7 +107,7 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
         placeholder="Title"
         rows={1}
         value={note.title}
-        readOnly={trashed}
+        readOnly={trashed || reading}
         onChange={(e) => store.setTitle(note.id, e.target.value.replace(/\n/g, ' '))}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.shiftKey)) {
@@ -104,6 +116,9 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
           }
         }}
       />
+      <p className="reading-meta">
+        {[nb?.name, longTime(note.updatedAt), `${wordCount(note)} words`].filter(Boolean).join(' · ')}
+      </p>
       <div className="note-meta">
         <label className="nb-picker" title="Notebook">
           {nb ? <NotebookIcon color={nb.color} size={11} cut="var(--chip)" /> : <IconNotebook size={12} />}
@@ -167,7 +182,8 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
     <section className="pane" aria-label="Note">
       <EditorHost
         note={note}
-        readOnly={trashed}
+        readOnly={trashed || reading}
+        reading={reading && !trashed}
         lead={lead}
         trail={trail}
         header={header}

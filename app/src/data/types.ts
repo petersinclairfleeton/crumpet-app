@@ -33,13 +33,29 @@ export interface Note {
   extra?: string;
 }
 
-export type Theme = 'system' | 'light' | 'dark';
+/** Crumpet's own looks follow the device (system) or are fixed light or dark; the rest are styles of their own. */
+export type Theme = 'system' | 'light' | 'dark' | 'classic' | 'vapor' | 'console' | 'mac' | 'glass' | 'sepia' | 'midnight';
+
+/** The font notes are written in. */
+export interface NoteFont {
+  family: string;
+  /** default = Crumpet's own (Figtree); google = loaded from Google Fonts; system = installed on this device. */
+  source: 'default' | 'google' | 'system';
+  /** Google fonts: which styles exist (bit 1 regular, 2 italic, 4 bold, 8 bold italic). */
+  styles?: number;
+  /** For the fallback while it loads: serif, sans-serif, monospace, cursive or display. */
+  category?: string;
+}
 
 export interface Settings {
   name: string;
   accent: string;
   theme: Theme;
   listStyle: 'cards' | 'table';
+  /** Font for note text; Crumpet's own when unset. */
+  noteFont?: NoteFont;
+  /** Note text size in px; 16 when unset. */
+  noteSize?: number;
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
 }

@@ -1,4 +1,6 @@
 import { ACCENTS, type Settings } from '../data/types';
+import { fontStack, loadGoogleFont } from './fonts';
+import { themeInfo } from './themes';
 
 function mix(hex: string, toward: string, amt: number): string {
   const a = parseInt(hex.slice(1), 16);
@@ -17,12 +19,15 @@ function luminance(hex: string): number {
   return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 }
 
-/** Sets the theme attribute and the accent colour tokens on the page root. */
+/** Sets the theme, accent colour tokens and note font on the page root. */
 export function applyTheme(settings: Settings): void {
   const root = document.documentElement;
   if (settings.theme === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', settings.theme);
-  const accent = /^#[0-9a-f]{6}$/i.test(settings.accent) ? settings.accent : ACCENTS[0].hex;
+  // Some themes come with their own accent; the rest use the one chosen in Settings.
+  const own = themeInfo(settings.theme).accent;
+  const chosen = /^#[0-9a-f]{6}$/i.test(settings.accent) ? settings.accent : ACCENTS[0].hex;
+  const accent = own ?? chosen;
   const light = luminance(accent) > 0.3;
   root.style.setProperty('--accent', accent);
   root.style.setProperty('--on-accent', light ? '#2A1F0E' : '#FFFFFF');
@@ -30,4 +35,9 @@ export function applyTheme(settings: Settings): void {
   root.style.setProperty('--accent-ink-dark', mix(accent, '#FFFFFF', light ? 0.2 : 0.45));
   root.style.setProperty('--accent-soft-light', mix(accent, '#FFFFFF', 0.85));
   root.style.setProperty('--accent-soft-dark', mix(accent, '#1E1F21', 0.78));
+  // The font notes are written in.
+  const font = settings.noteFont;
+  if (font?.source === 'google') loadGoogleFont(font.family, font.styles);
+  root.style.setProperty('--note-font', fontStack(font));
+  root.style.setProperty('--note-size', `${settings.noteSize ?? 16}px`);
 }

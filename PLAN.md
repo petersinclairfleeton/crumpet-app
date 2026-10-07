@@ -26,6 +26,17 @@ This is a clean restart: nothing is carried over from the previous Crumpet codeb
 3. **Word parity (v3)**: .docx import/export, comments, tracked changes.
 4. **Later**: blog post formatting, sharing, AI assist.
 
+### Roadmap (from the October 2026 brainstorm)
+
+In this order:
+
+1. **Themes, fonts and reading view**: a few themes, a choice of writing fonts, and a clean book-like view for finished text.
+2. **Projects with chapters you can reorder**: the start of the Documents space. A project is a folder in your cloud with one file per chapter, plus its order.
+3. **Word features, one at a time**: page view and styles first, then headers, footers and page numbers, footnotes, `.docx` export and import, comments, tracked changes.
+4. **Web clipper**: a "Clip to Crumpet" bookmark on computers first; "Share → Crumpet" on iPhone and iPad once Crumpet is a native app.
+
+Also wanted, not yet scheduled: more storage choices (a folder on the computer, Dropbox, OneDrive, iCloud).
+
 ## Status
 
 - **Notes app (v1)**: first version in `app/`: notebooks and stacks (all created by the person; it starts empty), tags, search, Favorites, Trash, settings, phone layout, notes saved on the device. Not yet: sync, images, desktop and mobile wrappers.
