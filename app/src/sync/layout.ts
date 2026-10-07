@@ -5,6 +5,8 @@
 //   Note title.md                    a note that isn't in a notebook
 //   .trash/Note title.md             the Trash
 //   .crumpet/vault.json              ids and colours of stacks and notebooks
+//   Projects/Book/project.json       a project: name, goal, order of parts and chapters
+//   Projects/Book/01 Opening.md      its chapters, numbered in order
 //
 // Names are made safe for every file system, and kept unique within a folder
 // ignoring case (macOS and Windows don't tell "Ideas" and "ideas" apart).
@@ -16,15 +18,25 @@ import type { Tree } from './tree';
 export const TRASH = '.trash';
 export const META_DIR = '.crumpet';
 export const META_FILE = `${META_DIR}/vault.json`;
+export const PROJECTS = 'Projects';
+export const PROJECT_FILE = 'project.json';
 
 export interface Layout {
   stacks: Record<string, string>;
   notebooks: Record<string, string>;
   notes: Record<string, string>;
+  /** Project folders. */
+  projects: Record<string, string>;
+  chapters: Record<string, string>;
 }
 
 export function emptyLayout(): Layout {
-  return { stacks: {}, notebooks: {}, notes: {} };
+  return { stacks: {}, notebooks: {}, notes: {}, projects: {}, chapters: {} };
+}
+
+/** A layout saved by an earlier version, with every part present. */
+export function fullLayout(l: Partial<Layout> | undefined): Layout {
+  return { ...emptyLayout(), ...(l ?? {}) };
 }
 
 const MAX_NAME = 100;
@@ -106,5 +118,25 @@ export function layout(tree: Tree, prev: Layout): Layout {
     '.md',
     prev.notes,
   );
-  return { stacks, notebooks, notes };
+  const projects = place(Object.values(tree.projects), () => PROJECTS, (p) => safeName(p.name), '', prev.projects ?? {});
+  // Chapters are numbered in outline order, so they sort the same way anywhere.
+  const chapters: Record<string, string> = {};
+  for (const p of Object.values(tree.projects)) {
+    const ids = chapterOrder(tree, p.id);
+    const width = Math.max(2, String(ids.length).length);
+    ids.forEach((id, i) => {
+      const c = tree.chapters[id];
+      chapters[id] = join(projects[p.id], `${String(i + 1).padStart(width, '0')} ${safeName(c.title || 'Untitled')}.md`);
+    });
+  }
+  return { stacks, notebooks, notes, projects, chapters };
+}
+
+/** A project's chapter ids in outline order (any missing from the outline last). */
+export function chapterOrder(tree: Tree, projectId: string): string[] {
+  const project = tree.projects[projectId];
+  const ids = (project?.outline ?? []).filter((x) => x.type === 'chapter' && tree.chapters[x.id]?.projectId === projectId).map((x) => x.id);
+  const seen = new Set(ids);
+  for (const c of Object.values(tree.chapters)) if (c.projectId === projectId && !seen.has(c.id)) ids.push(c.id);
+  return ids;
 }

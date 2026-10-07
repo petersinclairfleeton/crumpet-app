@@ -65,6 +65,27 @@ describe('Google Drive', () => {
     expect(drive.calls.filter((c) => !c.startsWith('GET'))).toEqual([]);
   });
 
+  it('syncs a project, renumbering chapter files when they move', async () => {
+    const drive = new FakeDrive();
+    const root = await findOrCreateFolder('Crumpet', getToken, drive.fetch);
+    const mac = await device(drive, root);
+    const phone = await device(drive, root);
+    const p = mac.store.createProject('Novel');
+    const first = mac.store.getState().chapters[0];
+    mac.store.setChapterTitle(first.id, 'Opening');
+    const second = mac.store.addChapter(p.id)!;
+    mac.store.setChapterTitle(second.id, 'Ending');
+    mac.store.flush();
+    await mac.engine.sync();
+    expect(drive.paths(root)).toEqual(['.crumpet/', '.crumpet/vault.json', 'Projects/', 'Projects/Novel/', 'Projects/Novel/01 Opening.md', 'Projects/Novel/02 Ending.md', 'Projects/Novel/project.json']);
+    mac.store.moveOutlineItem(p.id, second.id, 0);
+    await mac.engine.sync();
+    expect(drive.paths(root)).toContain('Projects/Novel/01 Ending.md');
+    expect(drive.paths(root)).toContain('Projects/Novel/02 Opening.md');
+    await phone.engine.sync();
+    expect(localTree(phone.store.getState())).toEqual(localTree(mac.store.getState()));
+  });
+
   it('gets a new token when Google refuses the old one, and waits out rate limits', async () => {
     const drive = new FakeDrive();
     const root = await findOrCreateFolder('Crumpet', getToken, drive.fetch);

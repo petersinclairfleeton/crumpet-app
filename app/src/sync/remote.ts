@@ -9,13 +9,15 @@
 // - A note's id comes from its front matter, or, for files without one, from
 //   the path it had last time.
 // - A note file renamed elsewhere takes its new name as its title.
+// - A folder in `Projects/` with a `project.json` is a project; its Markdown
+//   files are chapters (in the order project.json gives), not notes.
 
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
-import { NOTEBOOK_COLORS } from '../data/types';
-import { type Layout, META_FILE, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
+import { type ChapterStatus, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
+import { type Layout, META_FILE, PROJECTS, PROJECT_FILE, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
 import { type NoteFile, parseNoteFile } from './notefile';
 import type { Entry, Provider } from './provider';
-import { type TNote, type Tree, emptyTree, hashId } from './tree';
+import { type TChapter, type TNote, type Tree, emptyTree, hashId } from './tree';
 
 export interface VaultMeta {
   version: 1;
@@ -31,6 +33,22 @@ export interface Snapshot {
   files: Record<string, { rev: string; modified: number; file: NoteFile }>;
   meta: VaultMeta | null;
   metaText: string | null;
+  /** Each project's project.json, by path. */
+  projectFiles: Record<string, { rev: string; text: string }>;
+}
+
+/** project.json files as last read, by path. */
+export type ProjectCache = Record<string, { rev: string; text: string }>;
+
+const PROJECT_JSON = new RegExp(`^${PROJECTS}/[^/]+/${PROJECT_FILE.replace('.', '\\.')}$`);
+
+export interface ProjectJson {
+  id: string;
+  name: string;
+  goal: number | null;
+  outline: OutlineItem[];
+  created: number;
+  updated: number;
 }
 
 /** What the last sync left behind, which reading uses to recognise things. */
@@ -54,7 +72,7 @@ export function isNotePath(path: string): boolean {
 }
 
 /** Lists the files and reads the ones that changed since they were cached. */
-export async function readRemote(provider: Provider, cache: FileCache, metaCache: { rev: string; text: string } | null): Promise<Snapshot> {
+export async function readRemote(provider: Provider, cache: FileCache, metaCache: { rev: string; text: string } | null, projectCache: ProjectCache = {}): Promise<Snapshot> {
   const entries = await provider.list();
   const files: Snapshot['files'] = {};
   await parallel(
@@ -72,8 +90,31 @@ export async function readRemote(provider: Provider, cache: FileCache, metaCache
   let metaText: string | null = null;
   const metaEntry = entries.find((e) => e.kind === 'file' && e.path === META_FILE);
   if (metaEntry) metaText = metaCache && metaCache.rev === metaEntry.rev ? metaCache.text : (await provider.read(META_FILE)).text;
-  return { entries, files, meta: parseMeta(metaText), metaText };
+  const projectFiles: Snapshot['projectFiles'] = {};
+  await parallel(
+    entries.filter((e) => e.kind === 'file' && PROJECT_JSON.test(e.path)),
+    async (e) => {
+      const cached = projectCache[e.path];
+      projectFiles[e.path] = cached && cached.rev === e.rev ? cached : { rev: e.rev, text: (await provider.read(e.path)).text };
+    },
+  );
+  return { entries, files, meta: parseMeta(metaText), metaText, projectFiles };
 }
+
+export function parseProject(text: string): Partial<ProjectJson> | null {
+  try {
+    const j = JSON.parse(text) as Partial<ProjectJson>;
+    return j && typeof j === 'object' ? j : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeProject(p: ProjectJson): string {
+  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline }, null, 2)}\n`;
+}
+
+const STATUSES = new Set<ChapterStatus>(['todo', 'draft', 'revised', 'done']);
 
 /** The body as Crumpet would write it, so formatting differences alone never count as a change. */
 export function normalise(f: NoteFile): NoteFile {
@@ -113,20 +154,31 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   const where = emptyLayout();
   const meta = snap.meta ?? { version: 1, stacks: [], notebooks: [] };
 
+  // ---- projects: folders in Projects/ holding a project.json
+  const projectDirs = new Map<string, Partial<ProjectJson>>();
+  for (const [path, f] of Object.entries(snap.projectFiles ?? {})) {
+    const json = parseProject(f.text);
+    if (json) projectDirs.set(parentOf(path), json);
+  }
+  const inProject = (path: string) => projectDirs.has(path) || projectDirs.has(parentOf(path));
+
   // ---- folders
   const folders = new Set<string>();
   const addFolder = (p: string) => {
     for (; p; p = parentOf(p)) folders.add(p);
   };
   for (const e of snap.entries) {
-    if (e.path.split('/').some((s) => s.startsWith('.'))) continue;
+    if (e.path.split('/').some((s) => s.startsWith('.')) || inProject(e.path)) continue;
     if (e.kind === 'folder') addFolder(e.path);
     else if (isNotePath(e.path)) addFolder(parentOf(e.path));
   }
-  const hasNotes = new Set(Object.keys(snap.files).map(parentOf));
+  const noteFiles = Object.keys(snap.files).filter((p) => !inProject(p));
+  const hasNotes = new Set(noteFiles.map(parentOf));
   const hasFolders = new Set([...folders].map(parentOf));
   const metaStack = new Map(meta.stacks.map((s) => [s.folder, s]));
   const metaNotebook = new Map(meta.notebooks.map((n) => [n.folder, n]));
+  // The Projects folder itself isn't a notebook, unless it's also used as one.
+  if (projectDirs.size && !metaStack.has(PROJECTS) && !metaNotebook.has(PROJECTS) && !hasNotes.has(PROJECTS) && !hasFolders.has(PROJECTS)) folders.delete(PROJECTS);
   const top = (p: string) => p.split('/')[0];
   const isStack = (p: string) => !p.includes('/') && (metaStack.has(p) || (!metaNotebook.has(p) && !hasNotes.has(p) && hasFolders.has(p)));
   const sorted = [...folders].sort();
@@ -134,7 +186,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   const notebookFolders = sorted.filter((p) => !isStack(p));
 
   // ---- note ids (needed to recognise renamed folders)
-  const notePaths = Object.keys(snap.files).sort();
+  const notePaths = [...noteFiles].sort();
   const idOf: Record<string, string> = {};
   const used = new Set<string>();
   for (const path of notePaths) {
@@ -250,6 +302,64 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
     if (was && note.updated === was.updated && (note.body !== was.body || note.title !== was.title || note.extra !== was.extra)) note.updated = Math.max(modified, was.updated + 1);
     tree.notes[id] = note;
     where.notes[id] = path;
+  }
+
+  // ---- projects and chapters
+  const usedProjects = new Set<string>();
+  for (const [dir, json] of [...projectDirs].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    let id = typeof json.id === 'string' && json.id ? json.id : hashId('project', dir);
+    if (usedProjects.has(id)) id = hashId('project', `${dir}#${id}`);
+    usedProjects.add(id);
+    const jsonEntry = snap.entries.find((e) => e.path === `${dir}/${PROJECT_FILE}`);
+    const was = base.tree.projects?.[id];
+    const files = Object.keys(snap.files).filter((p) => parentOf(p) === dir).sort();
+    const chapterIds: string[] = [];
+    for (const path of files) {
+      const { file: f, modified } = snap.files[path];
+      let cid = f.id ?? base.ids[path] ?? hashId('chapter', path);
+      if (used.has(cid)) cid = hashId('chapter', `${path}#${cid}`);
+      used.add(cid);
+      const fileTitle = baseName(path).replace(/\.md$/i, '').replace(/^\d+\s+/, '');
+      let title = f.title ?? (fileTitle === 'Untitled' ? '' : fileTitle);
+      if (f.title !== null && !fitsName(fileTitle, safeName(f.title || 'Untitled'))) title = fileTitle;
+      const chapter: TChapter = {
+        id: cid,
+        projectId: id,
+        title,
+        status: STATUSES.has(f.status as ChapterStatus) ? (f.status as ChapterStatus) : 'todo',
+        synopsis: f.synopsis ?? '',
+        goal: f.goal ?? null,
+        created: f.created ?? modified,
+        updated: f.updated ?? modified,
+        body: f.body,
+      };
+      const prev = base.tree.chapters?.[cid];
+      if (prev && chapter.updated === prev.updated && (chapter.body !== prev.body || chapter.title !== prev.title)) chapter.updated = Math.max(modified, prev.updated + 1);
+      tree.chapters[cid] = chapter;
+      where.chapters[cid] = path;
+      chapterIds.push(cid);
+    }
+    // The outline from project.json, keeping only chapters that are here; any others go at the end.
+    const present = new Set(chapterIds);
+    const outline: OutlineItem[] = [];
+    const listed = new Set<string>();
+    for (const item of Array.isArray(json.outline) ? json.outline : []) {
+      if (item?.type === 'part' && typeof item.id === 'string' && !listed.has(item.id)) outline.push({ type: 'part', id: item.id, title: String(item.title ?? '') });
+      else if (item?.type === 'chapter' && present.has(item.id) && !listed.has(item.id)) outline.push({ type: 'chapter', id: item.id });
+      else continue;
+      listed.add(item.id);
+    }
+    for (const cid of chapterIds) if (!listed.has(cid)) outline.push({ type: 'chapter', id: cid });
+    const modified = jsonEntry?.modified ?? 0;
+    tree.projects[id] = {
+      id,
+      name: nameFor(baseName(dir), typeof json.name === 'string' ? json.name : was?.name),
+      goal: typeof json.goal === 'number' && json.goal > 0 ? json.goal : null,
+      outline,
+      created: typeof json.created === 'number' ? json.created : (was?.created ?? modified),
+      updated: typeof json.updated === 'number' ? json.updated : (was?.updated ?? modified),
+    };
+    where.projects[id] = dir;
   }
   return { tree, layout: where };
 }

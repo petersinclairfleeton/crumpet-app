@@ -313,6 +313,20 @@ describe('random syncing', () => {
         else if (r < 0.78 && st.notebooks.length) s.setStack(pick(st.notebooks).id, st.stacks.length && rand() < 0.7 ? pick(st.stacks).id : null);
         else if (r < 0.8 && st.stacks.length) s.renameStack(pick(st.stacks).id, pick(WORDS));
         else if (r < 0.81 && st.stacks.length) s.deleteStack(pick(st.stacks).id);
+        else if (r < 0.84) s.createProject(pick(WORDS));
+        else if (r < 0.88 && st.projects.length) s.addChapter(pick(st.projects).id);
+        else if (r < 0.9 && st.projects.length) s.addPart(pick(st.projects).id, pick(WORDS));
+        else if (r < 0.92 && st.chapters.length) {
+          const c = pick(st.chapters);
+          s.setChapterDoc(c.id, md(`${toMarkdown(c.doc).trim()}\n\n${pick(WORDS)} ${pick(WORDS)}\n`));
+        } else if (r < 0.93 && st.chapters.length) s.setChapterTitle(pick(st.chapters).id, pick(WORDS));
+        else if (r < 0.94 && st.chapters.length) s.setChapterStatus(pick(st.chapters).id, pick(['todo', 'draft', 'revised', 'done'] as const));
+        else if (r < 0.95 && st.projects.length) {
+          const p = pick(st.projects);
+          if (p.outline.length) s.moveOutlineItem(p.id, pick(p.outline).id, Math.floor(rand() * (p.outline.length + 1)));
+        } else if (r < 0.955 && st.chapters.length) s.deleteChapter(pick(st.chapters).id);
+        else if (r < 0.96 && st.projects.length) s.renameProject(pick(st.projects).id, pick(WORDS));
+        else if (r < 0.962 && st.projects.length) s.deleteProject(pick(st.projects).id);
         else await d.engine.sync();
         s.flush();
       }
@@ -329,4 +343,130 @@ describe('random syncing', () => {
       expect(cloud.log, `seed ${seed} (quiet)`).toEqual([]);
     }
   }, 1_200_000);
+});
+
+describe('syncing projects', () => {
+  async function pair() {
+    const cloud = new MemoryProvider(now);
+    return { cloud, mac: await device(cloud), phone: await device(cloud) };
+  }
+  const outline = (store: AppStore, id: string) => store.project(id)!.outline.map((x) => (x.type === 'part' ? `[${x.title}]` : store.chapter(x.id)!.title));
+
+  it('writes a project as a folder of numbered chapters, and reads it back', async () => {
+    const { cloud, mac, phone } = await pair();
+    const p = mac.store.createProject('The Lighthouse');
+    const c1 = mac.store.getState().chapters[0];
+    mac.store.setChapterTitle(c1.id, 'The Keeper');
+    mac.store.setChapterDoc(c1.id, md('The lamp had not been lit.\n'));
+    mac.store.setChapterStatus(c1.id, 'draft');
+    mac.store.setChapterSynopsis(c1.id, 'Mara climbs: the stairs.');
+    mac.store.setChapterGoal(c1.id, 2000);
+    const part = mac.store.addPart(p.id, 'Part Two')!;
+    const c2 = mac.store.addChapter(p.id)!;
+    mac.store.setChapterTitle(c2.id, 'Salt');
+    mac.store.setProjectGoal(p.id, 80000);
+    mac.store.flush();
+    await mac.engine.sync();
+    expect([...cloud.files.keys()].sort()).toEqual([
+      '.crumpet/vault.json',
+      'Projects/The Lighthouse/01 The Keeper.md',
+      'Projects/The Lighthouse/02 Salt.md',
+      'Projects/The Lighthouse/project.json',
+    ]);
+    expect(cloud.files.get('Projects/The Lighthouse/01 The Keeper.md')!.text).toContain('status: draft\nsynopsis: "Mara climbs: the stairs."\ngoal: 2000');
+    await phone.engine.sync();
+    expect(shape(phone.store)).toEqual(shape(mac.store));
+    expect(outline(phone.store, p.id)).toEqual(['The Keeper', '[Part Two]', 'Salt']);
+    expect(phone.store.project(p.id)?.outline.find((x) => x.id === part)).toBeTruthy();
+    // Nothing more to do.
+    cloud.log = [];
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(cloud.log).toEqual([]);
+  });
+
+  it('renumbers files when chapters are reordered, while text edits elsewhere still merge', async () => {
+    const { cloud, mac, phone } = await pair();
+    const p = mac.store.createProject('Book');
+    const a = mac.store.getState().chapters[0];
+    mac.store.setChapterTitle(a.id, 'A');
+    mac.store.setChapterDoc(a.id, md('First.\n\nSecond.\n'));
+    const b = mac.store.addChapter(p.id)!;
+    mac.store.setChapterTitle(b.id, 'B');
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    mac.store.moveOutlineItem(p.id, b.id, 0);
+    phone.store.setChapterDoc(a.id, md('First.\n\nSecond, from the phone.\n'));
+    phone.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect([...cloud.files.keys()].filter((k) => k.endsWith('.md')).sort()).toEqual(['Projects/Book/01 B.md', 'Projects/Book/02 A.md']);
+    expect(outline(mac.store, p.id)).toEqual(['B', 'A']);
+    expect(toMarkdown(mac.store.chapter(a.id)!.doc)).toBe('First.\n\nSecond, from the phone.\n');
+    expect(shape(phone.store)).toEqual(shape(mac.store));
+  });
+
+  it('keeps chapters and parts added on both devices at once', async () => {
+    const { mac, phone } = await pair();
+    const p = mac.store.createProject('Both');
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    const fromMac = mac.store.addChapter(p.id)!;
+    mac.store.setChapterTitle(fromMac.id, 'Mac chapter');
+    phone.store.addPart(p.id, 'Phone part');
+    const fromPhone = phone.store.addChapter(p.id)!;
+    phone.store.setChapterTitle(fromPhone.id, 'Phone chapter');
+    mac.store.flush();
+    phone.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect(outline(mac.store, p.id)).toEqual(['Chapter 1', 'Mac chapter', '[Phone part]', 'Phone chapter']);
+    expect(shape(phone.store)).toEqual(shape(mac.store));
+  });
+
+  it('follows renames: a project folder, and a chapter file renamed in Finder', async () => {
+    const { cloud, mac } = await pair();
+    const p = mac.store.createProject('Draft');
+    mac.store.setChapterTitle(mac.store.getState().chapters[0].id, 'Opening');
+    mac.store.flush();
+    await mac.engine.sync();
+    mac.store.renameProject(p.id, 'Final');
+    await mac.engine.sync();
+    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', 'Projects/Final/01 Opening.md', 'Projects/Final/project.json']);
+    expect([...cloud.folders].sort()).toEqual(['.crumpet', 'Projects', 'Projects/Final']);
+    await cloud.move('Projects/Final/01 Opening.md', 'Projects/Final/01 Beginning.md');
+    await mac.engine.sync();
+    expect(mac.store.getState().chapters[0].title).toBe('Beginning');
+  });
+
+  it('lives alongside a stack that happens to be called Projects', async () => {
+    const { cloud, mac, phone } = await pair();
+    const st = mac.store.createStack('Projects');
+    const nb = mac.store.createNotebook('Ideas', st.id);
+    mac.store.createNote({ title: 'An idea', notebookId: nb.id });
+    mac.store.createProject('Novel');
+    mac.store.flush();
+    await mac.engine.sync();
+    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', 'Projects/Ideas/An idea.md', 'Projects/Novel/01 Chapter 1.md', 'Projects/Novel/project.json']);
+    await phone.engine.sync();
+    expect(shape(phone.store)).toEqual(shape(mac.store));
+    expect(phone.store.getState().notes.map((n) => n.title)).toEqual(['An idea']);
+  });
+
+  it('deletes a project everywhere', async () => {
+    const { cloud, mac, phone } = await pair();
+    const p = mac.store.createProject('Gone');
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    phone.store.deleteProject(p.id);
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect(mac.store.getState().projects).toEqual([]);
+    expect([...cloud.files.keys()]).toEqual(['.crumpet/vault.json']);
+  });
 });

@@ -443,9 +443,60 @@ export class AppStore {
     };
     const newNotes = notes.filter((n) => !byId.has(n.id));
     const kept = order(state.notes, notes.filter((n) => byId.has(n.id)));
+    // Projects and chapters.
+    const treeProjects = tree.projects ?? {};
+    const treeChapters = tree.chapters ?? {};
+    const projects: Project[] = Object.values(treeProjects).map((t) => {
+      const cur = state.projects.find((x) => x.id === t.id);
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated };
+      if (cur && cur.name === next.name && cur.goal === next.goal && cur.createdAt === next.createdAt && cur.updatedAt === next.updatedAt && JSON.stringify(cur.outline) === JSON.stringify(next.outline)) return cur;
+      this.save(this.storage.putProject(next));
+      return next;
+    });
+    const chaptersById = new Map(state.chapters.map((c) => [c.id, c]));
+    const chapters: Chapter[] = Object.values(treeChapters).map((t) => {
+      const cur = chaptersById.get(t.id);
+      const doc = cur && toMarkdown(cur.doc) === t.body ? cur.doc : matchIds(cur?.doc ?? emptyDoc(), fromMarkdown(t.body));
+      const next: Chapter = { id: t.id, projectId: t.projectId, title: t.title, doc, status: t.status, synopsis: t.synopsis, goal: t.goal, createdAt: t.created, updatedAt: t.updated };
+      if (
+        cur &&
+        cur.doc === doc &&
+        cur.projectId === next.projectId &&
+        cur.title === next.title &&
+        cur.status === next.status &&
+        cur.synopsis === next.synopsis &&
+        cur.goal === next.goal &&
+        cur.createdAt === next.createdAt &&
+        cur.updatedAt === next.updatedAt
+      )
+        return cur;
+      this.cancelSave(t.id);
+      this.save(this.storage.putChapter(next));
+      return next;
+    });
+    for (const p of state.projects) if (!treeProjects[p.id]) this.save(this.storage.deleteProject(p.id));
+    for (const c of state.chapters) {
+      if (treeChapters[c.id]) continue;
+      this.cancelSave(c.id);
+      this.save(this.storage.deleteChapter(c.id));
+    }
+
     let view = state.view;
-    if ((view.kind === 'notebook' && !tree.notebooks[view.id]) || (view.kind === 'stack' && !tree.stacks[view.id])) view = { kind: 'all' };
-    this.set({ stacks: order(state.stacks, stacks), notebooks: order(state.notebooks, notebooks), notes: [...newNotes, ...kept], view });
+    if ((view.kind === 'notebook' && !tree.notebooks[view.id]) || (view.kind === 'stack' && !tree.stacks[view.id]) || (view.kind === 'project' && !treeProjects[view.id])) view = { kind: 'all' };
+    let chapterId = state.chapterId;
+    if (chapterId && !treeChapters[chapterId]) {
+      const p = view.kind === 'project' ? treeProjects[view.id] : undefined;
+      chapterId = p?.outline.find((x) => x.type === 'chapter' && treeChapters[x.id])?.id ?? null;
+    }
+    this.set({
+      stacks: order(state.stacks, stacks),
+      notebooks: order(state.notebooks, notebooks),
+      notes: [...newNotes, ...kept],
+      projects: [...projects].sort((a, b) => a.createdAt - b.createdAt),
+      chapters,
+      view,
+      chapterId,
+    });
     this.reselectIfHidden();
   }
 
