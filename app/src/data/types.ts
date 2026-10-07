@@ -95,6 +95,10 @@ export interface Settings {
   /** The named styles notes use; Crumpet's own when unset. */
   noteStyles?: StyleSheet;
   notePage?: PageSetup;
+  /** How the note list is sorted. */
+  sort?: 'edited' | 'created' | 'title';
+  /** Searches kept in the sidebar. */
+  savedSearches?: { id: string; name: string; query: string }[];
   /** The formatting bar: always shown, or floating above selected text (the default). */
   toolbar?: 'always' | 'selection';
   /** How the window is arranged (computers and tablets). */

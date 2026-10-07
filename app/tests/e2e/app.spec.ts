@@ -806,3 +806,47 @@ test('links between notes: [[ to link, click to open, linked-from at the bottom'
   await page.locator('.note-pane [contenteditable] a', { hasText: 'Ferry' }).click();
   await expect(page.getByLabel('Title')).toHaveValue('Ferry');
 });
+
+test('search: filters, saving a search, sorting, and working on several notes at once', async ({ page }) => {
+  await open(page);
+  await newNotebook(page, 'Journal');
+  await newNote(page, 'Banana', 'yellow');
+  await newNote(page, 'apple', 'red');
+  await newNote(page, 'Cherry', 'red too');
+  // Sort by title.
+  await list(page).getByLabel('Sort by').selectOption('title');
+  await expect(list(page).locator('.card-title')).toHaveText(['apple', 'Banana', 'Cherry']);
+  await list(page).getByLabel('Sort by').selectOption('edited');
+  // Search with a filter, from the menu.
+  await page.getByPlaceholder('Search notes').fill('red');
+  await expect(list(page).locator('.card')).toHaveCount(2);
+  await list(page).getByRole('button', { name: '+ Filter' }).click();
+  await page.getByRole('dialog', { name: 'Add a filter' }).getByRole('button', { name: 'Journal', exact: true }).click();
+  await expect(page.getByPlaceholder('Search notes')).toHaveValue('red in:Journal');
+  await expect(list(page).locator('.card')).toHaveCount(2);
+  await list(page).getByRole('button', { name: 'Save this search' }).click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('Red things');
+  await page.keyboard.press('Enter');
+  await expect(sidebar(page).getByRole('button', { name: 'Red things', exact: true })).toBeVisible();
+  await list(page).getByRole('button', { name: 'Remove filter: In Journal' }).click();
+  await expect(page.getByPlaceholder('Search notes')).toHaveValue('red');
+  await page.getByPlaceholder('Search notes').fill('');
+  await sidebar(page).getByRole('button', { name: 'Red things', exact: true }).click();
+  await expect(page.getByPlaceholder('Search notes')).toHaveValue('red in:Journal');
+  await page.getByPlaceholder('Search notes').fill('');
+  // Several at once: Ctrl/Cmd-click adds to the open note (like Finder), then star them.
+  await list(page).locator('.card', { hasText: 'apple' }).click({ modifiers: ['ControlOrMeta'] });
+  const bar = page.getByRole('toolbar', { name: /notes selected/ });
+  await expect(bar).toContainText('2 selected');
+  await list(page).locator('.card', { hasText: 'Cherry' }).click({ modifiers: ['ControlOrMeta'] });
+  await expect(bar).toContainText('1 selected');
+  await list(page).locator('.card', { hasText: 'Banana' }).click({ modifiers: ['ControlOrMeta'] });
+  await expect(bar).toContainText('2 selected');
+  await bar.getByRole('button', { name: 'Add to Favorites' }).click();
+  await bar.getByRole('button', { name: 'Clear selection' }).click();
+  await sidebar(page).getByRole('button', { name: /^Favorites/ }).click();
+  await expect(list(page).locator('.card')).toHaveCount(2);
+  await expect(list(page)).toContainText('apple');
+  await expect(list(page)).toContainText('Banana');
+});
