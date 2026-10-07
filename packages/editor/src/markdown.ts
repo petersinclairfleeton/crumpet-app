@@ -20,7 +20,7 @@
 // lines, fenced code and autolinks. Things Crumpet can't show yet (images,
 // tables, other HTML) are kept as their literal text.
 
-import { type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, sameFormat, sortMarks } from './model';
+import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, sameFormat, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -28,7 +28,7 @@ const INDENT = '    ';
 
 export function toMarkdown(doc: Doc): string {
   const blocks = doc.blocks;
-  if (blocks.length === 1 && blocks[0].type === 'paragraph' && !blocks[0].runs.length) return '';
+  if (blocks.length === 1 && blocks[0].type === 'paragraph' && !blocks[0].runs.length && !blocks[0].style && !blocks[0].align) return '';
   const counters: number[] = [];
   let out = '';
   let prev: Block | null = null;
@@ -51,25 +51,61 @@ export function toMarkdown(doc: Doc): string {
 }
 
 function blockLine(b: Block, number: number): string {
-  const text = inline(b.runs);
+  // A scene break is Markdown's own section break.
+  if (b.style === 'scenebreak' && !b.runs.length && !b.align) return '* * *';
+  const text = protectBraces(inline(b.runs));
   const body = escapeLineStart(text);
   const pad = INDENT.repeat(b.indent ?? 0);
-  switch (b.type) {
-    case 'heading1':
-    case 'heading2':
-      // A trailing run of #s would be read as the heading's closing sequence.
-      return `${b.type === 'heading1' ? '#' : '##'} ${text.replace(/#+$/, (s) => `\\${s}`)}`.trimEnd();
-    case 'quote':
-      return `> ${body}`.trimEnd();
-    case 'bullet':
-      return `${pad}- ${body}`.trimEnd();
-    case 'numbered':
-      return `${pad}${number}. ${body}`.trimEnd();
-    case 'todo':
-      return `${pad}- [${b.checked ? 'x' : ' '}] ${body}`.trimEnd();
-    case 'paragraph':
-      return text ? body : '&nbsp;';
+  const line = (() => {
+    switch (b.type) {
+      case 'heading1':
+      case 'heading2':
+      case 'heading3':
+      case 'heading4':
+        // A trailing run of #s would be read as the heading's closing sequence.
+        return `${'#'.repeat(Number(b.type.slice(-1)))} ${text.replace(/#+$/, (s) => `\\${s}`)}`.trimEnd();
+      case 'quote':
+        return `> ${body}`.trimEnd();
+      case 'bullet':
+        return `${pad}- ${body}`.trimEnd();
+      case 'numbered':
+        return `${pad}${number}. ${body}`.trimEnd();
+      case 'todo':
+        return `${pad}- [${b.checked ? 'x' : ' '}] ${body}`.trimEnd();
+      case 'paragraph':
+        return text ? body : '&nbsp;';
+    }
+  })();
+  // Styles and alignment Markdown has no syntax for go at the end of the line, as {.title .center}.
+  const classes = [b.style, b.align].filter(Boolean);
+  return classes.length ? `${line} {${classes.map((c) => `.${c}`).join(' ')}}` : line;
+}
+
+const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
+const KNOWN_STYLES = new Set<string>(Object.values(BLOCK_STYLES).flat());
+const ATTRS = /^(.*?)[ \t]*(?<!\\)\{[ \t]*((?:\.[A-Za-z][\w-]*[ \t]*)+)\}[ \t]*$/;
+
+/** Text ending in something that looks like {.attributes} gets its brace escaped. */
+function protectBraces(text: string): string {
+  return /\{[^{}]*\}\s*$/.test(text) ? text.replace(/\{([^{}]*\}\s*)$/, '\\{$1') : text;
+}
+
+/** A line's trailing {.style .align}, if every class is one Crumpet knows. */
+function splitAttrs(line: string): { line: string; classes: string[] } {
+  const m = ATTRS.exec(line);
+  if (!m) return { line, classes: [] };
+  const classes = m[2].trim().split(/\s+/).map((c) => c.slice(1));
+  if (!classes.every((c) => ALIGNS.has(c) || KNOWN_STYLES.has(c))) return { line, classes: [] };
+  return { line: m[1], classes };
+}
+
+function applyAttrs(b: Block, classes: string[]): Block {
+  for (const c of classes) {
+    if (ALIGNS.has(c)) {
+      if (c !== 'left') b.align = c as Align;
+    } else if (styleAllowed(b.type, c)) b.style = c;
   }
+  return b;
 }
 
 /** Text that happens to start like a block marker gets that marker escaped. */
@@ -238,18 +274,21 @@ export function fromMarkdown(md: string): Doc {
   let fence: { char: string; length: number } | null = null;
   let lastWasQuote = false;
 
+  let paraClasses: string[] = [];
   const flushPara = () => {
-    if (para.length) blocks.push(withRuns(makeBlock('paragraph'), para.join(' ')));
+    if (para.length) blocks.push(applyAttrs(withRuns(makeBlock('paragraph'), para.join(' ')), paraClasses));
     para = [];
+    paraClasses = [];
   };
 
-  for (const line of lines) {
+  for (const raw of lines) {
     if (fence) {
-      const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line);
+      const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(raw);
       if (close && close[1][0] === fence.char && close[1].length >= fence.length) fence = null;
-      else blocks.push(line ? { ...makeBlock('paragraph'), runs: [{ text: line, marks: ['code'] }] } : makeBlock('paragraph'));
+      else blocks.push(raw ? { ...makeBlock('paragraph'), runs: [{ text: raw, marks: ['code'] }] } : makeBlock('paragraph'));
       continue;
     }
+    const { line, classes } = splitAttrs(raw);
     const quoteLine = lastWasQuote;
     lastWasQuote = false;
     if (/^[ \t]*$/.test(line)) {
@@ -267,14 +306,22 @@ export function fromMarkdown(md: string): Doc {
     if (/^ {0,3}&nbsp;[ \t]*$/.test(line)) {
       flushPara();
       listIndents = [];
-      blocks.push(makeBlock('paragraph'));
+      blocks.push(applyAttrs(makeBlock('paragraph'), classes));
+      continue;
+    }
+    // A section break (* * *, ---, ___) is a scene break.
+    if (/^ {0,3}([-*_])([ \t]*\1){2,}[ \t]*$/.test(line)) {
+      flushPara();
+      listIndents = [];
+      blocks.push(applyAttrs(makeBlock('paragraph', '', [], { style: 'scenebreak' }), classes));
       continue;
     }
     const heading = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/.exec(line);
     if (heading) {
       flushPara();
       listIndents = [];
-      blocks.push(withRuns(makeBlock(heading[1].length === 1 ? 'heading1' : 'heading2'), heading[2] ?? ''));
+      const level = Math.min(heading[1].length, 4);
+      blocks.push(applyAttrs(withRuns(makeBlock(`heading${level}` as BlockType), heading[2] ?? ''), classes));
       continue;
     }
     const quote = /^ {0,3}>[ \t]?(.*)$/.exec(line);
@@ -283,8 +330,8 @@ export function fromMarkdown(md: string): Doc {
       listIndents = [];
       const prev = blocks[blocks.length - 1];
       // Consecutive quote lines are one quote.
-      if (quoteLine && prev?.type === 'quote') appendText(prev, trimLine(quote[1]));
-      else blocks.push(withRuns(makeBlock('quote'), trimLine(quote[1])));
+      if (quoteLine && prev?.type === 'quote') applyAttrs(prev, classes), appendText(prev, trimLine(quote[1]));
+      else blocks.push(applyAttrs(withRuns(makeBlock('quote'), trimLine(quote[1])), classes));
       lastWasQuote = true;
       continue;
     }
@@ -298,7 +345,7 @@ export function fromMarkdown(md: string): Doc {
       const task = item[3] !== undefined;
       const type: BlockType = task ? 'todo' : ordered ? 'numbered' : 'bullet';
       const extra = { indent: level, ...(task ? { checked: item[3] !== ' ' } : {}) };
-      blocks.push(withRuns(makeBlock(type, '', [], extra), trimLine(item[4] ?? '')));
+      blocks.push(applyAttrs(withRuns(makeBlock(type, '', [], extra), trimLine(item[4] ?? '')), classes));
       continue;
     }
     // A wrapped line that continues the list item above.
@@ -309,6 +356,7 @@ export function fromMarkdown(md: string): Doc {
     }
     if (!para.length) listIndents = [];
     para.push(trimLine(line));
+    if (classes.length) paraClasses = classes;
   }
   flushPara();
   return { blocks: blocks.length ? blocks : [makeBlock('paragraph')] };

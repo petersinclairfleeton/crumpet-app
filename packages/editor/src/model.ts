@@ -12,7 +12,30 @@ export interface Run {
   link?: string;
 }
 
-export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'todo' | 'bullet' | 'numbered' | 'quote';
+export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote';
+
+export const HEADINGS: readonly BlockType[] = ['heading1', 'heading2', 'heading3', 'heading4'];
+
+export function isHeading(type: BlockType): boolean {
+  return HEADINGS.includes(type);
+}
+
+/** Paragraph alignment; left is the default and never stored. */
+export type Align = 'left' | 'center' | 'right' | 'justify';
+
+/**
+ * Named styles a block can have on top of its type, like Word's: paragraphs can
+ * be Title, Subtitle, No Spacing, Epigraph, Caption or a Scene break; quotes can
+ * be Intense. How each looks is set by the app's style sheet.
+ */
+export const BLOCK_STYLES: Partial<Record<BlockType, readonly string[]>> = {
+  paragraph: ['nospacing', 'title', 'subtitle', 'epigraph', 'caption', 'scenebreak'],
+  quote: ['intense'],
+};
+
+export function styleAllowed(type: BlockType, style: string): boolean {
+  return !!BLOCK_STYLES[type]?.includes(style);
+}
 
 /** Block types that are list items: they can be indented, and Enter continues them. */
 export const LIST_TYPES: readonly BlockType[] = ['todo', 'bullet', 'numbered'];
@@ -28,6 +51,10 @@ export interface BlockAttrs {
   checked?: boolean;
   /** List items only; nesting level, 0 = not nested. */
   indent?: number;
+  /** A named style (see BLOCK_STYLES). */
+  style?: string;
+  /** Alignment other than left. */
+  align?: Align;
 }
 
 export interface Block extends BlockAttrs {
@@ -224,6 +251,8 @@ export function makeBlock(type: BlockType, text = '', marks: Mark[] = [], extra:
   const block: Block = { id: newId(), type, runs: text ? [{ text, marks: sortMarks(marks) }] : [], ...extra };
   if (type === 'todo') block.checked = !!block.checked;
   if (!isList(type) || !block.indent) delete block.indent;
+  if (!block.style || !styleAllowed(type, block.style)) delete block.style;
+  if (!block.align || block.align === 'left') delete block.align;
   return block;
 }
 
@@ -234,7 +263,7 @@ export function docsEqual(a: Doc, b: Doc): boolean {
   return a.blocks.every((x, i) => {
     const y = b.blocks[i];
     if (x === y) return true;
-    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || x.runs.length !== y.runs.length) return false;
+    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || x.runs.length !== y.runs.length) return false;
     return x.runs.every((r, j) => r.text === y.runs[j].text && sameFormat(r, y.runs[j]));
   });
 }

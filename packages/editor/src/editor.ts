@@ -5,6 +5,7 @@
 // model as ordinary ops.
 
 import {
+  type Align,
   type Block,
   type BlockType,
   type Doc,
@@ -36,6 +37,8 @@ import {
   markActive,
   markdownShortcut,
   setBlockType,
+  setBlockStyle,
+  setAlign,
   splitBlock,
   syncBlockText,
   toggleMark,
@@ -43,6 +46,7 @@ import {
 } from './commands';
 import { History } from './history';
 import { View } from './view';
+import { type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
 
 export interface ChangeEvent {
@@ -64,12 +68,42 @@ export class Editor {
   private nativeEdit = false;
   /** Logged so the prototype can show what the browser asked for. */
   readonly inputLog: string[] = [];
+  private paginator: Paginator;
+  private paged = false;
+
+  /** Page view: lays the text out in pages of this size (null: one long page). */
+  setPages(geometry: PageGeometry | null): void {
+    this.paged = !!geometry;
+    this.paginator.set(geometry);
+    this.emit(null);
+  }
+
+  /** How many pages the text fills in page view. */
+  get pages(): number {
+    return this.paginator.pages;
+  }
+
+  /** Lays out the pages again, e.g. after fonts load or the styles change. */
+  repaginate(): void {
+    if (this.paged && !this.isComposing) {
+      const before = this.paginator.pages;
+      this.paginator.update();
+      if (this.paginator.pages !== before) this.emit(null);
+    }
+  }
+
+  /** Draws the document, then (in page view) its pages. Never during IME composition, which must not be disturbed. */
+  private draw(doc: Doc, force?: Set<string>): void {
+    this.view.render(doc, force);
+    if (this.paged && !this.isComposing) this.paginator.update();
+  }
 
   constructor(root: HTMLElement, doc: Doc) {
     const first = doc.blocks[0];
     this.state = { doc, selection: caret({ block: first.id, offset: 0 }), storedMarks: null };
     this.view = new View(root);
-    this.view.render(doc);
+    this.paginator = new Paginator(root);
+    this.draw(doc);
 
     const signal = this.listening.signal;
     root.addEventListener('beforeinput', (e) => this.onBeforeInput(e), { signal });
@@ -110,7 +144,7 @@ export class Editor {
       storedMarks: t.storedMarks !== undefined ? t.storedMarks : t.ops.length ? null : this.state.storedMarks,
     };
     if (record) this.history.record(t, doc);
-    this.view.render(doc);
+    this.draw(doc);
     this.view.writeSelection(this.state.selection);
     this.emit({ ops: t.ops, source });
   }
@@ -133,7 +167,7 @@ export class Editor {
   applyRemote(doc: Doc, steps: Step[]): void {
     this.history.external(steps);
     this.state = { doc, selection: mapSelectionThrough(this.state.selection, steps, doc), storedMarks: this.state.storedMarks };
-    this.view.render(doc);
+    this.draw(doc);
     // Only touch the page selection if this editor has focus; otherwise we would steal it from wherever the person is.
     if (this.view.root.ownerDocument.activeElement === this.view.root) this.view.writeSelection(this.state.selection);
     this.emit({ ops: [], source: 'remote' });
@@ -143,7 +177,7 @@ export class Editor {
   load(doc: Doc): void {
     this.state = { doc, selection: caret({ block: doc.blocks[0].id, offset: 0 }), storedMarks: null };
     this.history.clear();
-    this.view.render(doc, new Set(doc.blocks.map((b) => b.id)));
+    this.draw(doc, new Set(doc.blocks.map((b) => b.id)));
     // Don't pull the page selection into the note unless it already has focus (e.g. a title field may).
     if (this.view.root.ownerDocument.activeElement === this.view.root) this.view.writeSelection(this.state.selection);
     this.emit({ ops: [], source: 'command' });
@@ -176,6 +210,17 @@ export class Editor {
   toggleMark(mark: Mark): void {
     this.syncSelectionFromDom();
     this.dispatch(toggleMark(this.state, mark), 'command');
+  }
+
+  /** Applies a named style: a block type, plus for paragraphs and quotes a style on top. */
+  setBlockStyle(type: BlockType, style?: string): void {
+    this.dispatch(setBlockStyle(this.state, type, style), 'command');
+    this.view.root.focus();
+  }
+
+  setAlign(align: Align): void {
+    this.dispatch(setAlign(this.state, align), 'command');
+    this.view.root.focus();
   }
 
   setBlockType(type: BlockType): void {
@@ -336,7 +381,7 @@ export class Editor {
     if (!this.view.structureIntact(this.state.doc)) {
       // The browser changed the block structure itself; we can't trust it, so redraw from the model.
       console.warn('[crumpet] DOM structure changed outside the model; redrawing');
-      this.view.render(this.state.doc, new Set(this.state.doc.blocks.map((b) => b.id)));
+      this.draw(this.state.doc, new Set(this.state.doc.blocks.map((b) => b.id)));
       this.view.writeSelection(this.state.selection);
       return;
     }
@@ -354,7 +399,7 @@ export class Editor {
       force.add(block.id);
     }
     // Rebuild the blocks the browser touched so the DOM is exactly what we would have drawn.
-    this.view.render(this.state.doc, force);
+    this.draw(this.state.doc, force);
     this.view.writeSelection(this.state.selection);
   }
 
@@ -392,6 +437,10 @@ export class Editor {
     let handled = true;
     if (key === 'z' && !e.shiftKey) this.undo();
     else if ((key === 'z' && e.shiftKey) || key === 'y') this.redo();
+    else if (e.shiftKey && e.code === 'KeyL') this.setAlign('left');
+    else if (e.shiftKey && e.code === 'KeyE') this.setAlign('center');
+    else if (e.shiftKey && e.code === 'KeyR') this.setAlign('right');
+    else if (e.shiftKey && e.code === 'KeyJ') this.setAlign('justify');
     else if (key === 'b') this.toggleMark('bold');
     else if (key === 'i') this.toggleMark('italic');
     else if (key === 'u') this.toggleMark('underline');
@@ -399,6 +448,8 @@ export class Editor {
     else if (key === 'e') this.toggleMark('code');
     else if (e.altKey && e.code === 'Digit1') this.setBlockType('heading1');
     else if (e.altKey && e.code === 'Digit2') this.setBlockType('heading2');
+    else if (e.altKey && e.code === 'Digit3') this.setBlockType('heading3');
+    else if (e.altKey && e.code === 'Digit4') this.setBlockType('heading4');
     else if (e.altKey && e.code === 'Digit0') this.setBlockType('paragraph');
     else if (e.altKey && e.code === 'KeyT') this.setBlockType('todo');
     else if (e.altKey && e.code === 'KeyL') this.setBlockType('bullet');

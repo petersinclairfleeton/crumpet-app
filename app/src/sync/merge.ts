@@ -16,7 +16,7 @@
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { mergeText } from './textmerge';
 import type { OutlineItem } from '../data/types';
-import { type TChapter, type TNote, type Tree, emptyTree, sameChapter, sameNote, sameNotebook, sameOutline, sameProject, sameStack, sameTags } from './tree';
+import { type TChapter, type TNote, type Tree, emptyTree, sameChapter, sameNote, sameNotebook, sameJson, sameOutline, sameProject, sameStack, sameTags } from './tree';
 
 export interface MergeOptions {
   newId(): string;
@@ -106,6 +106,8 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       outline: mergeOutline(b?.outline ?? [], l.outline, r.outline),
       created: Math.min(l.created, r.created),
       updated: Math.max(l.updated, r.updated),
+      ...withValue('styles', jsonField(b?.styles, l.styles, r.styles, r.updated > l.updated ? r.styles : l.styles)),
+      ...withValue('page', jsonField(b?.page, l.page, r.page, r.updated > l.updated ? r.page : l.page)),
     }));
     if (p) tree.projects[id] = p;
   }
@@ -191,6 +193,18 @@ function mergeOutline(base: OutlineItem[], local: OutlineItem[], remote: Outline
     const title = field(b?.type === 'part' ? b.title : undefined, x.title, r?.type === 'part' ? r.title : x.title);
     return title === x.title ? x : { ...x, title };
   });
+}
+
+/** A three-way merge of one value compared by content (style sheets, page setup). */
+function jsonField<V>(b: V | undefined, l: V | undefined, r: V | undefined, tie: V | undefined): V | undefined {
+  if (sameJson(l, r)) return l;
+  if (sameJson(b, l)) return r;
+  if (sameJson(b, r)) return l;
+  return tie;
+}
+
+function withValue<K extends string, V>(key: K, value: V | undefined): Partial<Record<K, V>> {
+  return value === undefined ? {} : ({ [key]: value } as Record<K, V>);
 }
 
 function keys(...maps: Record<string, unknown>[]): string[] {

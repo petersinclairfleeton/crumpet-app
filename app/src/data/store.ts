@@ -10,6 +10,7 @@ import { makeBlock, type Doc } from '@crumpet/editor/model';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { matchIds } from '@crumpet/editor/diff';
 import type { Tree } from '../sync/tree';
+import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
 import { type Chapter, type ChapterStatus, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
@@ -38,6 +39,8 @@ export const DEFAULT_SETTINGS: Settings = { name: '', accent: '#D4A257', theme: 
 export const DATA_VERSION = 2;
 
 const SAVE_DELAY_MS = 500;
+const MAX_SAVE_WAIT_MS = 2000;
+const RESCUE_KEY = 'crumpet:unsaved';
 const DAY = 24 * 60 * 60 * 1000;
 
 export function newId(): string {
@@ -66,6 +69,8 @@ export class AppStore {
   };
   private listeners = new Set<() => void>();
   private pendingDocs = new Map<string, ReturnType<typeof setTimeout>>();
+  /** When each waiting save was first asked for, so long typing still saves regularly. */
+  private pendingSince = new Map<string, number>();
   private failures = 0;
 
   constructor(
@@ -115,7 +120,7 @@ export class AppStore {
   // ---------- loading ----------
 
   async load(): Promise<void> {
-    const data = this.upgrade(await this.storage.load());
+    const data = this.recover(this.upgrade(await this.storage.load()));
     // Empty the Trash of anything older than 30 days.
     const cutoff = this.now() - TRASH_DAYS * DAY;
     const expired = new Set(data.notes.filter((n) => n.trashedAt !== null && n.trashedAt < cutoff).map((n) => n.id));
@@ -448,8 +453,18 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated };
-      if (cur && cur.name === next.name && cur.goal === next.goal && cur.createdAt === next.createdAt && cur.updatedAt === next.updatedAt && JSON.stringify(cur.outline) === JSON.stringify(next.outline)) return cur;
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}) };
+      if (
+        cur &&
+        cur.name === next.name &&
+        cur.goal === next.goal &&
+        cur.createdAt === next.createdAt &&
+        cur.updatedAt === next.updatedAt &&
+        JSON.stringify(cur.outline) === JSON.stringify(next.outline) &&
+        JSON.stringify(cur.styles ?? null) === JSON.stringify(next.styles ?? null) &&
+        JSON.stringify(cur.page ?? null) === JSON.stringify(next.page ?? null)
+      )
+        return cur;
       this.save(this.storage.putProject(next));
       return next;
     });
@@ -511,7 +526,14 @@ export class AppStore {
   // ---------- saving ----------
 
   private scheduleSave(id: string): void {
+    const since = this.pendingSince.get(id) ?? Date.now();
     this.cancelSave(id);
+    // Typing without a pause still saves every couple of seconds.
+    if (Date.now() - since >= MAX_SAVE_WAIT_MS) {
+      this.saveNow(id);
+      return;
+    }
+    this.pendingSince.set(id, since);
     this.pendingDocs.set(
       id,
       setTimeout(() => {
@@ -525,6 +547,74 @@ export class AppStore {
     const t = this.pendingDocs.get(id);
     if (t) clearTimeout(t);
     this.pendingDocs.delete(id);
+    this.pendingSince.delete(id);
+  }
+
+  /**
+   * Called as the page is hidden or closed. A database write started then may
+   * not finish, so unsaved notes and chapters are also kept in localStorage,
+   * which writes at once, and picked up again by the next load().
+   */
+  rescue(): void {
+    const items = [...this.pendingDocs.keys()]
+      .map((id) => {
+        const note = this.note(id);
+        if (note) return { kind: 'note' as const, value: note };
+        const chapter = this.chapter(id);
+        return chapter ? { kind: 'chapter' as const, value: chapter } : null;
+      })
+      .filter((x) => x !== null);
+    if (!items.length) return;
+    try {
+      localStorage.setItem(RESCUE_KEY, JSON.stringify(items));
+    } catch {
+      // Storage full or unavailable: the database write is all we have.
+    }
+  }
+
+  /** Brings back edits kept by rescue() that are newer than what the database has. */
+  private recover(data: Persisted): Persisted {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(RESCUE_KEY);
+    } catch {
+      return data;
+    }
+    if (!raw) return data;
+    let items: ({ kind: 'note'; value: Note } | { kind: 'chapter'; value: Chapter })[] = [];
+    try {
+      items = JSON.parse(raw);
+    } catch {
+      // Unreadable: nothing to recover.
+    }
+    const notes = [...data.notes];
+    const chapters = [...(data.chapters ?? [])];
+    const writes: Promise<void>[] = [];
+    for (const item of items) {
+      const list: { id: string; updatedAt: number }[] = item.kind === 'note' ? notes : chapters;
+      const i = list.findIndex((x) => x.id === item.value.id);
+      if (i >= 0 && list[i].updatedAt > item.value.updatedAt) continue;
+      if (item.kind === 'note') {
+        if (i >= 0) notes[i] = item.value;
+        else notes.push(item.value);
+        writes.push(this.storage.putNote(item.value));
+      } else if (data.projects?.some((p) => p.id === item.value.projectId)) {
+        if (i >= 0) chapters[i] = item.value;
+        else chapters.push(item.value);
+        writes.push(this.storage.putChapter(item.value));
+      }
+    }
+    Promise.all(writes).then(
+      () => {
+        try {
+          localStorage.removeItem(RESCUE_KEY);
+        } catch {
+          // Nothing to clear.
+        }
+      },
+      (err) => console.error('[crumpet] Could not save recovered edits', err),
+    );
+    return { ...data, notes, chapters };
   }
 
   /** Saves a note or chapter by id. */
@@ -595,6 +685,14 @@ export class AppStore {
 
   renameProject(id: string, name: string): void {
     if (name.trim()) this.updateProject(id, { name: name.trim() });
+  }
+
+  setProjectStyles(id: string, styles: StyleSheet): void {
+    this.updateProject(id, { styles });
+  }
+
+  setProjectPage(id: string, page: PageSetup): void {
+    this.updateProject(id, { page });
   }
 
   setProjectGoal(id: string, goal: number | null): void {

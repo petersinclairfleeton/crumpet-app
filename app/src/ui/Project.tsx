@@ -1,10 +1,14 @@
 // A project (a book, an essay, a thesis): its outline of parts and chapters,
 // and the writing, one chapter at a time or as one long manuscript.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { defaultPage, fullSheet } from '../data/styles';
+import { PageToggle, PageView } from './pages';
+import { StylesDialog, useSheetClass } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { chapterWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
+import type { PageSetup } from '../data/styles';
 import { EditorHost } from './EditorHost';
 import { FormatTools, LinkBar, useDocEditor } from './editing';
 import { useAppState, useAppStore } from './hooks';
@@ -319,6 +323,10 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const store = useAppStore();
   const editorRef = useRef<Editor | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState(false);
+  const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
+  const pageSetup = project.page ?? defaultPage();
+  const paged = !!state.settings.pageView?.projects;
   const list = projectChapters(project, state.chapters);
   const at = list.findIndex((x) => x.chapter.id === chapter.id);
   const prev = list[at - 1]?.chapter;
@@ -336,6 +344,7 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
 
   const trail = (
     <div className="note-actions">
+      <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
       <button type="button" className="icon-btn" aria-label="Previous chapter" title="Previous chapter" disabled={!prev} onClick={() => prev && store.selectChapter(prev.id)}>
         ‹
       </button>
@@ -407,7 +416,20 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
 
   return (
     <section className="pane" aria-label="Chapter">
+      {stylesOpen && (
+        <StylesDialog
+          title={`Styles for ${project.name}`}
+          sheet={sheet}
+          onChange={(styles) => store.setProjectStyles(project.id, styles)}
+          page={pageSetup}
+          onPage={(page) => store.setProjectPage(project.id, page)}
+          onClose={() => setStylesOpen(false)}
+        />
+      )}
       <EditorHost
+        sheet={sheet}
+        page={paged ? pageSetup : null}
+        onEditStyles={() => setStylesOpen(true)}
         docId={chapter.id}
         doc={chapter.doc}
         onDoc={(doc) => store.setChapterDoc(chapter.id, doc)}
@@ -431,6 +453,11 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const store = useAppStore();
   const [active, setActive] = useState<Editor | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState(false);
+  const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
+  const styles = useSheetClass(sheet);
+  const pageSetup = project.page ?? defaultPage();
+  const paged = !!state.settings.pageView?.projects;
   const [, setTick] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   const chapters = new Map(state.chapters.filter((c) => c.projectId === project.id).map((c) => [c.id, c]));
@@ -440,27 +467,40 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const target = state.chapterId;
   useEffect(() => {
     if (!target) return;
-    const el = scroll.current?.querySelector(`[data-chapter="${target}"]`);
-    if (el && !el.contains(document.activeElement)) el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    const box = scroll.current;
+    const el = box?.querySelector<HTMLElement>(`[data-chapter="${target}"]`);
+    // Scroll only the manuscript (scrollIntoView would move the whole window too).
+    if (box && el && !el.contains(document.activeElement)) box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 8, behavior: 'smooth' });
   }, [target]);
 
   let number = 0;
   return (
     <section className="pane" aria-label="Manuscript">
-      <div className="note-pane manuscript">
+      {stylesOpen && (
+        <StylesDialog
+          title={`Styles for ${project.name}`}
+          sheet={sheet}
+          onChange={(s) => store.setProjectStyles(project.id, s)}
+          page={pageSetup}
+          onPage={(page) => store.setProjectPage(project.id, page)}
+          onClose={() => setStylesOpen(false)}
+        />
+      )}
+      <div className={`note-pane manuscript ${styles}`}>
         <div className="note-toolbar" role="toolbar" aria-label="Formatting">
           {narrow && (
             <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
               <IconBack size={18} />
             </button>
           )}
-          <FormatTools editor={active} readOnly={false} onLink={() => setLinkOpen(true)} />
+          <FormatTools editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
+          <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
         </div>
         {linkOpen && active && <LinkBar editor={active} onClose={() => setLinkOpen(false)} />}
         <div className="note-scroll" ref={scroll}>
-          <article className="note-body manuscript-body">
+          <article className={`note-body manuscript-body${paged ? ' paged' : ''}`}>
             <h1 className="manuscript-title">{project.name}</h1>
             {project.outline.map((item) => {
               if (item.type === 'part') {
@@ -478,6 +518,8 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
                   key={c.id}
                   chapter={c}
                   number={number}
+                  page={paged ? pageSetup : null}
+                  sheetClass={styles}
                   onActive={(ed) => {
                     setActive(ed);
                     setTick((t) => t + 1);
@@ -497,9 +539,9 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   );
 }
 
-function ManuscriptChapter({ chapter, number, onActive, onLinkKey }: { chapter: Chapter; number: number; onActive(ed: Editor): void; onLinkKey(): void }) {
+function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLinkKey }: { chapter: Chapter; number: number; page: PageSetup | null; sheetClass: string; onActive(ed: Editor): void; onLinkKey(): void }) {
   const store = useAppStore();
-  const { host } = useDocEditor({
+  const { host, editor } = useDocEditor({
     docId: chapter.id,
     doc: chapter.doc,
     readOnly: false,
@@ -511,7 +553,9 @@ function ManuscriptChapter({ chapter, number, onActive, onLinkKey }: { chapter: 
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
       <p className="chapter-kicker">Chapter {number}</p>
       <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
-      <div ref={host} className="note-editor" aria-label={`Text of chapter ${number}`} />
+      <PageView enabled={!!page} editor={editor} page={page ?? defaultPage()} sheetClass={sheetClass}>
+        <div ref={host} className="note-editor" aria-label={`Text of chapter ${number}`} />
+      </PageView>
     </section>
   );
 }

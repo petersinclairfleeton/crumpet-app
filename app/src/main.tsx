@@ -14,7 +14,11 @@ async function start() {
   const sync = new SyncConnection(store, storage);
   sync.init().catch((err) => console.error('[crumpet] Sync could not start', err));
   // Save anything still waiting when the page is hidden or closed (phones rarely fire unload).
-  const flush = () => store.flush();
+  // rescue() first: it keeps a copy that survives even if the save is cut short.
+  const flush = () => {
+    store.rescue();
+    store.flush();
+  };
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush();

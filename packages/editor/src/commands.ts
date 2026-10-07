@@ -3,6 +3,7 @@
 // the DOM, so they can be tested directly.
 
 import {
+  type Align,
   type Block,
   type BlockType,
   type Doc,
@@ -15,6 +16,7 @@ import {
   blockIndex,
   isCollapsed,
   isList,
+  isHeading,
   commonLink,
   linkAt,
   normalizeLink,
@@ -28,7 +30,7 @@ import {
   sliceRuns,
   sortMarks,
 } from './model';
-import { type Op, applyOp, applyOps, attrsOf, blockAttrs } from './ops';
+import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 
 export interface EditorState {
   doc: Doc;
@@ -111,6 +113,8 @@ export function deleteSelection(state: EditorState): Transaction | null {
 const MARKDOWN_PREFIXES: [string, BlockType, boolean?][] = [
   ['#', 'heading1'],
   ['##', 'heading2'],
+  ['###', 'heading3'],
+  ['####', 'heading4'],
   ['[]', 'todo', false],
   ['[ ]', 'todo', false],
   ['[x]', 'todo', true],
@@ -159,21 +163,28 @@ export function markdownShortcut(state: EditorState): Transaction | null {
   return tx(state, b, caret({ block: block.id, offset: 0 }));
 }
 
-/** What Enter at the end of a block creates: lists and quotes continue, headings become paragraphs. */
+/** Styles whose next paragraph (after Enter at the end) is plain body text, as in Word. */
+const ENDS_ON_ENTER = new Set(['title', 'subtitle', 'caption', 'scenebreak', 'epigraph']);
+
+/**
+ * What Enter at the end of a block creates: lists, quotes and body text carry
+ * on in the same style and alignment; headings, titles and the like are
+ * followed by body text.
+ */
 function nextBlockAttrs(block: Block) {
-  if (isList(block.type)) return blockAttrs(block.type, false, block.indent);
-  if (block.type === 'quote') return blockAttrs('quote');
-  return blockAttrs('paragraph');
+  if (isList(block.type)) return { ...blockAttrs(block.type, false, block.indent), ...(block.align ? { align: block.align } : {}) };
+  if (isHeading(block.type) || (block.style && ENDS_ON_ENTER.has(block.style))) return blockAttrs('paragraph');
+  return { ...attrsOf(block), checked: undefined };
 }
 
 function splitAt(b: Builder, pos: Pos): Pos {
   const block = getBlock(b.doc, pos.block);
   const atEnd = pos.offset === runsLength(block.runs);
-  const newAttrs = atEnd ? nextBlockAttrs(block) : blockAttrs(block.type, false, block.indent);
+  const newAttrs = atEnd ? nextBlockAttrs(block) : attrsOf({ ...block, checked: false });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
   // Enter at the very start of a heading keeps the heading below and leaves an empty paragraph above.
-  if (!atEnd && pos.offset === 0 && (block.type === 'heading1' || block.type === 'heading2')) {
+  if (!atEnd && pos.offset === 0 && isHeading(block.type)) {
     b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: blockAttrs('paragraph') });
   }
   return { block: newBlock, offset: 0 };
@@ -296,6 +307,35 @@ export function toggleMark(state: EditorState, mark: Mark): Transaction {
     const before: Run[] = sliceRuns(getBlock(b.doc, s.id).runs, s.from, s.to);
     const after = setMarkOnRuns(before, mark, on);
     b.step({ type: 'format', block: s.id, offset: s.from, before, after, mark, on });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** Selected blocks, first to last. */
+function selectedBlocks(state: EditorState): Block[] {
+  const { from, to } = orderedRange(state.doc, state.selection);
+  return state.doc.blocks.slice(blockIndex(state.doc, from.block), blockIndex(state.doc, to.block) + 1);
+}
+
+/**
+ * Applies a named style (Word's style menu): a block type, and for paragraphs
+ * and quotes optionally a style on top. Alignment set by hand is kept.
+ */
+export function setBlockStyle(state: EditorState, type: BlockType, style?: string): Transaction {
+  const b = new Builder(state.doc);
+  for (const blk of selectedBlocks(state)) {
+    const to = attrsOf({ type, checked: false, indent: isList(type) && isList(blk.type) ? blk.indent : 0, ...(style ? { style } : {}), ...(blk.align ? { align: blk.align } : {}) });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** Aligns the selected blocks. */
+export function setAlign(state: EditorState, align: Align): Transaction {
+  const b = new Builder(state.doc);
+  for (const blk of selectedBlocks(state)) {
+    const to = attrsOf({ ...blk, align });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
   }
   return tx(state, b, state.selection);
 }

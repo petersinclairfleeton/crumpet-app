@@ -98,7 +98,7 @@ const CATEGORIES: [string, string][] = [
 const SHOWN = 60;
 
 /** Choosing the font notes are written in: any Google font, or one on this device. */
-function FontPicker({ value, onChange }: { value: NoteFont; onChange(f: NoteFont): void }) {
+export function FontPicker({ value, onChange, label = 'Writing font' }: { value: NoteFont; onChange(f: NoteFont): void; label?: string }) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'google' | 'system'>('google');
   const [query, setQuery] = useState('');
@@ -127,8 +127,8 @@ function FontPicker({ value, onChange }: { value: NoteFont; onChange(f: NoteFont
   const name = value.source === 'default' ? 'Figtree (Crumpet’s own)' : value.family;
 
   return (
-    <div className="field font-field" role="group" aria-label="Writing font">
-      <span>Writing font</span>
+    <div className="field font-field" role="group" aria-label={label}>
+      {label === 'Writing font' && <span>{label}</span>}
       <button type="button" className="font-current" aria-expanded={open} onClick={() => setOpen(!open)}>
         <span style={{ fontFamily: fontStack(value) }}>{name}</span>
         <small>{open ? 'Done' : 'Change'}</small>

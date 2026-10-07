@@ -5,6 +5,20 @@
 .blk { margin: 0 0 10px; }
 .blk-heading1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; margin: 0 0 14px; }
 .blk-heading2 { font-size: 19px; font-weight: 800; line-height: 1.35; margin: 18px 0 6px; }
+.blk-heading3 { font-size: 16px; font-weight: 800; line-height: 1.4; margin: 14px 0 4px; }
+.blk-heading4 { font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.4; margin: 12px 0 4px; }
+/* Named styles (the app's style sheet can override all of these). */
+.blk[data-style='title'] { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; margin: 0 0 6px; }
+.blk[data-style='subtitle'] { font-size: 19px; color: var(--muted, #666); line-height: 1.4; margin: 0 0 16px; }
+.blk[data-style='nospacing'] { margin: 0; }
+.blk[data-style='epigraph'] { font-style: italic; margin-left: 30%; color: var(--text2, inherit); }
+.blk[data-style='caption'] { font-size: 0.82em; font-style: italic; color: var(--muted, #666); }
+.blk[data-style='scenebreak'] { text-align: center; letter-spacing: 0.4em; margin: 18px 0; }
+.blk[data-style='scenebreak'] .text:has(> br:only-child)::before { content: '*\00a0*\00a0*'; color: var(--muted, #666); }
+.blk-quote[data-style='intense'] { font-style: italic; font-weight: 600; border-left: 3px solid var(--accent, #d4a257); border-radius: 0 7px 7px 0; }
+.blk[data-align='center'] { text-align: center; }
+.blk[data-align='right'] { text-align: right; }
+.blk[data-align='justify'] { text-align: justify; }
 .blk-quote { margin: 4px 0 12px; padding: 10px 16px; border-radius: 7px; background: var(--accent-soft); }
 /* Lists are flat blocks with an indent level; markers and numbers come from CSS. */
 .blk-list { margin: 0 0 4px; margin-left: calc(var(--indent, 0) * 24px); }
@@ -49,3 +63,6 @@
 
 /* ---- Links ---- */
 .editor a { color: var(--accent-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: text; }
+
+/* Page view: the gap that carries text on to the next page. */
+.page-break { display: block; pointer-events: none; user-select: none; -webkit-user-select: none; }
