@@ -6,13 +6,37 @@ import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
 import { allTags, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
 import { EditorHost } from './EditorHost';
-import { IconBack, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconBack, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
-export function NotePane({ onBack, narrow, onNewNote, onNewProject }: { onBack(): void; narrow: boolean; onNewNote(): void; onNewProject(): void }) {
+interface PaneProps {
+  onBack(): void;
+  narrow: boolean;
+  onNewNote(): void;
+  onNewProject(): void;
+  /** With two notes open: which side this is, the note it shows, and closing it. */
+  side?: 'first' | 'second';
+  noteId?: string | null;
+  onCloseSide?(): void;
+}
+
+export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId, onCloseSide }: PaneProps) {
   const state = useAppState();
   const store = useAppStore();
-  const note = store.note(state.selectedId);
+  const note = store.note(noteId === undefined ? state.selectedId : noteId);
+  // Clicking or typing in one of two notes makes it the side the next note opens in.
+  const sideProps = side
+    ? {
+        'data-side': side,
+        onMouseDownCapture: () => store.setActiveSide(side),
+        onFocusCapture: () => store.setActiveSide(side),
+      }
+    : {};
+  const closeSide = onCloseSide ? (
+    <button type="button" className="icon-btn" aria-label="Close this side" title="Back to one note" onClick={onCloseSide}>
+      <IconClose size={15} />
+    </button>
+  ) : null;
   const editorRef = useRef<Editor | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const [menu, setMenu] = useState(false);
@@ -46,6 +70,17 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject }: { onBack()
     setAddingTag(false);
   }, [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (!note && side === 'second') {
+    return (
+      <section {...sideProps} className={`pane-empty${state.activeSide === side ? ' side-active' : ''}`} aria-label="Second note">
+        <div className="side-empty-pane">
+          <p>Choose a note in the list to open it here.</p>
+          {closeSide}
+        </div>
+      </section>
+    );
+  }
+
   if (!note && !state.notes.length && !state.projects.length) {
     return (
       <section className="pane-empty" aria-label="Welcome">
@@ -56,7 +91,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject }: { onBack()
 
   if (!note) {
     return (
-      <section className="pane-empty" aria-label="Note">
+      <section {...sideProps} className={`pane-empty${side && state.activeSide === side ? ' side-active' : ''}`} aria-label="Note">
         <p>Choose a note, or start a new one.</p>
       </section>
     );
@@ -73,7 +108,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject }: { onBack()
     </button>
   ) : null;
 
-  const trail = trashed ? null : (
+  const trail = trashed ? closeSide : (
     <div className="note-actions">
       <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, notes: on } })} />
       <button type="button" className={`icon-btn read-toggle${reading ? ' on' : ''}`} aria-pressed={reading} aria-label={reading ? 'Back to editing' : 'Reading view'} title={reading ? 'Back to editing (Esc)' : 'Reading view'} onClick={() => setReading(!reading)}>
@@ -100,6 +135,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject }: { onBack()
           </button>
         </Popover>
       )}
+      {closeSide}
     </div>
   );
 
@@ -195,7 +231,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject }: { onBack()
   );
 
   return (
-    <section className="pane" aria-label="Note">
+    <section {...sideProps} className={`pane${side && state.activeSide === side ? ' side-active' : ''}`} aria-label={side === 'second' ? 'Second note' : 'Note'}>
       {stylesOpen && (
         <StylesDialog
           title="Styles for notes"

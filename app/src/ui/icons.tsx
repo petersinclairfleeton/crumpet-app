@@ -73,6 +73,9 @@ export const IconSettings = icon(
     <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" />
   </>,
 );
+export const IconSidebar = icon(<path d="M4 4h16v16H4zM9 4v16" />);
+export const IconLayout = icon(<path d="M4 4h16v16H4zM12 4v16" />);
+export const IconFocus = icon(<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />);
 export const IconList = icon(<path d="M4 6h16M4 12h16M4 18h16" />);
 export const IconCards = icon(<path d="M4 4h16v7H4zM4 15h16v5H4z" />);
 

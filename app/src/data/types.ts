@@ -95,10 +95,27 @@ export interface Settings {
   /** The named styles notes use; Crumpet's own when unset. */
   noteStyles?: StyleSheet;
   notePage?: PageSetup;
+  /** How the window is arranged (computers and tablets). */
+  layout?: LayoutPrefs;
   /** Show notes and projects as pages. */
   pageView?: { notes?: boolean; projects?: boolean };
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
+}
+
+/** The arrangement of panes, chosen in the Layout menu. */
+export interface LayoutPrefs {
+  /** The sidebar in full, as a strip of icons, or hidden. */
+  sidebar?: 'full' | 'icons' | 'hidden';
+  /** The note list (or a project's outline); shown unless false. */
+  list?: boolean;
+  /** Widths in px, from dragging the edges. */
+  sidebarWidth?: number;
+  listWidth?: number;
+  /** One note, or two side by side or one above the other. */
+  split?: 'one' | 'side' | 'stacked';
+  /** The first note's share of the space when two are open (0.2 to 0.8). */
+  splitRatio?: number;
 }
 
 /** What the note list is showing. */

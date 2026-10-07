@@ -612,3 +612,36 @@ test('headers and footers in a project: manuscript format, and page numbers runn
   const hf = await page.evaluate(() => (window as unknown as { crumpet: { getState(): { projects: { page?: { hf?: { differentChapterFirst: boolean } } }[] } } }).crumpet.getState().projects[0].page?.hf?.differentChapterFirst);
   expect(hf).toBe(true);
 });
+
+test('layout: hide and fold the sidebar, hide the list, resize, and two notes side by side', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'First', 'One');
+  await newNote(page, 'Second', 'Two');
+  const layout = page.getByRole('button', { name: 'Layout', exact: true });
+  await layout.click();
+  await page.getByRole('button', { name: 'Icons', exact: true }).click();
+  await expect(page.locator('.rail')).toBeVisible();
+  await expect(page.locator('.sidebar')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Side by side' }).click();
+  await page.keyboard.press('Escape');
+  // The second side starts empty; working in it makes the list open notes there.
+  const second = page.getByRole('region', { name: 'Second note' });
+  await expect(second).toContainText('Choose a note in the list');
+  await second.click();
+  await list(page).locator('.card', { hasText: 'First' }).click();
+  await expect(second.getByLabel('Title')).toHaveValue('First');
+  await expect(page.getByRole('region', { name: 'Note', exact: true }).getByLabel('Title')).toHaveValue('Second');
+  // Resizing the list with the keyboard.
+  const edge = page.getByRole('separator', { name: 'Note list width' });
+  await edge.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { layout?: { listWidth?: number } } } } }).crumpet.getState().settings.layout?.listWidth)).toBe(376);
+  // Back to one note, and the sidebar hidden with Ctrl+\.
+  await second.getByRole('button', { name: 'Close this side' }).click();
+  await expect(second).toHaveCount(0);
+  await page.locator('.note-pane').first().click();
+  await page.keyboard.press('Control+\\');
+  await expect(page.locator('.rail, .sidebar')).toHaveCount(0);
+  await page.keyboard.press('Control+\\');
+  await expect(page.locator('.sidebar')).toBeVisible();
+});

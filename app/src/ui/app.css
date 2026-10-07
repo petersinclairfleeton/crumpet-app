@@ -203,7 +203,7 @@ input, select { font: inherit; color: inherit; }
 .swatch.big { width: 26px; height: 26px; }
 
 /* ---- Sidebar ---- */
-.sidebar { flex: 0 0 236px; width: 236px; background: var(--side-bg); color: var(--side-text); display: flex; flex-direction: column; gap: 10px; padding: 10px 8px 12px; overflow-y: auto; position: relative; }
+.sidebar { flex: 0 0 var(--side-w, 236px); width: var(--side-w, 236px); background: var(--side-bg); color: var(--side-text); display: flex; flex-direction: column; gap: 10px; padding: 10px 8px 12px; overflow-y: auto; position: relative; }
 .sidebar .icon-btn { color: var(--side-muted); width: 24px; height: 24px; }
 .sidebar .icon-btn:hover { background: var(--side-hover); color: var(--side-text); }
 .side-top { display: flex; align-items: center; gap: 4px; }
@@ -331,7 +331,7 @@ input, select { font: inherit; color: inherit; }
 .topbar::after { content: ''; flex: 1 1 0; }
 
 /* ---- Note list ---- */
-.list { flex: 0 0 360px; width: 360px; min-width: 0; display: flex; flex-direction: column; background: var(--list-bg); border-right: 1px solid var(--line); overflow-y: auto; }
+.list { flex: 0 0 var(--list-w, 360px); width: var(--list-w, 360px); min-width: 0; display: flex; flex-direction: column; background: var(--list-bg); border-right: 1px solid var(--line); overflow-y: auto; }
 .list-head { padding: 14px 16px 6px; display: flex; flex-direction: column; gap: 6px; }
 .list-title { display: flex; align-items: center; gap: 8px; }
 .list-title h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -608,10 +608,52 @@ input, select { font: inherit; color: inherit; }
 .welcome b { display: block; font-size: 16px; font-weight: 600; }
 .welcome small { display: block; margin-top: 2px; font-size: 14px; color: var(--muted); }
 
+/* ---- Layout: resizing, the icon strip, two notes ---- */
+.resizer { flex: 0 0 auto; width: 9px; margin: 0 -4px; position: relative; z-index: 5; cursor: col-resize; touch-action: none; }
+.resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 4px; width: 1px; background: transparent; transition: background 0.15s; }
+.resizer:hover::after, .resizer.dragging::after, .resizer:focus-visible::after { background: var(--accent); width: 2px; left: 3.5px; }
+.resizer:focus-visible { outline: none; }
+.resizer.vertical { width: auto; height: 9px; margin: -4px 0; cursor: row-resize; }
+.resizer.vertical::after { top: 4px; bottom: auto; left: 0; right: 0; width: auto; height: 1px; }
+.resizer.vertical:hover::after, .resizer.vertical.dragging::after, .resizer.vertical:focus-visible::after { height: 2px; width: auto; top: 3.5px; left: 0; }
+.app:has(.resizer.dragging) { user-select: none; cursor: col-resize; }
+.rail { flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0; background: var(--side-bg); color: var(--side-text); overflow-y: auto; }
+.rail-btn { width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border: none; border-radius: 9px; background: transparent; color: var(--side-muted); cursor: pointer; }
+.rail-btn:hover { background: var(--side-hover); color: var(--side-text); }
+.rail-btn.active { background: var(--side-sel); color: var(--side-text); }
+.rail-btn.new { background: var(--accent); color: var(--on-accent); width: 34px; height: 34px; border-radius: 999px; margin: 4px 0; }
+.rail-gap { height: 10px; flex: 0 0 auto; }
+.notes-split { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.notes-split.stacked { flex-direction: column; }
+.notes-split > .pane, .notes-split > .pane-empty { flex: var(--split, 0.5) 1 0; min-width: 0; min-height: 0; }
+.notes-split > [data-side='second'] { flex-grow: calc(1 - var(--split, 0.5)); }
+.notes-split.side > [data-side='first'] { border-right: 1px solid var(--line); }
+.notes-split.stacked > [data-side='first'] { border-bottom: 1px solid var(--line); }
+[data-look='paper'] .notes-split > [data-side='first'] { border: none; }
+[data-look='paper'] .notes-split.side > [data-side='first'] { margin-right: 6px; }
+[data-look='paper'] .notes-split.stacked > [data-side='first'] { margin-bottom: 6px; }
+.notes-split > .side-active { box-shadow: inset 0 2px 0 var(--accent); }
+[data-look='paper'] .notes-split > .side-active { box-shadow: var(--sheet-shadow), 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); }
+.side-empty-pane { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.layout-menu { position: relative; display: inline-flex; }
+.layout-menu .popover { left: auto; right: 0; top: 36px; width: 280px; }
+.layout-form { display: flex; flex-direction: column; gap: 10px; padding: 6px; }
+.layout-label { margin: 4px 0 -4px; font-size: 12px; font-weight: 700; color: var(--text2); }
+[data-look='paper'] .layout-label { font-family: var(--title-font); font-style: italic; font-weight: 400; font-size: 14px; color: var(--muted); }
+.split-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.split-choices button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); color: var(--text2); font-size: 12px; cursor: pointer; }
+.split-choices button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.split-choices button:disabled { opacity: 0.45; cursor: default; }
+.split-pic { display: flex; gap: 2px; width: 28px; height: 18px; }
+.split-pic.stacked { flex-direction: column; }
+.split-pic i { flex: 1; border: 1.5px solid currentColor; border-radius: 2px; }
+.layout-hint { margin: 0; font-size: 12px; line-height: 1.45; color: var(--muted); }
+@media (max-width: 759px) { .layout-menu, .resizer { display: none; } }
+
 /* ---- Medium screens: narrower list ---- */
 @media (max-width: 1099px) {
-  .sidebar { flex-basis: 208px; width: 208px; }
-  .list { flex-basis: 300px; width: 300px; }
+  .sidebar { flex-basis: var(--side-w, 208px); width: var(--side-w, 208px); }
+  .list { flex-basis: var(--list-w, 300px); width: var(--list-w, 300px); }
 }
 
 /* ---- Phones: one pane at a time ---- */
