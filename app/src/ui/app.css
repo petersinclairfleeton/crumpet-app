@@ -784,3 +784,13 @@ input, select { font: inherit; color: inherit; }
 .slash-text { display: flex; flex-direction: column; min-width: 0; }
 .slash-text b { font-size: 13.5px; font-weight: 600; }
 .slash-text small { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Templates ---- */
+.new-note-row { display: flex; align-items: center; gap: 2px; position: relative; }
+.new-note-row .new-note { flex: 1; }
+.template-menu { position: static; }
+.template-menu .popover { top: 40px; left: 0; right: 0; max-height: 70vh; overflow-y: auto; }
+.menu-label { margin: 6px 10px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.menu-item.two-line { flex-direction: column; align-items: flex-start; gap: 0; padding-top: 6px; padding-bottom: 6px; }
+.menu-item.two-line small { font-size: 12px; color: var(--muted); }
+.menu-hint { margin: 6px 10px 4px; font-size: 12px; line-height: 1.45; color: var(--muted); }

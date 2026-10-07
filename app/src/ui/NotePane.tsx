@@ -139,6 +139,16 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
           </button>
           <button
             type="button"
+            className="menu-item"
+            onClick={() => {
+              setMenu(false);
+              store.saveAsTemplate(note.id);
+            }}
+          >
+            Save as template
+          </button>
+          <button
+            type="button"
             className="menu-item danger"
             onClick={() => {
               setMenu(false);
