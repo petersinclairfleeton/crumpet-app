@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppState, useAppStore } from './hooks';
 import { Sidebar } from './Sidebar';
 import { NoteList } from './NoteList';
 import { NotePane } from './NotePane';
 import { ProjectOutline, ProjectPane } from './Project';
 import { TopBar } from './TopBar';
+import { LIST, Resizer, SIDEBAR, SidebarRail } from './layout';
 import { applyTheme } from './theme';
 import type { View } from '../data/types';
 
@@ -32,13 +33,18 @@ export function App() {
     (view: View) => {
       store.setView(view);
       setPane('list');
+      // Choosing a notebook or tag shows its notes, even if the list was hidden.
+      if (store.getState().settings.layout?.list === false) store.updateLayout({ list: true });
     },
     [store],
   );
 
   const openNote = useCallback(
     (id: string) => {
-      store.select(id);
+      const s = store.getState();
+      // With two notes open, a note opens on the side last worked in.
+      if (!window.matchMedia(NARROW).matches && (s.settings.layout?.split ?? 'one') !== 'one' && s.activeSide === 'second') store.openSecond(id);
+      else store.select(id);
       setPane('note');
     },
     [store],
@@ -56,6 +62,19 @@ export function App() {
     store.createNote();
     setPane('note');
     // The title field focuses itself when a new, empty note opens.
+  }, [store]);
+
+  // Ctrl+\ (⌘\ on a Mac): show or hide the sidebar.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault();
+        const now = store.getState().settings.layout?.sidebar ?? 'full';
+        store.updateLayout({ sidebar: now === 'hidden' ? 'full' : 'hidden' });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [store]);
 
   // ⌘K / Ctrl+K: search, unless editing text with a selection (then the editor uses it for links).
@@ -76,10 +95,23 @@ export function App() {
   // A search shows matching notes, even from inside a project.
   const project = state.view.kind === 'project' && !state.query.trim() ? store.project(state.view.id) : undefined;
 
+  const appRef = useRef<HTMLDivElement>(null);
   if (!state.ready) return <div className="loading">Opening your notes…</div>;
 
+  // On phones one pane shows at a time, so the layout choices are for bigger screens.
+  const layout = narrow ? {} : (state.settings.layout ?? {});
+  const sidebarMode = layout.sidebar ?? 'full';
+  const showList = layout.list !== false;
+  const split = project ? 'one' : (layout.split ?? 'one');
+  const sideW = layout.sidebarWidth ?? SIDEBAR.normal;
+  const listW = layout.listWidth ?? LIST.normal;
+  const ratio = layout.splitRatio ?? 0.5;
+  const sizes = narrow ? undefined : ({ '--side-w': layout.sidebarWidth ? `${sideW}px` : undefined, '--list-w': layout.listWidth ? `${listW}px` : undefined, '--split': ratio } as React.CSSProperties);
+  const target = () => appRef.current;
+  const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
+
   return (
-    <div className={`app${narrow ? ' narrow' : ''}`} data-pane={narrow ? pane : undefined}>
+    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}`} data-pane={narrow ? pane : undefined} style={sizes}>
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.
@@ -91,19 +123,42 @@ export function App() {
         </p>
       )}
       <div className="frame">
-        <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} />
+        {sidebarMode === 'full' && <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} />}
+        {sidebarMode === 'full' && !narrow && <Resizer label="Sidebar width" value={sideW} {...SIDEBAR} cssVar="--side-w" target={target} onChange={(v) => store.updateLayout({ sidebarWidth: Math.round(v) })} />}
+        {sidebarMode === 'icons' && <SidebarRail onOpenView={openView} onNewNote={newNote} />}
         <div className="workspace">
           <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} />
           <div className="panes">
             {project ? (
               <>
-                <ProjectOutline project={project} onOpenChapter={openChapter} />
+                {showList && <ProjectOutline project={project} onOpenChapter={openChapter} />}
+                {showList && !narrow && <Resizer label="Outline width" value={listW} {...LIST} cssVar="--list-w" target={target} onChange={(v) => store.updateLayout({ listWidth: Math.round(v) })} />}
                 <ProjectPane project={project} narrow={narrow} onBack={() => setPane('list')} />
               </>
             ) : (
               <>
-                <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />
-                <NotePane onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={() => openView({ kind: 'project', id: store.createProject('Untitled project').id })} />
+                {showList && <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />}
+                {showList && !narrow && <Resizer label="Note list width" value={listW} {...LIST} cssVar="--list-w" target={target} onChange={(v) => store.updateLayout({ listWidth: Math.round(v) })} />}
+                {split === 'one' ? (
+                  <NotePane onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={newProject} />
+                ) : (
+                  <div className={`notes-split ${split}`}>
+                    <NotePane side="first" noteId={state.selectedId} onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={newProject} />
+                    <Resizer
+                      label={split === 'side' ? 'Width of the two notes' : 'Height of the two notes'}
+                      vertical={split === 'stacked'}
+                      value={ratio}
+                      min={0.2}
+                      max={0.8}
+                      normal={0.5}
+                      scale={split === 'side' ? (appRef.current?.querySelector('.notes-split')?.clientWidth ?? 1000) : (appRef.current?.querySelector('.notes-split')?.clientHeight ?? 700)}
+                      cssVar="--split"
+                      target={target}
+                      onChange={(v) => store.updateLayout({ splitRatio: Math.round(v * 100) / 100 })}
+                    />
+                    <NotePane side="second" noteId={state.secondId} onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={newProject} onCloseSide={() => store.updateLayout({ split: 'one' })} />
+                  </div>
+                )}
               </>
             )}
           </div>

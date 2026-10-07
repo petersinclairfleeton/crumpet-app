@@ -12,7 +12,7 @@ import { matchIds } from '@crumpet/editor/diff';
 import type { Tree } from '../sync/tree';
 import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
-import { type Chapter, type ChapterStatus, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
+import { type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
 export interface AppState {
   ready: boolean;
@@ -26,6 +26,9 @@ export interface AppState {
   settings: Settings;
   view: View;
   selectedId: string | null;
+  /** With two notes open: the other note, and which side is being worked in. */
+  secondId: string | null;
+  activeSide: 'first' | 'second';
   /** The chapter open in the project being viewed. */
   chapterId: string | null;
   /** In a project: one chapter at a time, or the whole manuscript on one page. */
@@ -63,6 +66,8 @@ export class AppStore {
     settings: DEFAULT_SETTINGS,
     view: { kind: 'all' },
     selectedId: null,
+    secondId: null,
+    activeSide: 'first',
     chapterId: null,
     projectMode: 'chapter',
     query: '',
@@ -201,7 +206,22 @@ export class AppStore {
 
   select(id: string | null): void {
     this.flush();
-    this.set({ selectedId: id });
+    this.set({ selectedId: id, activeSide: 'first' });
+  }
+
+  /** Opens a note on the other side, with two notes open. */
+  openSecond(id: string | null): void {
+    this.flush();
+    this.set({ secondId: id, activeSide: 'second' });
+  }
+
+  setActiveSide(side: 'first' | 'second'): void {
+    if (this.state.activeSide !== side) this.set({ activeSide: side });
+  }
+
+  /** Changes part of the window layout. */
+  updateLayout(patch: Partial<LayoutPrefs>): void {
+    this.updateSettings({ layout: { ...this.state.settings.layout, ...patch } });
   }
 
   setQuery(query: string): void {

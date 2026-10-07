@@ -1,6 +1,7 @@
 import { useAppState, useAppStore } from './hooks';
 import { viewTitle } from '../data/selectors';
 import { IconMenu, IconPlus, IconSearch } from './icons';
+import { LayoutMenu } from './layout';
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -42,6 +43,7 @@ export function TopBar({ onMenu, onNewNote }: { onMenu(): void; onNewNote(): voi
         />
         <kbd>{isMac ? '⌘K' : 'Ctrl K'}</kbd>
       </label>
+      <LayoutMenu />
       <button type="button" className="icon-btn new-btn" aria-label="New note" onClick={onNewNote}>
         <IconPlus size={18} />
       </button>
