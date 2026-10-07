@@ -7,7 +7,11 @@ import { StoreContext, SyncContext } from './ui/hooks';
 import { SyncConnection } from './sync/connection';
 import { mediaUrl, setFileStorage, setRemoteFiles } from './data/files';
 import { setMediaResolver } from '@crumpet/editor/view';
+import { startClipListener } from './data/clip';
 import './ui/app.css';
+
+// Opened by the web clipper: start listening before anything else, so its page isn't missed.
+startClipListener();
 
 async function start() {
   const storage = await openStorage();

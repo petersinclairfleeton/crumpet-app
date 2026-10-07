@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Doc } from '@crumpet/editor/model';
 import { type Nav, NavContext, useAppState, useAppStore } from './hooks';
 import { findByTitle } from '../data/links';
+import { ClipDialog } from './clipper';
 import { Sidebar } from './Sidebar';
 import { NoteList } from './NoteList';
 import { NotePane } from './NotePane';
@@ -197,6 +198,7 @@ export function App() {
           Exit focus <kbd>Esc</kbd>
         </button>
       )}
+      <ClipDialog onSaved={() => setPane('note')} />
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.
