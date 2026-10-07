@@ -88,6 +88,21 @@ function blockLine(b: Block, number: number): string {
   return classes.length ? `${line} {${classes.map((c) => `.${c}`).join(' ')}}` : line;
 }
 
+/** Links to other notes: `note:` and the note's title, written [[Title]] in Markdown. */
+export const NOTE_LINK = 'note:';
+
+export function noteLink(title: string): string {
+  return NOTE_LINK + encodeURIComponent(title);
+}
+
+export function noteLinkTitle(link: string): string {
+  try {
+    return decodeURIComponent(link.slice(NOTE_LINK.length));
+  } catch {
+    return link.slice(NOTE_LINK.length);
+  }
+}
+
 /** Files Crumpet keeps next to the notes (see the app's attachments). */
 export const ATTACHMENTS_DIR = 'Attachments';
 
@@ -228,6 +243,15 @@ function writeRuns(runs: Run[], style: Style): string {
     let j = i;
     while (j < runs.length && runs[j].link === link) j++;
     const label = runs.slice(i, j);
+    // A link to another note is a wiki link: [[Title]], or [[Title|what it says]].
+    if (link.startsWith(NOTE_LINK)) {
+      moveTo([]);
+      const title = noteLinkTitle(link);
+      const text = label.map((r) => r.text).join('');
+      out += text === title ? `[[${title}]]` : `[[${title}|${text.replace(/\]\]/g, '] ]')}]]`;
+      i = j;
+      continue;
+    }
     const shared = FORMATTING.filter((m) => label.every((r) => r.marks.includes(m)));
     moveTo(shared);
     out += '[';
@@ -526,6 +550,16 @@ function tokenize(src: string): Node[] {
         flush();
         nodes.push({ kind: 'text', text: auto[1], marks: [], link: auto[1] });
         i += auto[0].length;
+        continue;
+      }
+    }
+    if (c === '[' && src[i + 1] === '[') {
+      const wiki = /^\[\[([^\]|\n]+?)(?:\|([^\]\n]+))?\]\]/.exec(src.slice(i));
+      if (wiki) {
+        flush();
+        const title = wiki[1].trim();
+        nodes.push({ kind: 'text', text: wiki[2] ?? title, marks: [], link: noteLink(title) });
+        i += wiki[0].length;
         continue;
       }
     }

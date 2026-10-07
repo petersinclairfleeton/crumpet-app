@@ -780,3 +780,29 @@ test('today’s note, and new notes from templates', async ({ page }) => {
   await expect(title).toHaveValue(`Meeting, ${today}`);
   await expect(page.locator('.note-pane [contenteditable] h2').first()).toHaveText('Who');
 });
+
+test('links between notes: [[ to link, click to open, linked-from at the bottom', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'The lighthouse', 'A tall white tower.');
+  await newNote(page, 'Mara', 'She keeps ');
+  await page.keyboard.type('[[light');
+  const picker = page.getByRole('listbox', { name: 'Link to a note' });
+  await expect(picker.getByRole('option').first()).toContainText('The lighthouse');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type(' at night, and [[Ferry');
+  await expect(picker.getByRole('option')).toContainText(['New note “Ferry”']);
+  await page.keyboard.press('Enter');
+  const body = page.locator('.note-pane [contenteditable]');
+  await expect(body.locator('a[href^="note:"]').first()).toHaveText('The lighthouse');
+  await expect(body.locator('a.missing-note')).toHaveText('Ferry');
+  // A click opens the note, which lists Mara as linking to it.
+  await body.locator('a', { hasText: 'The lighthouse' }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('The lighthouse');
+  const from = page.getByRole('region', { name: 'Linked from' });
+  await expect(from).toContainText('Mara');
+  await from.getByRole('button', { name: 'Mara' }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('Mara');
+  // A link to a note that doesn't exist yet makes it.
+  await page.locator('.note-pane [contenteditable] a', { hasText: 'Ferry' }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('Ferry');
+});

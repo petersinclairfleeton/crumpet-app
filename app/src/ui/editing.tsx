@@ -10,6 +10,7 @@ import type { BlockType, Doc, Mark } from '@crumpet/editor/model';
 import type { StyleSheet } from '../data/styles';
 import { AlignTools, StylePicker } from './styles-ui';
 import { addFile } from '../data/files';
+import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -43,6 +44,8 @@ export interface DocEditorOptions {
   onActive?(editor: Editor): void;
   /** ⌘K with text selected. */
   onLinkKey?(): void;
+  /** A click on a link to another note (its title). */
+  onNoteLink?(title: string): void;
 }
 
 /**
@@ -91,6 +94,12 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
     el.addEventListener('keydown', onKey);
     // Pictures and files dropped or pasted in.
     ed.onFiles = (files) => void insertFiles(ed, files);
+    // Links to other notes open them (a plain click: they're part of Crumpet, not the web).
+    ed.onLinkClick = (href) => {
+      if (!href.startsWith(NOTE_LINK)) return false;
+      latest.current.onNoteLink?.(noteLinkTitle(href));
+      return true;
+    };
     // Draw again so whoever uses the hook gets the editor now that it exists.
     setTick((t) => t + 1);
     return () => {

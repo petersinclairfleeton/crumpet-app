@@ -3,8 +3,9 @@ import { defaultPage, fullSheet } from '../data/styles';
 import { PageToggle } from './pages';
 import { StylesDialog } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
-import { useAppState, useAppStore } from './hooks';
-import { allTags, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
+import { useAppState, useAppStore, useNav } from './hooks';
+import { allTags, displayTitle, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
+import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
 import { chooseFiles } from './editing';
 import { Tour } from './Tour';
@@ -25,6 +26,7 @@ interface PaneProps {
 export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId, onCloseSide }: PaneProps) {
   const state = useAppState();
   const store = useAppStore();
+  const nav = useNav();
   const note = store.note(noteId === undefined ? state.selectedId : noteId);
   // Clicking or typing in one of two notes makes it the side the next note opens in.
   const sideProps = side
@@ -249,10 +251,27 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
   );
 
   const words = docWords(note.doc);
+  const linkedFrom = backlinks(note, state.notes);
   const footer = (
-    <p className="note-foot">
-      {words} word{words === 1 ? '' : 's'} · Edited {longTime(note.updatedAt)} · Created {longTime(note.createdAt)}
-    </p>
+    <>
+      {linkedFrom.length > 0 && (
+        <section className="backlinks" aria-label="Linked from">
+          <h2>
+            Linked from {linkedFrom.length} note{linkedFrom.length === 1 ? '' : 's'}
+          </h2>
+          <div className="backlink-list">
+            {linkedFrom.map((n) => (
+              <button key={n.id} type="button" className="backlink" onClick={() => nav.openNote(n.id)}>
+                {displayTitle(n)}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      <p className="note-foot">
+        {words} word{words === 1 ? '' : 's'} · Edited {longTime(note.updatedAt)} · Created {longTime(note.createdAt)}
+      </p>
+    </>
   );
 
   return (

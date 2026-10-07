@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { noteLinkTitle } from '@crumpet/editor/markdown';
 import type { Editor } from '@crumpet/editor/editor';
 import type { Doc } from '@crumpet/editor/model';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, useDocEditor } from './editing';
-import { useAppState, useAppStore, useMedia } from './hooks';
+import { useAppState, useAppStore, useMedia, useNav } from './hooks';
+import { findByTitle } from '../data/links';
 import { type PageSetup, type StyleSheet, defaultPage } from '../data/styles';
 import { type PageFields, type PagePlacement, PageView } from './pages';
 import { useSheetClass } from './styles-ui';
@@ -44,6 +46,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
   const store = useAppStore();
   const state = useAppState();
   const narrow = useMedia('(max-width: 759px)');
+  const nav = useNav();
   const [linkOpen, setLinkOpen] = useState(false);
   // The formatting bar floats above selected text, unless pinned (phones keep it in place).
   const floating = !narrow && !readOnly && !reading && (state.focusMode || state.settings.toolbar !== 'always');
@@ -60,6 +63,19 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
     },
     onReady: onEditor,
     onLinkKey: () => setLinkOpen(true),
+    onNoteLink: (title) => nav.openTitle(title),
+  });
+
+  // Links to notes that don't exist (yet) look different; clicking one makes the note.
+  useEffect(() => {
+    const el = host.current;
+    if (!el) return;
+    for (const a of el.querySelectorAll<HTMLAnchorElement>('a[href^="note:"]')) {
+      const title = noteLinkTitle(a.getAttribute('href') ?? '');
+      const there = !!findByTitle(state.notes, title);
+      a.classList.toggle('missing-note', !there);
+      a.title = there ? `Open “${title}”` : `“${title}” doesn’t exist yet: click to make it`;
+    }
   });
 
   return (
@@ -87,7 +103,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
         </KeyboardBar>
       )}
-      {!readOnly && !reading && <SlashMenu editor={ed} host={host} />}
+      {!readOnly && !reading && <SlashMenu editor={ed} host={host} notes={state.notes} />}
       {floating && ed && (
         <SelectionBar host={host}>
           <FormatTools compact attach={false} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
