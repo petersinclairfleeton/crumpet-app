@@ -11,6 +11,7 @@ import { useSheetClass } from './styles-ui';
 import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
+import { ChangeCard, ChangesBar, TrackToggle, useTracking } from './changes';
 
 interface Props {
   /** The document shown (a note or a chapter) and where its edits go. */
@@ -68,6 +69,8 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
     onNoteLink: (title) => nav.openTitle(title),
   });
 
+  useTracking(readOnly || reading ? null : ed);
+
   // Links to notes that don't exist (yet) look different; clicking one makes the note.
   useEffect(() => {
     const el = host.current;
@@ -86,6 +89,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
         {lead}
         {!floating && !narrow && <FormatTools editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />}
         <span className="grow" />
+        {!readOnly && !reading && <TrackToggle />}
         {!narrow && !readOnly && !reading && (
           <button
             type="button"
@@ -113,7 +117,9 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
       )}
       {!readOnly && !reading && <FootnoteCard editor={ed} />}
       {!readOnly && !reading && <CommentCard editor={ed} />}
+      {!readOnly && !reading && <ChangeCard editor={ed} />}
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
+      {!readOnly && !reading && <ChangesBar doc={doc} editor={ed} />}
       <div className="note-scroll">
         <article className={`note-body${paged ? ' paged' : ''}`}>
           {header}

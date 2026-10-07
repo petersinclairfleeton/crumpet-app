@@ -10,7 +10,8 @@ import type { Chapter, Note, Notebook, OutlineItem, Project, Stack, View } from 
 /** A block's plain text; a table's cells are its text. */
 export function blockText(b: Doc['blocks'][number]): string {
   if (b.type === 'table') return (b.rows ?? []).map((r) => r.join(' ')).join('\n');
-  return b.runs.some((r) => r.footnote !== undefined) ? runsText(b.runs.filter((r) => r.footnote === undefined)) : runsText(b.runs);
+  // Footnote markers and deleted text (tracked changes) aren't part of the text.
+  return b.runs.some((r) => r.footnote !== undefined || r.change?.kind === 'del') ? runsText(b.runs.filter((r) => r.footnote === undefined && r.change?.kind !== 'del')) : runsText(b.runs);
 }
 
 /** Plain text of a note's body, one line per block. */

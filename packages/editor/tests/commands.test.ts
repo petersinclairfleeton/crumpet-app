@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type Doc, type Mark, type Selection, caret, makeBlock, runsText } from '../src/model';
-import { applyOps, invertOps } from '../src/ops';
+import { type Op, applyOps, invertOps } from '../src/ops';
 import {
   type EditorState,
   deleteChar,
@@ -26,7 +26,7 @@ import {
   toggleFold,
   foldedUnder,
 } from '../src/commands';
-import { insertFootnote, setFootnote, addComment, setComment, insertText as typeIn } from '../src/commands';
+import { insertFootnote, setFootnote, addComment, setComment, insertText as typeIn, trackedInsertText, trackedDelete, resolveChanges } from '../src/commands';
 import { comments, makeComment } from '../src/model';
 import { footnotes } from '../src/model';
 import { diffDocs } from '../src/diff';
@@ -478,5 +478,47 @@ describe('comments', () => {
   it('need some text selected', () => {
     const a = makeBlock('paragraph', 'Hi');
     expect(addComment(state({ blocks: [a] }, caret({ block: a.id, offset: 1 })), makeComment('A', 'x'))).toBeNull();
+  });
+});
+
+describe('track changes', () => {
+  const shape = (d: Doc) => d.blocks.map((b) => b.runs.map((r) => `${r.change ? (r.change.kind === 'ins' ? '+' : '-') : ''}${r.text}`).join('|'));
+  it('typing is marked added, deleting strikes through, and both can be accepted or rejected', () => {
+    const p = makeBlock('paragraph', 'The big sea');
+    let s = state({ blocks: [p] }, { anchor: { block: p.id, offset: 4 }, focus: { block: p.id, offset: 7 } });
+    const run = (t: { ops: Op[]; selectionAfter: Selection } | null) => {
+      s = { ...s, doc: applyOps(s.doc, t!.ops), selection: t!.selectionAfter };
+    };
+    // Typing over "big" marks it deleted and adds the new word after it.
+    run(trackedInsertText(s, 'huge', 'Robin'));
+    expect(shape(s.doc)).toEqual(['The |-big|+huge| sea']);
+    expect(s.selection.focus.offset).toBe(11);
+    // Backspace inside an addition really removes it.
+    run(trackedDelete(s, -1, 'Robin'));
+    expect(shape(s.doc)).toEqual(['The |-big|+hug| sea']);
+    // Backspace over deleted text skips it and deletes the character before.
+    s = { ...s, selection: caret({ block: p.id, offset: 7 }) };
+    run(trackedDelete(s, -1, 'Robin'));
+    expect(shape(s.doc)).toEqual(['The|- big|+hug| sea']);
+    expect(s.selection.focus.offset).toBe(3);
+    // Delete forward.
+    s = { ...s, selection: caret({ block: p.id, offset: 10 }) };
+    run(trackedDelete(s, 1, 'Robin'));
+    expect(shape(s.doc)).toEqual(['The|- big|+hug|- |sea']);
+    const all = s;
+    run(resolveChanges(all, true));
+    expect(shape(s.doc)).toEqual(['Thehugsea']);
+    s = all;
+    run(resolveChanges(all, false));
+    expect(shape(s.doc)).toEqual(['The big sea']);
+    // Just one stretch.
+    s = all;
+    run(resolveChanges(all, true, { block: p.id, from: 7, to: 10 }));
+    expect(shape(s.doc)).toEqual(['The|- big|hug|- |sea']);
+  });
+
+  it('at the edge of a paragraph there is nothing to mark', () => {
+    const p = makeBlock('paragraph', 'Hi');
+    expect(trackedDelete(state({ blocks: [p] }, caret({ block: p.id, offset: 0 })), -1, 'R')).toBeNull();
   });
 });

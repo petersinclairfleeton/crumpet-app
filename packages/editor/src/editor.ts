@@ -24,6 +24,9 @@ import {
   FOOTNOTE,
   type Comment,
   comments,
+  type Change,
+  changes,
+  makeChange,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import {
@@ -57,6 +60,9 @@ import {
   setFootnote,
   addComment,
   setComment,
+  trackedInsertText,
+  trackedDelete,
+  resolveChanges,
   setTableRows,
 } from './commands';
 import { History } from './history';
@@ -444,6 +450,7 @@ export class Editor {
 
     this.syncSelectionFromDom();
     const s = this.state;
+    if (this.tracking && this.trackedInput(e)) return;
 
     switch (e.inputType) {
       case 'insertText': {
@@ -535,6 +542,71 @@ export class Editor {
     }
   }
 
+  /** Track changes: who is editing, or null when changes aren't tracked. */
+  tracking: { author: string } | null = null;
+
+  setTracking(author: string | null): void {
+    this.tracking = author === null ? null : { author };
+  }
+
+  /** Typing and deleting with track changes on. True if handled. */
+  private trackedInput(e: InputEvent): boolean {
+    const s = this.state;
+    const author = this.tracking!.author;
+    switch (e.inputType) {
+      case 'insertText':
+      case 'insertReplacementText':
+      case 'insertFromPaste':
+      case 'insertFromPasteAsQuotation':
+      case 'insertFromDrop': {
+        e.preventDefault();
+        const text = e.inputType === 'insertText' ? e.data : (e.dataTransfer?.getData('text/plain') ?? e.data);
+        if (!text) return true;
+        const range = e.inputType === 'insertReplacementText' ? this.targetRange(e) : null;
+        this.dispatch(trackedInsertText(range ? { ...s, selection: range } : s, text.replaceAll(FOOTNOTE, ''), author));
+        return true;
+      }
+      case 'insertParagraph':
+      case 'insertLineBreak':
+        // A selection is marked deleted first; the new paragraph itself isn't tracked.
+        if (isCollapsed(s.selection)) return false;
+        e.preventDefault();
+        this.dispatch(trackedDelete(s, 1, author));
+        this.dispatch(splitBlock(this.state));
+        return true;
+      case 'deleteContentBackward':
+      case 'deleteContentForward':
+      case 'deleteWordBackward':
+      case 'deleteWordForward':
+      case 'deleteSoftLineBackward':
+      case 'deleteSoftLineForward':
+      case 'deleteHardLineBackward':
+      case 'deleteHardLineForward':
+      case 'deleteByCut':
+      case 'deleteByDrag':
+      case 'deleteContent': {
+        const backward = !e.inputType.includes('Forward');
+        const range = isCollapsed(s.selection) && !e.inputType.startsWith('deleteContent') ? this.targetRange(e) : null;
+        const t = trackedDelete(s, backward ? -1 : 1, author, range ?? undefined);
+        // At the edge of a paragraph: join as usual.
+        if (!t) return false;
+        e.preventDefault();
+        this.dispatch(t);
+        return true;
+      }
+      default:
+        return false;
+    }
+  }
+
+  /** Accepts or rejects tracked changes: in one stretch of a paragraph, or everywhere. */
+  resolveChanges(accept: boolean, where?: { block: string; from: number; to: number }): void {
+    this.dispatch(resolveChanges(this.state, accept, where), 'command');
+  }
+
+  /** Clicks on a tracked change. */
+  onChangeClick: ((change: { block: string; from: number; to: number; change: Change }, el: HTMLElement) => void) | null = null;
+
   /** After an edit we let through (outside composition), read changed blocks back from the DOM. */
   private onInput(): void {
     if (this.composing || !this.nativeEdit) return;
@@ -555,7 +627,11 @@ export class Editor {
       const domText = this.view.blockText(block.id);
       if (domText == null) continue;
       if (domText === runsText(block.runs) && !force.has(block.id)) continue;
-      const t = syncBlockText(this.state, block.id, domText, domSel ?? this.state.selection);
+      let t = syncBlockText(this.state, block.id, domText, domSel ?? this.state.selection);
+      if (t && this.tracking) {
+        const change = makeChange('ins', this.tracking.author);
+        t = { ...t, ops: t.ops.map((op) => (op.type === 'insert' ? { ...op, runs: op.runs.map((r) => ({ ...r, change })) } : op)) };
+      }
       if (t) {
         this.state = { ...this.state, doc: applyOps(this.state.doc, t.ops), selection: t.selectionAfter, storedMarks: null };
         this.history.record(t, this.state.doc);
@@ -717,6 +793,15 @@ export class Editor {
   onLinkClick: ((href: string, e: MouseEvent) => boolean) | null = null;
 
   private onMouseDown(e: MouseEvent): void {
+    const trk = (e.target as Element).closest?.<HTMLElement>('ins.trk, del.trk');
+    if (trk && this.onChangeClick) {
+      const blockEl = trk.closest<HTMLElement>('[data-block]');
+      const at = this.view.domToPos(trk.firstChild ?? trk, 0);
+      if (blockEl && at) {
+        const hit = changes(this.state.doc).find((c) => c.block === at.block && at.offset >= c.from && at.offset < c.to);
+        if (hit) setTimeout(() => this.onChangeClick?.(hit, trk), 0);
+      }
+    }
     const cmt = (e.target as Element).closest?.<HTMLElement>('mark.cmt');
     if (cmt && this.onCommentClick) {
       const id = cmt.dataset.comment;
@@ -839,7 +924,7 @@ export class Editor {
 
   private onCut(e: ClipboardEvent): void {
     this.onCopy(e);
-    this.dispatch(deleteSelection(this.state));
+    this.dispatch(this.tracking ? trackedDelete(this.state, -1, this.tracking.author) : deleteSelection(this.state));
   }
 
   selectedText(): string | null {

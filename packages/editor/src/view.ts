@@ -255,6 +255,15 @@ function buildBlock(block: Block): HTMLElement {
       sup.appendChild(node);
       node = sup;
     }
+    if (run.change) {
+      // Track changes: added text underlined, deleted text struck through.
+      const el = document.createElement(run.change.kind);
+      el.className = 'trk';
+      const who = run.change.author || 'Someone';
+      el.title = `${run.change.kind === 'ins' ? 'Added' : 'Deleted'} by ${who}${run.change.at ? `, ${new Date(run.change.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}` : ''}`;
+      el.appendChild(node);
+      node = el;
+    }
     if (run.comment) {
       // Commented text is highlighted; the comment itself is shown by the app.
       const mark = document.createElement('mark');

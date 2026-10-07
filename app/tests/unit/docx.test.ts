@@ -127,3 +127,19 @@ describe('Word comments', () => {
     expect(runs.find((r) => r.comment)!.comment).toEqual(c);
   });
 });
+
+describe('Word tracked changes', () => {
+  it('are written as Word revisions and read back', async () => {
+    const ins = { kind: 'ins' as const, author: 'Robin', at: Date.UTC(2026, 9, 7, 9, 32) };
+    const del = { kind: 'del' as const, author: 'Sam', at: Date.UTC(2026, 9, 7, 9, 40) };
+    const a = makeBlock('paragraph', '');
+    a.runs = [{ text: 'The ', marks: [] }, { text: 'big', marks: [], change: del }, { text: 'huge', marks: ['bold'], change: ins }, { text: ' sea.', marks: [] }];
+    const bytes = await toDocx([{ doc: { blocks: [a] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:del w:id=');
+    expect(xml).toContain('<w:delText xml:space="preserve">big</w:delText>');
+    expect(xml).toContain('<w:ins w:id=');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks[0].runs).toEqual(a.runs);
+  });
+});

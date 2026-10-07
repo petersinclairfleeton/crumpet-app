@@ -34,6 +34,9 @@ import {
   type Comment,
   commentAt,
   setCommentOnRuns,
+  type Change,
+  makeChange,
+  setChangeOnRuns,
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs } from './model';
@@ -646,4 +649,139 @@ export function setComment(state: EditorState, id: string, comment: Comment | nu
     }
   }
   return b.ops.length ? tx(state, b, state.selection) : null;
+}
+
+// ---------- track changes ----------
+
+/**
+ * Marks the text between two positions as deleted instead of removing it.
+ * Text that was itself a tracked addition goes for real. Paragraph breaks are
+ * kept. Returns where `to` ends up.
+ */
+function markDeleted(b: Builder, from: Pos, to: Pos, change: Change): Pos {
+  const start = blockIndex(b.doc, from.block);
+  const end = blockIndex(b.doc, to.block);
+  let endPos = to;
+  for (let i = start; i <= end; i++) {
+    const block = b.doc.blocks[i];
+    if (isMedia(block.type)) continue;
+    const a = i === start ? from.offset : 0;
+    const z = i === end ? to.offset : runsLength(block.runs);
+    // Stretches of runs, right to left so earlier offsets stay put.
+    const parts: { from: number; to: number; run: Run }[] = [];
+    let pos = 0;
+    for (const r of block.runs) {
+      const e = pos + r.text.length;
+      const s0 = Math.max(a, pos);
+      const e0 = Math.min(z, e);
+      if (e0 > s0) parts.push({ from: s0, to: e0, run: r });
+      pos = e;
+    }
+    let removed = 0;
+    for (const p of parts.reverse()) {
+      const runs = sliceRuns(getBlock(b.doc, block.id).runs, p.from, p.to);
+      if (p.run.change?.kind === 'ins') {
+        b.step({ type: 'remove', block: block.id, offset: p.from, runs });
+        removed += p.to - p.from;
+      } else if (p.run.change?.kind !== 'del') {
+        b.step({ type: 'format', block: block.id, offset: p.from, before: runs, after: setChangeOnRuns(runs, change), change });
+      }
+    }
+    if (i === end) endPos = { block: block.id, offset: z - removed };
+  }
+  return endPos;
+}
+
+/** Typing with track changes on: the new text is marked as added; anything selected is marked deleted. */
+export function trackedInsertText(state: EditorState, text: string, author: string): Transaction {
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const at = isCollapsed(state.selection) ? from : markDeleted(b, from, to, makeChange('del', author));
+  const block = getBlock(b.doc, at.block);
+  const marks = state.storedMarks ?? marksAt(block.runs, at.offset);
+  const link = linkAt(block.runs, at.offset);
+  const comment = commentAt(block.runs, at.offset);
+  const change = makeChange('ins', author);
+  const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  let pos = at;
+  lines.forEach((line, n) => {
+    if (n > 0) pos = splitAt(b, pos);
+    if (line) {
+      const run: Run = { text: line, marks: sortMarks(marks), change };
+      if (link && n === 0) run.link = link;
+      if (comment && n === 0) run.comment = comment;
+      b.step({ type: 'insert', block: pos.block, offset: pos.offset, runs: [run] });
+      pos = { block: pos.block, offset: pos.offset + line.length };
+    }
+  });
+  return tx(state, b, caret(pos), { kind: lines.length === 1 && text.length <= 2 ? 'typing' : 'other', storedMarks: null });
+}
+
+/**
+ * Deleting with track changes on: the selection, or the character before
+ * (dir -1) or after (dir 1) the caret, skipping text already marked deleted.
+ * Null at the edge of a paragraph (the caller joins paragraphs as usual).
+ */
+export function trackedDelete(state: EditorState, dir: -1 | 1, author: string, range?: Selection): Transaction | null {
+  const b = new Builder(state.doc);
+  const change = makeChange('del', author);
+  const sel = range ?? state.selection;
+  if (!isCollapsed(sel)) {
+    const { from, to } = orderedRange(state.doc, sel);
+    const end = markDeleted(b, from, to, change);
+    return tx(state, b, caret(dir < 0 ? from : end));
+  }
+  const pos = sel.focus;
+  const runs = getBlock(state.doc, pos.block).runs;
+  const len = runsLength(runs);
+  const deletedAt = (i: number) => sliceRuns(runs, i, i + 1)[0]?.change?.kind === 'del';
+  let i = pos.offset;
+  // Step over text that is already deleted.
+  if (dir < 0) while (i > 0 && deletedAt(i - 1)) i--;
+  else while (i < len && deletedAt(i)) i++;
+  if ((dir < 0 && i === 0) || (dir > 0 && i === len)) {
+    return i === pos.offset ? null : tx(state, b, caret({ block: pos.block, offset: i }));
+  }
+  // A whole character, even outside the Basic Multilingual Plane.
+  const text = runsText(runs);
+  const width = dir < 0 ? (/[\uDC00-\uDFFF]/.test(text[i - 1]) && i > 1 ? 2 : 1) : /[\uD800-\uDBFF]/.test(text[i]) ? 2 : 1;
+  const from = { block: pos.block, offset: dir < 0 ? i - width : i };
+  const to = { block: pos.block, offset: dir < 0 ? i : i + width };
+  const end = markDeleted(b, from, to, change);
+  return tx(state, b, caret(dir < 0 ? from : end), { kind: 'typing' });
+}
+
+/**
+ * Accepts (or rejects) the tracked changes in a stretch of one block, or, with
+ * no block, everywhere. Accepting an addition keeps its text; accepting a
+ * deletion removes it. Rejecting does the opposite.
+ */
+export function resolveChanges(state: EditorState, accept: boolean, where?: { block: string; from: number; to: number }): Transaction | null {
+  const b = new Builder(state.doc);
+  for (const block of state.doc.blocks) {
+    if (where && block.id !== where.block) continue;
+    const parts: { from: number; to: number; kind: 'ins' | 'del' }[] = [];
+    let pos = 0;
+    for (const r of block.runs) {
+      const e = pos + r.text.length;
+      const a = where ? Math.max(where.from, pos) : pos;
+      const z = where ? Math.min(where.to, e) : e;
+      if (r.change && z > a) parts.push({ from: a, to: z, kind: r.change.kind });
+      pos = e;
+    }
+    for (const p of parts.reverse()) {
+      const runs = sliceRuns(getBlock(b.doc, block.id).runs, p.from, p.to);
+      const goes = (p.kind === 'ins') !== accept;
+      if (goes) b.step({ type: 'remove', block: block.id, offset: p.from, runs });
+      else b.step({ type: 'format', block: block.id, offset: p.from, before: runs, after: setChangeOnRuns(runs, null), change: null });
+    }
+  }
+  if (!b.ops.length) return null;
+  // Keep the caret inside the document.
+  const doc = b.doc;
+  const fix = (p: Pos): Pos => {
+    const blk = doc.blocks.find((x) => x.id === p.block);
+    return blk ? { block: p.block, offset: Math.min(p.offset, runsLength(blk.runs)) } : { block: doc.blocks[0].id, offset: 0 };
+  };
+  return tx(state, b, { anchor: fix(state.selection.anchor), focus: fix(state.selection.focus) });
 }

@@ -1036,3 +1036,48 @@ test('comments: select text, comment, reply, see them listed, and resolve', asyn
   await expect(listed).toHaveCount(0);
   await expect.poll(md).toBe('The castle stood on the hill.\n');
 });
+
+test('track changes: typing is marked added, deleting strikes through, and changes are accepted or rejected', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ name: 'Robin' }));
+  await newNote(page, 'Edit me', 'The big sea.');
+  await page.getByRole('button', { name: 'Track changes' }).click();
+  await expect(page.getByRole('button', { name: 'Tracking changes' })).toHaveAttribute('aria-pressed', 'true');
+  // Select "big" and type over it.
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('ArrowLeft');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowLeft');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowLeft');
+  await page.keyboard.type('huge');
+  const body = page.locator('.note-editor');
+  await expect(body.locator('del.trk')).toHaveText('big');
+  await expect(body.locator('ins.trk')).toHaveText('huge');
+  await expect(body.locator('del.trk')).toHaveAttribute('title', /Deleted by Robin/);
+  // Backspace at the end deletes the full stop, struck through.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Backspace');
+  await expect(body.locator('del.trk')).toHaveCount(2);
+  const bar = page.getByRole('region', { name: 'Tracked changes' });
+  await expect(bar).toContainText('3 tracked changes');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toMatch(/^The \{--big--\}\{>>Robin \(.*?\)<<\}\{\+\+huge\+\+\}\{>>Robin \(.*?\)<<\} sea\{--\.--\}\{>>Robin \(.*?\)<<\}\n$/);
+  // Reject the deleted full stop from its card, then accept the rest.
+  await body.locator('del.trk').nth(1).click();
+  await page.getByRole('dialog', { name: 'Deleted text' }).getByRole('button', { name: 'Reject' }).click();
+  await expect(bar).toContainText('2 tracked changes');
+  await bar.getByRole('button', { name: 'Accept all' }).click();
+  await expect(bar).toHaveCount(0);
+  await expect.poll(md).toBe('The huge sea.\n');
+  // Turned off, typing is plain again.
+  await page.getByRole('button', { name: 'Tracking changes' }).click();
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Yes.');
+  await expect(body.locator('ins.trk')).toHaveCount(0);
+});

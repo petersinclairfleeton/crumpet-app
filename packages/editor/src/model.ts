@@ -17,6 +17,24 @@ export interface Run {
   footnote?: string;
   /** A comment on this text (the same comment on every run it covers). */
   comment?: Comment;
+  /** With track changes: this text was added, or deleted (still shown, struck through, until accepted). */
+  change?: Change;
+}
+
+/** A tracked change: who made it and when (ms, to the minute; 0 if unknown). */
+export interface Change {
+  kind: 'ins' | 'del';
+  author: string;
+  at: number;
+}
+
+export function sameChange(a: Change | undefined, b: Change | undefined): boolean {
+  return a === b || (!!a && !!b && a.kind === b.kind && a.author === b.author && a.at === b.at);
+}
+
+/** A tracked change made now by `author`. */
+export function makeChange(kind: Change['kind'], author: string, at = Date.now()): Change {
+  return { kind, author: author.replace(/\s+/g, ' ').trim(), at: Math.floor(at / 60000) * 60000 };
 }
 
 /** A remark left on some text, with any replies. */
@@ -178,11 +196,12 @@ export function withText(r: Run, text: string): Run {
   if (r.link) out.link = r.link;
   if (r.footnote !== undefined) out.footnote = r.footnote;
   if (r.comment) out.comment = r.comment;
+  if (r.change) out.change = r.change;
   return out;
 }
 
 export function sameFormat(a: Run, b: Run): boolean {
-  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && sameComment(a.comment, b.comment);
+  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && sameComment(a.comment, b.comment) && sameChange(a.change, b.change);
 }
 
 /** Drops empty runs and merges neighbours with identical formatting. */
@@ -257,7 +276,7 @@ export function setLinkOnRuns(runs: Run[], link: string | null): Run[] {
 
 /** A copy of `r` with a different link (or none). */
 export function withLink(r: Run, link: string | null): Run {
-  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, comment: r.comment }, r.text);
+  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, comment: r.comment, change: r.change }, r.text);
   if (link) out.link = link;
   return out;
 }
@@ -266,11 +285,42 @@ export function withLink(r: Run, link: string | null): Run {
 export function setCommentOnRuns(runs: Run[], comment: Comment | null): Run[] {
   return normalizeRuns(
     runs.map((r) => {
-      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote }, r.text);
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, change: r.change }, r.text);
       if (comment) out.comment = comment;
       return out;
     }),
   );
+}
+
+/** Sets (or, with null, removes) the tracked change on every run. */
+export function setChangeOnRuns(runs: Run[], change: Change | null): Run[] {
+  return normalizeRuns(
+    runs.map((r) => {
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, comment: r.comment }, r.text);
+      if (change) out.change = change;
+      return out;
+    }),
+  );
+}
+
+/** Every tracked change in the document: each stretch of text with one change on it. */
+export function changes(doc: Doc): { change: Change; block: string; from: number; to: number; text: string }[] {
+  const out: { change: Change; block: string; from: number; to: number; text: string }[] = [];
+  for (const b of doc.blocks) {
+    let pos = 0;
+    for (const r of b.runs) {
+      const end = pos + r.text.length;
+      if (r.change) {
+        const last = out[out.length - 1];
+        if (last && last.block === b.id && last.to === pos && sameChange(last.change, r.change)) {
+          last.to = end;
+          last.text += r.text;
+        } else out.push({ change: r.change, block: b.id, from: pos, to: end, text: r.text });
+      }
+      pos = end;
+    }
+  }
+  return out;
 }
 
 /** The comment typed text at `offset` should join: only inside a commented stretch, not at its edge. */

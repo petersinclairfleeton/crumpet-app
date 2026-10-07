@@ -3,7 +3,7 @@
 // needs (styles, lists, footnotes, pictures, headers and footers) and read
 // back what Crumpet can show.
 
-import { type Block, type BlockType, type Comment, type CommentReply, type Doc, type Mark, type Run, FOOTNOTE, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Mark, type Run, FOOTNOTE, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { PAGE_SIZES, type PageSetup } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -159,6 +159,16 @@ class Writer {
   }
 
   private plainRun(r: Run, linked: boolean): string {
+    const xml = this.basicRun(r, linked);
+    const c = r.change;
+    if (!c || !xml) return xml;
+    const attrs = `w:id="${this.nextChange++}" w:author="${esc(c.author || 'Someone')}"${c.at ? ` w:date="${new Date(c.at).toISOString().replace(/\.\d+Z$/, 'Z')}"` : ''}`;
+    return c.kind === 'ins' ? `<w:ins ${attrs}>${xml}</w:ins>` : `<w:del ${attrs}>${xml.replace(/<w:t( |>)/g, '<w:delText$1').replace(/<\/w:t>/g, '</w:delText>')}</w:del>`;
+  }
+
+  private nextChange = 1000;
+
+  private basicRun(r: Run, linked: boolean): string {
     if (r.footnote !== undefined) {
       const id = this.footnotes.length + 1;
       this.footnotes.push(r.footnote);
@@ -569,6 +579,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     notesById.set(attr(c, 'id') ?? '', comment);
   }
   const openComments: string[] = [];
+  let trackedChange: Change | undefined;
   const currentComment = () => {
     for (let k = openComments.length - 1; k >= 0; k--) {
       const c = notesById.get(openComments[k]);
@@ -596,13 +607,15 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
           if (/courier|consolas|menlo|monaco|mono/i.test(attr(child(rpr, 'rFonts'), 'ascii') ?? '')) m.push('code');
           const marksHere = sortMarks([...new Set(m)]);
           const comment = currentComment();
+          const change = trackedChange;
           const push = (text: string) => {
             const run: Run = link ? { text, marks: marksHere, link } : { text, marks: marksHere };
             if (comment) run.comment = comment;
+            if (change) run.change = change;
             out.push(run);
           };
           for (const c of kids(el)) {
-            if (c.localName === 't') push(c.textContent ?? '');
+            if (c.localName === 't' || c.localName === 'delText') push(c.textContent ?? '');
             else if (c.localName === 'tab') push('\t');
             else if (c.localName === 'br' || c.localName === 'cr') {
               if (attr(c, 'type') !== 'page' && attr(c, 'type') !== 'column') push('\n');
@@ -633,6 +646,17 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
           break;
         }
         case 'ins':
+        case 'del':
+        case 'moveFrom':
+        case 'moveTo': {
+          // Tracked changes: who added or deleted this text, and when.
+          const date = Date.parse(attr(el, 'date') ?? '');
+          const outer = trackedChange;
+          trackedChange = { kind: el.localName === 'ins' || el.localName === 'moveTo' ? 'ins' : 'del', author: (attr(el, 'author') ?? '').replace(/\s+/g, ' ').trim(), at: Number.isNaN(date) ? 0 : Math.floor(date / 60000) * 60000 };
+          await readRuns(el, out, pics, marks, link);
+          trackedChange = outer;
+          break;
+        }
         case 'smartTag':
         case 'customXml':
         case 'fldSimple':
@@ -722,7 +746,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
         if (k >= 0) openComments.splice(k, 1);
       }
       else if (c.localName === 'sdt') await walk(child(c, 'sdtContent') ?? c);
-      else if (c.localName === 'customXml' || c.localName === 'ins') await walk(c);
+      else if (c.localName === 'customXml') await walk(c);
     }
   };
   if (body) await walk(body);
