@@ -292,3 +292,55 @@ export function LinkBar({ editor, onClose }: { editor: Editor; onClose(): void }
     </form>
   );
 }
+
+/**
+ * On phones: the formatting bar sits just above the on-screen keyboard while
+ * writing, with a button to put the keyboard away.
+ */
+export function KeyboardBar({ host, children }: { host: RefObject<HTMLElement>; children: ReactNode }) {
+  const bar = useRef<HTMLDivElement>(null);
+  const [writing, setWriting] = useState(false);
+  const [lift, setLift] = useState(0);
+
+  useEffect(() => {
+    const h = host.current;
+    if (!h) return;
+    const inside = (n: EventTarget | null) => !!n && (h.contains(n as Node) || !!bar.current?.contains(n as Node));
+    const onIn = () => setWriting(true);
+    const onOut = (e: FocusEvent) => {
+      if (!inside(e.relatedTarget)) setWriting(false);
+    };
+    h.addEventListener('focusin', onIn);
+    h.addEventListener('focusout', onOut);
+    // The keyboard shrinks the visual viewport; keep the bar right above it.
+    const vv = window.visualViewport;
+    const place = () => vv && setLift(Math.max(0, window.innerHeight - (vv.height + vv.offsetTop)));
+    vv?.addEventListener('resize', place);
+    vv?.addEventListener('scroll', place);
+    place();
+    return () => {
+      h.removeEventListener('focusin', onIn);
+      h.removeEventListener('focusout', onOut);
+      vv?.removeEventListener('resize', place);
+      vv?.removeEventListener('scroll', place);
+    };
+  }, [host]);
+
+  if (!writing) return null;
+  return createPortal(
+    <div ref={bar} className="keyboard-bar" role="toolbar" aria-label="Formatting" style={{ bottom: lift }} onMouseDown={(e) => e.preventDefault()}>
+      <div className="keyboard-tools">{children}</div>
+      <button
+        type="button"
+        className="kb-done"
+        onClick={() => {
+          (document.activeElement as HTMLElement | null)?.blur();
+          setWriting(false);
+        }}
+      >
+        Done
+      </button>
+    </div>,
+    document.body,
+  );
+}
