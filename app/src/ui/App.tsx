@@ -79,6 +79,21 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [store]);
 
+  // N, when not typing: a new note.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'n' && e.key !== 'N') return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (document.querySelector('.dialog')) return;
+      e.preventDefault();
+      newNote();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [newNote]);
+
   // Focus mode: Ctrl+Shift+F (⌘⇧F) in and out; Escape out.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -6,6 +6,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
 import { allTags, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
 import { EditorHost } from './EditorHost';
+import { Tour } from './Tour';
 import { IconBack, IconFocus, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
@@ -270,8 +271,10 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
 
 /** The first visit: three ways to start. */
 function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(): void }) {
+  const [touring, setTouring] = useState(false);
   return (
     <div className="welcome">
+      {touring && <Tour onDone={() => setTouring(false)} />}
       <h2>Welcome to Crumpet</h2>
       <p className="lede">A quiet place for notes and long writing. Your words stay in files you own.</p>
       <ol>
@@ -300,6 +303,12 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
           </a>
         </li>
       </ol>
+      <p className="welcome-tour">
+        New here?{' '}
+        <button type="button" className="link-btn" onClick={() => setTouring(true)}>
+          Show me around
+        </button>
+      </p>
     </div>
   );
 }
