@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Doc } from '@crumpet/editor/model';
+import { readWordFile } from '../data/wordfiles';
 import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
 import { statusText } from './SyncSettings';
 import { SettingsDialog } from './Settings';
@@ -16,9 +18,11 @@ interface Props {
   onClose(): void;
   onToday(): void;
   onTemplate(t: { title: string; body: string }): void;
+  /** A Word document opened as a new note. */
+  onImport(note: { title: string; doc: Doc }): void;
 }
 
-export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, onTemplate }: Props) {
+export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, onTemplate, onImport }: Props) {
   const state = useAppState();
   const store = useAppStore();
   const [collapsed, setCollapsed] = useState<string[]>(() => remember('collapsedStacks', []));
@@ -69,7 +73,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           </span>
           New Note
         </button>
-        <TemplateMenu onTemplate={onTemplate} />
+        <TemplateMenu onTemplate={onTemplate} onImport={onImport} />
       </div>
 
       {recent.length > 0 && (
@@ -584,7 +588,7 @@ function compact(n: number): string {
 }
 
 /** New from a template: the ready-made ones, and your own (notes in a "Templates" notebook). */
-function TemplateMenu({ onTemplate }: { onTemplate(t: { title: string; body: string }): void }) {
+function TemplateMenu({ onTemplate, onImport }: { onTemplate(t: { title: string; body: string }): void; onImport(note: { title: string; doc: Doc }): void }) {
   const state = useAppState();
   const [open, setOpen] = useState(false);
   const nb = state.notebooks.find((n) => n.name.toLowerCase() === TEMPLATES_NOTEBOOK.toLowerCase());
@@ -614,6 +618,28 @@ function TemplateMenu({ onTemplate }: { onTemplate(t: { title: string; body: str
             </button>
           ))}
           <p className="menu-hint">Make your own: open a note’s ••• menu and choose Save as template.</p>
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false);
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.accept = '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+              input.onchange = async () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                try {
+                  onImport(await readWordFile(file));
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : 'That file couldn’t be opened.');
+                }
+              };
+              input.click();
+            }}
+          >
+            Open a Word document…
+          </button>
         </Popover>
       )}
     </span>

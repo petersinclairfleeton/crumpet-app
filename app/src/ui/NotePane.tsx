@@ -9,6 +9,7 @@ import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
 import { chooseFiles } from './editing';
 import { Tour } from './Tour';
+import { DOCX_TYPE, docxName, download, noteDocx } from '../data/wordfiles';
 import { IconBack, IconFocus, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
@@ -148,6 +149,16 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
             }}
           >
             Save as template
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            onClick={async () => {
+              setMenu(false);
+              download(await noteDocx(store.getState(), note), docxName(note.title), DOCX_TYPE);
+            }}
+          >
+            Download as Word document
           </button>
           <button
             type="button"

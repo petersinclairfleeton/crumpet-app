@@ -972,3 +972,24 @@ test('footnotes: add from the / menu or Ctrl+Alt+F, numbered in order, edited in
   await page.reload();
   await expect(page.getByRole('region', { name: 'Footnotes' }).locator('li')).toHaveCount(2);
 });
+
+test('Word documents: download a note as .docx, and open one as a new note', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Letter home', 'Dear all,');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/bullet');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The weather is fine');
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as Word document' }).click()]);
+  expect(download.suggestedFilename()).toBe('Letter home.docx');
+  const file = await download.path();
+  // Open it again as a new note.
+  await sidebar(page).getByRole('button', { name: 'New from a template' }).click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open a Word document…' }).click()]);
+  await chooser.setFiles({ name: 'Letter home.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: (await import('node:fs')).readFileSync(file) });
+  await expect(list(page).locator('.card')).toHaveCount(2);
+  await expect(page.getByLabel('Title')).toHaveValue('Letter home');
+  await expect(page.locator('.note-editor .blk').first()).toHaveText('Dear all,');
+  await expect(page.locator('.note-editor .blk-bullet')).toHaveText('The weather is fine');
+});
