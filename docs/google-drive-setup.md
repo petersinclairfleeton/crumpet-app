@@ -103,7 +103,8 @@ Crumpet/
   .crumpet/vault.json       notebook colours and ids
   Projects/
     The Lighthouse/         a project
-      project.json          its name, word goal and order of parts and chapters
+      project.json          its name, word goal, order of parts and chapters,
+                            styles and page setup (with headers and footers)
       01 The Keeper.md      its chapters, numbered in order
       02 Salt.md
 ```

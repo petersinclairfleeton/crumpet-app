@@ -201,6 +201,8 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
       <EditorHost
         sheet={sheet}
         page={paged ? pageSetup : null}
+        onPage={(notePage) => store.updateSettings({ notePage })}
+        pageFields={{ title: note.title, words, created: note.createdAt, updated: note.updatedAt }}
         onEditStyles={() => setStylesOpen(true)}
         docId={note.id}
         doc={note.doc}

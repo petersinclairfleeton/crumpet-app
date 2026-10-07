@@ -524,3 +524,86 @@ test('page view: typing and deleting right at a page break', async ({ page }) =>
   await page.keyboard.press('Backspace');
   await expect.poll(doc).toBe(before);
 });
+
+test('headers and footers: page numbers, editing on the page, fields, and different first pages', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ noteSize: 28, name: 'Mara Quinn' }));
+  await newNote(page, 'Long one', 'Intro.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.insertText(Array.from({ length: 12 }, (_, i) => `Paragraph ${i + 1} has quite a few words in it so that it wraps over several lines on the page.`).join('\n'));
+  await page.getByRole('button', { name: 'Page view' }).click();
+  await expect.poll(() => page.locator('.sheet').count()).toBeGreaterThan(1);
+  // Page numbers at the bottom, to start with.
+  await expect(page.locator('[data-sheet="1"] .hf-footer .hf-slot.center')).toHaveText('2');
+
+  // Double-click the top of page 2, on the left.
+  const zone = page.locator('[data-sheet="1"] .hf-zone.header');
+  await zone.scrollIntoViewIfNeeded();
+  await zone.dblclick({ position: { x: 20, y: 40 } });
+  const bar = page.getByRole('toolbar', { name: 'Header and footer' });
+  await expect(bar).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Header, left' })).toBeFocused();
+  await page.keyboard.type('Draft: ');
+  await bar.getByRole('button', { name: 'Insert ▾' }).click();
+  await page.getByRole('button', { name: 'Title', exact: true }).click();
+  // Tab moves on: to the centre, then the right.
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('textbox', { name: 'Header, right' })).toBeFocused();
+  await bar.getByRole('button', { name: 'Bold' }).click();
+  await page.keyboard.type('Mine');
+  await page.keyboard.press('Escape');
+  await expect(bar).toBeHidden();
+  // Every page shows it.
+  await expect(page.locator('.hf-header .hf-slot.left')).toHaveText(['Draft: Long one', 'Draft: Long one']);
+  await expect(page.locator('[data-sheet="0"] .hf-header .hf-slot.right b')).toHaveText('Mine');
+  const saved = await page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { notePage?: { hf?: { sets: { main: { header: object } } } } } } } }).crumpet.getState().settings.notePage?.hf?.sets.main.header);
+  expect(saved).toEqual({ left: [{ text: 'Draft: ' }, { field: 'title' }], center: [], right: [{ text: 'Mine', b: true }] });
+
+  // A different first page: blank until written in.
+  await page.locator('[data-sheet="0"] .hf-zone.footer').dblclick({ position: { x: 300, y: 40 } });
+  await bar.getByRole('button', { name: 'Options ▾' }).click();
+  await page.getByLabel('Different first page').check();
+  await expect(page.locator('[data-sheet="0"] .hf-header')).toHaveText('');
+  await expect(page.locator('[data-sheet="1"] .hf-header .hf-slot.left')).toHaveText('Draft: Long one');
+  await expect(bar.locator('.hf-bar-title')).toContainText('First page');
+  await page.getByLabel('Number format').selectOption('i');
+  await expect(page.locator('[data-sheet="1"] .hf-footer .hf-slot.center')).toHaveText('ii');
+  await bar.getByRole('button', { name: 'Close' }).click();
+  await expect(bar).toBeHidden();
+});
+
+test('headers and footers in a project: manuscript format, and page numbers running through the chapters', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ name: 'Mara Quinn' }));
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  const long = (n: number) => Array.from({ length: n }, (_, i) => `Paragraph ${i + 1} has quite a few words in it so that it wraps over several lines on the page, and then some more.`).join('\n');
+  await page.getByLabel('Chapter title').fill('The Keeper');
+  await page.keyboard.press('Enter');
+  await page.keyboard.insertText(long(20));
+  await page.getByRole('button', { name: 'Page view' }).click();
+  // Standard manuscript format: nothing on the first page, then “Author / Title / page”.
+  await expect(page.locator('.hf-header')).toHaveText(['', 'Mara Quinn / The Lighthouse / 2']);
+  await page.evaluate(() => {
+    const s = (window as unknown as { crumpet: { getState(): { projects: { id: string }[] }; addChapter(id: string): { id: string }; selectChapter(id: string): void } }).crumpet;
+    s.selectChapter(s.addChapter(s.getState().projects[0].id).id);
+  });
+  await page.getByLabel('Chapter title').fill('Salt');
+  await page.getByLabel('Chapter text').click();
+  await page.keyboard.insertText(long(4));
+  // The second chapter carries on from the first.
+  await expect(page.locator('.hf-header')).toHaveText(['Mara Quinn / The Lighthouse / 3']);
+  await page.getByRole('button', { name: 'Manuscript', exact: true }).click();
+  await expect(page.locator('.hf-header')).toHaveText(['', 'Mara Quinn / The Lighthouse / 2', 'Mara Quinn / The Lighthouse / 3']);
+  // Chapter openings without a header, like a printed book.
+  const zone = page.locator('.ms-chapter').nth(1).locator('[data-sheet="0"] .hf-zone.footer');
+  await zone.scrollIntoViewIfNeeded();
+  await zone.dblclick({ position: { x: 300, y: 40 } });
+  await page.getByRole('toolbar', { name: 'Header and footer' }).getByRole('button', { name: 'Options ▾' }).click();
+  await page.getByLabel('Different first page of each chapter').check();
+  await expect(page.locator('.hf-header')).toHaveText(['', 'Mara Quinn / The Lighthouse / 2', '']);
+  const hf = await page.evaluate(() => (window as unknown as { crumpet: { getState(): { projects: { page?: { hf?: { differentChapterFirst: boolean } } }[] } } }).crumpet.getState().projects[0].page?.hf?.differentChapterFirst);
+  expect(hf).toBe(true);
+});

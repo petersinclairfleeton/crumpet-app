@@ -4,7 +4,7 @@ import type { Doc } from '@crumpet/editor/model';
 import { FormatTools, LinkBar, useDocEditor } from './editing';
 import { useAppStore } from './hooks';
 import { type PageSetup, type StyleSheet, defaultPage } from '../data/styles';
-import { PageView } from './pages';
+import { type PageFields, type PagePlacement, PageView } from './pages';
 import { useSheetClass } from './styles-ui';
 
 interface Props {
@@ -30,10 +30,16 @@ interface Props {
   /** Page view: the page setup to lay the text out on, or null for one long page. */
   page?: PageSetup | null;
   onEditor?(editor: Editor | null): void;
+  /** Headers and footers: saving changes, what their fields show, and where these pages sit. */
+  onPage?(p: PageSetup): void;
+  pageFields?: PageFields;
+  pagePlace?: PagePlacement;
+  chapters?: boolean;
+  onPages?(n: number): void;
 }
 
 /** One document with its toolbar: our editor engine, mounted once and re-loaded when a different document opens. */
-export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, page = null, onEditor }: Props) {
+export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
   const store = useAppStore();
   const [linkOpen, setLinkOpen] = useState(false);
   const styles = useSheetClass(sheet);
@@ -63,7 +69,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
       <div className="note-scroll">
         <article className={`note-body${paged ? ' paged' : ''}`}>
           {header}
-          <PageView enabled={paged} editor={ed} page={page ?? defaultPage()} sheetClass={styles}>
+          <PageView enabled={paged} editor={ed} page={page ?? defaultPage()} sheetClass={styles} onPage={onPage} fields={pageFields} place={pagePlace} chapters={chapters} onPages={onPages}>
             <div ref={host} className="note-editor" aria-label={label} />
           </PageView>
           {footer}

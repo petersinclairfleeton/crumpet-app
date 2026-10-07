@@ -1,9 +1,10 @@
 // A project (a book, an essay, a thesis): its outline of parts and chapters,
 // and the writing, one chapter at a time or as one long manuscript.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { defaultPage, fullSheet } from '../data/styles';
-import { PageToggle, PageView } from './pages';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { fullSheet, manuscriptPage } from '../data/styles';
+import { chapterPages, rememberPages } from '../data/pagecount';
+import { type PageFields, PageToggle, PageView } from './pages';
 import { StylesDialog, useSheetClass } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { chapterWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
@@ -325,7 +326,7 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const [goalOpen, setGoalOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
-  const pageSetup = project.page ?? defaultPage();
+  const pageSetup = project.page ?? manuscriptPage();
   const paged = !!state.settings.pageView?.projects;
   const list = projectChapters(project, state.chapters);
   const at = list.findIndex((x) => x.chapter.id === chapter.id);
@@ -333,8 +334,24 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const next = list[at + 1]?.chapter;
   const part = list[at]?.part;
   const n = chapterWords(chapter);
+  const total = projectWords(project, state.chapters);
+  const styles = useSheetClass(sheet);
 
   useEffect(() => setGoalOpen(false), [chapter.id]);
+
+  // Page numbers carry on from the chapters before (as last laid out, or estimated from their words).
+  const [pages, setPages] = useState(0);
+  const onPages = useCallback(
+    (count: number) => {
+      setPages(count);
+      rememberPages(chapter.id, pageSetup, styles, count);
+    },
+    [chapter.id, pageSetup, styles],
+  );
+  const perPage = pages && n >= 100 ? n / pages : undefined;
+  const count = (c: Chapter) => chapterPages(c.id, chapterWords(c), pageSetup, styles, perPage);
+  const offset = list.slice(0, Math.max(0, at)).reduce((sum, x) => sum + count(x.chapter), 0);
+  const after = list.slice(at + 1).reduce((sum, x) => sum + count(x.chapter), 0);
 
   const lead = narrow ? (
     <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
@@ -424,11 +441,17 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
           page={pageSetup}
           onPage={(page) => store.setProjectPage(project.id, page)}
           onClose={() => setStylesOpen(false)}
+          chapters
         />
       )}
       <EditorHost
         sheet={sheet}
         page={paged ? pageSetup : null}
+        onPage={(page) => store.setProjectPage(project.id, page)}
+        pageFields={{ title: project.name, chapter: at + 1, chapterTitle: chapter.title, part: part?.title, words: total, created: project.createdAt, updated: project.updatedAt }}
+        pagePlace={{ offset, chapterStart: true, total: offset + (pages || 1) + after }}
+        chapters
+        onPages={onPages}
         onEditStyles={() => setStylesOpen(true)}
         docId={chapter.id}
         doc={chapter.doc}
@@ -456,12 +479,24 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const [stylesOpen, setStylesOpen] = useState(false);
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
   const styles = useSheetClass(sheet);
-  const pageSetup = project.page ?? defaultPage();
+  const pageSetup = project.page ?? manuscriptPage();
   const paged = !!state.settings.pageView?.projects;
   const [, setTick] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   const chapters = new Map(state.chapters.filter((c) => c.projectId === project.id).map((c) => [c.id, c]));
   const total = projectWords(project, state.chapters);
+  // Pages each chapter takes, so page numbers run on through the manuscript.
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const onPages = useCallback(
+    (id: string, n: number) => {
+      rememberPages(id, pageSetup, styles, n);
+      setCounts((c) => (c[id] === n ? c : { ...c, [id]: n }));
+    },
+    [pageSetup, styles],
+  );
+  const order = project.outline.flatMap((x) => (x.type === 'chapter' && chapters.has(x.id) ? [chapters.get(x.id)!] : []));
+  const pagesOf = (c: Chapter) => counts[c.id] ?? chapterPages(c.id, chapterWords(c), pageSetup, styles);
+  const allPages = order.reduce((sum, c) => sum + pagesOf(c), 0);
 
   // Choosing a chapter in the outline scrolls to it.
   const target = state.chapterId;
@@ -474,6 +509,8 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   }, [target]);
 
   let number = 0;
+  let offset = 0;
+  let part: string | undefined;
   return (
     <section className="pane" aria-label="Manuscript">
       {stylesOpen && (
@@ -484,6 +521,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           page={pageSetup}
           onPage={(page) => store.setProjectPage(project.id, page)}
           onClose={() => setStylesOpen(false)}
+          chapters
         />
       )}
       <div className={`note-pane manuscript ${styles}`}>
@@ -504,6 +542,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
             <h1 className="manuscript-title">{project.name}</h1>
             {project.outline.map((item) => {
               if (item.type === 'part') {
+                part = item.title;
                 return (
                   <h2 key={item.id} className="ms-part">
                     {item.title}
@@ -513,6 +552,8 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               const c = chapters.get(item.id);
               if (!c) return null;
               number += 1;
+              const before = offset;
+              offset += pagesOf(c);
               return (
                 <ManuscriptChapter
                   key={c.id}
@@ -520,6 +561,11 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
                   number={number}
                   page={paged ? pageSetup : null}
                   sheetClass={styles}
+                  onPage={(page) => store.setProjectPage(project.id, page)}
+                  fields={{ title: project.name, chapter: number, chapterTitle: c.title, part, words: total, created: project.createdAt, updated: project.updatedAt }}
+                  offset={before}
+                  total={allPages}
+                  onPages={onPages}
                   onActive={(ed) => {
                     setActive(ed);
                     setTick((t) => t + 1);
@@ -539,8 +585,24 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   );
 }
 
-function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLinkKey }: { chapter: Chapter; number: number; page: PageSetup | null; sheetClass: string; onActive(ed: Editor): void; onLinkKey(): void }) {
+interface ManuscriptChapterProps {
+  chapter: Chapter;
+  number: number;
+  page: PageSetup | null;
+  sheetClass: string;
+  onActive(ed: Editor): void;
+  onLinkKey(): void;
+  onPage(p: PageSetup): void;
+  fields: PageFields;
+  /** Pages before this chapter, and in the whole manuscript. */
+  offset: number;
+  total: number;
+  onPages(chapterId: string, n: number): void;
+}
+
+function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLinkKey, onPage, fields, offset, total, onPages }: ManuscriptChapterProps) {
   const store = useAppStore();
+  const reportPages = useCallback((n: number) => onPages(chapter.id, n), [onPages, chapter.id]);
   const { host, editor } = useDocEditor({
     docId: chapter.id,
     doc: chapter.doc,
@@ -553,7 +615,17 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
       <p className="chapter-kicker">Chapter {number}</p>
       <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
-      <PageView enabled={!!page} editor={editor} page={page ?? defaultPage()} sheetClass={sheetClass}>
+      <PageView
+        enabled={!!page}
+        editor={editor}
+        page={page ?? manuscriptPage()}
+        sheetClass={sheetClass}
+        onPage={onPage}
+        fields={fields}
+        place={{ offset, chapterStart: true, total }}
+        chapters
+        onPages={reportPages}
+      >
         <div ref={host} className="note-editor" aria-label={`Text of chapter ${number}`} />
       </PageView>
     </section>

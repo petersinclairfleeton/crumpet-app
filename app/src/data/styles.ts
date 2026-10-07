@@ -5,6 +5,7 @@
 
 import type { Align, Block, BlockType } from '@crumpet/editor/model';
 import type { NoteFont } from './types';
+import { type HeadersFooters, cleanHF, manuscriptHeaders } from './headers';
 
 export type StyleKey =
   | 'normal'
@@ -20,7 +21,9 @@ export type StyleKey =
   | 'epigraph'
   | 'caption'
   | 'scenebreak'
-  | 'list';
+  | 'list'
+  | 'header'
+  | 'footer';
 
 export interface StyleDef {
   /** null: the writing font from Settings. */
@@ -64,6 +67,8 @@ export const STYLE_LIST: { key: StyleKey; name: string; type: BlockType; style?:
   { key: 'caption', name: 'Caption', type: 'paragraph', style: 'caption', inMenu: true },
   { key: 'scenebreak', name: 'Scene Break', type: 'paragraph', style: 'scenebreak', inMenu: true },
   { key: 'list', name: 'List Paragraph', type: 'bullet', inMenu: false },
+  { key: 'header', name: 'Header', type: 'paragraph', inMenu: false },
+  { key: 'footer', name: 'Footer', type: 'paragraph', inMenu: false },
 ];
 
 export function styleName(key: StyleKey): string {
@@ -85,9 +90,12 @@ export type PresetId = 'crumpet' | 'manuscript' | 'book' | 'modern';
 const base: StyleDef = { font: null, size: null, bold: false, italic: false, caps: false, align: 'left', spaceBefore: 0, spaceAfter: 7.5, lineSpacing: 1.75, firstIndent: 0, leftIndent: 0 };
 const s = (patch: Partial<StyleDef>, from: StyleDef = base): StyleDef => ({ ...from, ...patch });
 
+/** Headers and footers: no indents or space around them. */
+const BAND: Partial<StyleDef> = { spaceBefore: 0, spaceAfter: 0, firstIndent: 0, leftIndent: 0, lineSpacing: 1.2, align: 'left' };
+
 function sheet(preset: PresetId, normal: StyleDef, rest: Partial<Record<StyleKey, Partial<StyleDef>>>): StyleSheet {
   const styles = {} as Record<StyleKey, StyleDef>;
-  for (const { key } of STYLE_LIST) styles[key] = s(rest[key] ?? {}, normal);
+  for (const { key } of STYLE_LIST) styles[key] = s({ ...(key === 'header' || key === 'footer' ? BAND : {}), ...rest[key] }, normal);
   return { preset, styles };
 }
 
@@ -115,6 +123,8 @@ export const PRESETS: { id: PresetId; name: string; hint: string; make(): StyleS
         caption: { size: 10, italic: true },
         scenebreak: { align: 'center', spaceBefore: 13.5, spaceAfter: 13.5 },
         list: { spaceAfter: 3 },
+        header: { size: 10 },
+        footer: { size: 10 },
       }),
   },
   {
@@ -157,6 +167,8 @@ export const PRESETS: { id: PresetId; name: string; hint: string; make(): StyleS
         caption: { firstIndent: 0, size: 9, italic: true, align: 'center' },
         scenebreak: { firstIndent: 0, align: 'center', spaceBefore: 12, spaceAfter: 12 },
         list: { firstIndent: 0, align: 'left' },
+        header: { size: 8.5, caps: true },
+        footer: { size: 9 },
       }),
   },
   {
@@ -178,6 +190,8 @@ export const PRESETS: { id: PresetId; name: string; hint: string; make(): StyleS
         caption: { size: 9, italic: true },
         scenebreak: { align: 'center', spaceBefore: 12, spaceAfter: 12 },
         list: { spaceAfter: 3 },
+        header: { size: 9 },
+        footer: { size: 9 },
       }),
   },
 ];
@@ -212,6 +226,8 @@ const SELECTORS: Record<StyleKey, string> = {
   caption: ".blk-paragraph[data-style='caption']",
   scenebreak: ".blk-paragraph[data-style='scenebreak']",
   list: '.blk-list',
+  header: '.hf-header',
+  footer: '.hf-footer',
 };
 
 /**
@@ -269,7 +285,19 @@ export interface PageSetup {
   size: PageSize;
   /** Inches. */
   margins: { top: number; right: number; bottom: number; left: number };
+  /** Older setups only: a page number in the footer. Headers and footers are in `hf`. */
   pageNumbers: boolean;
+  hf?: HeadersFooters;
+}
+
+/** A page setup's headers and footers. */
+export function pageHF(p: PageSetup): HeadersFooters {
+  return cleanHF(p.hf, p.pageNumbers);
+}
+
+/** New projects: manuscript format, with “Author / TITLE / page” at the top of each page but the first. */
+export function manuscriptPage(): PageSetup {
+  return { ...defaultPage(), hf: manuscriptHeaders() };
 }
 
 /** Letter in the US and Canada, A4 elsewhere; 1-inch margins, as manuscripts want. */

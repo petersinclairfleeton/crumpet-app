@@ -156,7 +156,7 @@ const SPACINGS: [number, string][] = [
   [2, 'Double'],
 ];
 
-export function StylesDialog({ title, sheet, onChange, page, onPage, onClose }: { title: string; sheet: StyleSheet; onChange(sheet: StyleSheet): void; page?: PageSetup; onPage?(p: PageSetup): void; onClose(): void }) {
+export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, chapters = false }: { title: string; sheet: StyleSheet; onChange(sheet: StyleSheet): void; page?: PageSetup; onPage?(p: PageSetup): void; onClose(): void; chapters?: boolean }) {
   const [key, setKey] = useState<StyleKey>('normal');
   const [tab, setTab] = useState<'styles' | 'page'>('styles');
   const d = sheet.styles[key];
@@ -180,6 +180,8 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose }: 
   );
 
   const item = STYLE_LIST.find((s) => s.key === key)!;
+  // Headers and footers: placed left, centre and right on the page, so no alignment or indents.
+  const band = key === 'header' || key === 'footer';
 
   return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -202,7 +204,7 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose }: 
             </div>
           )}
           {tab === 'page' && page && onPage ? (
-            <PageSetupForm page={page} onChange={onPage} />
+            <PageSetupForm page={page} onChange={onPage} chapters={chapters} />
           ) : (
           <>
           <label className="field">
@@ -258,7 +260,8 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose }: 
                   </button>
                 </div>
               </div>
-              <div className="field">
+              {!band && (
+                <div className="field">
                 <span>Alignment</span>
                 <div className="segmented small" role="group" aria-label="Alignment">
                   {(['left', 'center', 'right', 'justify'] as Align[]).map((a) => (
@@ -268,7 +271,8 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose }: 
                   ))}
                 </div>
               </div>
-              <div className="style-row">
+              )}
+              {!band && <div className="style-row">
                 {num('Space before', d.spaceBefore, (v) => set({ spaceBefore: v }))}
                 {num('Space after', d.spaceAfter, (v) => set({ spaceAfter: v }))}
                 <label className="style-num">
@@ -282,15 +286,23 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose }: 
                     {!SPACINGS.some(([v]) => v === d.lineSpacing) && <option value="custom">{d.lineSpacing}</option>}
                   </select>
                 </label>
-              </div>
-              <div className="style-row">
+              </div>}
+              {!band && <div className="style-row">
                 {num('First line indent', toUnit(d.firstIndent), (v) => set({ firstIndent: fromUnit(v) }), 0.1, unit)}
                 {num('Left indent', toUnit(d.leftIndent), (v) => set({ leftIndent: fromUnit(v) }), 0.1, unit)}
-              </div>
+              </div>}
               <div className={`style-preview ${cls}`} aria-label="Preview">
+                {band ? (
+                  <div className={`hf-band hf-${key}`}>
+                    <div className="hf-slot left">Mara Quinn</div>
+                    <div className="hf-slot center">The Lighthouse</div>
+                    <div className="hf-slot right">7</div>
+                  </div>
+                ) : (
                 <p className={`blk ${item.type.startsWith('heading') ? `blk-${item.type}` : item.type === 'quote' ? 'blk-quote' : item.type === 'bullet' ? 'blk-list blk-bullet' : 'blk-paragraph'}`} data-style={item.style}>
                   {key === 'scenebreak' ? '* * *' : 'The lamp had not been lit for eleven years, and still the boats steered by it. Mara climbed the hundred and twelve steps with her grandfather’s key in her pocket.'}
                 </p>
+                )}
               </div>
               <button type="button" className="btn quiet" onClick={() => set(presetSheet(sheet.preset).styles[key])}>
                 Reset {item.name}
