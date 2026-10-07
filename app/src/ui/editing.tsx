@@ -6,6 +6,8 @@ import { Editor } from '@crumpet/editor/editor';
 import { diffDocs } from '@crumpet/editor/diff';
 import { stepsOf } from '@crumpet/editor/sync/transform';
 import type { BlockType, Doc, Mark } from '@crumpet/editor/model';
+import type { StyleSheet } from '../data/styles';
+import { AlignTools, StylePicker } from './styles-ui';
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -19,12 +21,9 @@ const MARKS: { mark: Mark; label: string; glyph: React.ReactNode; key: string }[
 ];
 
 const BLOCKS: { type: BlockType; label: string; glyph: string }[] = [
-  { type: 'heading1', label: 'Heading', glyph: 'H1' },
-  { type: 'heading2', label: 'Subheading', glyph: 'H2' },
   { type: 'bullet', label: 'Bulleted list', glyph: '•≡' },
   { type: 'numbered', label: 'Numbered list', glyph: '1≡' },
   { type: 'todo', label: 'Checklist', glyph: '☐' },
-  { type: 'quote', label: 'Quote', glyph: '❝' },
 ];
 
 export interface DocEditorOptions {
@@ -125,11 +124,13 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
 }
 
 /** The formatting buttons, acting on whichever editor is given. */
-export function FormatTools({ editor: ed, readOnly, onLink }: { editor: Editor | null; readOnly: boolean; onLink(): void }) {
+export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void }) {
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
   return (
     <div className="tools" onMouseDown={(e) => e.preventDefault()}>
+      <StylePicker editor={ed} sheet={sheet} disabled={off} onEditStyles={onEditStyles} />
+      <span className="sep" />
       {MARKS.map((m) => (
         <button key={m.mark} type="button" className={ed?.isMarkActive(m.mark) ? 'active' : ''} aria-label={m.label} aria-pressed={!!ed?.isMarkActive(m.mark)} title={`${m.label} (${m.key})`} disabled={off} onClick={() => ed?.toggleMark(m.mark)}>
           {m.glyph}
@@ -141,6 +142,8 @@ export function FormatTools({ editor: ed, readOnly, onLink }: { editor: Editor |
           <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
         </svg>
       </button>
+      <span className="sep" />
+      <AlignTools editor={ed} disabled={off} />
       <span className="sep" />
       {BLOCKS.map((b) => (
         <button key={b.type} type="button" className={type === b.type ? 'active' : ''} aria-label={b.label} aria-pressed={type === b.type} title={b.label} disabled={off} onClick={() => ed?.setBlockType(b.type)}>

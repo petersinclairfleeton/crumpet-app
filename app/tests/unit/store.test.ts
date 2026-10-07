@@ -352,3 +352,29 @@ describe('projects', () => {
     expect(store.getState().view).toEqual({ kind: 'all' });
   });
 });
+
+describe('saving', () => {
+  it('keeps unsaved edits through a page close, and saves regularly during long typing', async () => {
+    const mem = new Map<string, string>();
+    const ls = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) };
+    Object.assign(globalThis, { localStorage: ls });
+    try {
+      let t = 1_700_000_000_000;
+      const { store, storage } = await fresh(() => t);
+      const n = store.createNote({ title: '' });
+      await tick();
+      store.setTitle(n.id, 'Unsaved title');
+      // The page closes before the delayed save; the database write is lost with it.
+      store.rescue();
+      expect(mem.has('crumpet:unsaved')).toBe(true);
+      const again = new AppStore(storage, () => t);
+      await again.load();
+      expect(again.note(n.id)?.title).toBe('Unsaved title');
+      await tick();
+      expect(storage.notes.get(n.id)?.title).toBe('Unsaved title');
+      expect(mem.has('crumpet:unsaved')).toBe(false);
+    } finally {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
+  });
+});

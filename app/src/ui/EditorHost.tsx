@@ -3,6 +3,8 @@ import type { Editor } from '@crumpet/editor/editor';
 import type { Doc } from '@crumpet/editor/model';
 import { FormatTools, LinkBar, useDocEditor } from './editing';
 import { useAppStore } from './hooks';
+import type { StyleSheet } from '../data/styles';
+import { useSheetClass } from './styles-ui';
 
 interface Props {
   /** The document shown (a note or a chapter) and where its edits go. */
@@ -21,13 +23,17 @@ interface Props {
   reading?: boolean;
   /** Accessible name of the text area. */
   label?: string;
+  /** The named styles the document uses, and opening the window to change them. */
+  sheet: StyleSheet;
+  onEditStyles?(): void;
   onEditor?(editor: Editor | null): void;
 }
 
 /** One document with its toolbar: our editor engine, mounted once and re-loaded when a different document opens. */
-export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, footer, reading = false, label = 'Note text', onEditor }: Props) {
+export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, onEditor }: Props) {
   const store = useAppStore();
   const [linkOpen, setLinkOpen] = useState(false);
+  const styles = useSheetClass(sheet);
   const { host, editor: ed } = useDocEditor({
     docId,
     doc,
@@ -42,10 +48,10 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
   });
 
   return (
-    <div className={`note-pane${reading ? ' reading' : ''}`}>
+    <div className={`note-pane ${styles}${reading ? ' reading' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
-        <FormatTools editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} />
+        <FormatTools editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
         <span className="grow" />
         {trail}
       </div>

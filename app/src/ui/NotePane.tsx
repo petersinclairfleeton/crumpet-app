@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { fullSheet } from '../data/styles';
+import { StylesDialog } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
 import { allTags, longTime, notebookTree, wordCount } from '../data/selectors';
@@ -15,6 +17,8 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
   const [menu, setMenu] = useState(false);
   const [addingTag, setAddingTag] = useState(false);
   const [reading, setReading] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState(false);
+  const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
 
   // Escape leaves reading view.
   useEffect(() => {
@@ -180,7 +184,10 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
 
   return (
     <section className="pane" aria-label="Note">
+      {stylesOpen && <StylesDialog title="Styles for notes" sheet={sheet} onChange={(noteStyles) => store.updateSettings({ noteStyles })} onClose={() => setStylesOpen(false)} />}
       <EditorHost
+        sheet={sheet}
+        onEditStyles={() => setStylesOpen(true)}
         docId={note.id}
         doc={note.doc}
         onDoc={(doc) => store.setDoc(note.id, doc)}

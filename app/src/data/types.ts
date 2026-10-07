@@ -1,4 +1,5 @@
 import type { Doc } from '@crumpet/editor/model';
+import type { StyleSheet } from './styles';
 
 export interface Stack {
   id: string;
@@ -47,6 +48,8 @@ export interface Project {
   /** Word goal for the whole project, or null. */
   goal: number | null;
   outline: OutlineItem[];
+  /** The project's named styles; Manuscript when unset. */
+  styles?: StyleSheet;
   createdAt: number;
   updatedAt: number;
 }
@@ -87,6 +90,8 @@ export interface Settings {
   noteFont?: NoteFont;
   /** Note text size in px; 16 when unset. */
   noteSize?: number;
+  /** The named styles notes use; Crumpet's own when unset. */
+  noteStyles?: StyleSheet;
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
 }

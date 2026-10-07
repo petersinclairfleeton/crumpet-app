@@ -411,3 +411,38 @@ test('projects: chapters and parts, status, synopsis, goals, reordering and the 
   await expect(page.getByRole('region', { name: 'Outline' }).locator('.outline-chapter')).toHaveCount(2);
   await expect(page.getByRole('region', { name: 'Outline' })).toContainText('Salt');
 });
+
+test('styles: apply from the menu, align, and modify a style for every paragraph using it', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Styled', 'A first paragraph.');
+  const body = page.locator('.note-pane [contenteditable]');
+  await page.getByRole('button', { name: 'Style', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: 'Title', exact: true }).click();
+  await expect(body.locator('.blk').first()).toHaveAttribute('data-style', 'title');
+  await expect(page.getByRole('button', { name: 'Style', exact: true })).toHaveText(/Title/);
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Body text after the title.');
+  await expect(page.getByRole('button', { name: 'Style', exact: true })).toHaveText(/Normal/);
+  await page.getByRole('button', { name: /^Alignment/ }).click();
+  await page.getByRole('menuitemradio', { name: /Justify/ }).click();
+  await expect(body.locator('.blk').nth(1)).toHaveAttribute('data-align', 'justify');
+
+  // Change Normal: every Normal paragraph follows.
+  await page.getByRole('button', { name: 'Style', exact: true }).click();
+  await page.getByRole('button', { name: 'Modify styles…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Styles for notes' });
+  await dialog.getByLabel('Size').fill('20');
+  await expect.poll(() => body.locator('.blk').nth(1).evaluate((el) => getComputedStyle(el).fontSize)).toBe("26.6667px");
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect.poll(() => page.locator('.note-pane [contenteditable] .blk').nth(1).evaluate((el) => getComputedStyle(el).fontSize)).toBe("26.6667px");
+});
+
+test('typing is kept even when the page is closed straight away', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Last words', 'Typed right before leaving.');
+  await page.reload();
+  await expect(list(page)).toContainText('Last words');
+  await expect(page.locator('.note-pane [contenteditable]')).toContainText('Typed right before leaving.');
+});

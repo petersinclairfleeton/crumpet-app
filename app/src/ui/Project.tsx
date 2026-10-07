@@ -1,7 +1,9 @@
 // A project (a book, an essay, a thesis): its outline of parts and chapters,
 // and the writing, one chapter at a time or as one long manuscript.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { fullSheet } from '../data/styles';
+import { StylesDialog, useSheetClass } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { chapterWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
@@ -319,6 +321,8 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const store = useAppStore();
   const editorRef = useRef<Editor | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState(false);
+  const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
   const list = projectChapters(project, state.chapters);
   const at = list.findIndex((x) => x.chapter.id === chapter.id);
   const prev = list[at - 1]?.chapter;
@@ -407,7 +411,10 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
 
   return (
     <section className="pane" aria-label="Chapter">
+      {stylesOpen && <StylesDialog title={`Styles for ${project.name}`} sheet={sheet} onChange={(styles) => store.setProjectStyles(project.id, styles)} onClose={() => setStylesOpen(false)} />}
       <EditorHost
+        sheet={sheet}
+        onEditStyles={() => setStylesOpen(true)}
         docId={chapter.id}
         doc={chapter.doc}
         onDoc={(doc) => store.setChapterDoc(chapter.id, doc)}
@@ -431,6 +438,9 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const store = useAppStore();
   const [active, setActive] = useState<Editor | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState(false);
+  const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
+  const styles = useSheetClass(sheet);
   const [, setTick] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   const chapters = new Map(state.chapters.filter((c) => c.projectId === project.id).map((c) => [c.id, c]));
@@ -447,14 +457,15 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   let number = 0;
   return (
     <section className="pane" aria-label="Manuscript">
-      <div className="note-pane manuscript">
+      {stylesOpen && <StylesDialog title={`Styles for ${project.name}`} sheet={sheet} onChange={(s) => store.setProjectStyles(project.id, s)} onClose={() => setStylesOpen(false)} />}
+      <div className={`note-pane manuscript ${styles}`}>
         <div className="note-toolbar" role="toolbar" aria-label="Formatting">
           {narrow && (
             <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
               <IconBack size={18} />
             </button>
           )}
-          <FormatTools editor={active} readOnly={false} onLink={() => setLinkOpen(true)} />
+          <FormatTools editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
         </div>
