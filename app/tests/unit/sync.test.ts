@@ -7,6 +7,7 @@ import { parseNoteFile, writeNoteFile } from '../../src/sync/notefile';
 import { MemoryProvider } from '../../src/sync/provider';
 import { mergeText } from '../../src/sync/textmerge';
 import { localTree } from '../../src/sync/tree';
+import { defaultPage, presetSheet } from '../../src/data/styles';
 
 let clock = 1_700_000_000_000;
 const now = () => (clock += 1000);
@@ -455,6 +456,33 @@ describe('syncing projects', () => {
     await phone.engine.sync();
     expect(shape(phone.store)).toEqual(shape(mac.store));
     expect(phone.store.getState().notes.map((n) => n.title)).toEqual(['An idea']);
+  });
+
+  it('syncs a project’s styles and page setup, keeping changes made to each on different devices', async () => {
+    const { cloud, mac, phone } = await pair();
+    const p = mac.store.createProject('Styled');
+    mac.store.setProjectStyles(p.id, presetSheet('book'));
+    mac.store.setProjectPage(p.id, { ...defaultPage(), size: 'a5' });
+    mac.store.flush();
+    await mac.engine.sync();
+    expect(JSON.parse(cloud.files.get('Projects/Styled/project.json')!.text).page.size).toBe('a5');
+    await phone.engine.sync();
+    expect(phone.store.project(p.id)?.styles).toEqual(presetSheet('book'));
+    expect(phone.store.project(p.id)?.page?.size).toBe('a5');
+    // One device changes the styles while the other changes the page.
+    mac.store.setProjectStyles(p.id, presetSheet('modern'));
+    phone.store.setProjectPage(p.id, { ...phone.store.project(p.id)!.page!, pageNumbers: false });
+    await mac.engine.sync();
+    await phone.engine.sync();
+    await mac.engine.sync();
+    for (const d of [mac, phone]) {
+      expect(d.store.project(p.id)?.styles).toEqual(presetSheet('modern'));
+      expect(d.store.project(p.id)?.page).toMatchObject({ size: 'a5', pageNumbers: false });
+    }
+    cloud.log = [];
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(cloud.log).toEqual([]);
   });
 
   it('deletes a project everywhere', async () => {

@@ -14,6 +14,7 @@
 
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { type ChapterStatus, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
+import type { PageSetup, StyleSheet } from '../data/styles';
 import { type Layout, META_FILE, PROJECTS, PROJECT_FILE, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
 import { type NoteFile, parseNoteFile } from './notefile';
 import type { Entry, Provider } from './provider';
@@ -47,6 +48,8 @@ export interface ProjectJson {
   name: string;
   goal: number | null;
   outline: OutlineItem[];
+  styles?: StyleSheet;
+  page?: PageSetup;
   created: number;
   updated: number;
 }
@@ -111,7 +114,7 @@ export function parseProject(text: string): Partial<ProjectJson> | null {
 }
 
 export function writeProject(p: ProjectJson): string {
-  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline }, null, 2)}\n`;
+  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}) }, null, 2)}\n`;
 }
 
 const STATUSES = new Set<ChapterStatus>(['todo', 'draft', 'revised', 'done']);
@@ -358,6 +361,8 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       outline,
       created: typeof json.created === 'number' ? json.created : (was?.created ?? modified),
       updated: typeof json.updated === 'number' ? json.updated : (was?.updated ?? modified),
+      ...(json.styles && typeof json.styles === 'object' && json.styles.styles ? { styles: json.styles } : {}),
+      ...(json.page && typeof json.page === 'object' && json.page.margins ? { page: json.page } : {}),
     };
     where.projects[id] = dir;
   }

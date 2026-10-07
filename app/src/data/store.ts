@@ -453,8 +453,18 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated };
-      if (cur && cur.name === next.name && cur.goal === next.goal && cur.createdAt === next.createdAt && cur.updatedAt === next.updatedAt && JSON.stringify(cur.outline) === JSON.stringify(next.outline)) return cur;
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}) };
+      if (
+        cur &&
+        cur.name === next.name &&
+        cur.goal === next.goal &&
+        cur.createdAt === next.createdAt &&
+        cur.updatedAt === next.updatedAt &&
+        JSON.stringify(cur.outline) === JSON.stringify(next.outline) &&
+        JSON.stringify(cur.styles ?? null) === JSON.stringify(next.styles ?? null) &&
+        JSON.stringify(cur.page ?? null) === JSON.stringify(next.page ?? null)
+      )
+        return cur;
       this.save(this.storage.putProject(next));
       return next;
     });

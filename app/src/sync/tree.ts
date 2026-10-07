@@ -6,6 +6,7 @@
 import { toMarkdown } from '@crumpet/editor/markdown';
 import type { AppState } from '../data/store';
 import type { ChapterStatus, OutlineItem } from '../data/types';
+import type { PageSetup, StyleSheet } from '../data/styles';
 
 export interface TStack {
   id: string;
@@ -41,6 +42,9 @@ export interface TProject {
   name: string;
   goal: number | null;
   outline: OutlineItem[];
+  /** Named styles and page setup (absent: the defaults). */
+  styles?: StyleSheet;
+  page?: PageSetup;
   created: number;
   updated: number;
 }
@@ -97,7 +101,9 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
       extra: n.extra ?? '',
     };
   }
-  for (const p of state.projects ?? []) tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt };
+  for (const p of state.projects ?? []) {
+    tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}) };
+  }
   for (const c of state.chapters ?? []) {
     if (!tree.projects[c.projectId]) continue;
     tree.chapters[c.id] = { id: c.id, projectId: c.projectId, title: c.title, status: c.status, synopsis: c.synopsis, goal: c.goal, created: c.createdAt, updated: c.updatedAt, body: toMarkdown(c.doc) };
@@ -110,7 +116,15 @@ export function sameOutline(a: OutlineItem[], b: OutlineItem[]): boolean {
 }
 
 export function sameProject(a: TProject | undefined, b: TProject | undefined): boolean {
-  return a === b || (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline));
+  return (
+    a === b ||
+    (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline) && sameJson(a.styles, b.styles) && sameJson(a.page, b.page))
+  );
+}
+
+/** Same value, for plain data like style sheets. */
+export function sameJson(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 }
 
 export function sameChapter(a: TChapter | undefined, b: TChapter | undefined): boolean {
