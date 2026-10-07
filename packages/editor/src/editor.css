@@ -113,3 +113,11 @@ sup.fn:hover { text-decoration: underline; }
 /* Comments: the text they're on is highlighted. */
 mark.cmt { background: color-mix(in srgb, #f5c542 30%, transparent); color: inherit; border-bottom: 2px solid color-mix(in srgb, #e0a800 70%, transparent); border-radius: 2px; cursor: pointer; }
 mark.cmt.active { background: color-mix(in srgb, #f5c542 55%, transparent); }
+/* Track changes: additions underlined in green, deletions struck through in red. */
+ins.trk { text-decoration: underline; text-decoration-color: #2e8b57; text-decoration-thickness: 2px; text-underline-offset: 2px; color: #22744a; cursor: pointer; }
+del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: #b03a2e; opacity: 0.85; cursor: pointer; }
+@media (prefers-color-scheme: dark) {
+  ins.trk { color: #6fd29a; text-decoration-color: #6fd29a; }
+  del.trk { color: #f08a7e; text-decoration-color: #f08a7e; }
+}
+.hide-deleted del.trk { display: none; }

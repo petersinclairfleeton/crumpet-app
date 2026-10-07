@@ -20,7 +20,7 @@
 // lines, fenced code and autolinks. Things Crumpet can't show yet (images,
 // tables, other HTML) are kept as their literal text.
 
-import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
+import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -126,7 +126,8 @@ const ATTRS = /^(.*?)[ \t]*(?<!\\)\{[ \t]*((?:\.[A-Za-z][\w-]*[ \t]*)+)\}[ \t]*$
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */
 function protectBraces(text: string): string {
-  return /\{[^{}]*\}\s*$/.test(text) ? text.replace(/\{([^{}]*\}\s*)$/, '\\{$1') : text;
+  // Only braces that would be read as {.attributes}; a comment or change ending the line ({>>…<<}) stays as it is.
+  return /\{[ \t]*\.[^{}]*\}\s*$/.test(text) ? text.replace(/\{([^{}]*\}\s*)$/, '\\{$1') : text;
 }
 
 /** A line's trailing {.style .align}, if every class is one Crumpet knows. */
@@ -231,8 +232,27 @@ function writeRuns(runs: Run[], style: Style): string {
     const c = runs[i].comment;
     let j = i + 1;
     while (j < runs.length && runs[j].comment?.id === c?.id) j++;
-    const part = writeFormatted(runs.slice(i, j), style);
+    const part = writeChanges(runs.slice(i, j), style);
     out += c ? `{==${part}==}${commentMarkup(c)}` : part;
+    i = j;
+  }
+  return out;
+}
+
+/** Tracked changes are CriticMarkup too: {++added++} and {--deleted--}, each followed by {>>who (when)<<}. */
+function writeChanges(runs: Run[], style: Style): string {
+  let out = '';
+  for (let i = 0; i < runs.length; ) {
+    const c = runs[i].change;
+    let j = i + 1;
+    while (j < runs.length && sameChange(runs[j].change, c)) j++;
+    const part = writeFormatted(runs.slice(i, j), style);
+    if (!c) out += part;
+    else {
+      const mark = c.kind === 'ins' ? '++' : '--';
+      const who = c.author.replace(/[()]/g, '') || (c.at ? 'Someone' : '');
+      out += `{${mark}${part}${mark}}${who ? `{>>${who} (${c.at ? commentTime(c.at) : 'undated'})<<}` : ''}`;
+    }
     i = j;
   }
   return out;
@@ -329,11 +349,12 @@ function spacesOutside(runs: Run[]): Run[] {
       continue;
     }
     let j = i;
-    while (j < chars.length && isSpace(chars[j]) && chars[j].link === chars[i].link && chars[j].comment?.id === chars[i].comment?.id) j++;
+    while (j < chars.length && isSpace(chars[j]) && chars[j].link === chars[i].link && chars[j].comment?.id === chars[i].comment?.id && sameChange(chars[j].change, chars[i].change)) j++;
     // Spaces inside a link label stop at the label's edges; spaces outside can sit next to a link.
     const link = chars[i].link;
     const comment = chars[i].comment?.id;
-    const reach = (c: Run | undefined) => (c && !isSpace(c) && (link === undefined || c.link === link) && (comment === undefined || c.comment?.id === comment) ? formatting(c) : []);
+    const change = chars[i].change;
+    const reach = (c: Run | undefined) => (c && !isSpace(c) && (link === undefined || c.link === link) && (comment === undefined || c.comment?.id === comment) && sameChange(c.change, change) ? formatting(c) : []);
     const left = reach(chars[i - 1]);
     const right = reach(chars[j]);
     const marks = left.filter((m) => right.includes(m));
@@ -565,7 +586,7 @@ interface Delim {
   node: TextNode;
 }
 
-type Node = TextNode | Delim | { kind: 'mark'; mark: Mark; open: boolean } | { kind: 'link'; open: boolean; href?: string } | { kind: 'comment'; open: boolean; comment?: Comment };
+type Node = TextNode | Delim | { kind: 'mark'; mark: Mark; open: boolean } | { kind: 'link'; open: boolean; href?: string } | { kind: 'comment'; open: boolean; comment?: Comment } | { kind: 'change'; open: boolean; change?: Change };
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
@@ -594,6 +615,7 @@ export function parseInline(src: string): Run[] {
   const active = new Map<Mark, number>();
   const links: string[] = [];
   const notes: Comment[] = [];
+  const edits: Change[] = [];
   const runs: Run[] = [];
   for (const n of nodes) {
     if (n.kind === 'mark') {
@@ -610,6 +632,11 @@ export function parseInline(src: string): Run[] {
       else notes.pop();
       continue;
     }
+    if (n.kind === 'change') {
+      if (n.open) edits.push(n.change!);
+      else edits.pop();
+      continue;
+    }
     const node = n.kind === 'delim' ? n.node : n;
     if (!node.text) continue;
     const marks = sortMarks([...node.marks, ...[...active.entries()].filter(([, c]) => c > 0).map(([m]) => m)]);
@@ -617,6 +644,7 @@ export function parseInline(src: string): Run[] {
     const run: Run = link ? { text: node.text, marks, link } : { text: node.text, marks };
     if (node.footnote !== undefined) run.footnote = node.footnote;
     if (notes.length) run.comment = notes[notes.length - 1];
+    if (edits.length) run.change = edits[edits.length - 1];
     runs.push(run);
   }
   return normalizeRuns(runs);
@@ -689,6 +717,30 @@ function tokenize(src: string): Node[] {
         nodes.push({ kind: 'comment', open: true, comment });
         nodes.push(...tokenize(src.slice(i + 3, close)));
         nodes.push({ kind: 'comment', open: false });
+        i = k;
+        continue;
+      }
+    }
+    // A tracked change: {++added++} or {--deleted--}, with {>>who (when)<<} after it.
+    if (c === '{' && (src.startsWith('{++', i) || src.startsWith('{--', i))) {
+      const mark = src.slice(i + 1, i + 3);
+      const close = src.indexOf(`${mark}}`, i + 3);
+      if (close >= 0) {
+        flush();
+        let k = close + 3;
+        let who: CommentReply = { author: '', at: 0, text: '' };
+        const meta = src.startsWith('{>>', k) ? src.indexOf('<<}', k + 3) : -1;
+        if (meta >= 0) {
+          const read = readCommentPart(`${src.slice(k + 3, meta)}: `);
+          if (!read.text && (read.author || read.at)) {
+            who = read;
+            k = meta + 3;
+          }
+        }
+        const change: Change = { kind: mark === '++' ? 'ins' : 'del', author: who.author, at: who.at };
+        nodes.push({ kind: 'change', open: true, change });
+        nodes.push(...tokenize(src.slice(i + 3, close)));
+        nodes.push({ kind: 'change', open: false });
         i = k;
         continue;
       }

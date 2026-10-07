@@ -18,6 +18,7 @@ import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
+import { ChangeCard, ChangesBar, TrackToggle, useTracking } from './changes';
 import { DOCX_TYPE, docxName, download, projectDocx } from '../data/wordfiles';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -551,6 +552,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           <FormatTools editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
+          <TrackToggle />
           <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
         </div>
         {linkOpen && active && <LinkBar editor={active} onClose={() => setLinkOpen(false)} />}
@@ -630,11 +632,14 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
     onLinkKey,
     onNoteLink: (title) => nav.openTitle(title),
   });
+  useTracking(editor);
   return (
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
       <SlashMenu editor={editor} host={host} notes={store.getState().notes} />
       <FootnoteCard editor={editor} />
       <CommentCard editor={editor} />
+      <ChangeCard editor={editor} />
+      <ChangesBar doc={chapter.doc} editor={editor} />
       <p className="chapter-kicker">Chapter {number}</p>
       <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
       <PageView

@@ -439,3 +439,27 @@ describe('comments', () => {
     expect(fromMarkdown(md).blocks[0].runs).toEqual(doc.blocks[0].runs);
   });
 });
+
+describe('tracked changes', () => {
+  it('are written as CriticMarkup with who and when, and read back', () => {
+    const ins = { kind: 'ins' as const, author: 'Robin', at: Date.UTC(2026, 9, 7, 9, 32) };
+    const del = { kind: 'del' as const, author: 'Robin', at: Date.UTC(2026, 9, 7, 9, 33) };
+    const doc: Doc = { blocks: [{ ...makeBlock('paragraph'), runs: [{ text: 'The ', marks: [] }, { text: 'big', marks: [], change: del }, { text: 'huge', marks: ['italic'], change: ins }, { text: ' sea.', marks: [] }] }] };
+    const md = toMarkdown(doc);
+    expect(md).toBe('The {--big--}{>>Robin (2026-10-07 09:33Z)<<}{++_huge_++}{>>Robin (2026-10-07 09:32Z)<<} sea.\n');
+    expect(fromMarkdown(md).blocks[0].runs).toEqual(doc.blocks[0].runs);
+  });
+
+  it('plain CriticMarkup from elsewhere reads too', () => {
+    const doc = fromMarkdown('a {++b++} c {--d--} e\n');
+    expect(doc.blocks[0].runs.map((r) => [r.text, r.change?.kind])).toEqual([['a ', undefined], ['b', 'ins'], [' c ', undefined], ['d', 'del'], [' e', undefined]]);
+    expect(toMarkdown(doc)).toBe('a {++b++} c {--d--} e\n');
+  });
+});
+
+describe('CriticMarkup at the end of a line', () => {
+  it('is not escaped', () => {
+    for (const md of ['Hi {==there==}{>>A (2026-10-07 09:32Z): x<<}\n', 'Hi{--.--}{>>A (2026-10-07 09:32Z)<<}\n', 'Hi {++there++}\n']) expect(toMarkdown(fromMarkdown(md))).toBe(md);
+    expect(toMarkdown({ blocks: [makeBlock('paragraph', 'Looks like {.title}')] })).toBe('Looks like \\{.title}\n');
+  });
+});
