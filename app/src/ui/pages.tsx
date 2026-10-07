@@ -1,25 +1,69 @@
-// Page view: the text laid out on sheets of paper, with margins and page
-// numbers. The editor works out where each page ends (see the editor's
+// Page view: the text laid out on sheets of paper, with margins, headers and
+// footers. The editor works out where each page ends (see the editor's
 // paginate.ts); this draws the sheets behind it, and scales them down to fit
 // narrow screens.
 
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
-import { PAGE_GAP, PAGE_SIZES, PX_PER_IN, type PageSetup, pageSize } from '../data/styles';
+import { type HFBand, type HFContext, type HFRun, type HFSlotName, type HFVariant, type HeadersFooters, SLOTS, emptySet, fieldValue, setFor, variantFor, variantName } from '../data/headers';
+import { PAGE_GAP, PAGE_SIZES, PX_PER_IN, type PageSetup, pageHF, pageSize } from '../data/styles';
+import { Band, HFOptions, HFToolbar, insertRun, useSlotCaret } from './headers';
 import { useAppState } from './hooks';
+
+/** What the header and footer fields show. */
+export interface PageFields {
+  title: string;
+  chapter?: number;
+  chapterTitle?: string;
+  part?: string;
+  words: number;
+  created?: number;
+  updated?: number;
+}
+
+/** Where these pages sit in the whole document. */
+export interface PagePlacement {
+  /** Pages before these ones. */
+  offset: number;
+  /** The first of these pages starts a chapter. */
+  chapterStart: boolean;
+  /** Pages in the whole document, when known. */
+  total?: number;
+}
+
+interface Props {
+  enabled: boolean;
+  editor: Editor | null;
+  page: PageSetup;
+  sheetClass: string;
+  children: ReactNode;
+  /** Saving changes to the headers and footers; without it they can't be edited. */
+  onPage?(p: PageSetup): void;
+  fields?: PageFields;
+  place?: PagePlacement;
+  /** The page setup belongs to a project with chapters. */
+  chapters?: boolean;
+  /** Told how many pages there are. */
+  onPages?(n: number): void;
+}
 
 /**
  * Sheets of paper behind the text. `children` is the editor's element. The
  * same elements are drawn whether page view is on or off, so switching never
  * recreates the editor's element.
  */
-export function PageView({ enabled, editor, page, sheetClass, children }: { enabled: boolean; editor: Editor | null; page: PageSetup; sheetClass: string; children: ReactNode }) {
+export function PageView({ enabled, editor, page, sheetClass, children, onPage, fields, place, chapters = false, onPages }: Props) {
   const outer = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [editing, setEditing] = useState<{ i: number; band: 'header' | 'footer'; slot: HFSlotName } | null>(null);
+  const activeSlot = useRef<HTMLElement | null>(null);
+  const caret = useSlotCaret(activeSlot);
   const { width, height } = pageSize(page);
   const m = page.margins;
   const content = height - (m.top + m.bottom) * PX_PER_IN;
   const between = (m.top + m.bottom) * PX_PER_IN + PAGE_GAP;
+  const hf = pageHF(page);
+  const settings = useAppState().settings;
 
   // Fit the page to the width available (never larger than real size).
   useLayoutEffect(() => {
@@ -39,7 +83,7 @@ export function PageView({ enabled, editor, page, sheetClass, children }: { enab
     return () => editor.setPages(null);
   }, [editor, content, between, enabled]);
   // The writing font and text size from Settings change the layout too.
-  const { noteFont, noteSize } = useAppState().settings;
+  const { noteFont, noteSize } = settings;
   const fontKey = `${noteFont?.family ?? ''}|${noteSize ?? 16}`;
   useEffect(() => {
     if (!editor || !enabled) return;
@@ -55,25 +99,150 @@ export function PageView({ enabled, editor, page, sheetClass, children }: { enab
   }, [editor, sheetClass, enabled, fontKey]);
 
   const pages = enabled ? (editor?.pages ?? 1) : 0;
+  useEffect(() => {
+    if (pages) onPages?.(pages);
+  }, [pages, onPages]);
+  useEffect(() => {
+    if (!enabled) setEditing(null);
+  }, [enabled]);
+
+  // Editing starts in the slot that was double-clicked.
+  useEffect(() => {
+    if (!editing) return;
+    const el = outer.current?.querySelector<HTMLElement>(`[data-sheet="${editing.i}"] .hf-${editing.band} [data-slot="${editing.slot}"]`);
+    if (el && !el.contains(document.activeElement)) {
+      el.focus();
+      const sel = getSelection();
+      sel?.selectAllChildren(el);
+      sel?.collapseToEnd();
+    }
+  }, [editing]);
+
+  const offset = place?.offset ?? 0;
+  const ctx: HFContext = {
+    title: fields?.title ?? '',
+    author: settings.name || '',
+    chapter: fields?.chapter,
+    chapterTitle: fields?.chapterTitle,
+    part: fields?.part,
+    words: fields?.words ?? 0,
+    created: fields?.created,
+    updated: fields?.updated,
+    pages: place?.total ?? offset + pages,
+    chapterPages: pages,
+    now: Date.now(),
+  };
+  const save = (next: HeadersFooters) => onPage?.({ ...page, hf: next });
+  const setBand = (v: HFVariant, kind: 'header' | 'footer', band: HFBand) => {
+    const set = setFor(hf, v);
+    save({ ...hf, sets: { ...hf.sets, [v]: { ...set, [kind]: band } } });
+  };
+
+  const onSlotKey = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setEditing(null);
+      e.currentTarget.blur();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+    } else if (e.key === 'Tab') {
+      // Like Word's tab stops: on to the next place.
+      const sheet = e.currentTarget.closest('[data-sheet]');
+      const all = sheet ? Array.from(sheet.querySelectorAll<HTMLElement>('[data-slot]')) : [];
+      const next = all[all.indexOf(e.currentTarget) + (e.shiftKey ? -1 : 1)];
+      if (next) {
+        e.preventDefault();
+        next.focus();
+        const sel = getSelection();
+        sel?.selectAllChildren(next);
+        sel?.collapseToEnd();
+      }
+    }
+  };
+
+  const startEditing = (i: number, band: 'header' | 'footer', e: React.MouseEvent<HTMLElement>) => {
+    if (!onPage) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const third = Math.min(2, Math.max(0, Math.floor(((e.clientX - box.left) / box.width) * 3)));
+    setEditing({ i, band, slot: SLOTS[third] });
+  };
+
   const pitch = height + PAGE_GAP;
+  const textLeft = m.left * PX_PER_IN;
+  const textWidth = width - (m.left + m.right) * PX_PER_IN;
+  const editVariant = editing ? variantFor(hf, { index: offset + editing.i, chapterStart: !!place?.chapterStart && editing.i === 0 }) : null;
+
   return (
-    <div className={enabled ? 'page-view' : 'page-off'} ref={outer}>
+    <div className={enabled ? `page-view${editing ? ' hf-editing' : ''}` : 'page-off'} ref={outer}>
+      {editing && editVariant && (
+        <HFToolbar
+          label={`${variantName(hf, editVariant)} · page ${editing.i + 1 + offset}`}
+          hf={hf}
+          chapters={chapters}
+          onHF={save}
+          onInsert={(run: HFRun) => {
+            const slot = activeSlot.current ?? outer.current?.querySelector<HTMLElement>(`[data-sheet="${editing.i}"] [data-slot]`);
+            if (slot) insertRun(slot, caret.current, run, (r) => fieldValue(r, ctx, hf.startAt + offset + editing.i, hf));
+          }}
+          onClose={() => setEditing(null)}
+          host={outer.current?.closest<HTMLElement>('.note-pane') ?? null}
+        />
+      )}
       <div className="page-scaler" style={enabled ? { width: width * scale, height: (pages * pitch - PAGE_GAP) * scale } : undefined}>
         <div className="page-inner" style={enabled ? { width, transform: scale === 1 ? undefined : `scale(${scale})` } : undefined}>
           {Array.from({ length: pages }, (_, i) => (
-            <div key={i} className="sheet" style={{ top: i * pitch, height }} aria-hidden="true">
-              {page.pageNumbers && (
-                <span className="page-no" style={{ bottom: (m.bottom * PX_PER_IN) / 2 - 8 }}>
-                  {i + 1}
-                </span>
-              )}
-            </div>
+            <div key={i} className="sheet" style={{ top: i * pitch, height }} aria-hidden="true" />
           ))}
-          <div className="page-text" style={enabled ? { top: m.top * PX_PER_IN, left: m.left * PX_PER_IN, width: width - (m.left + m.right) * PX_PER_IN } : undefined}>
+          <div
+            className="page-text"
+            style={enabled ? { top: m.top * PX_PER_IN, left: textLeft, width: textWidth } : undefined}
+            onMouseDown={() => editing && setEditing(null)}
+          >
             {children}
           </div>
+          {Array.from({ length: pages }, (_, i) => {
+            const index = offset + i;
+            const v = variantFor(hf, { index, chapterStart: !!place?.chapterStart && i === 0 });
+            const set = hf.sets[v] ?? emptySet();
+            const number = hf.startAt + index;
+            const resolve = (r: HFRun) => fieldValue(r, ctx, number, hf);
+            const isEditing = editing?.i === i;
+            const band = (kind: 'header' | 'footer') => (
+              <div
+                className={`hf-zone ${kind}`}
+                style={kind === 'header' ? { top: i * pitch, height: m.top * PX_PER_IN, left: textLeft, width: textWidth } : { top: i * pitch + height - m.bottom * PX_PER_IN, height: m.bottom * PX_PER_IN, left: textLeft, width: textWidth }}
+                onDoubleClick={(e) => !isEditing && startEditing(i, kind, e)}
+                title={onPage && !isEditing ? `Double-click to edit the ${kind}` : undefined}
+              >
+                <div className="hf-place" style={kind === 'header' ? { top: hf.headerFrom * PX_PER_IN } : { bottom: hf.footerFrom * PX_PER_IN }}>
+                  <Band
+                    kind={kind}
+                    band={set[kind]}
+                    resolve={resolve}
+                    editing={isEditing}
+                    line={kind === 'header' ? hf.headerLine : hf.footerLine}
+                    onBand={(b) => setBand(v, kind, b)}
+                    onFocusSlot={(el) => (activeSlot.current = el)}
+                    onKey={onSlotKey}
+                  />
+                </div>
+              </div>
+            );
+            return (
+              <div key={i} className="hf-page" data-sheet={i} aria-hidden={isEditing ? undefined : 'true'}>
+                {band('header')}
+                {band('footer')}
+              </div>
+            );
+          })}
         </div>
       </div>
+      {enabled && onPage && !editing && (
+        <button type="button" className="hf-edit-btn" onClick={() => setEditing({ i: 0, band: 'header', slot: 'center' })}>
+          Edit header and footer
+        </button>
+      )}
       {enabled && (
         <p className="visually-hidden" role="status">
           {pages} {pages === 1 ? 'page' : 'pages'}
@@ -98,7 +267,7 @@ export function PageToggle({ on, onChange }: { on: boolean; onChange(on: boolean
 const metric = typeof navigator !== 'undefined' && !/^en-(US|CA)|^es-(US|MX)/.test(navigator.language || 'en-US');
 
 /** Page size, margins and page numbers. */
-export function PageSetupForm({ page, onChange }: { page: PageSetup; onChange(p: PageSetup): void }) {
+export function PageSetupForm({ page, onChange, chapters = false }: { page: PageSetup; onChange(p: PageSetup): void; chapters?: boolean }) {
   const unit = metric ? 'cm' : 'in';
   const show = (inches: number) => Math.round((metric ? inches * 2.54 : inches) * 100) / 100;
   const read = (v: number) => (metric ? v / 2.54 : v);
@@ -132,9 +301,11 @@ export function PageSetupForm({ page, onChange }: { page: PageSetup; onChange(p:
           {margin('right', 'Right')}
         </div>
       </div>
-      <label className="check">
-        <input type="checkbox" checked={page.pageNumbers} onChange={(e) => onChange({ ...page, pageNumbers: e.target.checked })} /> Page numbers
-      </label>
+      <div className="field">
+        <span>Header &amp; footer</span>
+        <p className="sync-hint">In page view, double-click the top or bottom of a page to write in its header or footer.</p>
+        <HFOptions hf={pageHF(page)} chapters={chapters} onChange={(hf) => onChange({ ...page, hf })} />
+      </div>
     </div>
   );
 }

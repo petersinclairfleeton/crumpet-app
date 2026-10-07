@@ -491,7 +491,41 @@ input, select { font: inherit; color: inherit; }
 .page-inner { position: relative; transform-origin: 0 0; }
 .sheet { position: absolute; left: 0; right: 0; background: var(--page); border: 1px solid var(--line); border-radius: 2px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 6px 18px rgba(0, 0, 0, 0.06); }
 :root[data-theme='glass'] .sheet { background: rgba(255, 255, 255, 0.85); }
-.page-no { position: absolute; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Headers and footers */
+.page-view { flex-direction: column; align-items: center; position: relative; }
+.hf-zone { position: absolute; z-index: 2; }
+.hf-place { position: absolute; left: 0; right: 0; }
+.hf-band { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+.hf-band.lined.hf-header { border-bottom: 1px solid currentColor; padding-bottom: 3px; }
+.hf-band.lined.hf-footer { border-top: 1px solid currentColor; padding-top: 3px; }
+.hf-slot { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 1.2em; outline: none; }
+.hf-slot.left { text-align: left; }
+.hf-slot.center { text-align: center; }
+.hf-slot.right { text-align: right; }
+.hf-band.editing .hf-slot { min-width: 3em; border-radius: 3px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent); cursor: text; }
+.hf-band.editing .hf-slot:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+.hf-band.editing .hf-slot:empty::before { content: attr(data-placeholder); color: var(--muted); font-style: italic; }
+.hf-field { background: color-mix(in srgb, var(--accent) 18%, transparent); border-radius: 2px; padding: 0 1px; }
+.hf-zone.header:has(.editing) { border-bottom: 1px dashed var(--accent); }
+.hf-zone.footer:has(.editing) { border-top: 1px dashed var(--accent); }
+.page-view.hf-editing .page-text { opacity: 0.45; }
+.page-view.hf-editing .hf-zone:not(:has(.editing)) .hf-band { opacity: 0.6; }
+.hf-bar-anchor { position: sticky; top: 8px; height: 0; z-index: 30; align-self: stretch; display: flex; justify-content: center; padding: 0 8px; }
+.note-pane > .note-toolbar { order: -2; }
+.note-pane > .hf-bar { order: -1; border-radius: 0; border-width: 0 0 1px; box-shadow: none; max-width: none; background: color-mix(in srgb, var(--accent) 10%, var(--page)); padding: 6px 12px; }
+.hf-bar { display: flex; height: max-content; align-items: center; gap: 4px; flex-wrap: wrap; max-width: calc(100% - 16px); padding: 6px 8px; background: var(--page); color: var(--text); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); font-size: 13px; }
+.hf-bar-title { font-weight: 600; margin-right: 6px; white-space: nowrap; }
+.hf-bar-title small { font-weight: 400; color: var(--muted); margin-left: 4px; }
+.hf-menu { position: relative; }
+.hf-menu .popover { left: auto; right: 0; top: 30px; max-height: 60vh; overflow-y: auto; min-width: 230px; }
+.hf-menu .popover hr { border: none; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+.hf-options { display: flex; flex-direction: column; gap: 8px; }
+.hf-options .field input { width: 100%; }
+.hf-options .field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--text2); }
+.hf-options select, .hf-options .style-num > input { height: 30px; padding: 0 6px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; font-weight: 500; }
+.hf-options .style-num > input { width: 76px; }
+.hf-edit-btn { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 5; opacity: 0; pointer-events: none; }
+.hf-edit-btn:focus-visible { opacity: 1; pointer-events: auto; }
 .page-text { position: absolute; }
 .page-view .note-editor { min-height: 0; }
 .pane:has(.page-view) .note-scroll { background: var(--list-bg); }
@@ -548,3 +582,4 @@ input, select { font: inherit; color: inherit; }
   .card-title { font-size: 16px; }
   .card-preview { font-size: 14px; }
 }
+.btn.small { min-height: 28px; padding: 0 10px; font-size: 13px; }
