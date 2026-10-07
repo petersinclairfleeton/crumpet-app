@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Doc } from '@crumpet/editor/model';
 import { type Nav, NavContext, useAppState, useAppStore } from './hooks';
 import { findByTitle } from '../data/links';
 import { Sidebar } from './Sidebar';
@@ -93,6 +94,14 @@ export function App() {
   const newFromTemplate = useCallback(
     (t: { title: string; body: string }) => {
       store.newFromTemplate(t);
+      setPane('note');
+    },
+    [store],
+  );
+
+  const importNote = useCallback(
+    (n: { title: string; doc: Doc }) => {
+      store.createNote(n);
       setPane('note');
     },
     [store],
@@ -199,7 +208,7 @@ export function App() {
         </p>
       )}
       <div className="frame">
-        {sidebarMode === 'full' && <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} onToday={openToday} onTemplate={newFromTemplate} />}
+        {sidebarMode === 'full' && <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} onToday={openToday} onTemplate={newFromTemplate} onImport={importNote} />}
         {sidebarMode === 'full' && !narrow && <Resizer label="Sidebar width" value={sideW} {...SIDEBAR} cssVar="--side-w" target={target} onChange={(v) => store.updateLayout({ sidebarWidth: Math.round(v) })} />}
         {sidebarMode === 'icons' && <SidebarRail onOpenView={openView} onNewNote={newNote} onToday={openToday} />}
         <div className="workspace">

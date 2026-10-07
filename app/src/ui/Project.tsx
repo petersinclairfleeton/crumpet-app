@@ -17,6 +17,7 @@ import { IconBack, IconFocus, IconMore, IconPlus } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
+import { DOCX_TYPE, docxName, download, projectDocx } from '../data/wordfiles';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
   { id: 'todo', label: 'To do' },
@@ -88,6 +89,16 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                     </button>
                     <button type="button" className="menu-item" onClick={() => setMenu('goal')}>
                       Word goal…
+                    </button>
+                    <button
+                      type="button"
+                      className="menu-item"
+                      onClick={async () => {
+                        setMenu(null);
+                        download(await projectDocx(store.getState(), project), docxName(project.name), DOCX_TYPE);
+                      }}
+                    >
+                      Download as Word document
                     </button>
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                       Delete project
