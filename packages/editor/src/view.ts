@@ -255,6 +255,14 @@ function buildBlock(block: Block): HTMLElement {
       sup.appendChild(node);
       node = sup;
     }
+    if (run.comment) {
+      // Commented text is highlighted; the comment itself is shown by the app.
+      const mark = document.createElement('mark');
+      mark.className = 'cmt';
+      mark.dataset.comment = run.comment.id;
+      mark.appendChild(node);
+      node = mark;
+    }
     if (run.link) {
       const a = document.createElement('a');
       a.href = run.link;

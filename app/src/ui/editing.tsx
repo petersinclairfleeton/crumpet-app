@@ -178,6 +178,11 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
           <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
         </svg>
       </button>
+      <button type="button" data-comment-button aria-label="Comment" title={`Comment on the selected text (${mod}${isMac ? '⌥' : 'Alt+'}M)`} disabled={off} onMouseDown={(e) => e.preventDefault()} onClick={() => ed?.onCommentKey?.()}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+        </svg>
+      </button>
       <span className="sep" />
       <AlignTools editor={ed} disabled={off} />
       <span className="sep" />

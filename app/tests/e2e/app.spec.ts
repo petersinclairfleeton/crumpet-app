@@ -987,9 +987,52 @@ test('Word documents: download a note as .docx, and open one as a new note', asy
   // Open it again as a new note.
   await sidebar(page).getByRole('button', { name: 'New from a template' }).click();
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open a Word document…' }).click()]);
-  await chooser.setFiles({ name: 'Letter home.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: (await import('node:fs')).readFileSync(file) });
+  await chooser.setFiles(file);
   await expect(list(page).locator('.card')).toHaveCount(2);
   await expect(page.getByLabel('Title')).toHaveValue('Letter home');
   await expect(page.locator('.note-editor .blk').first()).toHaveText('Dear all,');
   await expect(page.locator('.note-editor .blk-bullet')).toHaveText('The weather is fine');
+});
+
+test('comments: select text, comment, reply, see them listed, and resolve', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ name: 'Robin' }));
+  await newNote(page, 'Draft', 'The castle stood on the hill.');
+  // Select "stood on the hill".
+  await page.keyboard.press('ArrowLeft');
+  for (let i = 0; i < 'stood on the hill'.length; i++) await page.keyboard.press('Shift+ArrowLeft');
+  await page.keyboard.press('Control+Alt+m');
+  const card = page.getByRole('dialog', { name: 'New comment' });
+  await expect(card.getByRole('textbox', { name: 'Comment' })).toBeFocused();
+  await page.keyboard.type('Which hill?');
+  await page.keyboard.press('Enter');
+  await expect(card).toHaveCount(0);
+  const body = page.locator('.note-editor');
+  await expect(body.locator('mark.cmt')).toHaveText('stood on the hill');
+  const listed = page.getByRole('region', { name: 'Comments' });
+  await expect(listed).toContainText('“stood on the hill”');
+  await expect(listed).toContainText('Robin: Which hill?');
+  // Click the highlighted text to reply.
+  await body.locator('mark.cmt').click();
+  const thread = page.getByRole('dialog', { name: 'Comment' });
+  await expect(thread).toContainText('Which hill?');
+  await thread.getByRole('textbox', { name: 'Reply' }).fill('The one by the river.');
+  await thread.getByRole('button', { name: 'Reply' }).click();
+  await expect(thread.locator('.comment-msg')).toHaveCount(2);
+  await expect(listed).toContainText('1 reply');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toMatch(/^The castle \{==stood on the hill==\}\{>>Robin \(\d{4}-\d\d-\d\d \d\d:\d\dZ\): Which hill\?<<\}\{>>Robin \(.*?\): The one by the river\.<<\}\.\n$/);
+  // Still there after a reload; the toolbar button works too.
+  await page.reload();
+  await expect(body.locator('mark.cmt')).toHaveText('stood on the hill');
+  await body.locator('mark.cmt').click();
+  await page.getByRole('dialog', { name: 'Comment' }).getByRole('button', { name: 'Resolve' }).click();
+  await expect(body.locator('mark.cmt')).toHaveCount(0);
+  await expect(listed).toHaveCount(0);
+  await expect.poll(md).toBe('The castle stood on the hill.\n');
 });

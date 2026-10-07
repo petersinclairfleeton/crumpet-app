@@ -7,6 +7,7 @@ import {
   type BlockType,
   type Doc,
   type Mark,
+  type Comment,
   MAX_INDENT,
   styleAllowed,
   commonLink,
@@ -39,7 +40,7 @@ export type Op =
    * Replace formatting on a span; `before` and `after` hold the same text. The intent is recorded
    * for sync: either a mark switched on/off, or a link set (a URL) or removed (null).
    */
-  | ({ type: 'format'; block: string; offset: number; before: Run[]; after: Run[] } & ({ mark: Mark; on: boolean; link?: undefined } | { link: string | null; mark?: undefined }));
+  | ({ type: 'format'; block: string; offset: number; before: Run[]; after: Run[] } & ({ mark: Mark; on: boolean; link?: undefined; comment?: undefined } | { link: string | null; mark?: undefined; comment?: undefined } | { comment: Comment | null; mark?: undefined; link?: undefined }));
 
 export class OpError extends Error {}
 
@@ -126,6 +127,7 @@ export function invertOp(op: Op): Op {
     case 'setAttrs':
       return { type: 'setAttrs', block: op.block, from: op.to, to: op.from };
     case 'format':
+      if (op.comment !== undefined) return { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, comment: op.before[0]?.comment ?? null };
       return op.link !== undefined
         ? { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, link: commonLink(op.before) }
         : { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, mark: op.mark, on: !op.on };

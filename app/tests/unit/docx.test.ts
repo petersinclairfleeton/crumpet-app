@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { FOOTNOTE, type Doc, makeBlock } from '@crumpet/editor/model';
+import { FOOTNOTE, type Doc, makeBlock, makeComment } from '@crumpet/editor/model';
 import { fromDocx, imageSize, toDocx } from '../../src/data/docx';
 import { readZip, writeZip } from '../../src/data/zip';
 import { manuscriptHeaders } from '../../src/data/headers';
@@ -103,5 +103,27 @@ describe('Word documents', () => {
 
   it('a file that isn’t a Word document is refused', async () => {
     await expect(fromDocx(new TextEncoder().encode('hello'))).rejects.toThrow();
+  });
+});
+
+describe('Word comments', () => {
+  it('are written as Word comments and read back onto the same text', async () => {
+    const c = { ...makeComment('Ann Lee', 'Which hill?', Date.UTC(2026, 9, 7, 9, 32)), replies: [{ author: 'Bo', at: 0, text: 'The big one' }] };
+    const a = makeBlock('paragraph', '');
+    a.runs = [{ text: 'The castle ', marks: [] }, { text: 'stood ', marks: [], comment: c }, { text: 'on', marks: ['bold'], comment: c }];
+    const b = makeBlock('paragraph', '');
+    b.runs = [{ text: 'the hill', marks: [], comment: c }, { text: '.', marks: [] }];
+    const bytes = await toDocx([{ doc: { blocks: [a, b] } }], { title: 'T' });
+    const files = await readZip(bytes);
+    const xml = new TextDecoder().decode(files.get('word/comments.xml'));
+    expect(xml).toContain('w:author="Ann Lee"');
+    expect(xml).toContain('Bo: The big one');
+    const doc = new TextDecoder().decode(files.get('word/document.xml'));
+    expect(doc.match(/commentRangeStart/g)).toHaveLength(1);
+    expect(doc.match(/commentReference/g)).toHaveLength(1);
+    const back = await fromDocx(bytes);
+    const runs = back.doc.blocks.flatMap((x) => x.runs);
+    expect(runs.filter((r) => r.comment).map((r) => r.text)).toEqual(['stood ', 'on', 'the hill']);
+    expect(runs.find((r) => r.comment)!.comment).toEqual(c);
   });
 });

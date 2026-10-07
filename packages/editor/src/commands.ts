@@ -31,6 +31,9 @@ import {
   sliceRuns,
   sortMarks,
   FOOTNOTE,
+  type Comment,
+  commentAt,
+  setCommentOnRuns,
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs } from './model';
@@ -135,12 +138,14 @@ export function insertText(state: EditorState, text: string): Transaction {
   const marks = state.storedMarks ?? marksAt(block.runs, at.offset);
   // Typing inside a link keeps it linked; typing at its edge does not extend it.
   const link = linkAt(block.runs, at.offset);
+  const comment = commentAt(block.runs, at.offset);
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   let pos = at;
   lines.forEach((line, n) => {
     if (n > 0) pos = splitAt(b, pos);
     if (line) {
       const run: Run = link && n === 0 ? { text: line, marks: sortMarks(marks), link } : { text: line, marks: sortMarks(marks) };
+      if (comment && n === 0) run.comment = comment;
       b.step({ type: 'insert', block: pos.block, offset: pos.offset, runs: [run] });
       pos = { block: pos.block, offset: pos.offset + line.length };
     }
@@ -596,4 +601,49 @@ export function setFootnote(state: EditorState, at: Pos, text: string | null): T
   // The caret stays put, moving back one if it was after a removed footnote.
   const shift = (p: Pos): Pos => (text === null && p.block === at.block && p.offset > at.offset ? { block: p.block, offset: p.offset - 1 } : p);
   return tx(state, b, { anchor: shift(sel.anchor), focus: shift(sel.focus) });
+}
+
+/** Puts a comment on the selected text (replacing any comment already there). */
+export function addComment(state: EditorState, comment: Comment): Transaction | null {
+  if (isCollapsed(state.selection)) return null;
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const start = blockIndex(state.doc, from.block);
+  const end = blockIndex(state.doc, to.block);
+  let any = false;
+  for (let i = start; i <= end; i++) {
+    const block = state.doc.blocks[i];
+    if (isMedia(block.type)) continue;
+    const a = i === start ? from.offset : 0;
+    const z = i === end ? to.offset : runsLength(block.runs);
+    if (z <= a) continue;
+    const before = sliceRuns(block.runs, a, z);
+    b.step({ type: 'format', block: block.id, offset: a, before, after: setCommentOnRuns(before, comment), comment });
+    any = true;
+  }
+  return any ? tx(state, b, state.selection) : null;
+}
+
+/** Changes the comment with this id everywhere it is (null takes it off the text). */
+export function setComment(state: EditorState, id: string, comment: Comment | null): Transaction | null {
+  const b = new Builder(state.doc);
+  for (const block of state.doc.blocks) {
+    let pos = 0;
+    // Each stretch of runs carrying the comment.
+    const spans: [number, number][] = [];
+    for (const r of block.runs) {
+      const end = pos + r.text.length;
+      if (r.comment?.id === id) {
+        const last = spans[spans.length - 1];
+        if (last && last[1] === pos) last[1] = end;
+        else spans.push([pos, end]);
+      }
+      pos = end;
+    }
+    for (const [a, z] of spans) {
+      const before = sliceRuns(getBlock(b.doc, block.id).runs, a, z);
+      b.step({ type: 'format', block: block.id, offset: a, before, after: setCommentOnRuns(before, comment), comment });
+    }
+  }
+  return b.ops.length ? tx(state, b, state.selection) : null;
 }

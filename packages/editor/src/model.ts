@@ -15,6 +15,52 @@ export interface Run {
    * character, shown as its number; it never merges with its neighbours.
    */
   footnote?: string;
+  /** A comment on this text (the same comment on every run it covers). */
+  comment?: Comment;
+}
+
+/** A remark left on some text, with any replies. */
+export interface Comment {
+  id: string;
+  author: string;
+  /** When it was written (ms), 0 if unknown. */
+  at: number;
+  text: string;
+  replies?: CommentReply[];
+}
+
+export interface CommentReply {
+  author: string;
+  at: number;
+  text: string;
+}
+
+/**
+ * A comment's id, made from who wrote it, when and what it says, so the same
+ * comment read from a file twice (or on another device) gets the same id.
+ */
+export function commentId(author: string, at: number, text: string): string {
+  let h = 0x811c9dc5;
+  for (const ch of `${author}|${at}|${text}`) {
+    h ^= ch.codePointAt(0)!;
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `c${h.toString(36)}`;
+}
+
+/** A new comment: its time to the minute (as files keep it) and its text on one line. */
+export function makeComment(author: string, text: string, at = Date.now()): Comment {
+  const t = Math.floor(at / 60000) * 60000;
+  const clean = text.replace(/\s+/g, ' ').trim();
+  return { id: commentId(author, t, clean), author: author.replace(/\s+/g, ' ').trim(), at: t, text: clean };
+}
+
+export function sameComment(a: Comment | undefined, b: Comment | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.id !== b.id || a.author !== b.author || a.at !== b.at || a.text !== b.text) return false;
+  const ra = a.replies ?? [];
+  const rb = b.replies ?? [];
+  return ra.length === rb.length && ra.every((r, i) => r.author === rb[i].author && r.at === rb[i].at && r.text === rb[i].text);
 }
 
 /** The character a footnote's marker stands on in the text (invisible; the number is drawn instead). */
@@ -131,11 +177,12 @@ export function withText(r: Run, text: string): Run {
   const out: Run = { text, marks: r.marks };
   if (r.link) out.link = r.link;
   if (r.footnote !== undefined) out.footnote = r.footnote;
+  if (r.comment) out.comment = r.comment;
   return out;
 }
 
 export function sameFormat(a: Run, b: Run): boolean {
-  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote;
+  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && sameComment(a.comment, b.comment);
 }
 
 /** Drops empty runs and merges neighbours with identical formatting. */
@@ -210,9 +257,51 @@ export function setLinkOnRuns(runs: Run[], link: string | null): Run[] {
 
 /** A copy of `r` with a different link (or none). */
 export function withLink(r: Run, link: string | null): Run {
-  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote }, r.text);
+  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, comment: r.comment }, r.text);
   if (link) out.link = link;
   return out;
+}
+
+/** Sets (or, with null, removes) the comment on every run. */
+export function setCommentOnRuns(runs: Run[], comment: Comment | null): Run[] {
+  return normalizeRuns(
+    runs.map((r) => {
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote }, r.text);
+      if (comment) out.comment = comment;
+      return out;
+    }),
+  );
+}
+
+/** The comment typed text at `offset` should join: only inside a commented stretch, not at its edge. */
+export function commentAt(runs: Run[], offset: number): Comment | undefined {
+  let pos = 0;
+  let before: Comment | undefined;
+  let after: Comment | undefined;
+  for (const r of runs) {
+    const end = pos + r.text.length;
+    if (offset > pos && offset <= end) before = r.comment;
+    if (offset >= pos && offset < end) after = r.comment;
+    pos = end;
+  }
+  return before && after && before.id === after.id ? before : undefined;
+}
+
+/** Every comment in the document, once each, in order of where it starts. */
+export function comments(doc: Doc): { comment: Comment; block: string; offset: number; quote: string }[] {
+  const out = new Map<string, { comment: Comment; block: string; offset: number; quote: string }>();
+  for (const b of doc.blocks) {
+    let pos = 0;
+    for (const r of b.runs) {
+      if (r.comment) {
+        const seen = out.get(r.comment.id);
+        if (seen) seen.quote += (seen.block === b.id ? '' : ' ') + r.text.replaceAll(FOOTNOTE, '');
+        else out.set(r.comment.id, { comment: r.comment, block: b.id, offset: pos, quote: r.text.replaceAll(FOOTNOTE, '') });
+      }
+      pos += r.text.length;
+    }
+  }
+  return [...out.values()];
 }
 
 /** The link shared by every run, or null if they differ or have none. */

@@ -110,3 +110,6 @@
 sup.fn { font-size: 0.7em; line-height: 0; vertical-align: super; color: var(--accent, #2a6); cursor: pointer; font-variant-numeric: lining-nums; }
 sup.fn::after { content: attr(data-n); padding: 0 1px; }
 sup.fn:hover { text-decoration: underline; }
+/* Comments: the text they're on is highlighted. */
+mark.cmt { background: color-mix(in srgb, #f5c542 30%, transparent); color: inherit; border-bottom: 2px solid color-mix(in srgb, #e0a800 70%, transparent); border-radius: 2px; cursor: pointer; }
+mark.cmt.active { background: color-mix(in srgb, #f5c542 55%, transparent); }

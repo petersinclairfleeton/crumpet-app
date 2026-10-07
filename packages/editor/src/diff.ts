@@ -3,7 +3,7 @@
 // difference as ops, instead of replacing the document, keeps the caret next
 // to the same text and keeps undo working.
 
-import { type Block, type Doc, MARK_ORDER, type Run, blockIndex, getBlock, newId, runsLength, runsText, setMarkOnRuns, sliceRuns, withLink } from './model';
+import { type Block, type Doc, MARK_ORDER, type Run, blockIndex, getBlock, newId, runsLength, runsText, sameComment, setCommentOnRuns, setMarkOnRuns, sliceRuns, withLink } from './model';
 import { type Op, applyOp, attrsOf, sameAttrs } from './ops';
 
 /**
@@ -168,6 +168,19 @@ function editBlock(doc: () => Doc, id: string, target: Block, apply: (op: Op) =>
     while (j < len && (at(target.runs, j).link ?? null) === want && (at(cur.runs, j).link ?? null) !== want) j++;
     const before = sliceRuns(cur.runs, i, j);
     apply({ type: 'format', block: id, offset: i, before, after: before.map((r) => withLink(r, want)), link: want });
+    i = j;
+  }
+  for (let i = 0; i < len; ) {
+    cur = getBlock(doc(), id);
+    const want = at(target.runs, i).comment;
+    if (sameComment(at(cur.runs, i).comment, want)) {
+      i++;
+      continue;
+    }
+    let j = i + 1;
+    while (j < len && sameComment(at(target.runs, j).comment, want) && !sameComment(at(cur.runs, j).comment, want)) j++;
+    const before = sliceRuns(cur.runs, i, j);
+    apply({ type: 'format', block: id, offset: i, before, after: setCommentOnRuns(before, want ?? null), comment: want ?? null });
     i = j;
   }
 }
