@@ -3,13 +3,13 @@
 //   tag:idea  #idea          notes with that tag
 //   in:"Novel ideas"         notes in that notebook (or stack)
 //   is:favorite              starred notes
-//   has:picture has:file has:link has:checklist has:todo
+//   has:picture has:file has:link has:checklist has:todo has:table
 //   after:2026-09-01 before:2026-10-01   edited in that span
 
 import type { Note } from './types';
 
-export type Has = 'picture' | 'file' | 'link' | 'checklist' | 'todo';
-const HAS: Has[] = ['picture', 'file', 'link', 'checklist', 'todo'];
+export type Has = 'picture' | 'file' | 'link' | 'checklist' | 'todo' | 'table';
+const HAS: Has[] = ['picture', 'file', 'link', 'checklist', 'todo', 'table'];
 
 export interface Filters {
   words: string[];
@@ -70,7 +70,7 @@ export function parseQuery(query: string): { filters: Filters; tokens: Token[] }
       if (k === 'has' && HAS.includes(value.toLowerCase() as Has)) {
         const h = value.toLowerCase() as Has;
         filters.has.push(h);
-        tokens.push({ text, label: { picture: 'With pictures', file: 'With files', link: 'With links', checklist: 'With checklists', todo: 'With unticked items' }[h] });
+        tokens.push({ text, label: { picture: 'With pictures', file: 'With files', link: 'With links', checklist: 'With checklists', todo: 'With unticked items', table: 'With tables' }[h] });
         continue;
       }
       if ((k === 'after' || k === 'before') && day(value) !== undefined) {
@@ -117,6 +117,8 @@ function has(note: Note, h: Has): boolean {
       return blocks.some((b) => b.type === 'todo');
     case 'todo':
       return blocks.some((b) => b.type === 'todo' && !b.checked);
+    case 'table':
+      return blocks.some((b) => b.type === 'table');
   }
 }
 

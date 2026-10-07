@@ -32,6 +32,7 @@ import {
   sortMarks,
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
+import type { BlockAttrs } from './model';
 
 export interface EditorState {
   doc: Doc;
@@ -197,7 +198,12 @@ export function splitBlock(state: EditorState): Transaction {
   const b = new Builder(state.doc);
   const { from, to } = orderedRange(state.doc, state.selection);
   const at = deleteRange(b, from, to);
-  const block = getBlock(b.doc, at.block);
+  let block = getBlock(b.doc, at.block);
+  // Enter on a folded heading opens its section first, so the new line isn't hidden.
+  if (block.folded) {
+    b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: attrsOf({ ...block, folded: false }) });
+    block = getBlock(b.doc, at.block);
+  }
   // Enter on an empty list item moves it out one level, and out of the list at the top level.
   // On an empty quote or heading it turns back into a paragraph instead of adding another.
   if (block.type !== 'paragraph' && !isMedia(block.type) && runsLength(block.runs) === 0) {
@@ -468,6 +474,28 @@ export function toggleTodo(state: EditorState, id: string): Transaction {
   return tx(state, b, state.selection);
 }
 
+/** Folds the section under a heading away, or opens it again. */
+export function toggleFold(state: EditorState, id: string): Transaction {
+  const blk = getBlock(state.doc, id);
+  const b = new Builder(state.doc);
+  if (!isHeading(blk.type)) return tx(state, b, state.selection);
+  b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to: attrsOf({ ...blk, folded: !blk.folded }) });
+  // A caret inside the folded part moves to the heading.
+  const i = blockIndex(state.doc, id);
+  const hidden = new Set(foldedUnder(state.doc, i).map((x) => x.id));
+  const sel = blk.folded || !hidden.has(state.selection.focus.block) ? state.selection : caret({ block: id, offset: runsLength(blk.runs) });
+  return tx(state, b, sel);
+}
+
+/** The blocks a heading's section holds: up to the next heading of the same level or higher. */
+export function foldedUnder(doc: Doc, i: number): Block[] {
+  const level = (t: BlockType) => (isHeading(t) ? Number(t.slice(-1)) : 99);
+  const own = level(doc.blocks[i].type);
+  const out: Block[] = [];
+  for (let j = i + 1; j < doc.blocks.length && level(doc.blocks[j].type) > own; j++) out.push(doc.blocks[j]);
+  return out;
+}
+
 /** Replaces a block's text with what the DOM now shows (after IME or other native edits), as a minimal remove + insert. */
 export function syncBlockText(state: EditorState, id: string, domText: string, selectionAfter: Selection): Transaction | null {
   const blk = getBlock(state.doc, id);
@@ -494,12 +522,29 @@ export function syncBlockText(state: EditorState, id: string, domText: string, s
  * empty paragraph), with a paragraph after it to carry on writing.
  */
 export function insertMedia(state: EditorState, type: 'image' | 'file', src: string, caption = ''): Transaction {
+  return insertWidget(state, attrsOf({ type, src }), caption);
+}
+
+/** Puts a new table (an empty header row and `rows` rows) after the caret's block. */
+export function insertTable(state: EditorState, rows = 2, cols = 3): Transaction {
+  return insertWidget(state, attrsOf({ type: 'table', rows: Array.from({ length: rows + 1 }, () => Array.from({ length: cols }, () => '')) }));
+}
+
+/** Changes a table's cells (or its rows and columns). */
+export function setTableRows(state: EditorState, id: string, rows: string[][]): Transaction {
+  const blk = getBlock(state.doc, id);
+  const b = new Builder(state.doc);
+  const to = attrsOf({ ...blk, rows });
+  if (blk.type === 'table' && !sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to });
+  return tx(state, b, state.selection);
+}
+
+function insertWidget(state: EditorState, media: BlockAttrs, caption = ''): Transaction {
   const b = new Builder(state.doc);
   const { from, to } = orderedRange(state.doc, state.selection);
   const at = deleteRange(b, from, to);
   const block = getBlock(b.doc, at.block);
   const len = runsLength(block.runs);
-  const media = attrsOf({ type, src });
   let id: string;
   if (block.type === 'paragraph' && len === 0 && !block.style) {
     // An empty line becomes the picture.

@@ -356,3 +356,33 @@ describe('links between notes', () => {
     expect(toMarkdown(fromMarkdown('\\[\\[not a link\\]\\]\n'))).toBe('\\[\\[not a link\\]\\]\n');
   });
 });
+
+describe('folded sections', () => {
+  it('keep their fold in the file', () => {
+    const md = '## Plans {.folded}\n\nHidden for now.\n';
+    const doc = fromMarkdown(md);
+    expect(doc.blocks[0]).toMatchObject({ type: 'heading2', folded: true });
+    expect(toMarkdown(doc)).toBe(md);
+  });
+});
+
+describe('tables', () => {
+  it('are written as pipe tables and read back', () => {
+    const doc = { blocks: [makeBlock('paragraph', 'Before'), makeBlock('table', '', [], { rows: [['Name', 'Age'], ['Ann', '3'], ['a|b', '']] })] };
+    const md = toMarkdown(doc);
+    expect(md).toBe('Before\n\n| Name | Age |\n| --- | --- |\n| Ann | 3 |\n| a\\|b | |\n');
+    const back = fromMarkdown(md);
+    expect(back.blocks[1]).toMatchObject({ type: 'table', rows: [['Name', 'Age'], ['Ann', '3'], ['a|b', '']] });
+    expect(toMarkdown(back)).toBe(md);
+  });
+
+  it('read tables written elsewhere', () => {
+    const doc = fromMarkdown('|a|b|c|\n|:--|:-:|--:|\n|1|2|\n\nAfter');
+    expect(doc.blocks[0]).toMatchObject({ type: 'table', rows: [['a', 'b', 'c'], ['1', '2', '']] });
+    expect(doc.blocks[1].type).toBe('paragraph');
+  });
+
+  it('leave a line starting with a pipe alone without the dashes', () => {
+    expect(fromMarkdown('| not a table\n').blocks[0].type).toBe('paragraph');
+  });
+});

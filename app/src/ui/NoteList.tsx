@@ -303,6 +303,7 @@ function FilterMenu() {
           <button type="button" className="menu-item" onClick={() => add('has:checklist')}>With checklists</button>
           <button type="button" className="menu-item" onClick={() => add('has:todo')}>With unticked items</button>
           <button type="button" className="menu-item" onClick={() => add('has:link')}>With links</button>
+          <button type="button" className="menu-item" onClick={() => add('has:table')}>With tables</button>
           <button type="button" className="menu-item" onClick={() => add(`after:${ymd(week)}`)}>Edited this week</button>
           {state.notebooks.length > 0 && <p className="menu-label">In notebook</p>}
           {state.notebooks.map((nb) => (

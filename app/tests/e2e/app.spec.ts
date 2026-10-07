@@ -850,3 +850,80 @@ test('search: filters, saving a search, sorting, and working on several notes at
   await expect(list(page)).toContainText('apple');
   await expect(list(page)).toContainText('Banana');
 });
+
+test('tables: add one from the / menu, type in cells, Tab along, and it saves as a Markdown table', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Packing', 'What to take:');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+  const table = page.locator('.note-editor .blk-table table');
+  await expect(table.locator('tr')).toHaveCount(3);
+  await expect(table.locator('th .cell').first()).toBeFocused();
+  await page.keyboard.type('Thing');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Count');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Where');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Lamp');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('2');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Rope');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toBe('What to take:\n\n| Thing | Count | Where |\n| --- | --- | --- |\n| Lamp | 2 | |\n| Rope | | |\n\n&nbsp;\n');
+  // Tab from the last cell adds a row.
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(table.locator('tr')).toHaveCount(4);
+  // Escape leaves the table for the line below; typing goes there.
+  await page.keyboard.press('Escape');
+  await page.keyboard.type('Done.');
+  await expect(page.locator('.note-editor .blk').last()).toHaveText('Done.');
+  // Tools: add a column, then delete the table.
+  await table.locator('td .cell').first().click();
+  await page.locator('.table-tools').getByRole('button', { name: '+ Column' }).click();
+  await expect(table.locator('tr').first().locator('th')).toHaveCount(4);
+  // Undo takes the column away again.
+  await page.keyboard.press('Control+z');
+  await expect(table.locator('tr').first().locator('th')).toHaveCount(3);
+  await page.reload();
+  await expect(table.locator('td .cell').first()).toHaveText('Lamp');
+  await table.locator('td .cell').first().click();
+  await page.locator('.table-tools').getByRole('button', { name: 'Delete table' }).click();
+  await expect(page.locator('.note-editor .blk-table')).toHaveCount(0);
+});
+
+test('fold-away sections: the arrow by a heading hides what’s under it until the next heading', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Trip', '');
+  await page.keyboard.press('Enter');
+  for (const line of ['/h2', 'Monday', 'Walk to the lake', 'Swim', '/h2', 'Tuesday', 'Rest']) {
+    if (line.startsWith('/')) {
+      await page.keyboard.type(line);
+      await page.keyboard.press('Enter');
+    } else {
+      await page.keyboard.type(line);
+      await page.keyboard.press('Enter');
+    }
+  }
+  const body = page.locator('.note-editor');
+  await expect(body.locator('h2')).toHaveCount(2);
+  await body.locator('h2').first().hover();
+  await body.locator('h2').first().locator('.fold').click();
+  await expect(body.getByText('Walk to the lake')).toBeHidden();
+  await expect(body.getByText('Swim')).toBeHidden();
+  await expect(body.getByText('Rest')).toBeVisible();
+  await page.reload();
+  await expect(body.getByText('Swim')).toBeHidden();
+  await body.locator('h2').first().locator('.fold').click();
+  await expect(body.getByText('Swim')).toBeVisible();
+});

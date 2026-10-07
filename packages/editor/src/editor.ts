@@ -16,10 +16,11 @@ import {
   isCollapsed,
   normalizeLink,
   orderedRange,
+  runsLength,
   runsText,
   sliceRuns,
 } from './model';
-import { type Op, applyOps } from './ops';
+import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import {
   type EditorState,
   type Transaction,
@@ -45,9 +46,12 @@ import {
   syncBlockText,
   toggleMark,
   toggleTodo,
+  toggleFold,
+  insertTable,
+  setTableRows,
 } from './commands';
 import { History } from './history';
-import { View } from './view';
+import { View, readTable } from './view';
 import { noteLink } from './markdown';
 import { type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
@@ -109,14 +113,16 @@ export class Editor {
     this.draw(doc);
 
     const signal = this.listening.signal;
-    root.addEventListener('beforeinput', (e) => this.onBeforeInput(e), { signal });
-    root.addEventListener('input', () => this.onInput(), { signal });
-    root.addEventListener('keydown', (e) => this.onKeyDown(e), { signal });
-    root.addEventListener('compositionstart', () => this.onCompositionStart(), { signal });
-    root.addEventListener('compositionend', () => this.onCompositionEnd(), { signal });
-    root.addEventListener('paste', (e) => this.onPaste(e), { signal });
-    root.addEventListener('cut', (e) => this.onCut(e), { signal });
-    root.addEventListener('copy', (e) => this.onCopy(e), { signal });
+    // Tables are boxes of their own inside the text: their cells handle typing themselves.
+    root.addEventListener('beforeinput', (e) => inWidget(e.target) || this.onBeforeInput(e), { signal });
+    root.addEventListener('input', (e) => (inWidget(e.target) ? this.onTableInput(e.target as HTMLElement) : this.onInput()), { signal });
+    root.addEventListener('keydown', (e) => (inWidget(e.target) ? this.onTableKey(e) : this.onKeyDown(e)), { signal });
+    root.addEventListener('compositionstart', (e) => inWidget(e.target) || this.onCompositionStart(), { signal });
+    root.addEventListener('compositionend', (e) => inWidget(e.target) || this.onCompositionEnd(), { signal });
+    root.addEventListener('paste', (e) => (inWidget(e.target) ? pastePlain(e) : this.onPaste(e)), { signal });
+    root.addEventListener('cut', (e) => inWidget(e.target) || this.onCut(e), { signal });
+    root.addEventListener('copy', (e) => inWidget(e.target) || this.onCopy(e), { signal });
+    root.addEventListener('focusout', (e) => inWidget(e.target) && this.commitTables(), { signal });
     root.addEventListener('drop', (e) => this.onDrop(e), { signal });
     root.addEventListener('dragover', (e) => {
       if (e.dataTransfer?.types.includes('Files') && this.onFiles) e.preventDefault();
@@ -145,7 +151,7 @@ export class Editor {
 
   // ---------- applying changes ----------
 
-  dispatch(t: Transaction | null, source: ChangeEvent['source'] = 'input', record = true): void {
+  dispatch(t: Transaction | null, source: ChangeEvent['source'] = 'input', record = true, keepDomSelection = false): void {
     if (!t) return;
     const doc = applyOps(this.state.doc, t.ops);
     this.state = {
@@ -155,8 +161,128 @@ export class Editor {
     };
     if (record) this.history.record(t, doc);
     this.draw(doc);
-    this.view.writeSelection(this.state.selection);
+    if (!keepDomSelection) this.view.writeSelection(this.state.selection);
     this.emit({ ops: t.ops, source });
+  }
+
+  // ---------- tables ----------
+
+  private tableTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** Puts a table at the caret. */
+  insertTable(rows = 2, cols = 3): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(insertTable(this.state, rows, cols), 'command');
+    // Start typing in the first heading cell.
+    const table = this.state.doc.blocks.find((b, i, all) => b.type === 'table' && all[i + 1]?.id === this.state.selection.focus.block);
+    if (table) this.focusCell(table.id, 0, 0);
+  }
+
+  private onTableInput(target: HTMLElement): void {
+    const id = target.closest<HTMLElement>('[data-block]')?.dataset.block;
+    if (!id) return;
+    clearTimeout(this.tableTimers.get(id));
+    this.tableTimers.set(id, setTimeout(() => this.commitTable(id), 300));
+  }
+
+  /** Saves what's been typed in a table's cells into the document. */
+  private commitTable(id: string): void {
+    clearTimeout(this.tableTimers.get(id));
+    this.tableTimers.delete(id);
+    const el = this.view.blockElement(id);
+    if (!el || !this.state.doc.blocks.some((b) => b.id === id)) return;
+    this.dispatch(setTableRows(this.state, id, readTable(el)), 'input', true, true);
+  }
+
+  private commitTables(): void {
+    for (const id of [...this.tableTimers.keys()]) this.commitTable(id);
+  }
+
+  private focusCell(id: string, r: number, c: number): void {
+    const cell = this.view.blockElement(id)?.querySelector<HTMLElement>(`.cell[data-r="${r}"][data-c="${c}"]`);
+    if (!cell) return;
+    cell.focus();
+    const sel = cell.ownerDocument.getSelection();
+    sel?.selectAllChildren(cell);
+    sel?.collapseToEnd();
+  }
+
+  /** Changes a table's shape (adding or removing rows and columns) from the cell at r, c. */
+  private reshapeTable(id: string, action: string, r: number, c: number): void {
+    this.commitTable(id);
+    const el = this.view.blockElement(id);
+    if (!el) return;
+    const rows = readTable(el);
+    const width = rows[0]?.length ?? 1;
+    let next = rows;
+    let at = { r, c };
+    if (action === 'row') {
+      next = [...rows.slice(0, r + 1), Array(width).fill(''), ...rows.slice(r + 1)];
+      at = { r: r + 1, c };
+    } else if (action === 'col') {
+      next = rows.map((row) => [...row.slice(0, c + 1), '', ...row.slice(c + 1)]);
+      at = { r, c: c + 1 };
+    } else if (action === 'del-row' && rows.length > 1) {
+      next = rows.filter((_, i) => i !== r);
+      at = { r: Math.max(0, Math.min(r, next.length - 1)), c };
+    } else if (action === 'del-col' && width > 1) {
+      next = rows.map((row) => row.filter((_, i) => i !== c));
+      at = { r, c: Math.max(0, Math.min(c, width - 2)) };
+    } else if (action === 'delete' || (action === 'del-col' && width === 1)) {
+      // The table goes; an empty line takes its place.
+      const blk = this.state.doc.blocks.find((b) => b.id === id)!;
+      this.dispatch({ ops: [{ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('paragraph') }], selectionBefore: this.state.selection, selectionAfter: caret({ block: id, offset: 0 }) }, 'command');
+      this.focus();
+      return;
+    } else return;
+    this.dispatch(setTableRows(this.state, id, next), 'command', true, true);
+    this.focusCell(id, at.r, at.c);
+  }
+
+  /** Tab and Enter move between cells (adding a row at the end); Esc leaves the table. */
+  private onTableKey(e: KeyboardEvent): void {
+    const cell = (e.target as HTMLElement).closest<HTMLElement>('.cell');
+    const id = cell?.closest<HTMLElement>('[data-block]')?.dataset.block;
+    if (!cell || !id || e.isComposing) return;
+    const r = Number(cell.dataset.r);
+    const c = Number(cell.dataset.c);
+    const el = this.view.blockElement(id)!;
+    const rows = el.querySelector('table')!.rows.length;
+    const cols = el.querySelector('table')!.rows[0].cells.length;
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (mod && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      this.commitTables();
+      if (e.shiftKey) this.redo();
+      else this.undo();
+      return;
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const i = r * cols + c + (e.shiftKey ? -1 : 1);
+      if (i < 0) return;
+      if (i >= rows * cols) return this.reshapeTable(id, 'row', r, 0);
+      this.commitTable(id);
+      this.focusCell(id, Math.floor(i / cols), i % cols);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (r + 1 >= rows) return this.reshapeTable(id, 'row', r, c);
+      this.commitTable(id);
+      this.focusCell(id, r + 1, c);
+    } else if (e.key === 'Escape' || (e.key === 'ArrowDown' && r === rows - 1) || (e.key === 'ArrowUp' && r === 0)) {
+      e.preventDefault();
+      this.commitTable(id);
+      // Out of the table: to the line after it (or before it, going up).
+      const i = this.state.doc.blocks.findIndex((b) => b.id === id);
+      const to = this.state.doc.blocks[e.key === 'ArrowUp' ? i - 1 : i + 1];
+      if (to) {
+        this.state = { ...this.state, selection: caret({ block: to.id, offset: e.key === 'ArrowUp' ? runsLength(to.runs) : 0 }) };
+        this.focus();
+        this.view.writeSelection(this.state.selection);
+        this.emit(null);
+      }
+    }
   }
 
   private applyHistory(step: { ops: Op[]; selection: Selection } | null, source: 'undo' | 'redo'): void {
@@ -274,6 +400,9 @@ export class Editor {
 
   private onSelectionChange(): void {
     if (this.composing) return;
+    // Typing in a table's cell isn't a place in the text.
+    const sel = this.view.root.ownerDocument.getSelection();
+    if (sel?.anchorNode && inWidget(sel.anchorNode)) return;
     const before = this.state.selection;
     this.syncSelectionFromDom();
     if (this.state.selection !== before) this.emit(null);
@@ -515,6 +644,27 @@ export class Editor {
       window.open(link.href, '_blank', 'noopener');
       return;
     }
+    const action = (e.target as Element).closest?.<HTMLElement>('[data-table-action]');
+    if (action) {
+      e.preventDefault();
+      const id = action.closest<HTMLElement>('[data-block]')!.dataset.block!;
+      const cell = this.view.root.ownerDocument.activeElement as HTMLElement | null;
+      const inThis = cell?.classList.contains('cell') && action.closest('[data-block]')!.contains(cell);
+      const r = inThis ? Number(cell!.dataset.r) : -1;
+      const c = inThis ? Number(cell!.dataset.c) : -1;
+      const el = this.view.blockElement(id)!;
+      const rows = el.querySelector('table')!.rows.length;
+      const cols = el.querySelector('table')!.rows[0].cells.length;
+      // Without a cell to work from: add at the end, remove the last.
+      this.reshapeTable(id, action.dataset.tableAction!, r >= 0 ? r : rows - 1, c >= 0 ? c : cols - 1);
+      return;
+    }
+    const fold = (e.target as Element).closest?.('.fold');
+    if (fold) {
+      e.preventDefault();
+      this.dispatch(toggleFold(this.state, fold.closest<HTMLElement>('[data-block]')!.dataset.block!), 'command');
+      return;
+    }
     const box = (e.target as Element).closest?.('.check');
     if (!box) return;
     e.preventDefault();
@@ -614,4 +764,18 @@ export class Editor {
     const f = this.view.domToPos(r.endContainer, r.endOffset);
     return a && f ? { anchor: a, focus: f } : null;
   }
+}
+
+/** True for events and nodes inside a table (or another box with its own editing). */
+function inWidget(t: EventTarget | Node | null): boolean {
+  const n = t as Node | null;
+  const el = n && (n.nodeType === 1 ? (n as Element) : n.parentElement);
+  return !!el?.closest('[data-widget]');
+}
+
+/** Paste in a table cell: plain text only, on one line. */
+function pastePlain(e: ClipboardEvent): void {
+  e.preventDefault();
+  const text = (e.clipboardData?.getData('text/plain') ?? '').replace(/\s*[\r\n]+\s*/g, ' ');
+  e.target && (e.target as HTMLElement).ownerDocument.execCommand('insertText', false, text);
 }

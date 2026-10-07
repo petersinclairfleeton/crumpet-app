@@ -33,6 +33,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'quote', label: 'Quote', hint: 'Set apart', words: 'blockquote callout', glyph: '❝', run: (ed) => ed.setBlockStyle('quote') },
   { id: 'title', label: 'Title', hint: 'The document’s title style', words: 'title', glyph: 'T', run: (ed) => ed.setBlockStyle('paragraph', 'title') },
   { id: 'scene', label: 'Scene break', hint: '* * *', words: 'divider separator line rule section break', glyph: '⁂', run: (ed) => ed.setBlockStyle('paragraph', 'scenebreak') },
+  { id: 'table', label: 'Table', hint: 'Rows and columns', words: 'grid columns rows spreadsheet', glyph: '▦', run: (ed) => ed.insertTable() },
   { id: 'picture', label: 'Picture or file', hint: 'From this device', words: 'image photo attachment upload pdf', glyph: '▣', run: (ed) => chooseFiles(ed) },
   { id: 'date', label: 'Today’s date', hint: longDate(), words: 'date today now', glyph: '◷', run: (ed) => ed.typeText(longDate()) },
 ];
@@ -60,7 +61,7 @@ function trigger(ed: Editor): Open | null {
   const sel = ed.state.selection;
   if (sel.anchor.block !== sel.focus.block || sel.anchor.offset !== sel.focus.offset) return null;
   const block = ed.state.doc.blocks.find((b) => b.id === sel.focus.block);
-  if (!block || block.type === 'image' || block.type === 'file') return null;
+  if (!block || block.type === 'image' || block.type === 'file' || block.type === 'table') return null;
   const before = runsText(block.runs).slice(0, sel.focus.offset);
   const link = /\[\[([^\]\[\n|]{0,60})$/.exec(before);
   if (link) return { block: block.id, start: sel.focus.offset - link[1].length - 2, query: link[1], kind: '[[' };
