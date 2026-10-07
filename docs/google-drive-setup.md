@@ -50,18 +50,9 @@ is a public value that ends up in the web page; none of it is a password.
 
 ## 4. Give them to the app
 
-For the published app (GitHub Pages):
-
-1. In the GitHub repository: **Settings → Pages → Source: GitHub Actions**.
-2. **Settings → Secrets and variables → Actions → Variables**, add:
-   - `GOOGLE_CLIENT_ID`: the client ID
-   - `GOOGLE_API_KEY`: the API key
-   - `GOOGLE_APP_ID`: the project number
-3. Every push to `main` publishes the app to
-   <https://petersinclairfleeton.github.io/crumpet-app/>. You can also run the
-   "Publish web app" workflow by hand from the **Actions** tab.
-
-For running on your computer, put the same values in `app/.env.local`:
+They live in `app/.env` (all three are public: they're part of the web page
+anyway, and the API key only works from Crumpet's addresses and only for the
+folder picker):
 
 ```
 VITE_GOOGLE_CLIENT_ID=1234-abcd.apps.googleusercontent.com
@@ -69,7 +60,26 @@ VITE_GOOGLE_API_KEY=AIza...
 VITE_GOOGLE_APP_ID=123456789012
 ```
 
-Google can take a few minutes to accept a newly added address.
+The project number is also the number at the start of the client ID.
+
+## 5. Publish the app
+
+1. In the GitHub repository: **Settings → Pages → Build and deployment →
+   Source: GitHub Actions**.
+2. Every push to `main` publishes the app to
+   <https://petersinclairfleeton.github.io/crumpet-app/>. You can also run the
+   "Publish web app" workflow by hand from the **Actions** tab.
+
+## 6. Let everyone sign in (later)
+
+While the app is in "Testing", only the test users from step 2 can sign in.
+To open it to everyone, fill in **Google Auth Platform → Branding**:
+
+- App home page: `https://petersinclairfleeton.github.io/crumpet-app/`
+- Privacy policy: `https://petersinclairfleeton.github.io/crumpet-app/privacy.html`
+- Terms of service: `https://petersinclairfleeton.github.io/crumpet-app/terms.html`
+
+then **Audience → Publish app**.
 
 ## What Crumpet can see in someone's Drive
 
