@@ -51,6 +51,12 @@ export function toMarkdown(doc: Doc): string {
 }
 
 function blockLine(b: Block, number: number): string {
+  // Pictures are Markdown images; attached files are links, each on a line of its own.
+  if (b.type === 'image' || b.type === 'file') {
+    const caption = runsPlain(b.runs).replace(/([\\\[\]])/g, '\\$1').replace(/\n/g, ' ');
+    const line = `${b.type === 'image' ? '!' : ''}[${caption}](${linkTarget(b.src ?? '')})`;
+    return b.align ? `${line} {.${b.align}}` : line;
+  }
   // A scene break is Markdown's own section break.
   if (b.style === 'scenebreak' && !b.runs.length && !b.align) return '* * *';
   const text = protectBraces(inline(b.runs));
@@ -73,12 +79,24 @@ function blockLine(b: Block, number: number): string {
       case 'todo':
         return `${pad}- [${b.checked ? 'x' : ' '}] ${body}`.trimEnd();
       case 'paragraph':
+      default:
         return text ? body : '&nbsp;';
     }
   })();
   // Styles and alignment Markdown has no syntax for go at the end of the line, as {.title .center}.
   const classes = [b.style, b.align].filter(Boolean);
   return classes.length ? `${line} {${classes.map((c) => `.${c}`).join(' ')}}` : line;
+}
+
+/** Files Crumpet keeps next to the notes (see the app's attachments). */
+export const ATTACHMENTS_DIR = 'Attachments';
+
+function isAttachment(href: string): boolean {
+  return href.replace(/^<|>$/g, '').startsWith(`${ATTACHMENTS_DIR}/`);
+}
+
+function runsPlain(runs: Run[]): string {
+  return runs.map((r) => r.text).join('');
 }
 
 const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
@@ -314,6 +332,16 @@ export function fromMarkdown(md: string): Doc {
       flushPara();
       listIndents = [];
       blocks.push(applyAttrs(makeBlock('paragraph', '', [], { style: 'scenebreak' }), classes));
+      continue;
+    }
+    // A picture, or a link to an attached file, alone on its line.
+    const media = /^ {0,3}(!?)\[((?:\\.|[^\]\\])*)\]\(\s*(<(?:\\.|[^>\\])*>|(?:\\.|[^\s)\\])+)(?:\s+"[^"]*")?\s*\)[ \t]*$/.exec(line);
+    if (media && !para.length && (media[1] || isAttachment(media[3]))) {
+      flushPara();
+      listIndents = [];
+      const src = decodeEntities(media[3].replace(/^<|>$/g, '').replace(/\\(.)/g, '$1')).replace(/%0A/g, '\n');
+      const caption = decodeEntities(media[2].replace(/\\(.)/g, '$1'));
+      blocks.push(applyAttrs(makeBlock(media[1] ? 'image' : 'file', caption, [], { src }), classes));
       continue;
     }
     const heading = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/.exec(line);

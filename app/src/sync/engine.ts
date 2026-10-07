@@ -45,6 +45,8 @@ export interface SyncStatus {
 export interface SyncOptions {
   now?: () => number;
   newId?: () => string;
+  /** Copies attached files to the folder after the notes (see data/files.ts). */
+  uploadFiles?: (p: Provider) => Promise<unknown>;
 }
 
 export class SyncEngine {
@@ -57,6 +59,7 @@ export class SyncEngine {
   private unsubscribe: (() => void) | null = null;
   private now: () => number;
   private newId: () => string;
+  private uploadFiles?: (p: Provider) => Promise<unknown>;
 
   constructor(
     private store: AppStore,
@@ -66,6 +69,7 @@ export class SyncEngine {
   ) {
     this.now = opts.now ?? Date.now;
     this.newId = opts.newId ?? (() => crypto.randomUUID());
+    this.uploadFiles = opts.uploadFiles;
   }
 
   getStatus = (): SyncStatus => this.status;
@@ -157,6 +161,7 @@ export class SyncEngine {
     const { tree: merged, copies } = mergeTrees(state.base.tree, local, remote, opts);
     const want = layout(merged, at);
     const pushed = await push(this.provider, snap, remote, at, merged, want);
+    await this.uploadFiles?.(this.provider);
 
     // Apply here, keeping anything typed while the sync ran.
     this.store.flush();

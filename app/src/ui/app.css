@@ -344,6 +344,8 @@ input, select { font: inherit; color: inherit; }
 .card { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 10px; margin-bottom: 2px; border: none; border-radius: 7px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
 .card:hover { background: var(--field); }
 .card.selected { background: var(--page); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1.5px var(--accent); }
+.card.has-thumb { position: relative; padding-right: 76px; }
+.card-thumb { position: absolute; right: 10px; top: 10px; width: 56px; height: 56px; border-radius: 8px; background: var(--field) center / cover no-repeat; }
 .card-top { display: flex; align-items: baseline; gap: 8px; }
 .card-title { flex: 1; font-size: 14px; font-weight: 700; }
 .pin { color: var(--accent-ink); display: inline-flex; }

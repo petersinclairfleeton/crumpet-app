@@ -9,6 +9,7 @@ import { stepsOf } from '@crumpet/editor/sync/transform';
 import type { BlockType, Doc, Mark } from '@crumpet/editor/model';
 import type { StyleSheet } from '../data/styles';
 import { AlignTools, StylePicker } from './styles-ui';
+import { addFile } from '../data/files';
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -88,6 +89,8 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
     };
     el.addEventListener('focusin', onFocus);
     el.addEventListener('keydown', onKey);
+    // Pictures and files dropped or pasted in.
+    ed.onFiles = (files) => void insertFiles(ed, files);
     // Draw again so whoever uses the hook gets the editor now that it exists.
     setTick((t) => t + 1);
     return () => {
@@ -126,8 +129,29 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
   return { host, editor: editor.current };
 }
 
+/** Keeps files and puts them in the text at the caret, one after another. */
+export async function insertFiles(ed: Editor, files: File[]): Promise<void> {
+  for (const file of files) {
+    try {
+      const { type, src, caption } = await addFile(file);
+      ed.insertMedia(type, src, caption);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'That file couldn’t be added.');
+    }
+  }
+}
+
+/** Opens the file chooser and puts what's chosen in the text. */
+export function chooseFiles(ed: Editor): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = true;
+  input.addEventListener('change', () => void insertFiles(ed, Array.from(input.files ?? [])));
+  input.click();
+}
+
 /** The formatting buttons, acting on whichever editor is given. */
-export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean }) {
+export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean }) {
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
   return (
@@ -153,6 +177,15 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
           {b.glyph}
         </button>
       ))}
+      {attach && (
+        <button type="button" aria-label="Add a picture or file" title="Add a picture or file (or drop one in)" disabled={off} onClick={() => ed && chooseFiles(ed)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <circle cx="9" cy="10" r="1.6" />
+            <path d="M21 16l-5-5-8 8" />
+          </svg>
+        </button>
+      )}
       {!compact && (
         <>
           <span className="sep" />

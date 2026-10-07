@@ -15,7 +15,25 @@ const TAGS: Record<Block['type'], string> = {
   bullet: 'div',
   numbered: 'div',
   quote: 'blockquote',
+  image: 'figure',
+  file: 'div',
 };
+
+/**
+ * Turns a picture's or file's `src` into an address the browser can show
+ * (the app keeps files itself). Without one, `src` is used as it is.
+ */
+export type MediaResolver = (src: string) => string | Promise<string>;
+let resolveMedia: MediaResolver = (src) => src;
+export function setMediaResolver(fn: MediaResolver): void {
+  resolveMedia = fn;
+}
+
+/** The file name shown for an attached file: its path without the folder or the id in front. */
+export function fileLabel(src: string): string {
+  const name = decodeURIComponent(src.split('/').pop() ?? src);
+  return name.replace(/^[0-9a-z]{6,}-/i, '');
+}
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -185,6 +203,7 @@ function buildBlock(block: Block): HTMLElement {
     box.setAttribute('aria-label', 'Done');
     el.appendChild(box);
   }
+  if (block.type === 'image' || block.type === 'file') el.appendChild(buildMedia(block));
   const text = document.createElement('span');
   text.className = 'text';
   if (!block.runs.length) {
@@ -210,4 +229,36 @@ function buildBlock(block: Block): HTMLElement {
   }
   el.appendChild(text);
   return el;
+}
+
+/** The picture, or the attached file's chip, above a media block's caption. */
+function buildMedia(block: Block): HTMLElement {
+  const box = document.createElement('span');
+  box.className = 'media';
+  box.contentEditable = 'false';
+  const src = block.src ?? '';
+  const show = (apply: (url: string) => void) => {
+    const r = resolveMedia(src);
+    if (typeof r === 'string') apply(r);
+    else void r.then(apply, () => box.classList.add('missing'));
+  };
+  if (block.type === 'image') {
+    const img = document.createElement('img');
+    img.alt = block.runs.map((r) => r.text).join('');
+    img.draggable = false;
+    img.decoding = 'async';
+    img.addEventListener('error', () => box.classList.add('missing'));
+    show((url) => (img.src = url));
+    box.appendChild(img);
+  } else {
+    const a = document.createElement('a');
+    a.className = 'file-chip';
+    a.textContent = fileLabel(src);
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.download = fileLabel(src);
+    show((url) => (a.href = url));
+    box.appendChild(a);
+  }
+  return box;
 }

@@ -694,3 +694,33 @@ test('a first visit can take a short tour, and N starts a note', async ({ page }
   await page.keyboard.press('n');
   await expect(page.getByLabel('Title')).toBeFocused();
 });
+
+test('pictures and files: add one from the note menu, with a caption, kept in the note as Markdown', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Lighthouse', 'Here it is:');
+  await page.keyboard.press('Enter');
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'Add a picture or file…' }).click();
+  // A 1×1 PNG. (Node's Buffer, without needing Node's types here.)
+  const Bytes = (globalThis as unknown as { Buffer: { from(s: string, encoding?: string): never } }).Buffer;
+  const png = Bytes.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await (await chooser).setFiles([{ name: 'lamp.png', mimeType: 'image/png', buffer: png }, { name: 'timetable.pdf', mimeType: 'application/pdf', buffer: Bytes.from('%PDF-1.4') }]);
+  const img = page.locator('.note-editor .blk-image img');
+  await expect(img).toHaveAttribute('src', /^blob:/);
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(1);
+  await expect(page.locator('.note-editor .file-chip')).toHaveText('timetable.pdf');
+  // A caption under the picture.
+  await page.locator('.note-editor .blk-image .text').click();
+  await page.keyboard.type('The lamp');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toMatch(/^Here it is:\n\n!\[The lamp\]\(Attachments\/[a-z0-9]{7}-lamp\.png\)\n\n\[timetable\.pdf\]\(Attachments\/[a-z0-9]{7}-timetable\.pdf\)\n/);
+  // Still there after a reload (kept on this device).
+  await page.reload();
+  await expect(page.locator('.note-editor .blk-image img')).toHaveAttribute('src', /^blob:/);
+});

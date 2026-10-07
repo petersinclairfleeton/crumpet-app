@@ -31,6 +31,7 @@ import {
   indent,
   insertText,
   pasteLink,
+  insertMedia,
   setLink,
   joinBackward,
   joinForward,
@@ -114,7 +115,10 @@ export class Editor {
     root.addEventListener('paste', (e) => this.onPaste(e), { signal });
     root.addEventListener('cut', (e) => this.onCut(e), { signal });
     root.addEventListener('copy', (e) => this.onCopy(e), { signal });
-    root.addEventListener('drop', (e) => e.preventDefault(), { signal });
+    root.addEventListener('drop', (e) => this.onDrop(e), { signal });
+    root.addEventListener('dragover', (e) => {
+      if (e.dataTransfer?.types.includes('Files') && this.onFiles) e.preventDefault();
+    }, { signal });
     root.addEventListener('mousedown', (e) => this.onMouseDown(e), { signal });
     root.ownerDocument.addEventListener('selectionchange', () => this.onSelectionChange(), { signal });
   }
@@ -184,6 +188,10 @@ export class Editor {
   }
 
   /** Stops (or allows) editing, e.g. for notes in the Trash. */
+  private get isReadOnly(): boolean {
+    return this.view.root.contentEditable === 'false';
+  }
+
   setReadOnly(readOnly: boolean): void {
     this.view.root.contentEditable = readOnly ? 'false' : 'true';
     this.view.root.setAttribute('aria-readonly', String(readOnly));
@@ -474,9 +482,38 @@ export class Editor {
     this.dispatch(toggleTodo(this.state, id), 'command');
   }
 
+  /** Files dropped or pasted in (pictures, PDFs...); the app stores them and calls insertMedia. */
+  onFiles: ((files: File[]) => void) | null = null;
+
+  /** Puts a picture or an attached file at the caret. */
+  insertMedia(type: 'image' | 'file', src: string, caption = ''): void {
+    if (this.isReadOnly) return;
+    this.dispatch(insertMedia(this.state, type, src, caption), 'command');
+  }
+
+  private onDrop(e: DragEvent): void {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    if (!files.length || !this.onFiles || this.isReadOnly) return;
+    // Put the caret where the files were dropped.
+    const doc = this.view.root.ownerDocument as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null };
+    const at = doc.caretPositionFromPoint?.(e.clientX, e.clientY);
+    const range = at ? null : doc.caretRangeFromPoint?.(e.clientX, e.clientY);
+    const node = at?.offsetNode ?? range?.startContainer;
+    const offset = at?.offset ?? range?.startOffset ?? 0;
+    const pos = node ? this.view.domToPos(node, offset) : null;
+    if (pos) this.state = { ...this.state, selection: caret(pos) };
+    this.onFiles(files);
+  }
+
   private onPaste(e: ClipboardEvent): void {
     e.preventDefault();
     this.syncSelectionFromDom();
+    const files = Array.from(e.clipboardData?.files ?? []);
+    if (files.length && this.onFiles && !this.isReadOnly) {
+      this.onFiles(files);
+      return;
+    }
     const text = e.clipboardData?.getData('text/plain');
     if (!text) return;
     this.dispatch(pasteLink(this.state, text) ?? insertText(this.state, text));

@@ -16,6 +16,7 @@ import {
   blockIndex,
   isCollapsed,
   isList,
+  isMedia,
   isHeading,
   commonLink,
   linkAt,
@@ -172,6 +173,7 @@ const ENDS_ON_ENTER = new Set(['title', 'subtitle', 'caption', 'scenebreak', 'ep
  * followed by body text.
  */
 function nextBlockAttrs(block: Block) {
+  if (isMedia(block.type)) return blockAttrs('paragraph');
   if (isList(block.type)) return { ...blockAttrs(block.type, false, block.indent), ...(block.align ? { align: block.align } : {}) };
   if (isHeading(block.type) || (block.style && ENDS_ON_ENTER.has(block.style))) return blockAttrs('paragraph');
   return { ...attrsOf(block), checked: undefined };
@@ -180,7 +182,8 @@ function nextBlockAttrs(block: Block) {
 function splitAt(b: Builder, pos: Pos): Pos {
   const block = getBlock(b.doc, pos.block);
   const atEnd = pos.offset === runsLength(block.runs);
-  const newAttrs = atEnd ? nextBlockAttrs(block) : attrsOf({ ...block, checked: false });
+  // Text after the caret in a caption becomes a paragraph of its own, not another picture.
+  const newAttrs = atEnd ? nextBlockAttrs(block) : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
   // Enter at the very start of a heading keeps the heading below and leaves an empty paragraph above.
@@ -197,7 +200,7 @@ export function splitBlock(state: EditorState): Transaction {
   const block = getBlock(b.doc, at.block);
   // Enter on an empty list item moves it out one level, and out of the list at the top level.
   // On an empty quote or heading it turns back into a paragraph instead of adding another.
-  if (block.type !== 'paragraph' && runsLength(block.runs) === 0) {
+  if (block.type !== 'paragraph' && !isMedia(block.type) && runsLength(block.runs) === 0) {
     const to = isList(block.type) && block.indent ? blockAttrs(block.type, false, block.indent - 1) : blockAttrs('paragraph');
     b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to });
     return tx(state, b, caret(at));
@@ -219,6 +222,8 @@ export function joinBackward(state: EditorState): Transaction | null {
   if (i === 0) return tx(state, b, state.selection);
   const prev = state.doc.blocks[i - 1];
   const prevLen = runsLength(prev.runs);
+  // After a picture, Backspace moves into its caption rather than pulling the text in (an empty line just goes).
+  if (isMedia(prev.type) && runsLength(block.runs)) return tx(state, b, caret({ block: prev.id, offset: prevLen }));
   b.step({ type: 'join', block: prev.id, second: block.id, offset: prevLen, secondAttrs: attrsOf(block) });
   return tx(state, b, caret({ block: prev.id, offset: prevLen }), { kind: 'delete' });
 }
@@ -232,7 +237,8 @@ export function joinForward(state: EditorState): Transaction | null {
   const i = blockIndex(state.doc, block.id);
   const b = new Builder(state.doc);
   const next = state.doc.blocks[i + 1];
-  if (!next) return tx(state, b, state.selection);
+  // A picture below isn't pulled up into the text.
+  if (!next || isMedia(next.type)) return tx(state, b, state.selection);
   b.step({ type: 'join', block: block.id, second: next.id, offset: len, secondAttrs: attrsOf(next) });
   return tx(state, b, state.selection, { kind: 'delete' });
 }
@@ -324,6 +330,7 @@ function selectedBlocks(state: EditorState): Block[] {
 export function setBlockStyle(state: EditorState, type: BlockType, style?: string): Transaction {
   const b = new Builder(state.doc);
   for (const blk of selectedBlocks(state)) {
+    if (isMedia(blk.type)) continue;
     const to = attrsOf({ type, checked: false, indent: isList(type) && isList(blk.type) ? blk.indent : 0, ...(style ? { style } : {}), ...(blk.align ? { align: blk.align } : {}) });
     if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
   }
@@ -349,7 +356,7 @@ export function setBlockType(state: EditorState, type: BlockType): Transaction {
   const target = allAlready ? 'paragraph' : type;
   for (let i = start; i <= end; i++) {
     const blk = state.doc.blocks[i];
-    if (blk.type === target) continue;
+    if (blk.type === target || isMedia(blk.type)) continue;
     // Switching between list types keeps the nesting level.
     b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to: blockAttrs(target, false, isList(blk.type) ? blk.indent : 0) });
   }
@@ -480,4 +487,34 @@ export function syncBlockText(state: EditorState, id: string, domText: string, s
   const inserted = domText.slice(start, endNew);
   if (inserted) b.step({ type: 'insert', block: id, offset: start, runs: [{ text: inserted, marks }] });
   return tx(state, b, selectionAfter, { kind: 'typing', storedMarks: null });
+}
+
+/**
+ * Puts a picture or file after the block with the caret (or in place of an
+ * empty paragraph), with a paragraph after it to carry on writing.
+ */
+export function insertMedia(state: EditorState, type: 'image' | 'file', src: string, caption = ''): Transaction {
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const at = deleteRange(b, from, to);
+  const block = getBlock(b.doc, at.block);
+  const len = runsLength(block.runs);
+  const media = attrsOf({ type, src });
+  let id: string;
+  if (block.type === 'paragraph' && len === 0 && !block.style) {
+    // An empty line becomes the picture.
+    b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: media });
+    id = block.id;
+  } else {
+    // Text after the caret moves below the picture.
+    if (at.offset < len) b.step({ type: 'split', block: block.id, offset: at.offset, newBlock: newId(), newAttrs: attrsOf({ ...block, checked: false }) });
+    id = newId();
+    b.step({ type: 'split', block: block.id, offset: at.offset, newBlock: id, newAttrs: media });
+  }
+  if (caption) b.step({ type: 'insert', block: id, offset: 0, runs: [{ text: caption, marks: [] }] });
+  const next = b.doc.blocks[blockIndex(b.doc, id) + 1];
+  if (next && !isMedia(next.type)) return tx(state, b, caret({ block: next.id, offset: 0 }));
+  const para = newId();
+  b.step({ type: 'split', block: id, offset: runsLength(getBlock(b.doc, id).runs), newBlock: para, newAttrs: blockAttrs('paragraph') });
+  return tx(state, b, caret({ block: para, offset: 0 }));
 }

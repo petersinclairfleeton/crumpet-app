@@ -19,6 +19,8 @@ export const TRASH = '.trash';
 export const META_DIR = '.crumpet';
 export const META_FILE = `${META_DIR}/vault.json`;
 export const PROJECTS = 'Projects';
+/** Pictures and other files attached to notes. */
+export const ATTACHMENTS = 'Attachments';
 export const PROJECT_FILE = 'project.json';
 
 export interface Layout {
@@ -83,7 +85,7 @@ export function layout(tree: Tree, prev: Layout): Layout {
   const taken = new Map<string, Set<string>>();
   const take = (dir: string, name: string) => {
     let set = taken.get(dir);
-    if (!set) taken.set(dir, (set = new Set([TRASH, META_DIR])));
+    if (!set) taken.set(dir, (set = new Set(dir ? [TRASH, META_DIR] : [TRASH, META_DIR, ATTACHMENTS.toLowerCase()])));
     if (set.has(name.toLowerCase())) return false;
     set.add(name.toLowerCase());
     return true;

@@ -12,12 +12,19 @@ export interface Run {
   link?: string;
 }
 
-export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote';
+export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote' | 'image' | 'file';
 
 export const HEADINGS: readonly BlockType[] = ['heading1', 'heading2', 'heading3', 'heading4'];
 
 export function isHeading(type: BlockType): boolean {
   return HEADINGS.includes(type);
+}
+
+/** Blocks that show something other than text (a picture, an attached file); their text is a caption. */
+export const MEDIA_TYPES: readonly BlockType[] = ['image', 'file'];
+
+export function isMedia(type: BlockType): boolean {
+  return MEDIA_TYPES.includes(type);
 }
 
 /** Paragraph alignment; left is the default and never stored. */
@@ -55,6 +62,8 @@ export interface BlockAttrs {
   style?: string;
   /** Alignment other than left. */
   align?: Align;
+  /** Pictures and files: where the file is (a path like "Attachments/abc-photo.jpg", or a web address). */
+  src?: string;
 }
 
 export interface Block extends BlockAttrs {
@@ -253,6 +262,7 @@ export function makeBlock(type: BlockType, text = '', marks: Mark[] = [], extra:
   if (!isList(type) || !block.indent) delete block.indent;
   if (!block.style || !styleAllowed(type, block.style)) delete block.style;
   if (!block.align || block.align === 'left') delete block.align;
+  if (!isMedia(type) || !block.src) delete block.src;
   return block;
 }
 
@@ -263,7 +273,7 @@ export function docsEqual(a: Doc, b: Doc): boolean {
   return a.blocks.every((x, i) => {
     const y = b.blocks[i];
     if (x === y) return true;
-    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || x.runs.length !== y.runs.length) return false;
+    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || (x.src ?? '') !== (y.src ?? '') || x.runs.length !== y.runs.length) return false;
     return x.runs.every((r, j) => r.text === y.runs[j].text && sameFormat(r, y.runs[j]));
   });
 }

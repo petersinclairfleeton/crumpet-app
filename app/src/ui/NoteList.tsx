@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { mediaUrl } from '../data/files';
 import { useAppState, useAppStore } from './hooks';
 import { displayTitle, groupByDate, listedNotes, matchingNotebooks, preview, shortTime, viewTitle } from '../data/selectors';
 import type { Note, View } from '../data/types';
@@ -109,8 +111,10 @@ function Card({ note, selected, now, trash, showNotebook, onOpen }: { note: Note
   const store = useAppStore();
   const nb = store.notebook(note.notebookId);
   const text = preview(note);
+  const picture = note.doc.blocks.find((b) => b.type === 'image' && b.src)?.src;
   return (
-    <button type="button" className={`card${selected ? ' selected' : ''}`} aria-current={selected ? 'true' : undefined} onClick={onOpen}>
+    <button type="button" className={`card${selected ? ' selected' : ''}${picture ? ' has-thumb' : ''}`} aria-current={selected ? 'true' : undefined} onClick={onOpen}>
+      {picture && <Thumb src={picture} />}
       <span className="card-top">
         <span className="card-title ellipsis">{displayTitle(note)}</span>
         {note.favorite && !trash && (
@@ -171,4 +175,19 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
       )}
     </div>
   );
+}
+
+/** The first picture in a note, small, on its card. */
+function Thumb({ src }: { src: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    const r = mediaUrl(src);
+    if (typeof r === 'string') setUrl(r);
+    else r.then((u) => live && setUrl(u)).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [src]);
+  return <span className="card-thumb" aria-hidden="true" style={url ? { backgroundImage: `url("${url.replace(/"/g, '%22')}")` } : undefined} />;
 }

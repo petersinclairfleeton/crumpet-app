@@ -6,7 +6,7 @@
 import type { Chapter, Note, Notebook, Project, Settings, Stack } from './types';
 
 const DB_NAME = 'crumpet';
-const VERSION = 4;
+const VERSION = 5;
 
 export interface Persisted {
   stacks: Stack[];
@@ -17,8 +17,22 @@ export interface Persisted {
   settings: Settings | null;
 }
 
+/** A picture or other file attached to a note, kept on this device. */
+export interface StoredFile {
+  /** Where it lives in the notes folder too, e.g. "Attachments/k3j9a2x-photo.jpg". */
+  path: string;
+  type: string;
+  blob: Blob;
+  /** Copied to the notes folder in the cloud. */
+  synced: boolean;
+}
+
 export interface Storage {
   load(): Promise<Persisted>;
+  getFile(path: string): Promise<StoredFile | null>;
+  putFile(f: StoredFile): Promise<void>;
+  /** Files not yet copied to the cloud. */
+  unsyncedFiles(): Promise<StoredFile[]>;
   putNote(note: Note): Promise<void>;
   deleteNote(id: string): Promise<void>;
   putNotebook(nb: Notebook): Promise<void>;
@@ -57,6 +71,7 @@ function open(name: string): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('sync')) db.createObjectStore('sync');
       if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('chapters')) db.createObjectStore('chapters', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('files')) db.createObjectStore('files', { keyPath: 'path' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -93,6 +108,18 @@ class IdbStorage implements Storage {
 
   putNote(note: Note) {
     return this.write('notes', (s) => s.put(note));
+  }
+  async getFile(path: string): Promise<StoredFile | null> {
+    const tx = this.db.transaction('files', 'readonly');
+    return ((await request(tx.objectStore('files').get(path))) as StoredFile | undefined) ?? null;
+  }
+  putFile(f: StoredFile) {
+    return this.write('files', (s) => s.put(f));
+  }
+  async unsyncedFiles(): Promise<StoredFile[]> {
+    const tx = this.db.transaction('files', 'readonly');
+    const all = (await request(tx.objectStore('files').getAll())) as StoredFile[];
+    return all.filter((f) => !f.synced);
   }
   deleteNote(id: string) {
     return this.write('notes', (s) => s.delete(id));
@@ -145,6 +172,16 @@ export class MemoryStorage implements Storage {
   projects = new Map<string, Project>();
   chapters = new Map<string, Chapter>();
   settings: Settings | null = null;
+  files = new Map<string, StoredFile>();
+  async getFile(path: string) {
+    return this.files.get(path) ?? null;
+  }
+  async putFile(f: StoredFile) {
+    this.files.set(f.path, f);
+  }
+  async unsyncedFiles() {
+    return [...this.files.values()].filter((f) => !f.synced);
+  }
   async load(): Promise<Persisted> {
     return {
       notes: [...this.notes.values()],

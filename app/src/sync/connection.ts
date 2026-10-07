@@ -12,6 +12,7 @@ import { pickFolder } from './google-picker';
 import { SyncEngine, type SyncState, type SyncStatus } from './engine';
 import { GoogleAuth, SignInNeeded } from './google-auth';
 import { type Provider, ProviderError } from './provider';
+import { uploadFiles } from '../data/files';
 
 export interface DriveConfig {
   kind: 'drive';
@@ -144,6 +145,9 @@ export class SyncConnection {
     this.set({ config: null, status: null });
   }
 
+  /** The connected folder, for fetching attached files this device doesn't have. */
+  provider: Provider | null = null;
+
   syncNow(): Promise<void> {
     return this.engine ? this.engine.sync().catch(() => {}) : Promise.resolve();
   }
@@ -156,11 +160,17 @@ export class SyncConnection {
       this.auth ??= new GoogleAuth(config.clientId);
       provider = new DriveProvider({ getToken: this.tokenFn(this.auth), rootId: config.folderId });
     }
-    const engine = new SyncEngine(this.store, provider, {
-      load: () => this.storage.getSync<SyncState>(STATE),
-      save: (s) => this.storage.putSync(STATE, s),
-    });
+    const engine = new SyncEngine(
+      this.store,
+      provider,
+      {
+        load: () => this.storage.getSync<SyncState>(STATE),
+        save: (s) => this.storage.putSync(STATE, s),
+      },
+      { uploadFiles },
+    );
     this.engine = engine;
+    this.provider = provider;
     const off = engine.subscribe(() => this.set({ status: engine.getStatus() }));
     engine.watch();
     const kick = () => {
@@ -186,6 +196,7 @@ export class SyncConnection {
   private stop(): void {
     this.stopEngine?.();
     this.stopEngine = null;
+    this.provider = null;
     if (this.poll) clearInterval(this.poll);
     this.poll = null;
     this.engine = null;
