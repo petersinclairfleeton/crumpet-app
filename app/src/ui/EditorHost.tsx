@@ -6,6 +6,7 @@ import { useAppState, useAppStore, useMedia } from './hooks';
 import { type PageSetup, type StyleSheet, defaultPage } from '../data/styles';
 import { type PageFields, type PagePlacement, PageView } from './pages';
 import { useSheetClass } from './styles-ui';
+import { SlashMenu } from './slash';
 
 interface Props {
   /** The document shown (a note or a chapter) and where its edits go. */
@@ -86,6 +87,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
         </KeyboardBar>
       )}
+      {!readOnly && !reading && <SlashMenu editor={ed} host={host} />}
       {floating && ed && (
         <SelectionBar host={host}>
           <FormatTools compact attach={false} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
