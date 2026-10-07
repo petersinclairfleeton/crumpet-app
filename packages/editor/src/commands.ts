@@ -30,6 +30,7 @@ import {
   setMarkOnRuns,
   sliceRuns,
   sortMarks,
+  FOOTNOTE,
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs } from './model';
@@ -572,4 +573,27 @@ export function insertLinkedText(state: EditorState, text: string, href: string)
   b.step({ type: 'insert', block: at.block, offset: at.offset, runs: [{ text, marks: [], link: href }] });
   const after = { block: at.block, offset: at.offset + text.length };
   return tx(state, b, caret(after), { storedMarks: [] });
+}
+
+/** Puts a footnote just after the selection (or at the caret), with the caret after it. */
+export function insertFootnote(state: EditorState, text: string): Transaction {
+  const b = new Builder(state.doc);
+  const { to } = orderedRange(state.doc, state.selection);
+  const block = getBlock(state.doc, to.block);
+  if (isMedia(block.type)) return tx(state, b, state.selection);
+  b.step({ type: 'insert', block: to.block, offset: to.offset, runs: [{ text: FOOTNOTE, marks: [], footnote: text }] });
+  return tx(state, b, caret({ block: to.block, offset: to.offset + 1 }), { storedMarks: [] });
+}
+
+/** Changes what the footnote at `at` says; null takes it out. */
+export function setFootnote(state: EditorState, at: Pos, text: string | null): Transaction {
+  const b = new Builder(state.doc);
+  const run = sliceRuns(getBlock(state.doc, at.block).runs, at.offset, at.offset + 1)[0];
+  if (!run || run.footnote === undefined || run.footnote === text) return tx(state, b, state.selection);
+  b.step({ type: 'remove', block: at.block, offset: at.offset, runs: [run] });
+  if (text !== null) b.step({ type: 'insert', block: at.block, offset: at.offset, runs: [{ ...run, footnote: text }] });
+  const sel = state.selection;
+  // The caret stays put, moving back one if it was after a removed footnote.
+  const shift = (p: Pos): Pos => (text === null && p.block === at.block && p.offset > at.offset ? { block: p.block, offset: p.offset - 1 } : p);
+  return tx(state, b, { anchor: shift(sel.anchor), focus: shift(sel.focus) });
 }

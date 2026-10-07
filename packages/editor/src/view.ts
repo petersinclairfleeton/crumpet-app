@@ -109,6 +109,10 @@ export class View {
       el.toggleAttribute('data-folded-away', !!hideBelow);
       if (!hideBelow && block.folded) hideBelow = level;
     }
+    // Footnotes are numbered in order through the whole note.
+    this.root.querySelectorAll<HTMLElement>('sup.fn').forEach((el, i) => {
+      if (el.dataset.n !== String(i + 1)) el.dataset.n = String(i + 1);
+    });
     const empty = doc.blocks.length === 1 && runsLength(doc.blocks[0].runs) === 0 && doc.blocks[0].type === 'paragraph';
     this.root.toggleAttribute('data-empty', empty);
   }
@@ -242,6 +246,14 @@ function buildBlock(block: Block): HTMLElement {
       const wrap = document.createElement(MARK_TAGS[mark]);
       wrap.appendChild(node);
       node = wrap;
+    }
+    if (run.footnote !== undefined) {
+      // The marker: an invisible character in the text, with its number drawn beside it.
+      const sup = document.createElement('sup');
+      sup.className = 'fn';
+      sup.title = run.footnote || 'Footnote';
+      sup.appendChild(node);
+      node = sup;
     }
     if (run.link) {
       const a = document.createElement('a');

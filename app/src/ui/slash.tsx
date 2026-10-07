@@ -20,6 +20,12 @@ export interface SlashItem {
   run(ed: Editor): void;
 }
 
+/** A footnote sits right against the word before it, so the space typed before the / goes. */
+function addFootnoteHere(ed: Editor): void {
+  const at = ed.currentSelection().focus;
+  if (at.offset > 0 && runsText(ed.currentBlock().runs)[at.offset - 1] === ' ') ed.deleteBefore(1);
+  ed.addFootnote();
+}
 
 export const SLASH_ITEMS: SlashItem[] = [
   { id: 'text', label: 'Text', hint: 'Plain writing', words: 'paragraph normal body', glyph: '¶', run: (ed) => ed.setBlockStyle('paragraph') },
@@ -34,6 +40,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'title', label: 'Title', hint: 'The document’s title style', words: 'title', glyph: 'T', run: (ed) => ed.setBlockStyle('paragraph', 'title') },
   { id: 'scene', label: 'Scene break', hint: '* * *', words: 'divider separator line rule section break', glyph: '⁂', run: (ed) => ed.setBlockStyle('paragraph', 'scenebreak') },
   { id: 'table', label: 'Table', hint: 'Rows and columns', words: 'grid columns rows spreadsheet', glyph: '▦', run: (ed) => ed.insertTable() },
+  { id: 'footnote', label: 'Footnote', hint: 'A numbered note at the bottom', words: 'footnote endnote note reference citation', glyph: '¹', run: addFootnoteHere },
   { id: 'picture', label: 'Picture or file', hint: 'From this device', words: 'image photo attachment upload pdf', glyph: '▣', run: (ed) => chooseFiles(ed) },
   { id: 'date', label: 'Today’s date', hint: longDate(), words: 'date today now', glyph: '◷', run: (ed) => ed.typeText(longDate()) },
 ];

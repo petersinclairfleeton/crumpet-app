@@ -26,6 +26,9 @@ import {
   toggleFold,
   foldedUnder,
 } from '../src/commands';
+import { insertFootnote, setFootnote } from '../src/commands';
+import { footnotes } from '../src/model';
+import { diffDocs } from '../src/diff';
 import { normalizeLink } from '../src/model';
 import { History } from '../src/history';
 
@@ -413,5 +416,33 @@ describe('fold-away sections', () => {
     const opened = applyOps(folded, splitBlock(state(folded, caret({ block: h.id, offset: 5 }))).ops);
     expect(opened.blocks[0].folded).toBeUndefined();
     expect(texts(opened)).toEqual(['Plans', '', 'one', 'Sub', 'two', 'Next', 'three']);
+  });
+});
+
+describe('footnotes', () => {
+  it('go after the selection, change, come out, and undo', () => {
+    const p = makeBlock('paragraph', 'Hello world');
+    const s0 = state({ blocks: [p] }, { anchor: { block: p.id, offset: 0 }, focus: { block: p.id, offset: 5 } });
+    const t1 = insertFootnote(s0, 'Greeting');
+    const d1 = applyOps(s0.doc, t1.ops);
+    expect(footnotes(d1)).toEqual([{ block: p.id, offset: 5, text: 'Greeting' }]);
+    expect(t1.selectionAfter.focus.offset).toBe(6);
+    const s1 = { ...s0, doc: d1, selection: t1.selectionAfter };
+    const d2 = applyOps(d1, setFootnote(s1, { block: p.id, offset: 5 }, 'Hi').ops);
+    expect(footnotes(d2)[0].text).toBe('Hi');
+    const t3 = setFootnote({ ...s1, doc: d2 }, { block: p.id, offset: 5 }, null);
+    const d3 = applyOps(d2, t3.ops);
+    expect(footnotes(d3)).toEqual([]);
+    expect(runsText(d3.blocks[0].runs)).toBe('Hello world');
+    expect(t3.selectionAfter.focus.offset).toBe(5);
+    expect(footnotes(applyOps(d3, invertOps(t3.ops)))[0].text).toBe('Hi');
+  });
+
+  it('a footnote changed elsewhere arrives as an edit', () => {
+    const p = makeBlock('paragraph', 'Hello');
+    const s0 = state({ blocks: [p] }, caret({ block: p.id, offset: 5 }));
+    const d1 = applyOps(s0.doc, insertFootnote(s0, 'One').ops);
+    const d2 = applyOps(d1, setFootnote({ ...s0, doc: d1 }, { block: p.id, offset: 5 }, 'Two').ops);
+    expect(footnotes(diffDocs(d1, d2).doc)[0].text).toBe('Two');
   });
 });

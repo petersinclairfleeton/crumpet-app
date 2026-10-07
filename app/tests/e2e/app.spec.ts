@@ -927,3 +927,48 @@ test('fold-away sections: the arrow by a heading hides what’s under it until t
   await body.locator('h2').first().locator('.fold').click();
   await expect(body.getByText('Swim')).toBeVisible();
 });
+
+test('footnotes: add from the / menu or Ctrl+Alt+F, numbered in order, edited in a card and listed under the note', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Essay', 'The sea is warm');
+  await page.keyboard.type(' /foot');
+  await page.keyboard.press('Enter');
+  const card = page.getByRole('dialog', { name: 'Footnote 1' });
+  await expect(card.getByRole('textbox')).toBeFocused();
+  await page.keyboard.type('In August, anyway.');
+  await page.keyboard.press('Enter');
+  await expect(card).toHaveCount(0);
+  // Typing carries on after the number.
+  await page.keyboard.type(' in summer.');
+  const body = page.locator('.note-editor');
+  await expect(body.locator('sup.fn')).toHaveAttribute('data-n', '1');
+  await expect(page.getByRole('region', { name: 'Footnotes' })).toContainText('In August, anyway.');
+  // A second one earlier in the text becomes number 1.
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Control+Alt+f');
+  await page.getByRole('dialog', { name: 'Footnote 1' }).getByRole('textbox').fill('Or so they say.');
+  await page.getByRole('dialog', { name: 'Footnote 1' }).getByRole('button', { name: 'Done' }).click();
+  await expect(body.locator('sup.fn')).toHaveCount(2);
+  await expect(body.locator('sup.fn').nth(1)).toHaveAttribute('data-n', '2');
+  await expect(page.getByRole('region', { name: 'Footnotes' }).locator('li')).toHaveText(['Or so they say.', 'In August, anyway.']);
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toBe('The^[Or so they say.] sea is warm^[In August, anyway.] in summer.\n');
+  // Clicking a number opens it; Remove takes it out.
+  await body.locator('sup.fn').nth(1).click();
+  await page.getByRole('dialog', { name: 'Footnote 2' }).getByRole('button', { name: 'Remove' }).click();
+  await expect(body.locator('sup.fn')).toHaveCount(1);
+  await expect.poll(md).toBe('The^[Or so they say.] sea is warm in summer.\n');
+  // Undo brings it back; footnotes are found by search.
+  await page.keyboard.press('Control+z');
+  await expect(body.locator('sup.fn')).toHaveCount(2);
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Footnotes' }).locator('li')).toHaveCount(2);
+});

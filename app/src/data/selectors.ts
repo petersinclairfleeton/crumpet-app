@@ -2,19 +2,21 @@
 // groups, previews, counts and the sidebar tree.
 
 import { matchesFilters, parseQuery } from './search';
-import { runsText } from '@crumpet/editor/model';
+import { footnotes, runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
 import type { Doc } from '@crumpet/editor/model';
 import type { Chapter, Note, Notebook, OutlineItem, Project, Stack, View } from './types';
 
 /** A block's plain text; a table's cells are its text. */
 export function blockText(b: Doc['blocks'][number]): string {
-  return b.type === 'table' ? (b.rows ?? []).map((r) => r.join(' ')).join('\n') : runsText(b.runs);
+  if (b.type === 'table') return (b.rows ?? []).map((r) => r.join(' ')).join('\n');
+  return b.runs.some((r) => r.footnote !== undefined) ? runsText(b.runs.filter((r) => r.footnote === undefined)) : runsText(b.runs);
 }
 
 /** Plain text of a note's body, one line per block. */
 export function noteText(note: Note): string {
-  return note.doc.blocks.map(blockText).join('\n');
+  // Footnotes are searched too, after the text.
+  return [...note.doc.blocks.map(blockText), ...footnotes(note.doc).map((f) => f.text)].join('\n');
 }
 
 export function preview(note: Note, max = 160): string {

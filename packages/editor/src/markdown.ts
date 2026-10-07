@@ -20,7 +20,7 @@
 // lines, fenced code and autolinks. Things Crumpet can't show yet (images,
 // tables, other HTML) are kept as their literal text.
 
-import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
+import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -239,7 +239,9 @@ function writeRuns(runs: Run[], style: Style): string {
   };
   const writeRun = (r: Run) => {
     moveTo(formatting(r));
-    out += r.marks.includes('code') ? codeSpan(r.text) : escapeText(r.text);
+    // A footnote is written in place, as ^[what it says].
+    if (r.footnote !== undefined) out += `^[${escapeText(r.footnote.replace(/\s+/g, ' '))}]`;
+    else out += r.marks.includes('code') ? codeSpan(r.text) : escapeText(r.text);
   };
   for (let i = 0; i < runs.length; ) {
     const link = runs[i].link;
@@ -278,7 +280,7 @@ function writeRuns(runs: Run[], style: Style): string {
  */
 function spacesOutside(runs: Run[]): Run[] {
   const chars: Run[] = [];
-  for (const r of runs) for (const ch of r.text) chars.push(r.link ? { text: ch, marks: r.marks, link: r.link } : { text: ch, marks: r.marks });
+  for (const r of runs) for (const ch of r.text) chars.push(withText(r, ch));
   const isSpace = (c: Run) => /^\s$/u.test(c.text) && !c.marks.includes('code');
   for (let i = 0; i < chars.length; ) {
     if (!isSpace(chars[i])) {
@@ -315,7 +317,7 @@ function indentWidth(ws: string): number {
 const trimLine = (s: string) => s.replace(/^[ \t]+|[ \t]+$/g, '');
 
 export function fromMarkdown(md: string): Doc {
-  const lines = md.replace(/\r\n?/g, '\n').split('\n');
+  const lines = referenceFootnotes(md.replace(/\r\n?/g, '\n').split('\n'));
   const blocks: Block[] = [];
   let para: string[] = [];
   /** Indent widths of the open list levels, so 2- and 4-space nesting both work. */
@@ -432,6 +434,34 @@ export function fromMarkdown(md: string): Doc {
   return { blocks: blocks.length ? blocks : [makeBlock('paragraph')] };
 }
 
+/**
+ * Footnotes written the other common way, [^1] in the text and "[^1]: what it
+ * says" on a line of its own, turned into ^[what it says] in place.
+ */
+function referenceFootnotes(lines: string[]): string[] {
+  const DEF = /^ {0,3}\[\^([^\]\s]+)\]:[ \t]*(.*)$/;
+  if (!lines.some((l) => DEF.test(l))) return lines;
+  const defs = new Map<string, string>();
+  const rest: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = DEF.exec(lines[i]);
+    if (!m) {
+      rest.push(lines[i]);
+      continue;
+    }
+    let text = m[2];
+    // Indented lines below carry on the footnote.
+    while (i + 1 < lines.length && /^( {4}|\t)\S/.test(lines[i + 1])) text += ` ${lines[++i].trim()}`;
+    defs.set(m[1].toLowerCase(), text.trim());
+  }
+  return rest.map((l) =>
+    l.replace(/(?<!\\)\[\^([^\]\s]+)\]/g, (all, label: string) => {
+      const text = defs.get(label.toLowerCase());
+      return text === undefined ? all : `^[${text.replace(/\\?([[\]])/g, '\\$1')}]`;
+    }),
+  );
+}
+
 const TABLE_RULE = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
 
 /** The cells of a table row: split on pipes, with \| and \\ read back as | and \. */
@@ -480,6 +510,7 @@ interface TextNode {
   text: string;
   marks: Mark[];
   link?: string;
+  footnote?: string;
 }
 
 interface Delim {
@@ -535,7 +566,9 @@ export function parseInline(src: string): Run[] {
     if (!node.text) continue;
     const marks = sortMarks([...node.marks, ...[...active.entries()].filter(([, c]) => c > 0).map(([m]) => m)]);
     const link = node.link ?? links[links.length - 1];
-    runs.push(link ? { text: node.text, marks, link } : { text: node.text, marks });
+    const run: Run = link ? { text: node.text, marks, link } : { text: node.text, marks };
+    if (node.footnote !== undefined) run.footnote = node.footnote;
+    runs.push(run);
   }
   return normalizeRuns(runs);
 }
@@ -588,6 +621,17 @@ function tokenize(src: string): Node[] {
         continue;
       }
     }
+    // A footnote: ^[what it says].
+    if (c === '^' && src[i + 1] === '[') {
+      const end = closeBracket(src, i + 1);
+      if (end > 0) {
+        flush();
+        const note = decodeEntities(unescape(src.slice(i + 2, end))).trim();
+        nodes.push({ kind: 'text', text: FOOTNOTE, marks: [], footnote: note });
+        i = end + 1;
+        continue;
+      }
+    }
     if (c === '[' && src[i + 1] === '[') {
       const wiki = /^\[\[([^\]|\n]+?)(?:\|([^\]\n]+))?\]\]/.exec(src.slice(i));
       if (wiki) {
@@ -632,6 +676,17 @@ function tokenize(src: string): Node[] {
   }
   flush();
   return nodes;
+}
+
+/** Where the ] matching the [ at `open` is (skipping escapes and nested brackets), or -1. */
+function closeBracket(src: string, open: number): number {
+  let depth = 0;
+  for (let j = open; j < src.length; j++) {
+    if (src[j] === '\\') j++;
+    else if (src[j] === '[') depth++;
+    else if (src[j] === ']' && --depth === 0) return j;
+  }
+  return -1;
 }
 
 function findCodeClose(src: string, from: number, len: number): number {
