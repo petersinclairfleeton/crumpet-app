@@ -745,3 +745,31 @@ input, select { font: inherit; color: inherit; }
   .tools button { min-width: 40px; height: 40px; }
   .rail-btn { width: 44px; height: 44px; }
 }
+
+/* ---- The tour ---- */
+.welcome-tour { margin: -8px 0 0; font-size: 14px; color: var(--muted); }
+.tour-ring { position: fixed; z-index: 60; border-radius: 10px; box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent); pointer-events: none; transition: all 0.25s ease; }
+.tour { position: fixed; z-index: 61; width: 280px; padding: 16px 18px; border-radius: 14px; background: var(--text); color: var(--page); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; animation: bar-in 0.18s ease-out; }
+.tour strong { font-size: 13px; }
+.tour p { margin: 0; font-size: 13px; line-height: 1.55; opacity: 0.85; }
+.tour-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.tour-actions button { height: 30px; padding: 0 12px; border: none; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.tour-skip { background: transparent; color: var(--page); opacity: 0.8; }
+.tour-next { background: var(--page); color: var(--text); }
+
+/* ---- Gentle motion (none when the device asks for less) ---- */
+@media (prefers-reduced-motion: no-preference) {
+  .note-body { animation: page-in 0.18s ease-out; }
+  .popover { animation: pop-in 0.12s ease-out; transform-origin: top; }
+  .dialog { animation: dialog-in 0.18s ease-out; }
+  .dialog-backdrop { animation: fade-in 0.18s ease-out; }
+  .card, .side-row, .rail-btn, .icon-btn, .btn, .tab-bar button, .split-choices button { transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease; }
+  .app[data-pane='sidebar'] .sidebar { animation: slide-in 0.2s ease-out; }
+  .pane, .pane-empty, .list, .sidebar, .rail { animation: fade-in 0.2s ease-out; }
+  .welcome { animation: page-in 0.3s ease-out; }
+}
+@keyframes page-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.97) translateY(-2px); } }
+@keyframes dialog-in { from { opacity: 0; transform: scale(0.98) translateY(8px); } }
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes slide-in { from { transform: translateX(-24px); opacity: 0; } }

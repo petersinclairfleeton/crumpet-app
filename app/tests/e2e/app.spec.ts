@@ -680,3 +680,17 @@ test('the formatting bar floats above selected text, can be pinned, and focus mo
   await page.keyboard.press('Escape');
   await expect(page.locator('.app.focus-mode')).toHaveCount(0);
 });
+
+test('a first visit can take a short tour, and N starts a note', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: 'Show me around' }).click();
+  const tip = page.getByRole('dialog', { name: /^Tip 1 of/ });
+  await expect(tip).toContainText('Your first note');
+  await tip.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByRole('dialog', { name: /^Tip 2 of/ })).toContainText('Find anything');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.tour')).toHaveCount(0);
+  await page.locator('body').click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('n');
+  await expect(page.getByLabel('Title')).toBeFocused();
+});
