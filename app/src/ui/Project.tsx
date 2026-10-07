@@ -15,6 +15,7 @@ import { FormatTools, LinkBar, useDocEditor } from './editing';
 import { useAppState, useAppStore } from './hooks';
 import { IconBack, IconFocus, IconMore, IconPlus } from './icons';
 import { InlineInput, Popover } from './Sidebar';
+import { SlashMenu } from './slash';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
   { id: 'todo', label: 'To do' },
@@ -616,6 +617,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
   });
   return (
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
+      <SlashMenu editor={editor} host={host} />
       <p className="chapter-kicker">Chapter {number}</p>
       <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
       <PageView

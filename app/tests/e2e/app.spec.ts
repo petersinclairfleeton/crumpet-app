@@ -724,3 +724,41 @@ test('pictures and files: add one from the note menu, with a caption, kept in th
   await page.reload();
   await expect(page.locator('.note-editor .blk-image img')).toHaveAttribute('src', /^blob:/);
 });
+
+test('the / menu adds headings, lists and more as you write', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Slashes', '');
+  await page.keyboard.press('Enter');
+  const body = page.locator('.note-pane [contenteditable]');
+  await page.keyboard.type('/head');
+  const menu = page.getByRole('listbox', { name: 'Add' });
+  await expect(menu.getByRole('option').first()).toContainText('Heading 1');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveCount(0);
+  await page.keyboard.type('Plans');
+  await expect(body.locator('h2')).toHaveText('Plans');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/check');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Buy lamp oil');
+  await expect(body.locator('.blk-todo')).toHaveText('Buy lamp oil');
+  // In the middle of a word, or dismissed with Esc, a / is just a /.
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('and/or');
+  await expect(menu).toHaveCount(0);
+  await page.keyboard.type(' /zq');
+  await expect(menu).toHaveCount(0);
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await expect(menu).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(body.locator('.blk').last()).toHaveText('and/or /');
+  // Clicking an item works too.
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/');
+  await menu.getByRole('option', { name: /Today’s date/ }).click();
+  await expect(body.locator('.blk').last()).toContainText(String(new Date().getFullYear()));
+});

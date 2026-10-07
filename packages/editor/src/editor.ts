@@ -133,8 +133,12 @@ export class Editor {
     this.view.root.replaceChildren();
   }
 
-  onChange(fn: Listener): void {
+  /** Calls `fn` after every change (and selection move). Returns a function that stops it. */
+  onChange(fn: Listener): () => void {
     this.listeners.push(fn);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== fn);
+    };
   }
 
   // ---------- applying changes ----------
@@ -430,8 +434,29 @@ export class Editor {
     queueMicrotask(() => this.readBackFromDom(new Set([comp.block])));
   }
 
+  /** Gets keys first (e.g. while a menu at the caret is open); returning true means it handled them. */
+  onKeyIntercept: ((e: KeyboardEvent) => boolean) | null = null;
+
+  /** Removes the `n` characters before the caret. */
+  deleteBefore(n: number): void {
+    this.syncSelectionFromDom();
+    const pos = this.state.selection.focus;
+    if (n <= 0 || pos.offset < n) return;
+    this.dispatch(deleteBetween(this.state, { block: pos.block, offset: pos.offset - n }, pos), 'command');
+  }
+
+  /** Types `text` at the caret, as if typed. */
+  typeText(text: string): void {
+    this.syncSelectionFromDom();
+    this.dispatch(insertText(this.state, text), 'command');
+  }
+
   private onKeyDown(e: KeyboardEvent): void {
     if (e.isComposing || e.keyCode === 229) return;
+    if (this.onKeyIntercept?.(e)) {
+      e.preventDefault();
+      return;
+    }
     const mod = isMac ? e.metaKey : e.ctrlKey;
     if (e.key === 'Tab') {
       // Tab nests list items (Shift+Tab un-nests); elsewhere it does nothing rather than leaving the note.
