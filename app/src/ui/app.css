@@ -871,3 +871,14 @@ input, select { font: inherit; color: inherit; }
 .change-card p { margin: 0; }
 .change-card small { color: var(--muted); }
 @media (max-width: 759px) { .track-toggle { padding: 0 8px; } .track-toggle:not(.on) { font-size: 0; gap: 0; } }
+
+/* Web clipper: the bookmark to drag, and the window that saves a clip. */
+.clip-bookmark { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 16px; background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 600; text-decoration: none; cursor: grab; box-shadow: var(--shadow); }
+.clip-bookmark:active { cursor: grabbing; }
+.clip-help summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.clip-help p { margin: 6px 0; font-size: 12px; color: var(--muted); }
+.clip-help textarea { width: 100%; box-sizing: border-box; font: 11px/1.4 ui-monospace, monospace; border: 1px solid var(--line2); border-radius: 5px; background: var(--field); color: var(--text); padding: 6px; resize: vertical; }
+.clip-dialog select { height: 32px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; }
+.clip-source { margin: 0; font-size: 13px; color: var(--muted); }
+.clip-preview { margin: 0; max-height: 140px; overflow: hidden; padding: 10px 12px; border-radius: 8px; background: var(--field); font-size: 13px; line-height: 1.5; color: var(--text2); -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+.clip-actions { display: flex; justify-content: flex-end; gap: 8px; }

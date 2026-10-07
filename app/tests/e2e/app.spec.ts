@@ -1081,3 +1081,50 @@ test('track changes: typing is marked added, deleting strikes through, and chang
   await page.keyboard.type(' Yes.');
   await expect(body.locator('ins.trk')).toHaveCount(0);
 });
+
+test('web clipper: the bookmark on another site opens Crumpet with the page, to save as a note', async ({ page, context }) => {
+  await open(page);
+  await sidebar(page).locator('.account').click();
+  const href = await page.locator('.clip-bookmark').getAttribute('href');
+  expect(href).toMatch(/^javascript:/);
+  const code = decodeURIComponent(href!.slice('javascript:'.length));
+  // A pretend article somewhere else on the web; long, so it travels by message rather than in the address.
+  const filler = Array.from({ length: 80 }, (_, i) => `<p>Paragraph ${i + 1} about the lighthouse keeper's day.</p>`).join('');
+  await context.route('https://news.example/story', (route) =>
+    route.fulfill({ contentType: 'text/html', body: `<html><head><title>The last lighthouse</title></head><body><nav>Home · News</nav><article><h1>The last lighthouse</h1><p>It stands <b>alone</b> on the rock. <a href="/more">More</a></p><img src="/lamp.png" alt="The lamp">${filler}</article><footer>© News</footer></body></html>` }),
+  );
+  const site = await context.newPage();
+  await site.goto('https://news.example/story');
+  const [clipper] = await Promise.all([context.waitForEvent('page'), site.evaluate(code)]);
+  const dialog = clipper.getByRole('dialog', { name: 'Save clip' });
+  await expect(dialog).toContainText('From news.example');
+  await expect(dialog.getByLabel('Title')).toHaveValue('The last lighthouse');
+  await dialog.getByLabel('Title').fill('Lighthouse story');
+  await dialog.getByRole('button', { name: 'Save note' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(clipper.getByLabel('Title')).toHaveValue('Lighthouse story');
+  const body = clipper.locator('.note-editor');
+  await expect(body.locator('.blk').first()).toContainText('Clipped from news.example');
+  await expect(body.locator('h1')).toHaveText('The last lighthouse');
+  await expect(body.locator('strong')).toHaveText('alone');
+  await expect(body.locator('a[href="https://news.example/more"]')).toHaveText('More');
+  await expect(body.locator('.blk-image img')).toHaveAttribute('src', 'https://news.example/lamp.png');
+  await expect(body).not.toContainText('Home · News');
+  await expect(body).toContainText('Paragraph 80');
+  // The address no longer says #clip.
+  expect(clipper.url()).not.toContain('#clip');
+
+  // Selecting part of a page clips only that part (short: it travels in the address).
+  await site.evaluate(() => {
+    const p = document.querySelector('article p')!;
+    const r = document.createRange();
+    r.selectNodeContents(p);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(r);
+  });
+  const [second] = await Promise.all([context.waitForEvent('page'), site.evaluate(code)]);
+  const d2 = second.getByRole('dialog', { name: 'Save clip' });
+  await expect(d2).toContainText('Save the selected part');
+  await expect(d2.locator('.clip-preview')).toContainText('It stands alone on the rock.');
+  await expect(d2.locator('.clip-preview')).not.toContainText('Paragraph 1');
+});
