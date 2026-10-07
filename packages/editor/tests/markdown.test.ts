@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type Block, type BlockType, type Doc, type Mark, type Run, MARK_ORDER, makeBlock, normalizeRuns } from '../src/model';
+import { BLOCK_STYLES, type Block, type BlockType, type Doc, type Mark, type Run, MARK_ORDER, makeBlock, normalizeRuns } from '../src/model';
 import { fromMarkdown, parseInline, toMarkdown } from '../src/markdown';
 
 function doc(...blocks: Block[]): Doc {
@@ -21,7 +21,7 @@ function r(text: string, ...marks: Mark[]): Run {
 
 /** Blocks without ids, for comparing documents. */
 function shape(d: Doc) {
-  return d.blocks.map((b) => ({ type: b.type, checked: b.type === 'todo' ? !!b.checked : undefined, indent: b.indent ?? 0, runs: b.runs }));
+  return d.blocks.map((b) => ({ type: b.type, checked: b.type === 'todo' ? !!b.checked : undefined, indent: b.indent ?? 0, style: b.style, align: b.align, runs: b.runs }));
 }
 
 function roundTrip(d: Doc): Doc {
@@ -189,7 +189,7 @@ describe('reading Markdown written elsewhere', () => {
   it('reads headings of every level and closing hashes', () => {
     expect(read('# One #\n### Three\n#nospace').map((b) => [b.type, b.runs.map((x) => x.text).join('')])).toEqual([
       ['heading1', 'One'],
-      ['heading2', 'Three'],
+      ['heading3', 'Three'],
       ['paragraph', '#nospace'],
     ]);
   });
@@ -213,7 +213,8 @@ function rng(seed: number) {
 }
 
 const PIECES = ['a', 'word', ' ', '  ', 'x y', '*', '_', '~', '~~', '`', '``', '\\', '[', ']', '(', ')', '<', '>', '<u>', '&', '&amp;', '&#32;', '#', '# ', '1. ', '- ', '"', '.', ',', '!', 'é', '😀', '\t', ' ', 'http://a.b', '**', '__', '|'];
-const TYPES: BlockType[] = ['paragraph', 'paragraph', 'heading1', 'heading2', 'quote', 'bullet', 'numbered', 'todo'];
+const TYPES: BlockType[] = ['paragraph', 'paragraph', 'heading1', 'heading2', 'heading3', 'heading4', 'quote', 'bullet', 'numbered', 'todo'];
+const ALIGN_CHOICES = [undefined, undefined, 'center', 'right', 'justify'] as const;
 const LINKS = ['https://example.com/', 'https://example.com/a_(b)?q=1&amp;x', 'mailto:me@x.com', 'https://x.com/a b', 'https://x.com/\\<>'];
 
 function randomRuns(rand: () => number): Run[] {
@@ -239,8 +240,11 @@ function randomDoc(rand: () => number): Doc {
     const type = TYPES[Math.floor(rand() * TYPES.length)];
     const list = type === 'bullet' || type === 'numbered' || type === 'todo';
     depth = list ? Math.max(0, Math.min(6, depth + Math.floor(rand() * 4) - 1)) : 0;
-    const b = makeBlock(type, '', [], { indent: depth, checked: rand() < 0.5 });
-    b.runs = randomRuns(rand);
+    const styles = BLOCK_STYLES[type] ?? [];
+    const style = styles.length && rand() < 0.4 ? styles[Math.floor(rand() * styles.length)] : undefined;
+    const align = ALIGN_CHOICES[Math.floor(rand() * ALIGN_CHOICES.length)];
+    const b = makeBlock(type, '', [], { indent: depth, checked: rand() < 0.5, style, align });
+    b.runs = style === 'scenebreak' && rand() < 0.5 ? [] : randomRuns(rand);
     blocks.push(b);
   }
   return { blocks };
@@ -285,5 +289,30 @@ describe('random Markdown from elsewhere', () => {
       const once = toMarkdown(fromMarkdown(md));
       expect(toMarkdown(fromMarkdown(once)), JSON.stringify(md)).toBe(once);
     }
+  });
+});
+
+describe('styles and alignment', () => {
+  it('writes heading levels, a scene break, and other styles as {.attributes}', () => {
+    const d: Doc = {
+      blocks: [
+        makeBlock('paragraph', 'The Lighthouse', [], { style: 'title', align: 'center' }),
+        makeBlock('heading3', 'Three'),
+        makeBlock('heading4', 'Four', [], { align: 'right' }),
+        makeBlock('paragraph', '', [], { style: 'scenebreak' }),
+        makeBlock('quote', 'Loud', [], { style: 'intense' }),
+        makeBlock('paragraph', 'Ends in {.title}'),
+        makeBlock('paragraph', '', [], { style: 'subtitle' }),
+      ],
+    };
+    const md = toMarkdown(d);
+    expect(md).toBe('The Lighthouse {.title .center}\n\n### Three\n\n#### Four {.right}\n\n* * *\n\n> Loud {.intense}\n\nEnds in \\{.title}\n\n&nbsp; {.subtitle}\n');
+    expect(shape(fromMarkdown(md))).toEqual(shape(d));
+  });
+
+  it('reads section breaks from other apps as scene breaks, and ignores unknown attributes', () => {
+    const d = fromMarkdown('---\n\n***\n\n_ _ _\n\nKeep {.unknown}\n');
+    expect(d.blocks.map((b) => b.style ?? b.type)).toEqual(['scenebreak', 'scenebreak', 'scenebreak', 'paragraph']);
+    expect(d.blocks[3].runs[0].text).toBe('Keep {.unknown}');
   });
 });

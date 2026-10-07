@@ -9,6 +9,8 @@ const TAGS: Record<Block['type'], string> = {
   paragraph: 'p',
   heading1: 'h1',
   heading2: 'h2',
+  heading3: 'h3',
+  heading4: 'h4',
   todo: 'div',
   bullet: 'div',
   numbered: 'div',
@@ -166,6 +168,8 @@ function buildBlock(block: Block): HTMLElement {
   const el = document.createElement(TAGS[block.type]);
   el.className = `blk blk-${block.type}`;
   el.dataset.block = block.id;
+  if (block.style) el.dataset.style = block.style;
+  if (block.align) el.dataset.align = block.align;
   if (isList(block.type)) {
     el.classList.add('blk-list');
     el.dataset.indent = String(block.indent ?? 0);

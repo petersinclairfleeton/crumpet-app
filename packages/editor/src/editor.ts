@@ -5,6 +5,7 @@
 // model as ordinary ops.
 
 import {
+  type Align,
   type Block,
   type BlockType,
   type Doc,
@@ -36,6 +37,8 @@ import {
   markActive,
   markdownShortcut,
   setBlockType,
+  setBlockStyle,
+  setAlign,
   splitBlock,
   syncBlockText,
   toggleMark,
@@ -176,6 +179,17 @@ export class Editor {
   toggleMark(mark: Mark): void {
     this.syncSelectionFromDom();
     this.dispatch(toggleMark(this.state, mark), 'command');
+  }
+
+  /** Applies a named style: a block type, plus for paragraphs and quotes a style on top. */
+  setBlockStyle(type: BlockType, style?: string): void {
+    this.dispatch(setBlockStyle(this.state, type, style), 'command');
+    this.view.root.focus();
+  }
+
+  setAlign(align: Align): void {
+    this.dispatch(setAlign(this.state, align), 'command');
+    this.view.root.focus();
   }
 
   setBlockType(type: BlockType): void {
@@ -392,6 +406,10 @@ export class Editor {
     let handled = true;
     if (key === 'z' && !e.shiftKey) this.undo();
     else if ((key === 'z' && e.shiftKey) || key === 'y') this.redo();
+    else if (e.shiftKey && e.code === 'KeyL') this.setAlign('left');
+    else if (e.shiftKey && e.code === 'KeyE') this.setAlign('center');
+    else if (e.shiftKey && e.code === 'KeyR') this.setAlign('right');
+    else if (e.shiftKey && e.code === 'KeyJ') this.setAlign('justify');
     else if (key === 'b') this.toggleMark('bold');
     else if (key === 'i') this.toggleMark('italic');
     else if (key === 'u') this.toggleMark('underline');
@@ -399,6 +417,8 @@ export class Editor {
     else if (key === 'e') this.toggleMark('code');
     else if (e.altKey && e.code === 'Digit1') this.setBlockType('heading1');
     else if (e.altKey && e.code === 'Digit2') this.setBlockType('heading2');
+    else if (e.altKey && e.code === 'Digit3') this.setBlockType('heading3');
+    else if (e.altKey && e.code === 'Digit4') this.setBlockType('heading4');
     else if (e.altKey && e.code === 'Digit0') this.setBlockType('paragraph');
     else if (e.altKey && e.code === 'KeyT') this.setBlockType('todo');
     else if (e.altKey && e.code === 'KeyL') this.setBlockType('bullet');

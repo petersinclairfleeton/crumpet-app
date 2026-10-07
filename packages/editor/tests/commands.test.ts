@@ -19,6 +19,8 @@ import {
   autoLink,
   pasteLink,
   currentLink,
+  setBlockStyle,
+  setAlign,
 } from '../src/commands';
 import { normalizeLink } from '../src/model';
 import { History } from '../src/history';
@@ -304,6 +306,49 @@ describe('invertibility (randomised)', () => {
       doc = after;
       // Keep the document from growing without bound.
       if (doc.blocks.length > 30) doc = { blocks: doc.blocks.slice(0, 10) };
+    }
+  });
+});
+
+describe('styles and alignment', () => {
+  const attrs = (d: Doc) => d.blocks.map((b) => [b.type, b.style, b.align].filter(Boolean).join(' '));
+
+  it('applies a style and alignment to every selected block, and undoes exactly', () => {
+    const doc: Doc = { blocks: [makeBlock('paragraph', 'One'), makeBlock('heading1', 'Two'), makeBlock('paragraph', 'Three')] };
+    const sel = { anchor: { block: doc.blocks[0].id, offset: 1 }, focus: { block: doc.blocks[1].id, offset: 1 } };
+    const t1 = setBlockStyle(state(doc, sel), 'paragraph', 'title');
+    const d1 = applyOps(doc, t1.ops);
+    expect(attrs(d1)).toEqual(['paragraph title', 'paragraph title', 'paragraph']);
+    const t2 = setAlign(state(d1, sel), 'center');
+    const d2 = applyOps(d1, t2.ops);
+    expect(attrs(d2)).toEqual(['paragraph title center', 'paragraph title center', 'paragraph']);
+    // A style for headings drops the paragraph style but keeps the alignment.
+    const d3 = applyOps(d2, setBlockStyle(state(d2, sel), 'heading3').ops);
+    expect(attrs(d3)).toEqual(['heading3 center', 'heading3 center', 'paragraph']);
+    expect(attrs(applyOps(d3, invertOps([...t1.ops, ...t2.ops, ...setBlockStyle(state(d2, sel), 'heading3').ops])))).toEqual(attrs(doc));
+  });
+
+  it('Enter after a title or heading starts body text; body text and quotes carry on', () => {
+    const enterAtEnd = (b: ReturnType<typeof makeBlock>) => {
+      const doc: Doc = { blocks: [b] };
+      return applyOps(doc, splitBlock(state(doc, caret({ block: b.id, offset: runsText(b.runs).length }))).ops).blocks[1];
+    };
+    expect(enterAtEnd(makeBlock('paragraph', 'T', [], { style: 'title', align: 'center' }))).toMatchObject({ type: 'paragraph' });
+    expect(enterAtEnd(makeBlock('paragraph', 'T', [], { style: 'title', align: 'center' })).style).toBeUndefined();
+    expect(enterAtEnd(makeBlock('heading3', 'H')).type).toBe('paragraph');
+    expect(enterAtEnd(makeBlock('paragraph', 'Body', [], { style: 'nospacing', align: 'justify' }))).toMatchObject({ style: 'nospacing', align: 'justify' });
+    expect(enterAtEnd(makeBlock('quote', 'Q', [], { style: 'intense' }))).toMatchObject({ type: 'quote', style: 'intense' });
+    // Splitting in the middle keeps the style on both halves.
+    const doc: Doc = { blocks: [makeBlock('paragraph', 'AB', [], { style: 'epigraph', align: 'right' })] };
+    const after = applyOps(doc, splitBlock(state(doc, caret({ block: doc.blocks[0].id, offset: 1 }))).ops);
+    expect(attrs(after)).toEqual(['paragraph epigraph right', 'paragraph epigraph right']);
+  });
+
+  it('### and #### make the smaller headings', () => {
+    for (const [prefix, type] of [['###', 'heading3'], ['####', 'heading4']] as const) {
+      const doc: Doc = { blocks: [makeBlock('paragraph', `${prefix} `)] };
+      const t = markdownShortcut(state(doc, caret({ block: doc.blocks[0].id, offset: prefix.length + 1 })))!;
+      expect(applyOps(doc, t.ops).blocks[0].type).toBe(type);
     }
   });
 });
