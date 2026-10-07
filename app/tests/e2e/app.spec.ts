@@ -257,15 +257,20 @@ test.describe('on a phone', () => {
 
   test('list, then note, then back; the menu opens the notebooks', async ({ page }) => {
     await open(page);
-    await page.locator('.topbar').getByRole('button', { name: 'New note' }).click();
+    await page.locator('.fab').click();
     await page.keyboard.type('Names for the island');
+    // Writing: the formatting bar sits above the keyboard.
+    await page.locator('.note-pane [contenteditable]').click();
+    await expect(page.locator('.keyboard-bar')).toBeVisible();
+    await page.locator('.keyboard-bar').getByRole('button', { name: 'Done' }).click();
+    await expect(page.locator('.keyboard-bar')).toHaveCount(0);
     await expect(list(page)).toBeHidden();
     await page.getByRole('button', { name: 'Back to notes' }).click();
     await expect(list(page)).toBeVisible();
     await list(page).locator('.card', { hasText: 'Names for the island' }).click();
     await expect(page.getByLabel('Title')).toHaveValue('Names for the island');
     await page.getByRole('button', { name: 'Back to notes' }).click();
-    await page.getByRole('button', { name: 'Notebooks and tags' }).click();
+    await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Notebooks' }).click();
     await expect(sidebar(page)).toBeVisible();
     await sidebar(page).getByRole('button', { name: 'Create a notebook' }).click();
     await page.keyboard.type('Journal');

@@ -6,7 +6,7 @@ import { useState } from 'react';
 import type { LayoutPrefs, View } from '../data/types';
 import { sameView } from '../data/selectors';
 import { useAppState, useAppStore } from './hooks';
-import { IconBook, IconLayout, IconNote, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash, NotebookIcon } from './icons';
+import { IconBook, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash, NotebookIcon } from './icons';
 import { Popover } from './Sidebar';
 
 export const SIDEBAR = { min: 180, max: 420, normal: 236 };
@@ -166,5 +166,42 @@ export function LayoutMenu() {
         </Popover>
       )}
     </span>
+  );
+}
+
+/** Phones: a floating tab bar at the bottom of the list, and a round + for a new note. */
+export function TabBar({ onOpenView, onNotebooks, onNewNote }: { onOpenView(v: View): void; onNotebooks(): void; onNewNote(): void }) {
+  const state = useAppState();
+  const on = (v: View) => !state.query && sameView(state.view, v);
+  return (
+    <>
+      <nav className="tab-bar" aria-label="Sections">
+        <button type="button" className={on({ kind: 'all' }) ? 'on' : ''} aria-current={on({ kind: 'all' }) ? 'page' : undefined} onClick={() => onOpenView({ kind: 'all' })}>
+          <IconNote size={20} />
+          Notes
+        </button>
+        <button type="button" onClick={onNotebooks}>
+          <IconNotebookTab size={20} />
+          Notebooks
+        </button>
+        <button type="button" className={on({ kind: 'favorites' }) ? 'on' : ''} aria-current={on({ kind: 'favorites' }) ? 'page' : undefined} onClick={() => onOpenView({ kind: 'favorites' })}>
+          <IconStar size={20} />
+          Favorites
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const search = document.getElementById('search') as HTMLInputElement | null;
+            search?.focus();
+          }}
+        >
+          <IconSearch size={20} />
+          Search
+        </button>
+      </nav>
+      <button type="button" className="fab" aria-label="New note" onClick={onNewNote}>
+        <IconPlus size={24} />
+      </button>
+    </>
   );
 }

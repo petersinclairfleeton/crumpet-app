@@ -5,7 +5,7 @@ import { NoteList } from './NoteList';
 import { NotePane } from './NotePane';
 import { ProjectOutline, ProjectPane } from './Project';
 import { TopBar } from './TopBar';
-import { LIST, Resizer, SIDEBAR, SidebarRail } from './layout';
+import { LIST, Resizer, SIDEBAR, SidebarRail, TabBar } from './layout';
 import { applyTheme } from './theme';
 import type { View } from '../data/types';
 
@@ -13,6 +13,8 @@ import type { View } from '../data/types';
 export type Pane = 'sidebar' | 'list' | 'note';
 
 const NARROW = '(max-width: 759px)';
+/** Tablets and small windows: the sidebar starts as a strip of icons. */
+const MEDIUM = '(max-width: 1099px)';
 
 export function App() {
   const state = useAppState();
@@ -115,7 +117,7 @@ export function App() {
 
   // On phones one pane shows at a time, so the layout choices are for bigger screens.
   const layout = narrow ? {} : (state.settings.layout ?? {});
-  const sidebarMode = layout.sidebar ?? 'full';
+  const sidebarMode = layout.sidebar ?? (!narrow && window.matchMedia(MEDIUM).matches ? 'icons' : 'full');
   const showList = layout.list !== false;
   const split = project ? 'one' : (layout.split ?? 'one');
   const sideW = layout.sidebarWidth ?? SIDEBAR.normal;
@@ -184,6 +186,7 @@ export function App() {
           </div>
         </div>
       </div>
+      {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} />}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import type { Doc } from '@crumpet/editor/model';
-import { FormatTools, LinkBar, SelectionBar, useDocEditor } from './editing';
+import { FormatTools, KeyboardBar, LinkBar, SelectionBar, useDocEditor } from './editing';
 import { useAppState, useAppStore, useMedia } from './hooks';
 import { type PageSetup, type StyleSheet, defaultPage } from '../data/styles';
 import { type PageFields, type PagePlacement, PageView } from './pages';
@@ -65,7 +65,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
     <div className={`note-pane ${styles}${reading ? ' reading' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
-        {!floating && <FormatTools editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />}
+        {!floating && !narrow && <FormatTools editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />}
         <span className="grow" />
         {!narrow && !readOnly && !reading && (
           <button
@@ -81,6 +81,11 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
         )}
         {trail}
       </div>
+      {narrow && ed && !readOnly && !reading && (
+        <KeyboardBar host={host}>
+          <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
+        </KeyboardBar>
+      )}
       {floating && ed && (
         <SelectionBar host={host}>
           <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
