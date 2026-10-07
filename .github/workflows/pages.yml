@@ -1,9 +1,8 @@
 # Publishes the Crumpet web app to GitHub Pages:
 # https://petersinclairfleeton.github.io/crumpet-app/
 #
-# Google sign-in settings come from repository variables (Settings → Secrets
-# and variables → Actions → Variables). They are public values, not secrets:
-# see docs/google-drive-setup.md.
+# Google sign-in settings are in app/.env (public values; see
+# docs/google-drive-setup.md).
 
 name: Publish web app
 
@@ -37,10 +36,6 @@ jobs:
       - run: npm ci
       - run: npx vitest run
       - run: npx tsc --noEmit && npx vite build --base=/crumpet-app/
-        env:
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-          VITE_GOOGLE_API_KEY: ${{ vars.GOOGLE_API_KEY }}
-          VITE_GOOGLE_APP_ID: ${{ vars.GOOGLE_APP_ID }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist
