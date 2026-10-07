@@ -20,7 +20,7 @@
 // lines, fenced code and autolinks. Things Crumpet can't show yet (images,
 // tables, other HTML) are kept as their literal text.
 
-import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, sameFormat, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
+import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -51,6 +51,12 @@ export function toMarkdown(doc: Doc): string {
 }
 
 function blockLine(b: Block, number: number): string {
+  // Tables are GitHub-style pipe tables; the first row is the header.
+  if (b.type === 'table') {
+    const rows = tidyRows(b.rows);
+    const row = (cells: string[]) => `| ${cells.map((c) => c.replace(/([\\|])/g, '\\$1') || ' ').join(' | ')} |`.replace(/ {2,}\|/g, ' |');
+    return [row(rows[0]), `|${rows[0].map(() => ' --- ').join('|')}|`, ...rows.slice(1).map(row)].join('\n');
+  }
   // Pictures are Markdown images; attached files are links, each on a line of its own.
   if (b.type === 'image' || b.type === 'file') {
     const caption = runsPlain(b.runs).replace(/([\\\[\]])/g, '\\$1').replace(/\n/g, ' ');
@@ -84,7 +90,7 @@ function blockLine(b: Block, number: number): string {
     }
   })();
   // Styles and alignment Markdown has no syntax for go at the end of the line, as {.title .center}.
-  const classes = [b.style, b.align].filter(Boolean);
+  const classes = [b.style, b.align, b.folded ? 'folded' : undefined].filter(Boolean);
   return classes.length ? `${line} {${classes.map((c) => `.${c}`).join(' ')}}` : line;
 }
 
@@ -115,7 +121,7 @@ function runsPlain(runs: Run[]): string {
 }
 
 const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
-const KNOWN_STYLES = new Set<string>(Object.values(BLOCK_STYLES).flat());
+const KNOWN_STYLES = new Set<string>([...Object.values(BLOCK_STYLES).flat(), 'folded']);
 const ATTRS = /^(.*?)[ \t]*(?<!\\)\{[ \t]*((?:\.[A-Za-z][\w-]*[ \t]*)+)\}[ \t]*$/;
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */
@@ -136,7 +142,8 @@ function applyAttrs(b: Block, classes: string[]): Block {
   for (const c of classes) {
     if (ALIGNS.has(c)) {
       if (c !== 'left') b.align = c as Align;
-    } else if (styleAllowed(b.type, c)) b.style = c;
+    } else if (c === 'folded' && b.type.startsWith('heading')) b.folded = true;
+    else if (styleAllowed(b.type, c)) b.style = c;
   }
   return b;
 }
@@ -323,7 +330,8 @@ export function fromMarkdown(md: string): Doc {
     paraClasses = [];
   };
 
-  for (const raw of lines) {
+  for (let li = 0; li < lines.length; li++) {
+    const raw = lines[li];
     if (fence) {
       const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(raw);
       if (close && close[1][0] === fence.char && close[1].length >= fence.length) fence = null;
@@ -356,6 +364,16 @@ export function fromMarkdown(md: string): Doc {
       flushPara();
       listIndents = [];
       blocks.push(applyAttrs(makeBlock('paragraph', '', [], { style: 'scenebreak' }), classes));
+      continue;
+    }
+    // A pipe table: a header row, then a row of dashes.
+    if (!para.length && /^ {0,3}\|/.test(line) && li + 1 < lines.length && TABLE_RULE.test(lines[li + 1])) {
+      flushPara();
+      listIndents = [];
+      const rows = [tableCells(line)];
+      li++;
+      while (li + 1 < lines.length && /^ {0,3}\|/.test(lines[li + 1])) rows.push(tableCells(lines[++li]));
+      blocks.push(makeBlock('table', '', [], { rows: tidyRows(rows) }));
       continue;
     }
     // A picture, or a link to an attached file, alone on its line.
@@ -412,6 +430,23 @@ export function fromMarkdown(md: string): Doc {
   }
   flushPara();
   return { blocks: blocks.length ? blocks : [makeBlock('paragraph')] };
+}
+
+const TABLE_RULE = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+
+/** The cells of a table row: split on pipes, with \| and \\ read back as | and \. */
+function tableCells(line: string): string[] {
+  const body = line.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '');
+  const cells: string[] = [];
+  let cur = '';
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (c === '\\' && (body[i + 1] === '|' || body[i + 1] === '\\')) cur += body[++i];
+    else if (c === '|') cells.push(cur.trim()), (cur = '');
+    else cur += c;
+  }
+  cells.push(cur.trim());
+  return cells;
 }
 
 /**

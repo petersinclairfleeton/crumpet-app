@@ -11,7 +11,8 @@ import {
   styleAllowed,
   commonLink,
   isList,
-  isMedia,
+  tidyRows,
+  isHeading,
   type Run,
   blockIndex,
   insertRuns,
@@ -51,14 +52,16 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
   const a = blockAttrs(b.type, b.checked, b.indent);
   if (b.style && styleAllowed(b.type, b.style)) a.style = b.style;
   if (b.align && b.align !== 'left') a.align = b.align;
-  if (isMedia(b.type) && b.src) a.src = b.src;
+  if ((b.type === 'image' || b.type === 'file') && b.src) a.src = b.src;
+  if (b.type === 'table') a.rows = tidyRows(b.rows);
+  if (isHeading(b.type) && b.folded) a.folded = true;
   return a;
 }
 
 export function sameAttrs(a: BlockAttrs, b: BlockAttrs): boolean {
   const x = attrsOf(a);
   const y = attrsOf(b);
-  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '');
+  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null);
 }
 
 export function applyOp(doc: Doc, op: Op): Doc {

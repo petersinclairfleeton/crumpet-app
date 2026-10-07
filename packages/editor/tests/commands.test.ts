@@ -23,6 +23,8 @@ import {
   setAlign,
   insertMedia,
   joinForward,
+  toggleFold,
+  foldedUnder,
 } from '../src/commands';
 import { normalizeLink } from '../src/model';
 import { History } from '../src/history';
@@ -395,5 +397,21 @@ describe('pictures and files', () => {
     // Turning the lines into a list leaves the picture alone.
     t = setBlockType(state(doc, { anchor: { block: above, offset: 0 }, focus: { block: below, offset: 5 } }), 'bullet');
     expect(run(doc, t).blocks.map((b) => b.type)).toEqual(['bullet', 'image', 'bullet']);
+  });
+});
+
+describe('fold-away sections', () => {
+  it('fold a heading’s section up to the next heading of its level, and Enter opens it again', () => {
+    const doc: Doc = { blocks: [makeBlock('heading2', 'Plans'), makeBlock('paragraph', 'one'), makeBlock('heading3', 'Sub'), makeBlock('paragraph', 'two'), makeBlock('heading2', 'Next'), makeBlock('paragraph', 'three')] };
+    expect(foldedUnder(doc, 0).map((b) => runsText(b.runs))).toEqual(['one', 'Sub', 'two']);
+    const [h] = doc.blocks;
+    // The caret was inside the section: it moves up to the heading.
+    const t = toggleFold(state(doc, caret({ block: doc.blocks[3].id, offset: 1 })), h.id);
+    const folded = applyOps(doc, t.ops);
+    expect(folded.blocks[0].folded).toBe(true);
+    expect(t.selectionAfter.focus).toEqual({ block: h.id, offset: 5 });
+    const opened = applyOps(folded, splitBlock(state(folded, caret({ block: h.id, offset: 5 }))).ops);
+    expect(opened.blocks[0].folded).toBeUndefined();
+    expect(texts(opened)).toEqual(['Plans', '', 'one', 'Sub', 'two', 'Next', 'three']);
   });
 });

@@ -3,7 +3,7 @@
 // changed are rebuilt; the rest of the DOM is left alone.
 
 import type { Block, Doc, Mark, Pos, Selection } from './model';
-import { isList, runsLength } from './model';
+import { isHeading, isList, runsLength } from './model';
 
 const TAGS: Record<Block['type'], string> = {
   paragraph: 'p',
@@ -17,6 +17,7 @@ const TAGS: Record<Block['type'], string> = {
   quote: 'blockquote',
   image: 'figure',
   file: 'div',
+  table: 'div',
 };
 
 /**
@@ -68,6 +69,11 @@ export class View {
       live.add(block.id);
       const old = this.rendered.get(block.id);
       if (old && old.block === block && !force.has(block.id)) continue;
+      // A table being edited keeps its element: only cells that changed are updated, so the caret stays put.
+      if (old && old.block.type === 'table' && block.type === 'table' && patchTable(old.el, block)) {
+        this.rendered.set(block.id, { block, el: old.el });
+        continue;
+      }
       const el = buildBlock(block);
       if (old) old.el.replaceWith(el);
       this.rendered.set(block.id, { block, el });
@@ -93,6 +99,15 @@ export class View {
       const next: ChildNode | null = cursor.nextSibling;
       cursor.remove();
       cursor = next;
+    }
+    // Sections under folded headings are hidden (kept in the text, just not shown).
+    let hideBelow = 0;
+    for (const block of doc.blocks) {
+      const el = this.rendered.get(block.id)!.el;
+      const level = isHeading(block.type) ? Number(block.type.slice(-1)) : 99;
+      if (hideBelow && level <= hideBelow) hideBelow = 0;
+      el.toggleAttribute('data-folded-away', !!hideBelow);
+      if (!hideBelow && block.folded) hideBelow = level;
     }
     const empty = doc.blocks.length === 1 && runsLength(doc.blocks[0].runs) === 0 && doc.blocks[0].type === 'paragraph';
     this.root.toggleAttribute('data-empty', empty);
@@ -204,6 +219,18 @@ function buildBlock(block: Block): HTMLElement {
     el.appendChild(box);
   }
   if (block.type === 'image' || block.type === 'file') el.appendChild(buildMedia(block));
+  if (block.type === 'table') el.appendChild(buildTable(block));
+  if (isHeading(block.type)) {
+    // The arrow that folds the section away (shown on hover, and always when folded).
+    el.toggleAttribute('data-folded', !!block.folded);
+    const fold = document.createElement('span');
+    fold.className = 'fold';
+    fold.contentEditable = 'false';
+    fold.setAttribute('role', 'button');
+    fold.setAttribute('aria-label', block.folded ? 'Show this section' : 'Fold this section away');
+    fold.setAttribute('aria-expanded', String(!block.folded));
+    el.appendChild(fold);
+  }
   const text = document.createElement('span');
   text.className = 'text';
   if (!block.runs.length) {
@@ -261,4 +288,83 @@ function buildMedia(block: Block): HTMLElement {
     box.appendChild(a);
   }
   return box;
+}
+
+// ---------------------------------------------------------------- tables
+
+/** A table you type in directly: each cell is its own little editable box. */
+function buildTable(block: Block): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'table-wrap';
+  wrap.contentEditable = 'false';
+  wrap.dataset.widget = 'table';
+  const tools = document.createElement('div');
+  tools.className = 'table-tools';
+  for (const [action, label] of [
+    ['row', '+ Row'],
+    ['col', '+ Column'],
+    ['del-row', '− Row'],
+    ['del-col', '− Column'],
+    ['delete', 'Delete table'],
+  ]) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.tableAction = action;
+    b.textContent = label;
+    b.tabIndex = -1;
+    tools.appendChild(b);
+  }
+  wrap.appendChild(tools);
+  const table = document.createElement('table');
+  wrap.appendChild(table);
+  fillTable(table, block.rows ?? [['']]);
+  return wrap;
+}
+
+function fillTable(table: HTMLTableElement, rows: string[][]): void {
+  table.textContent = '';
+  rows.forEach((row, r) => {
+    const tr = table.insertRow();
+    row.forEach((text, c) => {
+      const cell = document.createElement(r === 0 ? 'th' : 'td');
+      const box = document.createElement('div');
+      box.className = 'cell';
+      box.contentEditable = 'true';
+      box.dataset.r = String(r);
+      box.dataset.c = String(c);
+      box.setAttribute('role', 'textbox');
+      box.setAttribute('aria-label', r === 0 ? `Heading ${c + 1}` : `Row ${r}, column ${c + 1}`);
+      box.textContent = text;
+      cell.appendChild(box);
+      tr.appendChild(cell);
+    });
+  });
+}
+
+/** Updates a table's cells in place. False when its shape changed (it's rebuilt instead). */
+function patchTable(el: HTMLElement, block: Block): boolean {
+  const table = el.querySelector('table');
+  const rows = block.rows ?? [['']];
+  if (!table) return false;
+  const same = table.rows.length === rows.length && rows.every((r, i) => table.rows[i].cells.length === r.length);
+  if (!same) {
+    // Keep the caret's cell, if there still is one.
+    const active = el.ownerDocument.activeElement as HTMLElement | null;
+    const at = active?.classList.contains('cell') && el.contains(active) ? { r: Number(active.dataset.r), c: Number(active.dataset.c) } : null;
+    fillTable(table, rows);
+    if (at) table.querySelector<HTMLElement>(`.cell[data-r="${Math.min(at.r, rows.length - 1)}"][data-c="${Math.min(at.c, rows[0].length - 1)}"]`)?.focus();
+    return true;
+  }
+  for (const box of table.querySelectorAll<HTMLElement>('.cell')) {
+    const text = rows[Number(box.dataset.r)][Number(box.dataset.c)];
+    if (box.textContent !== text && box !== el.ownerDocument.activeElement) box.textContent = text;
+  }
+  return true;
+}
+
+/** The cells' text as the table shows it now. */
+export function readTable(el: HTMLElement): string[][] {
+  const table = el.querySelector('table');
+  if (!table) return [['']];
+  return Array.from(table.rows, (tr) => Array.from(tr.cells, (td) => (td.textContent ?? '').replace(/[\r\n]+/g, ' ')));
 }

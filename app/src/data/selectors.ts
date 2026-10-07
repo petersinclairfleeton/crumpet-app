@@ -7,14 +7,19 @@ import { type AppState, visibleIn } from './store';
 import type { Doc } from '@crumpet/editor/model';
 import type { Chapter, Note, Notebook, OutlineItem, Project, Stack, View } from './types';
 
+/** A block's plain text; a table's cells are its text. */
+export function blockText(b: Doc['blocks'][number]): string {
+  return b.type === 'table' ? (b.rows ?? []).map((r) => r.join(' ')).join('\n') : runsText(b.runs);
+}
+
 /** Plain text of a note's body, one line per block. */
 export function noteText(note: Note): string {
-  return note.doc.blocks.map((b) => runsText(b.runs)).join('\n');
+  return note.doc.blocks.map(blockText).join('\n');
 }
 
 export function preview(note: Note, max = 160): string {
   // Join blocks into one line; list items and other lines without their own punctuation get a separator.
-  const parts = note.doc.blocks.map((b) => runsText(b.runs).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const parts = note.doc.blocks.map((b) => blockText(b).replace(/\s+/g, ' ').trim()).filter(Boolean);
   const text = parts.reduce((acc, p) => (!acc ? p : /[.!?:;…,]$/.test(acc) ? `${acc} ${p}` : `${acc} · ${p}`), '');
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
@@ -169,7 +174,7 @@ export function sameView(a: View, b: View): boolean {
 const WORD = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
 
 export function docWords(doc: Doc): number {
-  return doc.blocks.reduce((n, b) => n + (runsText(b.runs).match(WORD) ?? []).length, 0);
+  return doc.blocks.reduce((n, b) => n + (blockText(b).match(WORD) ?? []).length, 0);
 }
 
 export function chapterWords(c: Chapter): number {
