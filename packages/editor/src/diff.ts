@@ -3,7 +3,7 @@
 // difference as ops, instead of replacing the document, keeps the caret next
 // to the same text and keeps undo working.
 
-import { type Block, type Doc, MARK_ORDER, type Run, blockIndex, getBlock, newId, runsLength, runsText, setMarkOnRuns, sliceRuns } from './model';
+import { type Block, type Doc, MARK_ORDER, type Run, blockIndex, getBlock, newId, runsLength, runsText, setMarkOnRuns, sliceRuns, withLink } from './model';
 import { type Op, applyOp, attrsOf, sameAttrs } from './ops';
 
 /**
@@ -130,9 +130,18 @@ function editBlock(doc: () => Doc, id: string, target: Block, apply: (op: Op) =>
     if (a.length - s > p) apply({ type: 'remove', block: id, offset: p, runs: sliceRuns(cur.runs, p, a.length - s) });
     if (b.length - s > p) apply({ type: 'insert', block: id, offset: p, runs: sliceRuns(target.runs, p, b.length - s) });
   }
-  // Formatting, one mark at a time, then links.
   const len = b.length;
   const at = (runs: Run[], i: number) => sliceRuns(runs, i, i + 1)[0];
+  // Footnotes whose text changed are replaced.
+  for (let i = 0; i < len; i++) {
+    cur = getBlock(doc(), id);
+    const want = at(target.runs, i);
+    const have = at(cur.runs, i);
+    if (want.footnote === have.footnote) continue;
+    apply({ type: 'remove', block: id, offset: i, runs: [have] });
+    apply({ type: 'insert', block: id, offset: i, runs: [withLink({ text: want.text, marks: have.marks, footnote: want.footnote }, have.link ?? null)] });
+  }
+  // Formatting, one mark at a time, then links.
   for (const mark of MARK_ORDER) {
     for (let i = 0; i < len; ) {
       cur = getBlock(doc(), id);
@@ -158,7 +167,7 @@ function editBlock(doc: () => Doc, id: string, target: Block, apply: (op: Op) =>
     let j = i + 1;
     while (j < len && (at(target.runs, j).link ?? null) === want && (at(cur.runs, j).link ?? null) !== want) j++;
     const before = sliceRuns(cur.runs, i, j);
-    apply({ type: 'format', block: id, offset: i, before, after: before.map((r) => (want ? { ...r, link: want } : { text: r.text, marks: r.marks })), link: want });
+    apply({ type: 'format', block: id, offset: i, before, after: before.map((r) => withLink(r, want)), link: want });
     i = j;
   }
 }

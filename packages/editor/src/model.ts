@@ -10,7 +10,15 @@ export interface Run {
   marks: Mark[]; // always sorted by MARK_ORDER, no duplicates
   /** Link target, if this text is a link. */
   link?: string;
+  /**
+   * A footnote's text. A footnote is a run of its own holding one FOOTNOTE
+   * character, shown as its number; it never merges with its neighbours.
+   */
+  footnote?: string;
 }
+
+/** The character a footnote's marker stands on in the text (invisible; the number is drawn instead). */
+export const FOOTNOTE = '\u2063';
 
 export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote' | 'image' | 'file' | 'table';
 
@@ -119,12 +127,15 @@ export function runsText(runs: Run[]): string {
 }
 
 /** A copy of `r` with different text, keeping its formatting and link. */
-function withText(r: Run, text: string): Run {
-  return r.link ? { text, marks: r.marks, link: r.link } : { text, marks: r.marks };
+export function withText(r: Run, text: string): Run {
+  const out: Run = { text, marks: r.marks };
+  if (r.link) out.link = r.link;
+  if (r.footnote !== undefined) out.footnote = r.footnote;
+  return out;
 }
 
 export function sameFormat(a: Run, b: Run): boolean {
-  return sameMarks(a.marks, b.marks) && a.link === b.link;
+  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote;
 }
 
 /** Drops empty runs and merges neighbours with identical formatting. */
@@ -133,7 +144,7 @@ export function normalizeRuns(runs: Run[]): Run[] {
   for (const r of runs) {
     if (!r.text) continue;
     const last = out[out.length - 1];
-    if (last && sameFormat(last, r)) {
+    if (last && sameFormat(last, r) && last.footnote === undefined) {
       out[out.length - 1] = withText(last, last.text + r.text);
     } else {
       out.push(withText({ ...r, marks: sortMarks(r.marks) }, r.text));
@@ -194,7 +205,14 @@ export function setMarkOnRuns(runs: Run[], mark: Mark, on: boolean): Run[] {
 
 /** Sets (or, with null, removes) the link on every run, keeping the text and formatting. */
 export function setLinkOnRuns(runs: Run[], link: string | null): Run[] {
-  return normalizeRuns(runs.map((r) => (link ? { text: r.text, marks: r.marks, link } : { text: r.text, marks: r.marks })));
+  return normalizeRuns(runs.map((r) => withLink(r, link)));
+}
+
+/** A copy of `r` with a different link (or none). */
+export function withLink(r: Run, link: string | null): Run {
+  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote }, r.text);
+  if (link) out.link = link;
+  return out;
 }
 
 /** The link shared by every run, or null if they differ or have none. */
@@ -293,4 +311,17 @@ export function tidyRows(rows: string[][] | undefined): string[][] {
   const list = rows?.length ? rows : [['']];
   const width = Math.max(1, ...list.map((r) => r.length));
   return list.map((r) => Array.from({ length: width }, (_, i) => (r[i] ?? '').replace(/[\r\n]+/g, ' ')));
+}
+
+/** Every footnote in the document, in order: where it is and what it says. */
+export function footnotes(doc: Doc): { block: string; offset: number; text: string }[] {
+  const out: { block: string; offset: number; text: string }[] = [];
+  for (const b of doc.blocks) {
+    let pos = 0;
+    for (const r of b.runs) {
+      if (r.footnote !== undefined) out.push({ block: b.id, offset: pos, text: r.footnote });
+      pos += r.text.length;
+    }
+  }
+  return out;
 }

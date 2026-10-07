@@ -106,3 +106,7 @@
 .table-tools button:hover { color: var(--text, #222); background: var(--field, #f4f4f4); }
 .table-tools button[data-table-action='delete']:hover { color: #b33; }
 @media (hover: none) { .table-tools { opacity: 1; pointer-events: auto; } }
+/* Footnotes: a small number in the text; the marker character itself is invisible. */
+sup.fn { font-size: 0.7em; line-height: 0; vertical-align: super; color: var(--accent, #2a6); cursor: pointer; font-variant-numeric: lining-nums; }
+sup.fn::after { content: attr(data-n); padding: 0 1px; }
+sup.fn:hover { text-decoration: underline; }

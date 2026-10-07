@@ -10,6 +10,7 @@ import {
   type BlockType,
   type Doc,
   type Mark,
+  type Pos,
   type Selection,
   caret,
   getBlock,
@@ -19,6 +20,8 @@ import {
   runsLength,
   runsText,
   sliceRuns,
+  footnotes,
+  FOOTNOTE,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import {
@@ -48,6 +51,8 @@ import {
   toggleTodo,
   toggleFold,
   insertTable,
+  insertFootnote,
+  setFootnote,
   setTableRows,
 } from './commands';
 import { History } from './history';
@@ -376,6 +381,13 @@ export class Editor {
     return getBlock(this.state.doc, this.state.selection.focus.block);
   }
 
+  /** Puts the caret at `pos` and the focus in the text. */
+  focusPos(pos: Pos): void {
+    this.state = { ...this.state, selection: caret(pos) };
+    this.focus();
+    this.emit(null);
+  }
+
   focus(): void {
     this.view.root.focus();
     this.view.writeSelection(this.state.selection);
@@ -582,6 +594,41 @@ export class Editor {
     this.dispatch(insertLinkedText(this.state, label, noteLink(title)), 'command');
   }
 
+  /** Adds a footnote after the selection and returns where it is. */
+  insertFootnote(text = ''): Pos {
+    this.syncSelectionFromDom();
+    this.dispatch(insertFootnote(this.state, text), 'command');
+    const f = this.state.selection.focus;
+    return { block: f.block, offset: f.offset - 1 };
+  }
+
+  /** Adds an empty footnote after the selection and opens it for writing (see onFootnoteClick). */
+  addFootnote(): void {
+    if (this.isReadOnly) return;
+    const at = this.insertFootnote('');
+    const el = this.footnoteElement(at);
+    if (el) this.onFootnoteClick?.(at, '', el);
+  }
+
+  /** Changes what the footnote at `at` says; null takes it out. */
+  setFootnote(at: Pos, text: string | null): void {
+    this.dispatch(setFootnote(this.state, at, text), 'command');
+  }
+
+  /** The footnote's number in the text, to show its editor beside it. */
+  footnoteElement(at: Pos): HTMLElement | null {
+    const dom = this.view.posToDom({ block: at.block, offset: at.offset + 1 });
+    const el = dom?.node.nodeType === 1 ? (dom.node as Element) : dom?.node.parentElement;
+    const sup = el?.closest?.<HTMLElement>('sup.fn');
+    if (sup) return sup;
+    // posToDom can land just past the marker; look for it by order instead.
+    const i = footnotes(this.state.doc).findIndex((f) => f.block === at.block && f.offset === at.offset);
+    return i < 0 ? null : (this.view.root.querySelectorAll<HTMLElement>('sup.fn')[i] ?? null);
+  }
+
+  /** Clicks on a footnote's number. */
+  onFootnoteClick: ((at: Pos, text: string, el: HTMLElement) => void) | null = null;
+
   /** Types `text` at the caret, as if typed. */
   typeText(text: string): void {
     this.syncSelectionFromDom();
@@ -625,6 +672,7 @@ export class Editor {
     else if (e.altKey && e.code === 'KeyL') this.setBlockType('bullet');
     else if (e.altKey && e.code === 'KeyN') this.setBlockType('numbered');
     else if (e.altKey && e.code === 'KeyQ') this.setBlockType('quote');
+    else if (e.altKey && e.code === 'KeyF') this.addFootnote();
     else handled = false;
     if (handled) e.preventDefault();
   }
@@ -633,6 +681,16 @@ export class Editor {
   onLinkClick: ((href: string, e: MouseEvent) => boolean) | null = null;
 
   private onMouseDown(e: MouseEvent): void {
+    const fn = (e.target as Element).closest?.<HTMLElement>('sup.fn');
+    if (fn && this.onFootnoteClick) {
+      const i = [...this.view.root.querySelectorAll('sup.fn')].indexOf(fn);
+      const at = footnotes(this.state.doc)[i];
+      if (at) {
+        e.preventDefault();
+        this.onFootnoteClick({ block: at.block, offset: at.offset }, at.text, fn);
+        return;
+      }
+    }
     const link = (e.target as Element).closest?.('a[href]') as HTMLAnchorElement | null;
     if (link && this.onLinkClick?.(link.getAttribute('href') ?? '', e)) {
       e.preventDefault();
@@ -704,7 +762,7 @@ export class Editor {
       this.onFiles(files);
       return;
     }
-    const text = e.clipboardData?.getData('text/plain');
+    const text = e.clipboardData?.getData('text/plain')?.replaceAll(FOOTNOTE, '');
     if (!text) return;
     this.dispatch(pasteLink(this.state, text) ?? insertText(this.state, text));
   }
@@ -733,7 +791,7 @@ export class Editor {
     const text = this.selectedText();
     if (text == null) return;
     e.preventDefault();
-    e.clipboardData?.setData('text/plain', text);
+    e.clipboardData?.setData('text/plain', text.replaceAll(FOOTNOTE, ''));
   }
 
   private onCut(e: ClipboardEvent): void {

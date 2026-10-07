@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLOCK_STYLES, type Block, type BlockType, type Doc, type Mark, type Run, MARK_ORDER, makeBlock, normalizeRuns } from '../src/model';
+import { BLOCK_STYLES, FOOTNOTE, type Block, type BlockType, type Doc, type Mark, type Run, MARK_ORDER, makeBlock, normalizeRuns } from '../src/model';
 import { fromMarkdown, noteLink, noteLinkTitle, parseInline, toMarkdown } from '../src/markdown';
 
 function doc(...blocks: Block[]): Doc {
@@ -384,5 +384,33 @@ describe('tables', () => {
 
   it('leave a line starting with a pipe alone without the dashes', () => {
     expect(fromMarkdown('| not a table\n').blocks[0].type).toBe('paragraph');
+  });
+});
+
+describe('footnotes', () => {
+  const fn = (text: string): Run => ({ text: FOOTNOTE, marks: [], footnote: text });
+  it('are written in place as ^[…] and read back', () => {
+    const doc: Doc = { blocks: [{ ...makeBlock('paragraph'), runs: [{ text: 'It rained', marks: [] }, fn('All week [really].'), { text: ' and ', marks: [] }, fn('Twice'), { text: '.', marks: [] }] }] };
+    const md = toMarkdown(doc);
+    expect(md).toBe('It rained^[All week \\[really\\].] and ^[Twice].\n');
+    const back = fromMarkdown(md);
+    expect(back.blocks[0].runs).toEqual(doc.blocks[0].runs);
+  });
+
+  it('two footnotes side by side stay apart', () => {
+    const doc: Doc = { blocks: [{ ...makeBlock('paragraph'), runs: [{ text: 'A', marks: ['bold'] }, { ...fn('one'), marks: ['bold'] }, { ...fn('two'), marks: ['bold'] }] }] };
+    expect(normalizeRuns(doc.blocks[0].runs)).toHaveLength(3);
+    expect(fromMarkdown(toMarkdown(doc)).blocks[0].runs).toEqual(doc.blocks[0].runs);
+  });
+
+  it('read [^1] references with their definitions', () => {
+    const doc = fromMarkdown('Hello[^1] there[^n].\n\n[^1]: First note.\n[^n]: Second\n    and more.\n');
+    expect(doc.blocks).toHaveLength(1);
+    expect(doc.blocks[0].runs).toEqual([{ text: 'Hello', marks: [] }, fn('First note.'), { text: ' there', marks: [] }, fn('Second and more.'), { text: '.', marks: [] }]);
+  });
+
+  it('a plain ^ before a bracket is just text', () => {
+    expect(toMarkdown(fromMarkdown('x^\\[y\\]\n'))).toBe('x^\\[y\\]\n');
+    expect(fromMarkdown('x^\\[y\\]\n').blocks[0].runs).toEqual([{ text: 'x^[y]', marks: [] }]);
   });
 });

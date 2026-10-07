@@ -9,6 +9,7 @@ import { type PageSetup, type StyleSheet, defaultPage } from '../data/styles';
 import { type PageFields, type PagePlacement, PageView } from './pages';
 import { useSheetClass } from './styles-ui';
 import { SlashMenu } from './slash';
+import { FootnoteCard, FootnoteList } from './footnotes';
 
 interface Props {
   /** The document shown (a note or a chapter) and where its edits go. */
@@ -109,6 +110,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           <FormatTools compact attach={false} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
         </SelectionBar>
       )}
+      {!readOnly && !reading && <FootnoteCard editor={ed} />}
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
       <div className="note-scroll">
         <article className={`note-body${paged ? ' paged' : ''}`}>
@@ -116,6 +118,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           <PageView enabled={paged} editor={ed} page={page ?? defaultPage()} sheetClass={styles} onPage={onPage} fields={pageFields} place={pagePlace} chapters={chapters} onPages={onPages}>
             <div ref={host} className="note-editor" aria-label={label} />
           </PageView>
+          <FootnoteList doc={doc} editor={readOnly || reading ? null : ed} />
           {footer}
         </article>
       </div>

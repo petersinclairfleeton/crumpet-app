@@ -827,3 +827,15 @@ input, select { font: inherit; color: inherit; }
 .picked-bar .icon-btn { color: var(--page); }
 .picked-menu { position: relative; }
 .picked-menu .popover { top: 32px; left: 0; right: auto; width: 220px; color: var(--text); }
+
+/* Footnotes: the card for writing one, and the list under the note. */
+.footnote-card { position: fixed; z-index: 46; width: min(340px, calc(100vw - 16px)); padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--page); color: var(--text); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px; }
+.footnote-head { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.footnote-head textarea { font: inherit; font-size: 14px; font-weight: 400; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; resize: vertical; min-height: 64px; }
+.footnote-head textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.footnote-actions { display: flex; gap: 8px; align-items: center; }
+.footnote-list { margin: 28px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 0.85em; color: var(--muted); }
+.footnote-list ol { margin: 0; padding-left: 1.6em; display: flex; flex-direction: column; gap: 4px; }
+.footnote-list button { all: unset; cursor: pointer; color: var(--text); line-height: 1.5; }
+.footnote-list button:hover { text-decoration: underline; }
+.footnote-list button:focus-visible { outline: 2px solid var(--accent); border-radius: 3px; }
