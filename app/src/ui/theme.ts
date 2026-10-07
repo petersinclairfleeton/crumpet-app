@@ -1,4 +1,4 @@
-import { ACCENTS, type Settings } from '../data/types';
+import { ACCENTS, DEFAULT_NOTE_SIZE, type Settings } from '../data/types';
 import { fontStack, loadGoogleFont } from './fonts';
 import { themeInfo } from './themes';
 
@@ -24,6 +24,9 @@ export function applyTheme(settings: Settings): void {
   const root = document.documentElement;
   if (settings.theme === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', settings.theme);
+  // Crumpet's own themes have their own frame: paper around a floating sheet.
+  if (['system', 'light', 'dark'].includes(settings.theme)) root.setAttribute('data-look', 'paper');
+  else root.removeAttribute('data-look');
   // Some themes come with their own accent; the rest use the one chosen in Settings.
   const own = themeInfo(settings.theme).accent;
   const chosen = /^#[0-9a-f]{6}$/i.test(settings.accent) ? settings.accent : ACCENTS[0].hex;
@@ -35,9 +38,10 @@ export function applyTheme(settings: Settings): void {
   root.style.setProperty('--accent-ink-dark', mix(accent, '#FFFFFF', light ? 0.2 : 0.45));
   root.style.setProperty('--accent-soft-light', mix(accent, '#FFFFFF', 0.85));
   root.style.setProperty('--accent-soft-dark', mix(accent, '#1E1F21', 0.78));
+  root.style.setProperty('--accent-sheet-dark', mix(accent, '#24211E', 0.8));
   // The font notes are written in.
   const font = settings.noteFont;
   if (font?.source === 'google') loadGoogleFont(font.family, font.styles);
   root.style.setProperty('--note-font', fontStack(font));
-  root.style.setProperty('--note-size', `${settings.noteSize ?? 16}px`);
+  root.style.setProperty('--note-size', `${settings.noteSize ?? DEFAULT_NOTE_SIZE}px`);
 }

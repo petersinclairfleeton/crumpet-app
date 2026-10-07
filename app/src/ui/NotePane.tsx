@@ -4,12 +4,12 @@ import { PageToggle } from './pages';
 import { StylesDialog } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
-import { allTags, longTime, notebookTree, wordCount } from '../data/selectors';
+import { allTags, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
 import { EditorHost } from './EditorHost';
 import { IconBack, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
-export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }) {
+export function NotePane({ onBack, narrow, onNewNote, onNewProject }: { onBack(): void; narrow: boolean; onNewNote(): void; onNewProject(): void }) {
   const state = useAppState();
   const store = useAppStore();
   const note = store.note(state.selectedId);
@@ -45,6 +45,14 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
     setMenu(false);
     setAddingTag(false);
   }, [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!note && !state.notes.length && !state.projects.length) {
+    return (
+      <section className="pane-empty" aria-label="Welcome">
+        <Welcome onNewNote={onNewNote} onNewProject={onNewProject} />
+      </section>
+    );
+  }
 
   if (!note) {
     return (
@@ -179,7 +187,7 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
     </>
   );
 
-  const words = wordCount(note);
+  const words = docWords(note.doc);
   const footer = (
     <p className="note-foot">
       {words} word{words === 1 ? '' : 's'} · Edited {longTime(note.updatedAt)} · Created {longTime(note.createdAt)}
@@ -218,5 +226,41 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
         }}
       />
     </section>
+  );
+}
+
+/** The first visit: three ways to start. */
+function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(): void }) {
+  return (
+    <div className="welcome">
+      <h2>Welcome to Crumpet</h2>
+      <p className="lede">A quiet place for notes and long writing. Your words stay in files you own.</p>
+      <ol>
+        <li>
+          <button type="button" onClick={onNewNote}>
+            <span>
+              <b>Write your first note</b>
+              <small>Just start typing. You can file it later.</small>
+            </span>
+          </button>
+        </li>
+        <li>
+          <button type="button" onClick={onNewProject}>
+            <span>
+              <b>Start a book or long piece</b>
+              <small>Chapters you can reorder, in manuscript format.</small>
+            </span>
+          </button>
+        </li>
+        <li>
+          <a href="#connect">
+            <span>
+              <b>Keep your notes in Google Drive</b>
+              <small>Sign in once and your notes follow you to every device.</small>
+            </span>
+          </a>
+        </li>
+      </ol>
+    </div>
   );
 }

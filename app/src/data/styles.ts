@@ -240,7 +240,7 @@ export function sheetCss(sheet: StyleSheet, scope: string, stack: (f: NoteFont) 
     const d = sheet.styles[key];
     const decl = [
       `font-family: ${d.font ? stack(d.font) : 'var(--note-font, inherit)'}`,
-      `font-size: ${d.size ? `${d.size}pt` : 'var(--note-size, 16px)'}`,
+      `font-size: ${d.size ? `${d.size}pt` : 'var(--note-size, 18px)'}`,
       `font-weight: ${d.bold ? 700 : 400}`,
       `font-style: ${d.italic ? 'italic' : 'normal'}`,
       `text-transform: ${d.caps ? 'uppercase' : 'none'}`,

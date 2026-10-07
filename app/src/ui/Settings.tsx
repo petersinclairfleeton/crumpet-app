@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ACCENTS, type NoteFont } from '../data/types';
+import { ACCENTS, DEFAULT_NOTE_SIZE, type NoteFont } from '../data/types';
 import { DEFAULT_FONT, type FontChoice, canListAllSystemFonts, fontStack, googleFonts, loadGoogleFont, systemFonts } from './fonts';
 import { useAppState, useAppStore } from './hooks';
 import { IconClose } from './icons';
@@ -74,8 +74,8 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
           <FontPicker value={s.noteFont ?? DEFAULT_FONT} onChange={(f) => store.updateSettings({ noteFont: f })} />
 
           <label className="field">
-            <span>Text size · {s.noteSize ?? 16}px</span>
-            <input className="range" type="range" min={13} max={24} step={1} value={s.noteSize ?? 16} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
+            <span>Text size · {s.noteSize ?? DEFAULT_NOTE_SIZE}px</span>
+            <input className="range" type="range" min={13} max={24} step={1} value={s.noteSize ?? DEFAULT_NOTE_SIZE} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
           </label>
 
           <SyncSettings />
@@ -124,7 +124,7 @@ export function FontPicker({ value, onChange, label = 'Writing font' }: { value:
     if (tab === 'google') for (const f of shown) loadGoogleFont(f.family, f.styles, f.family);
   }, [shown, tab]);
 
-  const name = value.source === 'default' ? 'Figtree (Crumpet’s own)' : value.family;
+  const name = value.source === 'default' ? `${DEFAULT_FONT.family} (Crumpet’s own)` : value.family;
 
   return (
     <div className="field font-field" role="group" aria-label={label}>
@@ -160,7 +160,7 @@ export function FontPicker({ value, onChange, label = 'Writing font' }: { value:
             {list === null && <p className="sync-hint">Loading fonts…</p>}
             {value.source !== 'default' && !query && (
               <button type="button" role="option" aria-selected={false} className="font-option" onClick={() => onChange(DEFAULT_FONT)}>
-                <span style={{ fontFamily: fontStack(DEFAULT_FONT) }}>Figtree</span>
+                <span style={{ fontFamily: fontStack(DEFAULT_FONT) }}>{DEFAULT_FONT.family}</span>
                 <small>Crumpet’s own</small>
               </button>
             )}
