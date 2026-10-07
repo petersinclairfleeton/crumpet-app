@@ -518,3 +518,13 @@ export function insertMedia(state: EditorState, type: 'image' | 'file', src: str
   b.step({ type: 'split', block: id, offset: runsLength(getBlock(b.doc, id).runs), newBlock: para, newAttrs: blockAttrs('paragraph') });
   return tx(state, b, caret({ block: para, offset: 0 }));
 }
+
+/** Inserts `text` linked to `href` at the caret (replacing any selection), then a space after it unlinked. */
+export function insertLinkedText(state: EditorState, text: string, href: string): Transaction {
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const at = deleteRange(b, from, to);
+  b.step({ type: 'insert', block: at.block, offset: at.offset, runs: [{ text, marks: [], link: href }] });
+  const after = { block: at.block, offset: at.offset + text.length };
+  return tx(state, b, caret(after), { storedMarks: [] });
+}

@@ -12,7 +12,7 @@ import type { Chapter, ChapterStatus, Project } from '../data/types';
 import type { PageSetup } from '../data/styles';
 import { EditorHost } from './EditorHost';
 import { FormatTools, LinkBar, useDocEditor } from './editing';
-import { useAppState, useAppStore } from './hooks';
+import { useAppState, useAppStore, useNav } from './hooks';
 import { IconBack, IconFocus, IconMore, IconPlus } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
@@ -607,6 +607,7 @@ interface ManuscriptChapterProps {
 function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLinkKey, onPage, fields, offset, total, onPages }: ManuscriptChapterProps) {
   const store = useAppStore();
   const reportPages = useCallback((n: number) => onPages(chapter.id, n), [onPages, chapter.id]);
+  const nav = useNav();
   const { host, editor } = useDocEditor({
     docId: chapter.id,
     doc: chapter.doc,
@@ -614,10 +615,11 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
     onDoc: (doc) => store.setChapterDoc(chapter.id, doc),
     onActive,
     onLinkKey,
+    onNoteLink: (title) => nav.openTitle(title),
   });
   return (
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
-      <SlashMenu editor={editor} host={host} />
+      <SlashMenu editor={editor} host={host} notes={store.getState().notes} />
       <p className="chapter-kicker">Chapter {number}</p>
       <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
       <PageView

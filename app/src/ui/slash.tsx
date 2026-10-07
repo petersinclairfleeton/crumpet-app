@@ -8,6 +8,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { runsText } from '@crumpet/editor/model';
 import { chooseFiles } from './editing';
 import { longDate } from '../data/templates';
+import type { Note } from '../data/types';
 
 export interface SlashItem {
   id: string;
@@ -47,31 +48,50 @@ export function matchSlash(query: string, items: SlashItem[] = SLASH_ITEMS): Sla
 
 interface Open {
   block: string;
-  /** Where the / is. */
+  /** Where the / (or [[) is. */
   start: number;
   query: string;
+  /** "/" for the menu, "[[" for linking to a note. */
+  kind: '/' | '[[';
 }
 
-/** Finds a "/" just typed at the caret: at the start of a line or after a space. */
+/** Finds a "/" just typed at the caret (at the start of a line or after a space), or "[[" for a link. */
 function trigger(ed: Editor): Open | null {
   const sel = ed.state.selection;
   if (sel.anchor.block !== sel.focus.block || sel.anchor.offset !== sel.focus.offset) return null;
   const block = ed.state.doc.blocks.find((b) => b.id === sel.focus.block);
   if (!block || block.type === 'image' || block.type === 'file') return null;
   const before = runsText(block.runs).slice(0, sel.focus.offset);
+  const link = /\[\[([^\]\[\n|]{0,60})$/.exec(before);
+  if (link) return { block: block.id, start: sel.focus.offset - link[1].length - 2, query: link[1], kind: '[[' };
   const m = /(?:^|\s)\/([^\s/]{0,24})$/.exec(before);
   if (!m) return null;
-  return { block: block.id, start: sel.focus.offset - m[1].length - 1, query: m[1] };
+  return { block: block.id, start: sel.focus.offset - m[1].length - 1, query: m[1], kind: '/' };
 }
 
-export function SlashMenu({ editor, host, items = SLASH_ITEMS }: { editor: Editor | null; host: RefObject<HTMLElement>; items?: SlashItem[] }) {
+/** Notes to link to, for what's typed after [[ (and making a new one). */
+export function linkItems(query: string, notes: Note[]): SlashItem[] {
+  const q = query.trim().toLowerCase();
+  const live = notes.filter((n) => n.trashedAt === null && n.title.trim());
+  const starts = live.filter((n) => n.title.toLowerCase().startsWith(q));
+  const inside = live.filter((n) => !starts.includes(n) && n.title.toLowerCase().includes(q));
+  const found = [...starts.sort((a, b) => b.updatedAt - a.updatedAt), ...inside.sort((a, b) => b.updatedAt - a.updatedAt)].slice(0, 8);
+  const items: SlashItem[] = found.map((n) => ({ id: n.id, label: n.title, hint: 'Link to this note', words: '', glyph: '↗', run: (ed) => ed.insertNoteLink(n.title) }));
+  if (q && !live.some((n) => n.title.trim().toLowerCase() === q)) {
+    const title = query.trim();
+    items.push({ id: 'new', label: `New note “${title}”`, hint: 'Link now; it’s made when you open it', words: '', glyph: '+', run: (ed) => ed.insertNoteLink(title) });
+  }
+  return items;
+}
+
+export function SlashMenu({ editor, host, items = SLASH_ITEMS, notes = [] }: { editor: Editor | null; host: RefObject<HTMLElement>; items?: SlashItem[]; notes?: Note[] }) {
   const [open, setOpen] = useState<Open | null>(null);
   const [active, setActive] = useState(0);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const menu = useRef<HTMLDivElement>(null);
   /** A / dismissed with Esc stays plain text. */
   const dismissed = useRef<string | null>(null);
-  const shown = open ? matchSlash(open.query, items) : [];
+  const shown = !open ? [] : open.kind === '[[' ? linkItems(open.query, notes) : matchSlash(open.query, items);
   const latest = useRef({ open, shown, active });
   latest.current = { open, shown, active };
 
@@ -84,7 +104,7 @@ export function SlashMenu({ editor, host, items = SLASH_ITEMS }: { editor: Edito
       if (!o) dismissed.current = null;
       setOpen((prev) => {
         if (!o) return null;
-        if (!prev || prev.block !== o.block || prev.start !== o.start || prev.query !== o.query) setActive(0);
+        if (!prev || prev.block !== o.block || prev.start !== o.start || prev.query !== o.query || prev.kind !== o.kind) setActive(0);
         return o;
       });
     };
@@ -99,7 +119,7 @@ export function SlashMenu({ editor, host, items = SLASH_ITEMS }: { editor: Edito
     const o = latest.current.open;
     if (!editor || !o || !item) return;
     setOpen(null);
-    editor.deleteBefore(o.query.length + 1);
+    editor.deleteBefore(o.query.length + o.kind.length);
     item.run(editor);
   };
 
@@ -145,7 +165,7 @@ export function SlashMenu({ editor, host, items = SLASH_ITEMS }: { editor: Edito
 
   if (!open || !shown.length) return null;
   return createPortal(
-    <div ref={menu} className="slash-menu" role="listbox" aria-label="Add" style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }} onMouseDown={(e) => e.preventDefault()}>
+    <div ref={menu} className="slash-menu" role="listbox" aria-label={open.kind === '[[' ? 'Link to a note' : 'Add'} style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }} onMouseDown={(e) => e.preventDefault()}>
       {shown.map((item, i) => (
         <button key={item.id} type="button" role="option" aria-selected={i === active} className="slash-item" onMouseEnter={() => setActive(i)} onClick={() => choose(item)}>
           <span className="slash-glyph" aria-hidden="true">

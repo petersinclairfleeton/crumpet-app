@@ -59,3 +59,14 @@ export function useMedia(query: string): boolean {
   }, [query]);
   return on;
 }
+
+/** Moving around the app from deep inside it (a link to another note). */
+export interface Nav {
+  openNote(id: string): void;
+  /** Opens the note with this title, making it if there isn't one. */
+  openTitle(title: string): void;
+}
+export const NavContext = createContext<Nav>({ openNote: () => {}, openTitle: () => {} });
+export function useNav(): Nav {
+  return useContext(NavContext);
+}

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAppState, useAppStore } from './hooks';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type Nav, NavContext, useAppState, useAppStore } from './hooks';
+import { findByTitle } from '../data/links';
 import { Sidebar } from './Sidebar';
 import { NoteList } from './NoteList';
 import { NotePane } from './NotePane';
@@ -57,6 +58,30 @@ export function App() {
       store.selectChapter(id);
       setPane('note');
     },
+    [store],
+  );
+
+  /** From a link: the note with this title, or a new one with it. */
+  const nav = useMemo<Nav>(
+    () => ({
+      openNote: (id: string) => {
+        const n = store.note(id);
+        if (!n) return;
+        const s = store.getState();
+        // Leave a project (or a list the note isn't in) for the note's own notebook.
+        if (s.view.kind === 'project' || s.query) store.setView(n.notebookId ? { kind: 'notebook', id: n.notebookId } : { kind: 'all' });
+        openNote(id);
+      },
+      openTitle: (title: string) => {
+        const found = findByTitle(store.getState().notes, title);
+        if (found) return nav.openNote(found.id);
+        const s = store.getState();
+        if (s.view.kind === 'project') store.setView({ kind: 'all' });
+        store.createNote({ title });
+        setPane('note');
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [store],
   );
 
@@ -156,6 +181,7 @@ export function App() {
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
 
   return (
+    <NavContext.Provider value={nav}>
     <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
       {state.focusMode && (
         <button type="button" className="btn quiet exit-focus" onClick={() => store.setFocusMode(false)}>
@@ -216,5 +242,6 @@ export function App() {
       </div>
       {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
     </div>
+    </NavContext.Provider>
   );
 }

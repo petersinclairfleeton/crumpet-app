@@ -794,3 +794,15 @@ input, select { font: inherit; color: inherit; }
 .menu-item.two-line { flex-direction: column; align-items: flex-start; gap: 0; padding-top: 6px; padding-bottom: 6px; }
 .menu-item.two-line small { font-size: 12px; color: var(--muted); }
 .menu-hint { margin: 6px 10px 4px; font-size: 12px; line-height: 1.45; color: var(--muted); }
+
+/* ---- Links between notes ---- */
+.note-editor a[href^='note:'] { color: var(--accent-ink); text-decoration: none; border-bottom: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); cursor: pointer; }
+.note-editor a[href^='note:']:hover { border-bottom-color: var(--accent); }
+.note-editor a[href^='note:'].missing-note { color: var(--muted); border-bottom-style: dashed; }
+.backlinks { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.backlinks h2 { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+[data-look='paper'] .backlinks h2 { font-family: var(--title-font); font-style: italic; font-weight: 400; font-size: 14px; }
+.backlink-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.backlink { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); color: var(--text); font-size: 13px; cursor: pointer; }
+.backlink:hover { border-color: var(--accent); }
+.backlinks + .note-foot { margin-top: 12px; }

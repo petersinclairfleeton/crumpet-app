@@ -12,6 +12,7 @@ import { matchIds } from '@crumpet/editor/diff';
 import type { Tree } from '../sync/tree';
 import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
+import { relinkDoc, sameTitle } from './links';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
@@ -45,6 +46,7 @@ export const DEFAULT_SETTINGS: Settings = { name: '', accent: '#D4A257', theme: 
 export const DATA_VERSION = 2;
 
 const SAVE_DELAY_MS = 500;
+const RELINK_DELAY_MS = 1200;
 const MAX_SAVE_WAIT_MS = 2000;
 const RESCUE_KEY = 'crumpet:unsaved';
 const DAY = 24 * 60 * 60 * 1000;
@@ -313,7 +315,31 @@ export class AppStore {
   }
 
   setTitle(id: string, title: string): void {
+    const before = this.note(id)?.title;
     this.updateNote(id, { title }, { delaySave: true });
+    // Links to the note follow its new name, once typing stops.
+    if (before === undefined || before === title) return;
+    const pending = this.renames.get(id);
+    if (pending) clearTimeout(pending.timer);
+    const from = pending?.from ?? before;
+    this.renames.set(id, { from, timer: setTimeout(() => this.relink(id), RELINK_DELAY_MS) });
+  }
+
+  private renames = new Map<string, { from: string; timer: ReturnType<typeof setTimeout> }>();
+
+  /** Points links at a renamed note's old title to its new one. */
+  relink(id: string): void {
+    const pending = this.renames.get(id);
+    this.renames.delete(id);
+    const note = this.note(id);
+    if (!pending || !note || !pending.from.trim() || pending.from === note.title) return;
+    // Another note still has the old title: the links may mean that one.
+    if (this.state.notes.some((n) => n.id !== id && n.trashedAt === null && sameTitle(n.title, pending.from))) return;
+    for (const n of this.state.notes) {
+      if (n.id === id) continue;
+      const doc = relinkDoc(n.doc, pending.from, note.title);
+      if (doc !== n.doc) this.updateNote(n.id, { doc }, { touch: false });
+    }
   }
 
   setDoc(id: string, doc: Doc): void {

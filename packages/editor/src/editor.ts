@@ -32,6 +32,7 @@ import {
   insertText,
   pasteLink,
   insertMedia,
+  insertLinkedText,
   setLink,
   joinBackward,
   joinForward,
@@ -47,6 +48,7 @@ import {
 } from './commands';
 import { History } from './history';
 import { View } from './view';
+import { noteLink } from './markdown';
 import { type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
 
@@ -445,6 +447,12 @@ export class Editor {
     this.dispatch(deleteBetween(this.state, { block: pos.block, offset: pos.offset - n }, pos), 'command');
   }
 
+  /** Puts a link to another note at the caret, showing `label`. */
+  insertNoteLink(title: string, label = title): void {
+    this.syncSelectionFromDom();
+    this.dispatch(insertLinkedText(this.state, label, noteLink(title)), 'command');
+  }
+
   /** Types `text` at the caret, as if typed. */
   typeText(text: string): void {
     this.syncSelectionFromDom();
@@ -492,8 +500,15 @@ export class Editor {
     if (handled) e.preventDefault();
   }
 
+  /** Clicks on links the app handles itself (links to other notes). Returning true means handled. */
+  onLinkClick: ((href: string, e: MouseEvent) => boolean) | null = null;
+
   private onMouseDown(e: MouseEvent): void {
     const link = (e.target as Element).closest?.('a[href]') as HTMLAnchorElement | null;
+    if (link && this.onLinkClick?.(link.getAttribute('href') ?? '', e)) {
+      e.preventDefault();
+      return;
+    }
     if (link && (isMac ? e.metaKey : e.ctrlKey)) {
       // ⌘/Ctrl-click opens a link; a plain click just places the caret, so links stay editable.
       e.preventDefault();

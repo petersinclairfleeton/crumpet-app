@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BLOCK_STYLES, type Block, type BlockType, type Doc, type Mark, type Run, MARK_ORDER, makeBlock, normalizeRuns } from '../src/model';
-import { fromMarkdown, parseInline, toMarkdown } from '../src/markdown';
+import { fromMarkdown, noteLink, noteLinkTitle, parseInline, toMarkdown } from '../src/markdown';
 
 function doc(...blocks: Block[]): Doc {
   return { blocks };
@@ -334,5 +334,25 @@ describe('pictures and attached files', () => {
   it('leaves ordinary links and pictures inside text as text', () => {
     expect(fromMarkdown('[a site](https://example.com)\n').blocks[0].type).toBe('paragraph');
     expect(fromMarkdown('Look: ![x](y.png)\n').blocks[0].type).toBe('paragraph');
+  });
+});
+
+describe('links between notes', () => {
+  it('are written as [[wiki links]] and read back', () => {
+    const doc = {
+      blocks: [
+        { ...makeBlock('paragraph'), runs: [{ text: 'See ', marks: [] as Mark[] }, { text: 'The lighthouse', marks: [] as Mark[], link: noteLink('The lighthouse') }, { text: ' and ', marks: [] as Mark[] }, { text: 'her', marks: [] as Mark[], link: noteLink('Character: Mara') }, { text: '.', marks: [] as Mark[] }] },
+      ],
+    };
+    const md = toMarkdown(doc);
+    expect(md).toBe('See [[The lighthouse]] and [[Character: Mara|her]].\n');
+    const back = fromMarkdown(md).blocks[0].runs;
+    expect(back).toEqual(doc.blocks[0].runs);
+    expect(noteLinkTitle(back[3].link!)).toBe('Character: Mara');
+  });
+
+  it('leaves escaped brackets alone', () => {
+    expect(fromMarkdown('\\[\\[not a link\\]\\]\n').blocks[0].runs).toEqual([{ text: '[[not a link]]', marks: [] }]);
+    expect(toMarkdown(fromMarkdown('\\[\\[not a link\\]\\]\n'))).toBe('\\[\\[not a link\\]\\]\n');
   });
 });
