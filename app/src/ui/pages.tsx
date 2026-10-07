@@ -9,6 +9,7 @@ import { type HFBand, type HFContext, type HFRun, type HFSlotName, type HFVarian
 import { PAGE_GAP, PAGE_SIZES, PX_PER_IN, type PageSetup, pageHF, pageSize } from '../data/styles';
 import { Band, HFOptions, HFToolbar, insertRun, useSlotCaret } from './headers';
 import { useAppState } from './hooks';
+import { DEFAULT_NOTE_SIZE } from '../data/types';
 
 /** What the header and footer fields show. */
 export interface PageFields {
@@ -84,7 +85,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   }, [editor, content, between, enabled]);
   // The writing font and text size from Settings change the layout too.
   const { noteFont, noteSize } = settings;
-  const fontKey = `${noteFont?.family ?? ''}|${noteSize ?? 16}`;
+  const fontKey = `${noteFont?.family ?? ''}|${noteSize ?? DEFAULT_NOTE_SIZE}`;
   useEffect(() => {
     if (!editor || !enabled) return;
     // Next frame: the new font or size is applied to the page by then.

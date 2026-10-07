@@ -3,7 +3,7 @@
 
 import type { NoteFont } from '../data/types';
 
-export const DEFAULT_FONT: NoteFont = { family: 'Figtree', source: 'default', category: 'sans-serif' };
+export const DEFAULT_FONT: NoteFont = { family: 'Newsreader', source: 'default', category: 'serif' };
 
 export interface FontChoice extends NoteFont {
   category: string;
@@ -99,6 +99,6 @@ const FALLBACK: Record<string, string> = {
 /** The CSS font-family for a note font, with a fallback of the same kind. */
 export function fontStack(font: NoteFont | undefined): string {
   const f = font ?? DEFAULT_FONT;
-  if (f.source === 'default') return "Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif";
+  if (f.source === 'default') return "Newsreader, Georgia, 'Iowan Old Style', serif";
   return `"${f.family.replace(/"/g, '')}", ${FALLBACK[f.category ?? 'sans-serif'] ?? FALLBACK['sans-serif']}`;
 }

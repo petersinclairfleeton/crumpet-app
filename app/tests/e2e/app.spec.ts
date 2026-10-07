@@ -42,7 +42,11 @@ test('starts empty, with no notebooks, stacks or notes', async ({ page }) => {
   await expect(list(page)).toContainText('No notes yet');
   await expect(sidebar(page).locator('.nb-row, .stack-row')).toHaveCount(0);
   await expect(sidebar(page)).toContainText('Notebooks group your notes; stacks group notebooks.');
-  await expect(page.getByRole('region', { name: 'Note', exact: true })).toContainText('Choose a note, or start a new one.');
+  // A first visit: a welcome with ways to start.
+  const welcome = page.getByRole('region', { name: 'Welcome' });
+  await expect(welcome.getByRole('heading', { name: 'Welcome to Crumpet' })).toBeVisible();
+  await welcome.getByRole('button', { name: /Write your first note/ }).click();
+  await expect(page.getByLabel('Title')).toBeFocused();
 });
 
 test('a first note needs no notebook and survives a reload', async ({ page }) => {
@@ -199,7 +203,7 @@ test('Favorites: starring a note keeps it there', async ({ page }) => {
 test('settings: dark appearance and a different accent', async ({ page }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
-  await page.getByRole('button', { name: 'Crumpet Dark', exact: true }).click();
+  await page.getByRole('button', { name: 'Ink', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Blueberry' }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
@@ -451,7 +455,8 @@ test('page view: text flows onto pages, splitting paragraphs, and typing across 
   await open(page);
   await newNote(page, 'Long one', 'Intro.');
   await page.keyboard.press('Enter');
-  const long = Array.from({ length: 12 }, (_, i) => `Paragraph ${i + 1} has quite a few words in it so that it wraps over several lines on the page.`).join('\n');
+  // One paragraph longer than a page, so it has to break across pages wherever the pages end.
+  const long = Array.from({ length: 12 }, (_, i) => `Paragraph ${i + 1} has quite a few words in it${', and then some more'.repeat(i === 5 ? 60 : 0)} so that it wraps over several lines on the page.`).join('\n');
   await page.keyboard.insertText(long);
   await page.getByRole('button', { name: 'Page view' }).click();
   await expect(page.getByRole('button', { name: 'Page view' })).toHaveAttribute('aria-pressed', 'true');

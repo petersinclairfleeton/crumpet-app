@@ -103,7 +103,7 @@ export function App() {
             ) : (
               <>
                 <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />
-                <NotePane onBack={() => setPane('list')} narrow={narrow} />
+                <NotePane onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={() => openView({ kind: 'project', id: store.createProject('Untitled project').id })} />
               </>
             )}
           </div>

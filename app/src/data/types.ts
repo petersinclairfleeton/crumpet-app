@@ -75,7 +75,7 @@ export type Theme = 'system' | 'light' | 'dark' | 'classic' | 'vapor' | 'console
 /** The font notes are written in. */
 export interface NoteFont {
   family: string;
-  /** default = Crumpet's own (Figtree); google = loaded from Google Fonts; system = installed on this device. */
+  /** default = Crumpet's own (Newsreader); google = loaded from Google Fonts; system = installed on this device. */
   source: 'default' | 'google' | 'system';
   /** Google fonts: which styles exist (bit 1 regular, 2 italic, 4 bold, 8 bold italic). */
   styles?: number;
@@ -90,7 +90,7 @@ export interface Settings {
   listStyle: 'cards' | 'table';
   /** Font for note text; Crumpet's own when unset. */
   noteFont?: NoteFont;
-  /** Note text size in px; 16 when unset. */
+  /** Note text size in px; DEFAULT_NOTE_SIZE when unset. */
   noteSize?: number;
   /** The named styles notes use; Crumpet's own when unset. */
   noteStyles?: StyleSheet;
@@ -123,3 +123,6 @@ export const ACCENTS: { name: string; hex: string; ink: string; on: string }[] =
 ];
 
 export const TRASH_DAYS = 30;
+
+/** Note text size in px when none is chosen. */
+export const DEFAULT_NOTE_SIZE = 18;

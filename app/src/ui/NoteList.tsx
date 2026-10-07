@@ -120,7 +120,7 @@ function Card({ note, selected, now, trash, showNotebook, onOpen }: { note: Note
         )}
         <span className="card-time">{shortTime(trash ? (note.trashedAt ?? note.updatedAt) : note.updatedAt, now)}</span>
       </span>
-      <span className={`card-preview${text ? '' : ' empty'}`}>{text || 'No text yet'}</span>
+      <span className={`card-preview${text ? '' : ' no-text'}`}>{text || 'No text yet'}</span>
       {(showNotebook || note.tags.length > 0) && (
         <span className="card-meta">
           {showNotebook && nb && (
