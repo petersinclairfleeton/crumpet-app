@@ -36,11 +36,13 @@ interface Props {
   /** Rendered above the note body (title, notebook, tags). */
   header: React.ReactNode;
   footer: React.ReactNode;
+  /** Reading view: a book-like page without editing tools. */
+  reading?: boolean;
   onEditor?(editor: Editor | null): void;
 }
 
 /** The note body: our editor engine, mounted once and re-loaded when the open note changes. */
-export function EditorHost({ note, readOnly, lead, trail, header, footer, onEditor }: Props) {
+export function EditorHost({ note, readOnly, lead, trail, header, footer, reading = false, onEditor }: Props) {
   const store = useAppStore();
   const host = useRef<HTMLDivElement>(null);
   const editor = useRef<Editor | null>(null);
@@ -115,7 +117,7 @@ export function EditorHost({ note, readOnly, lead, trail, header, footer, onEdit
   const type = ed?.currentBlock().type;
 
   return (
-    <div className="note-pane">
+    <div className={`note-pane${reading ? ' reading' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
         <div className="tools" onMouseDown={(e) => e.preventDefault()}>

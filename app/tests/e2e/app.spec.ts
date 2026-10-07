@@ -199,7 +199,7 @@ test('Favorites: starring a note keeps it there', async ({ page }) => {
 test('settings: dark appearance and a different accent', async ({ page }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
-  await page.getByRole('button', { name: 'Dark' }).click();
+  await page.getByRole('button', { name: 'Crumpet Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Blueberry' }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
@@ -300,4 +300,59 @@ test('a synced change to the open note arrives without moving the caret', async 
   await expect(body).toContainText('I am typing right here');
   await expect(body).not.toContainText(', still');
   await expect(body).toContainText('Added on the phone.');
+});
+
+test('themes: pick one, and accents follow themes that have none of their own', async ({ page }) => {
+  await open(page);
+  await sidebar(page).locator('.account').click();
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await settings.getByRole('button', { name: 'Vapor', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'vapor');
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#66c0f4');
+  await expect(settings).toContainText('This theme has its own colours');
+  await settings.getByRole('button', { name: 'Sepia', exact: true }).click();
+  await settings.getByRole('button', { name: 'Blueberry' }).click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
+  await settings.getByRole('button', { name: 'Glass', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'glass');
+  await page.keyboard.press('Escape');
+  await expect(settings).toBeHidden();
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'glass');
+});
+
+test('writing font: choose any Google font or one on this device, and a text size', async ({ page }) => {
+  // Don't fetch real fonts in tests.
+  await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
+  await open(page);
+  await sidebar(page).locator('.account').click();
+  const font = page.getByRole('group', { name: 'Writing font' });
+  await font.getByRole('button', { name: /Change/ }).click();
+  await font.getByLabel('Search fonts').fill('litera');
+  await font.getByRole('option', { name: /^Literata/ }).click();
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--note-font'))).toContain('"Literata", Georgia, serif');
+  await expect(page.locator('link[href*="family=Literata:ital,wght"]:not([href*="text="])')).toHaveCount(1);
+  await font.getByRole('tab', { name: 'On this device' }).click();
+  await font.getByLabel('Search fonts').fill('');
+  await expect(font.getByRole('option').first()).toBeVisible();
+  await page.getByLabel(/Text size/).fill('20');
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--note-size'))).toBe('20px');
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--note-font'))).toContain('Literata');
+});
+
+test('reading view shows the note as a book page, and Escape goes back to editing', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Chapter One', 'It was a bright cold day.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The clocks were striking thirteen.');
+  await page.getByRole('button', { name: 'Reading view' }).click();
+  const pane = page.locator('.note-pane');
+  await expect(pane).toHaveClass(/reading/);
+  await expect(page.locator('.tools')).toBeHidden();
+  await expect(page.locator('.reading-meta')).toContainText('words');
+  await expect(page.locator('.note-pane [contenteditable]')).toHaveAttribute('contenteditable', 'false');
+  await page.keyboard.press('Escape');
+  await expect(pane).not.toHaveClass(/reading/);
+  await expect(page.locator('.note-pane [contenteditable]')).toHaveAttribute('contenteditable', 'true');
 });

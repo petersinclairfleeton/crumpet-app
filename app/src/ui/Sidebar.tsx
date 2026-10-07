@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
-import { SyncSettings, statusText } from './SyncSettings';
+import { statusText } from './SyncSettings';
+import { SettingsDialog } from './Settings';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
 import { allTags, displayTitle, noteCounts, notebookTree, recentNotes, sameView } from '../data/selectors';
-import { ACCENTS, NOTEBOOK_COLORS, type Notebook, type Stack, type Theme, type View } from '../data/types';
+import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
 import { IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
@@ -53,7 +54,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
           <IconClose />
         </button>
       </div>
-      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
 
       <button type="button" className="new-note" onClick={onNewNote}>
         <span className="plus">
@@ -486,41 +487,6 @@ export function InlineInput({ label, placeholder, initial = '', list, onDone, fi
         </datalist>
       )}
     </div>
-  );
-}
-
-function SettingsPanel({ onClose }: { onClose(): void }) {
-  const state = useAppState();
-  const store = useAppStore();
-  const s = state.settings;
-  return (
-    <Popover onClose={onClose} label="Settings">
-      <div className="settings">
-        <label className="field">
-          <span>Your name</span>
-          <input value={s.name} placeholder="Shown at the top of the sidebar" onChange={(e) => store.updateSettings({ name: e.target.value })} />
-        </label>
-        <div className="field" role="group" aria-label="Appearance">
-          <span>Appearance</span>
-          <div className="segmented">
-            {(['system', 'light', 'dark'] as Theme[]).map((t) => (
-              <button key={t} type="button" aria-pressed={s.theme === t} onClick={() => store.updateSettings({ theme: t })}>
-                {t === 'system' ? 'Match device' : t === 'light' ? 'Light' : 'Dark'}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="field" role="group" aria-label="Accent colour">
-          <span>Accent</span>
-          <div className="accents">
-            {ACCENTS.map((a) => (
-              <button key={a.hex} type="button" className={`swatch big${s.accent === a.hex ? ' on' : ''}`} style={{ background: a.hex }} aria-label={a.name} aria-pressed={s.accent === a.hex} title={a.name} onClick={() => store.updateSettings({ accent: a.hex })} />
-            ))}
-          </div>
-        </div>
-        <SyncSettings />
-      </div>
-    </Popover>
   );
 }
 
