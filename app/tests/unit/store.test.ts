@@ -1,6 +1,8 @@
+import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { describe, expect, it } from 'vitest';
 import { makeBlock } from '@crumpet/editor/model';
 import { MemoryStorage, openStorage } from '../../src/data/db';
+import { BUILT_IN_TEMPLATES, longDate } from '../../src/data/templates';
 import { AppStore, DATA_VERSION, cleanTag, visibleIn } from '../../src/data/store';
 import { groupByDate, listedNotes, matches, matchingNotebooks, notebookTree, preview, projectChapters, projectGoal, projectWords, wordCount } from '../../src/data/selectors';
 import type { Note, Notebook } from '../../src/data/types';
@@ -376,5 +378,33 @@ describe('saving', () => {
     } finally {
       delete (globalThis as { localStorage?: unknown }).localStorage;
     }
+  });
+});
+
+describe('templates and the daily note', () => {
+  it('opens one note per day in Daily notes, made from your Daily note template if you have one', async () => {
+    const { store } = await fresh();
+    const first = store.openToday();
+    expect(store.notebook(first.notebookId)?.name).toBe('Daily notes');
+    expect(first.title).toBe(longDate(first.createdAt));
+    expect(store.openToday().id).toBe(first.id);
+    expect(store.getState().selectedId).toBe(first.id);
+    // Tomorrow, with a template of your own.
+    store.createNote({ title: 'Daily note', notebookId: store.createNotebook('Templates').id, doc: fromMarkdown('## Plans for {{date}}\n') });
+    store.trashNote(first.id);
+    const next = store.openToday();
+    expect(next.id).not.toBe(first.id);
+    expect(toMarkdown(next.doc)).toBe(`## Plans for ${longDate(next.createdAt)}\n`);
+  });
+
+  it('starts notes from templates, and saves a note as one without leaving it', async () => {
+    const { store } = await fresh();
+    const meeting = BUILT_IN_TEMPLATES.find((t) => t.id === 'meeting')!;
+    const n = store.newFromTemplate(meeting);
+    expect(n.title).toBe(`Meeting, ${longDate(n.createdAt)}`);
+    expect(toMarkdown(n.doc)).toContain('## Next steps\n\n- [ ]');
+    const copy = store.saveAsTemplate(n.id)!;
+    expect(store.notebook(copy.notebookId)?.name).toBe('Templates');
+    expect(store.getState().selectedId).toBe(n.id);
   });
 });

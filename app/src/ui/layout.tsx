@@ -6,7 +6,7 @@ import { useState } from 'react';
 import type { LayoutPrefs, View } from '../data/types';
 import { sameView } from '../data/selectors';
 import { useAppState, useAppStore } from './hooks';
-import { IconBook, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash, NotebookIcon } from './icons';
+import { IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash, NotebookIcon } from './icons';
 import { Popover } from './Sidebar';
 
 export const SIDEBAR = { min: 180, max: 420, normal: 236 };
@@ -76,7 +76,7 @@ export function Resizer({ label, value, min, max, normal, vertical = false, cssV
 }
 
 /** The sidebar folded to a strip of icons. */
-export function SidebarRail({ onOpenView, onNewNote }: { onOpenView(v: View): void; onNewNote(): void }) {
+export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: View): void; onNewNote(): void; onToday(): void }) {
   const state = useAppState();
   const store = useAppStore();
   const active = (v: View) => !state.query && sameView(state.view, v);
@@ -107,6 +107,9 @@ export function SidebarRail({ onOpenView, onNewNote }: { onOpenView(v: View): vo
       </button>
       <span className="rail-gap" />
       {item({ kind: 'all' }, 'All Notes', <IconNote size={18} />)}
+      <button type="button" className="rail-btn" aria-label="Today" title="Today’s note" onClick={onToday}>
+        <IconSun size={18} />
+      </button>
       {item({ kind: 'favorites' }, 'Favorites', <IconStar size={18} />)}
       {state.projects.map((p) => item({ kind: 'project', id: p.id }, p.name, <IconBook size={18} />))}
       <span className="rail-gap" />
@@ -170,7 +173,7 @@ export function LayoutMenu() {
 }
 
 /** Phones: a floating tab bar at the bottom of the list, and a round + for a new note. */
-export function TabBar({ onOpenView, onNotebooks, onNewNote }: { onOpenView(v: View): void; onNotebooks(): void; onNewNote(): void }) {
+export function TabBar({ onOpenView, onNotebooks, onNewNote, onToday }: { onOpenView(v: View): void; onNotebooks(): void; onNewNote(): void; onToday(): void }) {
   const state = useAppState();
   const on = (v: View) => !state.query && sameView(state.view, v);
   return (
@@ -184,9 +187,9 @@ export function TabBar({ onOpenView, onNotebooks, onNewNote }: { onOpenView(v: V
           <IconNotebookTab size={20} />
           Notebooks
         </button>
-        <button type="button" className={on({ kind: 'favorites' }) ? 'on' : ''} aria-current={on({ kind: 'favorites' }) ? 'page' : undefined} onClick={() => onOpenView({ kind: 'favorites' })}>
-          <IconStar size={20} />
-          Favorites
+        <button type="button" onClick={onToday}>
+          <IconSun size={20} />
+          Today
         </button>
         <button
           type="button"

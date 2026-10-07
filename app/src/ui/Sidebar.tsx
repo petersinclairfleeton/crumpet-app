@@ -5,16 +5,20 @@ import { SettingsDialog } from './Settings';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
 import { allTags, displayTitle, noteCounts, notebookTree, projectWords, recentNotes, sameView } from '../data/selectors';
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
-import { IconBook, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from '../data/templates';
+import { toMarkdown } from '@crumpet/editor/markdown';
+import { IconBook, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenView(view: View): void;
   onOpenNote(id: string): void;
   onNewNote(): void;
   onClose(): void;
+  onToday(): void;
+  onTemplate(t: { title: string; body: string }): void;
 }
 
-export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
+export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, onTemplate }: Props) {
   const state = useAppState();
   const store = useAppStore();
   const [collapsed, setCollapsed] = useState<string[]>(() => remember('collapsedStacks', []));
@@ -35,6 +39,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
   const trashCount = state.notes.filter((n) => n.trashedAt !== null).length;
   const active = (v: View) => !state.query && sameView(state.view, v);
   const nothingYet = !state.notebooks.length && !state.stacks.length;
+  const daily = state.notebooks.find((n) => n.name.toLowerCase() === DAILY_NOTEBOOK.toLowerCase());
+  const todayOpen = !!daily && !state.query && state.view.kind === 'notebook' && state.view.id === daily.id && store.note(state.selectedId)?.title === longDate();
 
   const toggleStack = (id: string) => {
     const next = collapsed.includes(id) ? collapsed.filter((n) => n !== id) : [...collapsed, id];
@@ -56,12 +62,15 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
       </div>
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
 
-      <button type="button" className="new-note" onClick={onNewNote}>
-        <span className="plus">
-          <IconPlus size={12} />
-        </span>
-        New Note
-      </button>
+      <div className="new-note-row">
+        <button type="button" className="new-note" onClick={onNewNote}>
+          <span className="plus">
+            <IconPlus size={12} />
+          </span>
+          New Note
+        </button>
+        <TemplateMenu onTemplate={onTemplate} />
+      </div>
 
       {recent.length > 0 && (
         <section className="side-section" aria-label="Recent notes">
@@ -77,6 +86,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
 
       <section className="side-section">
         <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
+        <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
         <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
 
         <div className="side-heading">
@@ -544,4 +554,41 @@ function footText(temporary: boolean, sync: ReturnType<typeof useSync>['state'])
 /** 1234 → "1.2k", for word counts in narrow places. */
 function compact(n: number): string {
   return n < 1000 ? String(n) : n < 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n / 1000)}k`;
+}
+
+/** New from a template: the ready-made ones, and your own (notes in a "Templates" notebook). */
+function TemplateMenu({ onTemplate }: { onTemplate(t: { title: string; body: string }): void }) {
+  const state = useAppState();
+  const [open, setOpen] = useState(false);
+  const nb = state.notebooks.find((n) => n.name.toLowerCase() === TEMPLATES_NOTEBOOK.toLowerCase());
+  const mine = nb ? state.notes.filter((n) => n.notebookId === nb.id && n.trashedAt === null) : [];
+  const pick = (t: { title: string; body: string }) => {
+    setOpen(false);
+    onTemplate(t);
+  };
+  return (
+    <span className="template-menu">
+      <button type="button" className="icon-btn" aria-label="New from a template" title="New from a template" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <IconChevronDown size={13} />
+      </button>
+      {open && (
+        <Popover label="New from a template" onClose={() => setOpen(false)}>
+          <p className="menu-label">New from a template</p>
+          {BUILT_IN_TEMPLATES.map((t) => (
+            <button key={t.id} type="button" className="menu-item two-line" onClick={() => pick(t)}>
+              <b>{t.name}</b>
+              <small>{t.hint}</small>
+            </button>
+          ))}
+          {mine.length > 0 && <p className="menu-label">Yours</p>}
+          {mine.map((n) => (
+            <button key={n.id} type="button" className="menu-item" onClick={() => pick({ title: n.title, body: toMarkdown(n.doc) })}>
+              {n.title || 'Untitled template'}
+            </button>
+          ))}
+          <p className="menu-hint">Make your own: open a note’s ••• menu and choose Save as template.</p>
+        </Popover>
+      )}
+    </span>
+  );
 }

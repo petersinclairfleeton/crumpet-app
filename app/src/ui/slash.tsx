@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
 import { runsText } from '@crumpet/editor/model';
 import { chooseFiles } from './editing';
+import { longDate } from '../data/templates';
 
 export interface SlashItem {
   id: string;
@@ -18,10 +19,6 @@ export interface SlashItem {
   run(ed: Editor): void;
 }
 
-/** Today's date, written out the way people write it here. */
-export function longDate(t = Date.now()): string {
-  return new Date(t).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-}
 
 export const SLASH_ITEMS: SlashItem[] = [
   { id: 'text', label: 'Text', hint: 'Plain writing', words: 'paragraph normal body', glyph: '¶', run: (ed) => ed.setBlockStyle('paragraph') },

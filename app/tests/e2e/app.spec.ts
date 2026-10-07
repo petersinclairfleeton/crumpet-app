@@ -762,3 +762,21 @@ test('the / menu adds headings, lists and more as you write', async ({ page }) =
   await menu.getByRole('option', { name: /Today’s date/ }).click();
   await expect(body.locator('.blk').last()).toContainText(String(new Date().getFullYear()));
 });
+
+test('today’s note, and new notes from templates', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: /^Today/ }).click();
+  const title = page.getByLabel('Title');
+  const today = await page.evaluate(() => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+  await expect(title).toHaveValue(today);
+  await expect(sidebar(page).locator('.nb-row')).toContainText('Daily notes');
+  // Again: the same note.
+  await sidebar(page).getByRole('button', { name: /^All Notes/ }).click();
+  await sidebar(page).getByRole('button', { name: /^Today/ }).click();
+  await expect(list(page).locator('.card')).toHaveCount(1);
+  // From a template.
+  await sidebar(page).getByRole('button', { name: 'New from a template' }).click();
+  await page.getByRole('button', { name: /^Meeting notes/ }).click();
+  await expect(title).toHaveValue(`Meeting, ${today}`);
+  await expect(page.locator('.note-pane [contenteditable] h2').first()).toHaveText('Who');
+});

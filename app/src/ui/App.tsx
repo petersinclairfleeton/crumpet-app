@@ -60,6 +60,19 @@ export function App() {
     [store],
   );
 
+  const openToday = useCallback(() => {
+    store.openToday();
+    setPane('note');
+  }, [store]);
+
+  const newFromTemplate = useCallback(
+    (t: { title: string; body: string }) => {
+      store.newFromTemplate(t);
+      setPane('note');
+    },
+    [store],
+  );
+
   const newNote = useCallback(() => {
     store.createNote();
     setPane('note');
@@ -160,9 +173,9 @@ export function App() {
         </p>
       )}
       <div className="frame">
-        {sidebarMode === 'full' && <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} />}
+        {sidebarMode === 'full' && <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} onToday={openToday} onTemplate={newFromTemplate} />}
         {sidebarMode === 'full' && !narrow && <Resizer label="Sidebar width" value={sideW} {...SIDEBAR} cssVar="--side-w" target={target} onChange={(v) => store.updateLayout({ sidebarWidth: Math.round(v) })} />}
-        {sidebarMode === 'icons' && <SidebarRail onOpenView={openView} onNewNote={newNote} />}
+        {sidebarMode === 'icons' && <SidebarRail onOpenView={openView} onNewNote={newNote} onToday={openToday} />}
         <div className="workspace">
           <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} />
           <div className="panes">
@@ -201,7 +214,7 @@ export function App() {
           </div>
         </div>
       </div>
-      {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} />}
+      {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import { matchIds } from '@crumpet/editor/diff';
 import type { Tree } from '../sync/tree';
 import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
+import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
 export interface AppState {
@@ -257,6 +258,44 @@ export class AppStore {
     this.set({ notes: [note, ...this.state.notes], selectedId: note.id, view: nextView, query: '' });
     this.save(this.storage.putNote(note));
     return note;
+  }
+
+  /** A notebook with this name (any capitals), made if there isn't one. */
+  private notebookNamed(name: string): Notebook {
+    return this.state.notebooks.find((n) => n.name.toLowerCase() === name.toLowerCase()) ?? this.createNotebook(name);
+  }
+
+  /** A new note from a template, in the notebook being looked at. */
+  newFromTemplate(t: { title: string; body: string }): Note {
+    return this.createNote({ title: fillIn(t.title, this.now()), doc: templateDoc(t.body, this.now()) });
+  }
+
+  /** Keeps a copy of a note in the Templates notebook, to start new notes from. */
+  saveAsTemplate(id: string): Note | undefined {
+    const n = this.note(id);
+    if (!n) return;
+    const { view, selectedId } = this.state;
+    const nb = this.notebookNamed(TEMPLATES_NOTEBOOK);
+    const copy = this.createNote({ title: n.title || 'Untitled template', doc: n.doc, notebookId: nb.id, tags: [] });
+    // Stay on the note.
+    this.set({ view, selectedId });
+    return copy;
+  }
+
+  /** Today's note in Daily notes: opened if it's there, made (from your "Daily note" template, if any) if not. */
+  openToday(): Note {
+    this.flush();
+    const t = this.now();
+    const title = longDate(t);
+    const nb = this.notebookNamed(DAILY_NOTEBOOK);
+    const existing = this.state.notes.find((n) => n.notebookId === nb.id && n.trashedAt === null && n.title === title);
+    if (existing) {
+      this.set({ view: { kind: 'notebook', id: nb.id }, query: '', selectedId: existing.id, activeSide: 'first' });
+      return existing;
+    }
+    const tpl = this.state.notes.find((n) => n.trashedAt === null && n.title.toLowerCase() === DAILY_TEMPLATE.toLowerCase() && this.notebook(n.notebookId)?.name.toLowerCase() === TEMPLATES_NOTEBOOK.toLowerCase());
+    this.set({ view: { kind: 'notebook', id: nb.id } });
+    return this.createNote({ title, notebookId: nb.id, doc: tpl ? templateDoc(toMarkdown(tpl.doc), t) : undefined });
   }
 
   private updateNote(id: string, patch: Partial<Note>, opts: { touch?: boolean; delaySave?: boolean } = {}): void {
