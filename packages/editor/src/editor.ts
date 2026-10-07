@@ -46,6 +46,7 @@ import {
 } from './commands';
 import { History } from './history';
 import { View } from './view';
+import { type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
 
 export interface ChangeEvent {
@@ -67,12 +68,42 @@ export class Editor {
   private nativeEdit = false;
   /** Logged so the prototype can show what the browser asked for. */
   readonly inputLog: string[] = [];
+  private paginator: Paginator;
+  private paged = false;
+
+  /** Page view: lays the text out in pages of this size (null: one long page). */
+  setPages(geometry: PageGeometry | null): void {
+    this.paged = !!geometry;
+    this.paginator.set(geometry);
+    this.emit(null);
+  }
+
+  /** How many pages the text fills in page view. */
+  get pages(): number {
+    return this.paginator.pages;
+  }
+
+  /** Lays out the pages again, e.g. after fonts load or the styles change. */
+  repaginate(): void {
+    if (this.paged && !this.isComposing) {
+      const before = this.paginator.pages;
+      this.paginator.update();
+      if (this.paginator.pages !== before) this.emit(null);
+    }
+  }
+
+  /** Draws the document, then (in page view) its pages. Never during IME composition, which must not be disturbed. */
+  private draw(doc: Doc, force?: Set<string>): void {
+    this.view.render(doc, force);
+    if (this.paged && !this.isComposing) this.paginator.update();
+  }
 
   constructor(root: HTMLElement, doc: Doc) {
     const first = doc.blocks[0];
     this.state = { doc, selection: caret({ block: first.id, offset: 0 }), storedMarks: null };
     this.view = new View(root);
-    this.view.render(doc);
+    this.paginator = new Paginator(root);
+    this.draw(doc);
 
     const signal = this.listening.signal;
     root.addEventListener('beforeinput', (e) => this.onBeforeInput(e), { signal });
@@ -113,7 +144,7 @@ export class Editor {
       storedMarks: t.storedMarks !== undefined ? t.storedMarks : t.ops.length ? null : this.state.storedMarks,
     };
     if (record) this.history.record(t, doc);
-    this.view.render(doc);
+    this.draw(doc);
     this.view.writeSelection(this.state.selection);
     this.emit({ ops: t.ops, source });
   }
@@ -136,7 +167,7 @@ export class Editor {
   applyRemote(doc: Doc, steps: Step[]): void {
     this.history.external(steps);
     this.state = { doc, selection: mapSelectionThrough(this.state.selection, steps, doc), storedMarks: this.state.storedMarks };
-    this.view.render(doc);
+    this.draw(doc);
     // Only touch the page selection if this editor has focus; otherwise we would steal it from wherever the person is.
     if (this.view.root.ownerDocument.activeElement === this.view.root) this.view.writeSelection(this.state.selection);
     this.emit({ ops: [], source: 'remote' });
@@ -146,7 +177,7 @@ export class Editor {
   load(doc: Doc): void {
     this.state = { doc, selection: caret({ block: doc.blocks[0].id, offset: 0 }), storedMarks: null };
     this.history.clear();
-    this.view.render(doc, new Set(doc.blocks.map((b) => b.id)));
+    this.draw(doc, new Set(doc.blocks.map((b) => b.id)));
     // Don't pull the page selection into the note unless it already has focus (e.g. a title field may).
     if (this.view.root.ownerDocument.activeElement === this.view.root) this.view.writeSelection(this.state.selection);
     this.emit({ ops: [], source: 'command' });
@@ -350,7 +381,7 @@ export class Editor {
     if (!this.view.structureIntact(this.state.doc)) {
       // The browser changed the block structure itself; we can't trust it, so redraw from the model.
       console.warn('[crumpet] DOM structure changed outside the model; redrawing');
-      this.view.render(this.state.doc, new Set(this.state.doc.blocks.map((b) => b.id)));
+      this.draw(this.state.doc, new Set(this.state.doc.blocks.map((b) => b.id)));
       this.view.writeSelection(this.state.selection);
       return;
     }
@@ -368,7 +399,7 @@ export class Editor {
       force.add(block.id);
     }
     // Rebuild the blocks the browser touched so the DOM is exactly what we would have drawn.
-    this.view.render(this.state.doc, force);
+    this.draw(this.state.doc, force);
     this.view.writeSelection(this.state.selection);
   }
 

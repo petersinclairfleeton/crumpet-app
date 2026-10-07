@@ -252,3 +252,38 @@ export function sheetId(sheet: StyleSheet): string {
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
   return h.toString(36);
 }
+
+// ---------------------------------------------------------------- pages
+
+export type PageSize = 'letter' | 'a4' | 'a5' | 'book' | 'legal';
+
+export const PAGE_SIZES: { id: PageSize; name: string; width: number; height: number }[] = [
+  { id: 'letter', name: 'US Letter (8.5 × 11 in)', width: 8.5, height: 11 },
+  { id: 'a4', name: 'A4 (21 × 29.7 cm)', width: 8.27, height: 11.69 },
+  { id: 'a5', name: 'A5 (14.8 × 21 cm)', width: 5.83, height: 8.27 },
+  { id: 'book', name: 'Book (6 × 9 in)', width: 6, height: 9 },
+  { id: 'legal', name: 'US Legal (8.5 × 14 in)', width: 8.5, height: 14 },
+];
+
+export interface PageSetup {
+  size: PageSize;
+  /** Inches. */
+  margins: { top: number; right: number; bottom: number; left: number };
+  pageNumbers: boolean;
+}
+
+/** Letter in the US and Canada, A4 elsewhere; 1-inch margins, as manuscripts want. */
+export function defaultPage(): PageSetup {
+  const lang = typeof navigator !== 'undefined' ? navigator.language || 'en-US' : 'en-US';
+  const letter = /^(en-(US|CA)|es-(US|MX)|fr-CA)/.test(lang);
+  return { size: letter ? 'letter' : 'a4', margins: { top: 1, right: 1, bottom: 1, left: 1 }, pageNumbers: true };
+}
+
+export const PX_PER_IN = 96;
+/** Space between pages on screen, px. */
+export const PAGE_GAP = 24;
+
+export function pageSize(p: PageSetup): { width: number; height: number } {
+  const s = PAGE_SIZES.find((x) => x.id === p.size) ?? PAGE_SIZES[0];
+  return { width: s.width * PX_PER_IN, height: s.height * PX_PER_IN };
+}

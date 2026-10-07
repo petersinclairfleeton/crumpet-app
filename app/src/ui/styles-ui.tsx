@@ -9,6 +9,8 @@ import { PRESETS, type PresetId, STYLE_LIST, type StyleDef, type StyleKey, type 
 import { DEFAULT_FONT, fontStack, loadGoogleFont } from './fonts';
 import { IconClose } from './icons';
 import { FontPicker } from './Settings';
+import type { PageSetup } from '../data/styles';
+import { PageSetupForm } from './pages';
 import { Popover } from './Sidebar';
 
 const injected = new Set<string>();
@@ -154,8 +156,9 @@ const SPACINGS: [number, string][] = [
   [2, 'Double'],
 ];
 
-export function StylesDialog({ title, sheet, onChange, onClose }: { title: string; sheet: StyleSheet; onChange(sheet: StyleSheet): void; onClose(): void }) {
+export function StylesDialog({ title, sheet, onChange, page, onPage, onClose }: { title: string; sheet: StyleSheet; onChange(sheet: StyleSheet): void; page?: PageSetup; onPage?(p: PageSetup): void; onClose(): void }) {
   const [key, setKey] = useState<StyleKey>('normal');
+  const [tab, setTab] = useState<'styles' | 'page'>('styles');
   const d = sheet.styles[key];
   const set = (patch: Partial<StyleDef>) => onChange({ ...sheet, styles: { ...sheet.styles, [key]: { ...d, ...patch } } });
   const cls = useSheetClass(sheet);
@@ -188,6 +191,20 @@ export function StylesDialog({ title, sheet, onChange, onClose }: { title: strin
           </button>
         </header>
         <div className="styles-body">
+          {page && onPage && (
+            <div className="segmented small styles-tabs" role="tablist">
+              <button type="button" role="tab" aria-selected={tab === 'styles'} aria-pressed={tab === 'styles'} onClick={() => setTab('styles')}>
+                Styles
+              </button>
+              <button type="button" role="tab" aria-selected={tab === 'page'} aria-pressed={tab === 'page'} onClick={() => setTab('page')}>
+                Page
+              </button>
+            </div>
+          )}
+          {tab === 'page' && page && onPage ? (
+            <PageSetupForm page={page} onChange={onPage} />
+          ) : (
+          <>
           <label className="field">
             <span>Start from</span>
             <select
@@ -280,6 +297,8 @@ export function StylesDialog({ title, sheet, onChange, onClose }: { title: strin
               </button>
             </div>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>,

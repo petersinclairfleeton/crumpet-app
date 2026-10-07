@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { fullSheet } from '../data/styles';
+import { defaultPage, fullSheet } from '../data/styles';
+import { PageToggle } from './pages';
 import { StylesDialog } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
@@ -19,6 +20,8 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
   const [reading, setReading] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
   const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
+  const pageSetup = state.settings.notePage ?? defaultPage();
+  const paged = !!state.settings.pageView?.notes;
 
   // Escape leaves reading view.
   useEffect(() => {
@@ -64,6 +67,7 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
 
   const trail = trashed ? null : (
     <div className="note-actions">
+      <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, notes: on } })} />
       <button type="button" className={`icon-btn read-toggle${reading ? ' on' : ''}`} aria-pressed={reading} aria-label={reading ? 'Back to editing' : 'Reading view'} title={reading ? 'Back to editing (Esc)' : 'Reading view'} onClick={() => setReading(!reading)}>
         {reading ? <IconPen size={16} /> : <IconBook size={16} />}
       </button>
@@ -184,9 +188,19 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
 
   return (
     <section className="pane" aria-label="Note">
-      {stylesOpen && <StylesDialog title="Styles for notes" sheet={sheet} onChange={(noteStyles) => store.updateSettings({ noteStyles })} onClose={() => setStylesOpen(false)} />}
+      {stylesOpen && (
+        <StylesDialog
+          title="Styles for notes"
+          sheet={sheet}
+          onChange={(noteStyles) => store.updateSettings({ noteStyles })}
+          page={pageSetup}
+          onPage={(notePage) => store.updateSettings({ notePage })}
+          onClose={() => setStylesOpen(false)}
+        />
+      )}
       <EditorHost
         sheet={sheet}
+        page={paged ? pageSetup : null}
         onEditStyles={() => setStylesOpen(true)}
         docId={note.id}
         doc={note.doc}

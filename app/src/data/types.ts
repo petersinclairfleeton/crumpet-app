@@ -1,5 +1,5 @@
 import type { Doc } from '@crumpet/editor/model';
-import type { StyleSheet } from './styles';
+import type { PageSetup, StyleSheet } from './styles';
 
 export interface Stack {
   id: string;
@@ -50,6 +50,8 @@ export interface Project {
   outline: OutlineItem[];
   /** The project's named styles; Manuscript when unset. */
   styles?: StyleSheet;
+  /** Page size and margins for page view and printing. */
+  page?: PageSetup;
   createdAt: number;
   updatedAt: number;
 }
@@ -92,6 +94,9 @@ export interface Settings {
   noteSize?: number;
   /** The named styles notes use; Crumpet's own when unset. */
   noteStyles?: StyleSheet;
+  notePage?: PageSetup;
+  /** Show notes and projects as pages. */
+  pageView?: { notes?: boolean; projects?: boolean };
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
 }

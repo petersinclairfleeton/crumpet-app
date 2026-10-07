@@ -87,6 +87,8 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
     };
     el.addEventListener('focusin', onFocus);
     el.addEventListener('keydown', onKey);
+    // Draw again so whoever uses the hook gets the editor now that it exists.
+    setTick((t) => t + 1);
     return () => {
       el.removeEventListener('focusin', onFocus);
       el.removeEventListener('keydown', onKey);

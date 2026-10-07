@@ -63,3 +63,6 @@
 
 /* ---- Links ---- */
 .editor a { color: var(--accent-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: text; }
+
+/* Page view: the gap that carries text on to the next page. */
+.page-break { display: block; pointer-events: none; user-select: none; -webkit-user-select: none; }

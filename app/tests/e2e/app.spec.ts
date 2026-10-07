@@ -446,3 +446,81 @@ test('typing is kept even when the page is closed straight away', async ({ page 
   await expect(list(page)).toContainText('Last words');
   await expect(page.locator('.note-pane [contenteditable]')).toContainText('Typed right before leaving.');
 });
+
+test('page view: text flows onto pages, splitting paragraphs, and typing across a break keeps the text intact', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Long one', 'Intro.');
+  await page.keyboard.press('Enter');
+  const long = Array.from({ length: 12 }, (_, i) => `Paragraph ${i + 1} has quite a few words in it so that it wraps over several lines on the page.`).join('\n');
+  await page.keyboard.insertText(long);
+  await page.getByRole('button', { name: 'Page view' }).click();
+  await expect(page.getByRole('button', { name: 'Page view' })).toHaveAttribute('aria-pressed', 'true');
+  // Make it span pages: a big text size.
+  await page.evaluate(() => {
+    const s = (window as unknown as { crumpet: { getState(): { settings: { noteSize?: number } }; updateSettings(p: object): void } }).crumpet;
+    s.updateSettings({ noteSize: 30 });
+  });
+  await expect.poll(() => page.locator('.sheet').count()).toBeGreaterThan(1);
+  const breaks = page.locator('.note-editor .page-break');
+  await expect(breaks.first()).toBeAttached();
+  // A paragraph broken across two pages: text on both sides of the break.
+  const split = await breaks.evaluateAll((els) => els.some((b) => !!b.previousSibling?.textContent && !!b.nextSibling?.textContent));
+  expect(split).toBe(true);
+  // Type at the very end (on the last page), and at the start of the first paragraph.
+  const editor = page.locator('.note-pane [contenteditable]');
+  await editor.locator('.blk').last().click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.type(' The end.');
+  await editor.locator('.blk').first().click({ position: { x: 5, y: 5 } });
+  await page.keyboard.press('Home');
+  await page.keyboard.type('Start: ');
+  const text = await page.evaluate(() => {
+    const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { runs: { text: string }[] }[] } }[] } } }).crumpet;
+    const st = s.getState();
+    return st.notes.find((n) => n.id === st.selectedId)!.doc.blocks.map((b) => b.runs.map((r) => r.text).join(''));
+  });
+  expect(text[0]).toBe('Start: Intro.');
+  expect(text[text.length - 1]).toMatch(/several lines on the page\. The end\.$/);
+  expect(text).toHaveLength(13);
+  // Off again: no breaks left behind.
+  await page.getByRole('button', { name: 'Page view' }).click();
+  await expect(breaks).toHaveCount(0);
+  await expect(page.locator('.sheet')).toHaveCount(0);
+});
+
+test('page view: typing and deleting right at a page break', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Break', 'Intro.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.insertText(Array.from({ length: 14 }, (_, i) => `Line ${i + 1} is a paragraph that is long enough to wrap onto a second line of the page here.`).join('\n'));
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ noteSize: 28 }));
+  await page.getByRole('button', { name: 'Page view' }).click();
+  const brk = page.locator('.note-editor .page-break').first();
+  await expect(brk).toBeAttached();
+  const doc = () =>
+    page.evaluate(() => {
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { runs: { text: string }[] }[] } }[] } } }).crumpet;
+      const st = s.getState();
+      return st.notes.find((n) => n.id === st.selectedId)!.doc.blocks.map((b) => b.runs.map((r) => r.text).join('')).join('\n');
+    });
+  const before = await doc();
+  // Put the caret just after the break, then type and delete.
+  await brk.evaluate((b) => {
+    const after = b.nextSibling!;
+    const sel = getSelection()!;
+    const r = document.createRange();
+    if (after.nodeType === Node.TEXT_NODE) r.setStart(after, 0);
+    else r.setStartAfter(b);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+    (b.closest('[contenteditable=true]') as HTMLElement).focus();
+  });
+  await page.keyboard.type('XY');
+  await expect.poll(doc).not.toBe(before);
+  const typed = await doc();
+  expect(typed.replace('XY', '')).toBe(before);
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await expect.poll(doc).toBe(before);
+});

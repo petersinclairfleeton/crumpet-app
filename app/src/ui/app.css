@@ -483,6 +483,20 @@ input, select { font: inherit; color: inherit; }
 .style-preview .blk { margin: 0 !important; }
 @media (max-width: 640px) { .styles-cols { grid-template-columns: 1fr; } .styles-list { flex-direction: row; flex-wrap: wrap; } }
 
+/* ---- Page view ---- */
+.note-body.paged { max-width: none; padding-left: 0; padding-right: 0; }
+.note-body.paged > :not(.page-view) { width: 100%; max-width: 700px; margin-left: auto; margin-right: auto; padding-left: 24px; padding-right: 24px; }
+.page-view { width: 100%; display: flex; justify-content: center; padding: 8px 0 12px; }
+.page-scaler { position: relative; }
+.page-inner { position: relative; transform-origin: 0 0; }
+.sheet { position: absolute; left: 0; right: 0; background: var(--page); border: 1px solid var(--line); border-radius: 2px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 6px 18px rgba(0, 0, 0, 0.06); }
+:root[data-theme='glass'] .sheet { background: rgba(255, 255, 255, 0.85); }
+.page-no { position: absolute; left: 0; right: 0; text-align: center; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.page-text { position: absolute; }
+.page-view .note-editor { min-height: 0; }
+.pane:has(.page-view) .note-scroll { background: var(--list-bg); }
+.manuscript-body.paged .ms-chapter { border-top: none; padding-top: 18px; }
+
 /* ---- Reading view: a book page ---- */
 .note-pane.reading .tools, .note-pane.reading .note-meta, .note-pane.reading .note-foot { display: none; }
 .note-pane.reading .note-toolbar { border-bottom-color: transparent; }

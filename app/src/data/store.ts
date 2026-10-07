@@ -10,7 +10,7 @@ import { makeBlock, type Doc } from '@crumpet/editor/model';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { matchIds } from '@crumpet/editor/diff';
 import type { Tree } from '../sync/tree';
-import type { StyleSheet } from './styles';
+import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
 import { type Chapter, type ChapterStatus, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
@@ -679,6 +679,10 @@ export class AppStore {
 
   setProjectStyles(id: string, styles: StyleSheet): void {
     this.updateProject(id, { styles });
+  }
+
+  setProjectPage(id: string, page: PageSetup): void {
+    this.updateProject(id, { page });
   }
 
   setProjectGoal(id: string, goal: number | null): void {
