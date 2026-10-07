@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import type { Doc } from '@crumpet/editor/model';
-import { FormatTools, LinkBar, useDocEditor } from './editing';
-import { useAppStore } from './hooks';
+import { FormatTools, LinkBar, SelectionBar, useDocEditor } from './editing';
+import { useAppState, useAppStore, useMedia } from './hooks';
 import { type PageSetup, type StyleSheet, defaultPage } from '../data/styles';
 import { type PageFields, type PagePlacement, PageView } from './pages';
 import { useSheetClass } from './styles-ui';
@@ -41,7 +41,11 @@ interface Props {
 /** One document with its toolbar: our editor engine, mounted once and re-loaded when a different document opens. */
 export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
   const store = useAppStore();
+  const state = useAppState();
+  const narrow = useMedia('(max-width: 759px)');
   const [linkOpen, setLinkOpen] = useState(false);
+  // The formatting bar floats above selected text, unless pinned (phones keep it in place).
+  const floating = !narrow && !readOnly && !reading && (state.focusMode || state.settings.toolbar !== 'always');
   const styles = useSheetClass(sheet);
   const paged = !!page && !reading;
   const { host, editor: ed } = useDocEditor({
@@ -61,10 +65,27 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
     <div className={`note-pane ${styles}${reading ? ' reading' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
-        <FormatTools editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
+        {!floating && <FormatTools editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />}
         <span className="grow" />
+        {!narrow && !readOnly && !reading && (
+          <button
+            type="button"
+            className={`icon-btn pin-tools${floating ? '' : ' on'}`}
+            aria-pressed={!floating}
+            aria-label="Formatting bar"
+            title={floating ? 'Show the formatting bar (it also appears when you select text)' : 'Hide the formatting bar until you select text'}
+            onClick={() => store.updateSettings({ toolbar: floating ? 'always' : 'selection' })}
+          >
+            Aa
+          </button>
+        )}
         {trail}
       </div>
+      {floating && ed && (
+        <SelectionBar host={host}>
+          <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
+        </SelectionBar>
+      )}
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
       <div className="note-scroll">
         <article className={`note-body${paged ? ' paged' : ''}`}>

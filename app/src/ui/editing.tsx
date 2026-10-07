@@ -1,7 +1,8 @@
 // Pieces shared by everything that edits text: notes, chapters, and the
 // manuscript (several chapters on one page sharing one toolbar).
 
-import { type RefObject, useEffect, useRef, useState } from 'react';
+import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Editor } from '@crumpet/editor/editor';
 import { diffDocs } from '@crumpet/editor/diff';
 import { stepsOf } from '@crumpet/editor/sync/transform';
@@ -126,7 +127,7 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
 }
 
 /** The formatting buttons, acting on whichever editor is given. */
-export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void }) {
+export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean }) {
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
   return (
@@ -152,14 +153,72 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles 
           {b.glyph}
         </button>
       ))}
-      <span className="sep" />
-      <button type="button" aria-label="Undo" title={`Undo (${mod}Z)`} disabled={off || !ed?.history.canUndo} onClick={() => ed?.undo()}>
-        ↶
-      </button>
-      <button type="button" aria-label="Redo" title={`Redo (${mod}⇧Z)`} disabled={off || !ed?.history.canRedo} onClick={() => ed?.redo()}>
-        ↷
-      </button>
+      {!compact && (
+        <>
+          <span className="sep" />
+          <button type="button" aria-label="Undo" title={`Undo (${mod}Z)`} disabled={off || !ed?.history.canUndo} onClick={() => ed?.undo()}>
+            ↶
+          </button>
+          <button type="button" aria-label="Redo" title={`Redo (${mod}⇧Z)`} disabled={off || !ed?.history.canRedo} onClick={() => ed?.redo()}>
+            ↷
+          </button>
+        </>
+      )}
     </div>
+  );
+}
+
+/**
+ * The formatting bar that floats above selected text (like Medium or Notion),
+ * so the page stays clear while writing.
+ */
+export function SelectionBar({ host, children }: { host: RefObject<HTMLElement>; children: ReactNode }) {
+  const bar = useRef<HTMLDivElement>(null);
+  const [at, setAt] = useState<{ top: number; bottom: number; mid: number } | null>(null);
+  const [place, setPlace] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    const update = () => {
+      // Working in the bar itself (a menu in it): keep it where it is.
+      if (bar.current?.contains(document.activeElement)) return;
+      const sel = getSelection();
+      const h = host.current;
+      if (!sel || !sel.rangeCount || sel.isCollapsed || !h || !h.contains(sel.anchorNode) || !h.contains(sel.focusNode)) return setAt(null);
+      const r = sel.getRangeAt(0).getBoundingClientRect();
+      if (!r.width && !r.height) return setAt(null);
+      setAt({ top: r.top, bottom: r.bottom, mid: r.left + r.width / 2 });
+    };
+    document.addEventListener('selectionchange', update);
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    // The page moving under the selection (focus mode, panes resized) moves the bar too.
+    const ro = new ResizeObserver(update);
+    if (host.current) ro.observe(host.current);
+    return () => {
+      ro.disconnect();
+      document.removeEventListener('selectionchange', update);
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [host]);
+
+  // Above the selection, kept inside the window; below it when there's no room above.
+  useLayoutEffect(() => {
+    const el = bar.current;
+    if (!at || !el) return setPlace(null);
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    const left = Math.min(window.innerWidth - w - 8, Math.max(8, at.mid - w / 2));
+    const top = at.top - h - 10 >= 8 ? at.top - h - 10 : at.bottom + 10;
+    setPlace({ top, left });
+  }, [at]);
+
+  if (!at) return null;
+  return createPortal(
+    <div ref={bar} className="selection-bar" role="toolbar" aria-label="Formatting" style={place ? { top: place.top, left: place.left } : { visibility: 'hidden', top: 0, left: 0 }}>
+      {children}
+    </div>,
+    document.body,
   );
 }
 

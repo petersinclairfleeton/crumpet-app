@@ -418,6 +418,8 @@ test('projects: chapters and parts, status, synopsis, goals, reordering and the 
 
 test('styles: apply from the menu, align, and modify a style for every paragraph using it', async ({ page }) => {
   await open(page);
+  // The formatting bar pinned in place.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
   await newNote(page, 'Styled', 'A first paragraph.');
   const body = page.locator('.note-pane [contenteditable]');
   await page.getByRole('button', { name: 'Style', exact: true }).click();
@@ -644,4 +646,32 @@ test('layout: hide and fold the sidebar, hide the list, resize, and two notes si
   await expect(page.locator('.rail, .sidebar')).toHaveCount(0);
   await page.keyboard.press('Control+\\');
   await expect(page.locator('.sidebar')).toBeVisible();
+});
+
+test('the formatting bar floats above selected text, can be pinned, and focus mode shows only the page', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Calm', 'Some words to format');
+  // Nothing selected: no formatting bar, just the page.
+  await expect(page.getByRole('button', { name: 'Bold' })).toHaveCount(0);
+  await page.keyboard.press('Shift+Home');
+  const bar = page.locator('.selection-bar');
+  await expect(bar).toBeVisible();
+  await bar.getByRole('button', { name: 'Bold' }).click();
+  await expect(page.locator('.note-editor strong')).toHaveText('Some words to format');
+  // Pinned: the full bar stays at the top.
+  await page.getByRole('button', { name: 'Formatting bar' }).click();
+  await expect(page.locator('.note-toolbar').getByRole('button', { name: 'Undo' })).toBeVisible();
+  await page.getByRole('button', { name: 'Formatting bar' }).click();
+  await expect(page.locator('.note-toolbar').getByRole('button', { name: 'Undo' })).toHaveCount(0);
+  // Focus mode.
+  await page.getByRole('button', { name: 'Focus mode' }).click();
+  await expect(page.locator('.sidebar')).toBeHidden();
+  await expect(page.locator('.list')).toBeHidden();
+  await page.getByRole('button', { name: /Exit focus/ }).click();
+  await expect(page.locator('.sidebar')).toBeVisible();
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('Control+Shift+F');
+  await expect(page.locator('.app.focus-mode')).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.app.focus-mode')).toHaveCount(0);
 });

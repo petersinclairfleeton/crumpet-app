@@ -6,7 +6,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
 import { allTags, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
 import { EditorHost } from './EditorHost';
-import { IconBack, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconBack, IconFocus, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
 interface PaneProps {
@@ -110,6 +110,9 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
 
   const trail = trashed ? closeSide : (
     <div className="note-actions">
+      <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" title="Focus mode (Ctrl+Shift+F)" onClick={() => store.setFocusMode(true)}>
+        <IconFocus size={16} />
+      </button>
       <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, notes: on } })} />
       <button type="button" className={`icon-btn read-toggle${reading ? ' on' : ''}`} aria-pressed={reading} aria-label={reading ? 'Back to editing' : 'Reading view'} title={reading ? 'Back to editing (Esc)' : 'Reading view'} onClick={() => setReading(!reading)}>
         {reading ? <IconPen size={16} /> : <IconBook size={16} />}

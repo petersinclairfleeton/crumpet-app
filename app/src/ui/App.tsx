@@ -77,6 +77,21 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [store]);
 
+  // Focus mode: Ctrl+Shift+F (⌘⇧F) in and out; Escape out.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const focus = store.getState().focusMode;
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        store.setFocusMode(!focus);
+      } else if (focus && e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('.popover, .dialog')) {
+        store.setFocusMode(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [store]);
+
   // ⌘K / Ctrl+K: search, unless editing text with a selection (then the editor uses it for links).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -111,7 +126,12 @@ export function App() {
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
 
   return (
-    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}`} data-pane={narrow ? pane : undefined} style={sizes}>
+    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
+      {state.focusMode && (
+        <button type="button" className="btn quiet exit-focus" onClick={() => store.setFocusMode(false)}>
+          Exit focus <kbd>Esc</kbd>
+        </button>
+      )}
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.
