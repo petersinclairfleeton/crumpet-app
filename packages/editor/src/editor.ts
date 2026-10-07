@@ -22,6 +22,8 @@ import {
   sliceRuns,
   footnotes,
   FOOTNOTE,
+  type Comment,
+  comments,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import {
@@ -53,6 +55,8 @@ import {
   insertTable,
   insertFootnote,
   setFootnote,
+  addComment,
+  setComment,
   setTableRows,
 } from './commands';
 import { History } from './history';
@@ -381,6 +385,12 @@ export class Editor {
     return getBlock(this.state.doc, this.state.selection.focus.block);
   }
 
+  /** Selects `sel` (without moving the focus). */
+  select(sel: Selection): void {
+    this.state = { ...this.state, selection: sel };
+    this.emit(null);
+  }
+
   /** Puts the caret at `pos` and the focus in the text. */
   focusPos(pos: Pos): void {
     this.state = { ...this.state, selection: caret(pos) };
@@ -626,6 +636,31 @@ export class Editor {
     return i < 0 ? null : (this.view.root.querySelectorAll<HTMLElement>('sup.fn')[i] ?? null);
   }
 
+  /** Puts a comment on the selected text. */
+  addComment(comment: Comment): boolean {
+    this.syncSelectionFromDom();
+    const t = addComment(this.state, comment);
+    if (!t) return false;
+    this.dispatch(t, 'command');
+    return true;
+  }
+
+  /** Changes a comment everywhere it is; null takes it off the text. */
+  setComment(id: string, comment: Comment | null): void {
+    this.dispatch(setComment(this.state, id, comment), 'command');
+  }
+
+  /** The first highlighted stretch of a comment, to show it beside. */
+  commentElement(id: string): HTMLElement | null {
+    return this.view.root.querySelector<HTMLElement>(`mark.cmt[data-comment="${CSS.escape(id)}"]`);
+  }
+
+  /** Clicks on commented text (the caret still goes there). */
+  onCommentClick: ((comment: Comment, el: HTMLElement) => void) | null = null;
+
+  /** Ctrl+Alt+M (⌘⌥M) with text selected: the app asks for a comment. */
+  onCommentKey: (() => void) | null = null;
+
   /** Clicks on a footnote's number. */
   onFootnoteClick: ((at: Pos, text: string, el: HTMLElement) => void) | null = null;
 
@@ -673,6 +708,7 @@ export class Editor {
     else if (e.altKey && e.code === 'KeyN') this.setBlockType('numbered');
     else if (e.altKey && e.code === 'KeyQ') this.setBlockType('quote');
     else if (e.altKey && e.code === 'KeyF') this.addFootnote();
+    else if (e.altKey && e.code === 'KeyM' && this.onCommentKey) this.onCommentKey();
     else handled = false;
     if (handled) e.preventDefault();
   }
@@ -681,6 +717,13 @@ export class Editor {
   onLinkClick: ((href: string, e: MouseEvent) => boolean) | null = null;
 
   private onMouseDown(e: MouseEvent): void {
+    const cmt = (e.target as Element).closest?.<HTMLElement>('mark.cmt');
+    if (cmt && this.onCommentClick) {
+      const id = cmt.dataset.comment;
+      const found = comments(this.state.doc).find((c) => c.comment.id === id);
+      // After the caret has moved, so the card isn't closed by the click itself.
+      if (found) setTimeout(() => this.onCommentClick?.(found.comment, cmt), 0);
+    }
     const fn = (e.target as Element).closest?.<HTMLElement>('sup.fn');
     if (fn && this.onFootnoteClick) {
       const i = [...this.view.root.querySelectorAll('sup.fn')].indexOf(fn);

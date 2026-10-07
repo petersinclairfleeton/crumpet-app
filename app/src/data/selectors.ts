@@ -2,7 +2,7 @@
 // groups, previews, counts and the sidebar tree.
 
 import { matchesFilters, parseQuery } from './search';
-import { footnotes, runsText } from '@crumpet/editor/model';
+import { comments, footnotes, runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
 import type { Doc } from '@crumpet/editor/model';
 import type { Chapter, Note, Notebook, OutlineItem, Project, Stack, View } from './types';
@@ -15,8 +15,9 @@ export function blockText(b: Doc['blocks'][number]): string {
 
 /** Plain text of a note's body, one line per block. */
 export function noteText(note: Note): string {
-  // Footnotes are searched too, after the text.
-  return [...note.doc.blocks.map(blockText), ...footnotes(note.doc).map((f) => f.text)].join('\n');
+  // Footnotes and comments are searched too, after the text.
+  const remarks = comments(note.doc).flatMap(({ comment: c }) => [c.text, ...(c.replies ?? []).map((r) => r.text)]);
+  return [...note.doc.blocks.map(blockText), ...footnotes(note.doc).map((f) => f.text), ...remarks].join('\n');
 }
 
 export function preview(note: Note, max = 160): string {

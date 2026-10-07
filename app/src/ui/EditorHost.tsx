@@ -10,6 +10,7 @@ import { type PageFields, type PagePlacement, PageView } from './pages';
 import { useSheetClass } from './styles-ui';
 import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
+import { CommentCard, CommentList } from './comments';
 
 interface Props {
   /** The document shown (a note or a chapter) and where its edits go. */
@@ -111,6 +112,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
         </SelectionBar>
       )}
       {!readOnly && !reading && <FootnoteCard editor={ed} />}
+      {!readOnly && !reading && <CommentCard editor={ed} />}
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
       <div className="note-scroll">
         <article className={`note-body${paged ? ' paged' : ''}`}>
@@ -119,6 +121,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
             <div ref={host} className="note-editor" aria-label={label} />
           </PageView>
           <FootnoteList doc={doc} editor={readOnly || reading ? null : ed} />
+          {!reading && <CommentList doc={doc} editor={readOnly ? null : ed} />}
           {footer}
         </article>
       </div>

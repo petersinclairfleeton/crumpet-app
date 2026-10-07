@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLOCK_STYLES, FOOTNOTE, type Block, type BlockType, type Doc, type Mark, type Run, MARK_ORDER, makeBlock, normalizeRuns } from '../src/model';
+import { BLOCK_STYLES, FOOTNOTE, makeComment, type Block, type BlockType, type Doc, type Mark, type Run, MARK_ORDER, makeBlock, normalizeRuns } from '../src/model';
 import { fromMarkdown, noteLink, noteLinkTitle, parseInline, toMarkdown } from '../src/markdown';
 
 function doc(...blocks: Block[]): Doc {
@@ -412,5 +412,30 @@ describe('footnotes', () => {
   it('a plain ^ before a bracket is just text', () => {
     expect(toMarkdown(fromMarkdown('x^\\[y\\]\n'))).toBe('x^\\[y\\]\n');
     expect(fromMarkdown('x^\\[y\\]\n').blocks[0].runs).toEqual([{ text: 'x^[y]', marks: [] }]);
+  });
+});
+
+describe('comments', () => {
+  it('are written as CriticMarkup and read back the same', () => {
+    const c = { ...makeComment('Ann Lee', 'Is this right?', Date.UTC(2026, 9, 7, 9, 32, 41)), replies: [{ author: 'Bo', at: Date.UTC(2026, 9, 7, 10, 0), text: 'Yes, sure' }] };
+    const doc: Doc = { blocks: [{ ...makeBlock('paragraph'), runs: [{ text: 'The ', marks: [] }, { text: 'sea is ', marks: [], comment: c }, { text: 'warm', marks: ['bold'], comment: c }, { text: '.', marks: [] }] }] };
+    const md = toMarkdown(doc);
+    expect(md).toBe('The {==sea is **warm**==}{>>Ann Lee (2026-10-07 09:32Z): Is this right?<<}{>>Bo (2026-10-07 10:00Z): Yes, sure<<}.\n');
+    const back = fromMarkdown(md);
+    expect(back.blocks[0].runs.map((r) => r.text)).toEqual(['The ', 'sea is ', 'warm', '.']);
+    expect(back.blocks[0].runs[1].comment).toEqual(c);
+    expect(toMarkdown(back)).toBe(md);
+  });
+
+  it('a comment from another app, without a name or time, still reads', () => {
+    const doc = fromMarkdown('Hi {==there==}{>>Check this<<} you\n');
+    expect(doc.blocks[0].runs[1]).toMatchObject({ text: 'there', comment: { author: '', at: 0, text: 'Check this' } });
+    expect(toMarkdown(doc)).toBe('Hi {==there==}{>>Check this<<} you\n');
+  });
+
+  it('text that looks like CriticMarkup is kept as text', () => {
+    const doc: Doc = { blocks: [makeBlock('paragraph', 'a {==b==}{>>c<<} d')] };
+    const md = toMarkdown(doc);
+    expect(fromMarkdown(md).blocks[0].runs).toEqual(doc.blocks[0].runs);
   });
 });

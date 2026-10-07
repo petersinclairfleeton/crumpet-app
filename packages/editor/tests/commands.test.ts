@@ -26,7 +26,8 @@ import {
   toggleFold,
   foldedUnder,
 } from '../src/commands';
-import { insertFootnote, setFootnote } from '../src/commands';
+import { insertFootnote, setFootnote, addComment, setComment, insertText as typeIn } from '../src/commands';
+import { comments, makeComment } from '../src/model';
 import { footnotes } from '../src/model';
 import { diffDocs } from '../src/diff';
 import { normalizeLink } from '../src/model';
@@ -444,5 +445,38 @@ describe('footnotes', () => {
     const d1 = applyOps(s0.doc, insertFootnote(s0, 'One').ops);
     const d2 = applyOps(d1, setFootnote({ ...s0, doc: d1 }, { block: p.id, offset: 5 }, 'Two').ops);
     expect(footnotes(diffDocs(d1, d2).doc)[0].text).toBe('Two');
+  });
+});
+
+describe('comments', () => {
+  it('go on the selected text across paragraphs, change, come off, and undo', () => {
+    const a = makeBlock('paragraph', 'First line');
+    const b = makeBlock('paragraph', 'Second line');
+    const s0 = state({ blocks: [a, b] }, { anchor: { block: a.id, offset: 6 }, focus: { block: b.id, offset: 6 } });
+    const c = makeComment('Ann', 'Tighten this', Date.UTC(2026, 0, 1));
+    const t1 = addComment(s0, c)!;
+    const d1 = applyOps(s0.doc, t1.ops);
+    expect(comments(d1)).toEqual([{ comment: c, block: a.id, offset: 6, quote: 'line Second' }]);
+    // Typing inside the commented text joins it; at its edge it doesn't.
+    const inside = typeIn({ ...s0, doc: d1, selection: caret({ block: a.id, offset: 8 }) }, 'X');
+    expect(applyOps(d1, inside.ops).blocks[0].runs.map((r) => [r.text, !!r.comment])).toEqual([['First ', false], ['liXne', true]]);
+    const edge = typeIn({ ...s0, doc: d1, selection: caret({ block: b.id, offset: 6 }) }, 'Y');
+    expect(applyOps(d1, edge.ops).blocks[1].runs.map((r) => [r.text, !!r.comment])).toEqual([['Second', true], ['Y line', false]]);
+    // A reply changes it everywhere.
+    const c2 = { ...c, replies: [{ author: 'Bo', at: 0, text: 'Done' }] };
+    const d2 = applyOps(d1, setComment({ ...s0, doc: d1 }, c.id, c2)!.ops);
+    expect(d2.blocks.flatMap((x) => x.runs).filter((r) => r.comment).every((r) => r.comment!.replies?.length === 1)).toBe(true);
+    const t3 = setComment({ ...s0, doc: d2 }, c.id, null)!;
+    const d3 = applyOps(d2, t3.ops);
+    expect(comments(d3)).toEqual([]);
+    expect(texts(d3)).toEqual(['First line', 'Second line']);
+    expect(comments(applyOps(d3, invertOps(t3.ops)))[0].comment.replies).toHaveLength(1);
+    // Changes made elsewhere arrive as edits.
+    expect(comments(diffDocs(d3, d2).doc)[0].comment).toEqual(c2);
+  });
+
+  it('need some text selected', () => {
+    const a = makeBlock('paragraph', 'Hi');
+    expect(addComment(state({ blocks: [a] }, caret({ block: a.id, offset: 1 })), makeComment('A', 'x'))).toBeNull();
   });
 });

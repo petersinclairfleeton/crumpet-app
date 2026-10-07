@@ -17,6 +17,7 @@ import { IconBack, IconFocus, IconMore, IconPlus } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
+import { CommentCard, CommentList } from './comments';
 import { DOCX_TYPE, docxName, download, projectDocx } from '../data/wordfiles';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -633,6 +634,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
       <SlashMenu editor={editor} host={host} notes={store.getState().notes} />
       <FootnoteCard editor={editor} />
+      <CommentCard editor={editor} />
       <p className="chapter-kicker">Chapter {number}</p>
       <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
       <PageView
@@ -649,6 +651,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
         <div ref={host} className="note-editor" aria-label={`Text of chapter ${number}`} />
       </PageView>
       <FootnoteList doc={chapter.doc} editor={editor} />
+      <CommentList doc={chapter.doc} editor={editor} />
     </section>
   );
 }

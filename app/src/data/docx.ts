@@ -3,7 +3,7 @@
 // needs (styles, lists, footnotes, pictures, headers and footers) and read
 // back what Crumpet can show.
 
-import { type Block, type BlockType, type Doc, type Mark, type Run, FOOTNOTE, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type Block, type BlockType, type Comment, type CommentReply, type Doc, type Mark, type Run, FOOTNOTE, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { PAGE_SIZES, type PageSetup } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -90,6 +90,10 @@ class Writer {
   rels: { id: string; type: string; target: string; external?: boolean }[] = [];
   media: ZipEntry[] = [];
   footnotes: string[] = [];
+  /** Comments in the order they start, and how many commented runs each has still to come. */
+  comments: Comment[] = [];
+  private commentNum = new Map<string, number>();
+  private commentLeft = new Map<string, number>();
   /** Numbered lists each get their own numbering, so they start again at 1. */
   numbered = 0;
   private nextRel = 1;
@@ -99,6 +103,10 @@ class Writer {
     private opts: DocxOptions,
     private contentWidth: number,
   ) {}
+
+  countComments(parts: DocxPart[]): void {
+    for (const p of parts) for (const b of p.doc.blocks) for (const r of b.runs) if (r.comment) this.commentLeft.set(r.comment.id, (this.commentLeft.get(r.comment.id) ?? 0) + 1);
+  }
 
   rel(type: string, target: string, external = false): string {
     const id = `rId${this.nextRel++}`;
@@ -131,7 +139,26 @@ class Writer {
     return p ? `<w:rPr>${p}</w:rPr>` : '';
   }
 
+  /** A run, with the start and end of any comment on it marked around it. */
   private run(r: Run, linked: boolean): string {
+    const c = r.comment;
+    if (!c) return this.plainRun(r, linked);
+    let out = '';
+    let n = this.commentNum.get(c.id);
+    if (n === undefined) {
+      n = this.comments.length;
+      this.commentNum.set(c.id, n);
+      this.comments.push(c);
+      out += `<w:commentRangeStart w:id="${n}"/>`;
+    }
+    out += this.plainRun(r, linked);
+    const left = (this.commentLeft.get(c.id) ?? 1) - 1;
+    this.commentLeft.set(c.id, left);
+    if (left <= 0) out += `<w:commentRangeEnd w:id="${n}"/><w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:commentReference w:id="${n}"/></w:r>`;
+    return out;
+  }
+
+  private plainRun(r: Run, linked: boolean): string {
     if (r.footnote !== undefined) {
       const id = this.footnotes.length + 1;
       this.footnotes.push(r.footnote);
@@ -305,6 +332,8 @@ function stylesXml(font: string, size: number): string {
     para('Footer', 'footer', '<w:spacing w:after="0"/>', `<w:sz w:val="${Math.round(hp * 0.85)}"/>`) +
     para('FootnoteText', 'footnote text', '<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>', `<w:sz w:val="${Math.round(hp * 0.8)}"/>`) +
     `<w:style w:type="character" w:styleId="FootnoteReference"><w:name w:val="footnote reference"/><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style>` +
+    para('CommentText', 'annotation text', '<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>', `<w:sz w:val="20"/>`) +
+    `<w:style w:type="character" w:styleId="CommentReference"><w:name w:val="annotation reference"/><w:rPr><w:sz w:val="16"/></w:rPr></w:style>` +
     `<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>` +
     `<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:color="auto"/><w:left w:val="single" w:sz="4" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:color="auto"/><w:right w:val="single" w:sz="4" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:color="auto"/></w:tblBorders><w:tblCellMar><w:left w:w="108" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>` +
     `</w:styles>`
@@ -323,6 +352,17 @@ function numberingXml(lists: number): string {
   return XML + `<w:numbering ${NS}><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>${levels(true)}</w:abstractNum><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="hybridMultilevel"/>${levels(false)}</w:abstractNum>${nums}</w:numbering>`;
 }
 
+function commentsXml(list: Comment[]): string {
+  const para = (text: string, first: boolean) =>
+    `<w:p><w:pPr><w:pStyle w:val="CommentText"/></w:pPr>${first ? '<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>' : ''}<w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
+  const date = (at: number) => (at ? ` w:date="${new Date(at).toISOString().replace(/\.\d+Z$/, 'Z')}"` : '');
+  const initials = (name: string) => esc(name.split(/\s+/).map((w) => w[0] ?? '').join('').slice(0, 3).toUpperCase());
+  const body = list
+    .map((c, n) => `<w:comment w:id="${n}" w:author="${esc(c.author || 'Someone')}"${date(c.at)} w:initials="${initials(c.author || 'S')}">${para(c.text, true)}${(c.replies ?? []).map((r) => para(`${r.author || 'Someone'}: ${r.text}`, false)).join('')}</w:comment>`)
+    .join('');
+  return XML + `<w:comments ${NS}>${body}</w:comments>`;
+}
+
 function footnotesXml(notes: string[]): string {
   const sep = '<w:footnote w:type="separator" w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>';
   const body = notes
@@ -338,6 +378,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const m = page?.margins ?? { top: 1, right: 1, bottom: 1, left: 1 };
   const contentIn = size.width - m.left - m.right;
   const w = new Writer(opts, contentIn * 96);
+  w.countComments(parts);
   let body = opts.titleParagraph ? w.paragraph('Title', `<w:r><w:t xml:space="preserve">${esc(opts.titleParagraph)}</w:t></w:r>`) : '';
   for (const [i, part] of parts.entries()) {
     const breakBefore = i > 0 ? '<w:pageBreakBefore/>' : '';
@@ -379,6 +420,10 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   w.rel(`${REL}/numbering`, 'numbering.xml');
   w.rel(`${REL}/footnotes`, 'footnotes.xml');
   w.rel(`${REL}/settings`, 'settings.xml');
+  if (w.comments.length) {
+    w.rel(`${REL}/comments`, 'comments.xml');
+    files.push({ name: 'word/comments.xml', data: utf8(commentsXml(w.comments)) });
+  }
   const docRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${w.rels.map((r) => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"${r.external ? ' TargetMode="External"' : ''}/>`).join('')}</Relationships>`;
   const settings = `${XML}<w:settings ${NS}>${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/><w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
@@ -392,7 +437,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>' +
     '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>' +
     '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>' +
-    files.map((f) => `<Override PartName="/${f.name}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : 'footer'}+xml"/>`).join('') +
+    files.map((f) => `<Override PartName="/${f.name}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : f.name.includes('comments') ? 'comments' : 'footer'}+xml"/>`).join('') +
     '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>';
   const rootRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`;
 
@@ -506,6 +551,32 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const notesPath = [...rels.values()].find((p) => /footnotes\.xml$/.test(p));
   for (const f of Array.from(parseXml(notesPath ? files.get(notesPath) : undefined)?.getElementsByTagNameNS(W_NS, 'footnote') ?? [])) notes.set(attr(f, 'id') ?? '', textOf(f));
 
+  // Comments: what each says, and which are open at the text being read.
+  const notesById = new Map<string, Comment>();
+  const commentsPath = [...rels.values()].find((p) => /comments\.xml$/.test(p));
+  for (const c of Array.from(parseXml(commentsPath ? files.get(commentsPath) : undefined)?.getElementsByTagNameNS(W_NS, 'comment') ?? [])) {
+    const author = (attr(c, 'author') ?? '').replace(/\s+/g, ' ').trim();
+    const date = Date.parse(attr(c, 'date') ?? '');
+    const at = Number.isNaN(date) ? 0 : Math.floor(date / 60000) * 60000;
+    const paras = kids(c).filter((x) => x.localName === 'p').map(textOf).filter(Boolean);
+    const text = paras[0] ?? '';
+    const replies: CommentReply[] = paras.slice(1).map((p) => {
+      const m = /^([^:]{1,60}): (.*)$/.exec(p);
+      return m ? { author: m[1], at: 0, text: m[2] } : { author: '', at: 0, text: p };
+    });
+    const comment: Comment = { id: commentId(author, at, text), author, at, text };
+    if (replies.length) comment.replies = replies;
+    notesById.set(attr(c, 'id') ?? '', comment);
+  }
+  const openComments: string[] = [];
+  const currentComment = () => {
+    for (let k = openComments.length - 1; k >= 0; k--) {
+      const c = notesById.get(openComments[k]);
+      if (c) return c;
+    }
+    return undefined;
+  };
+
   const blocks: Block[] = [];
   let title = '';
   const core = parseXml(files.get('docProps/core.xml'));
@@ -524,7 +595,12 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
           if (u && attr(u, 'val') !== 'none' && !(link && attr(child(rpr, 'rStyle'), 'val') === 'Hyperlink')) m.push('underline');
           if (/courier|consolas|menlo|monaco|mono/i.test(attr(child(rpr, 'rFonts'), 'ascii') ?? '')) m.push('code');
           const marksHere = sortMarks([...new Set(m)]);
-          const push = (text: string) => out.push(link ? { text, marks: marksHere, link } : { text, marks: marksHere });
+          const comment = currentComment();
+          const push = (text: string) => {
+            const run: Run = link ? { text, marks: marksHere, link } : { text, marks: marksHere };
+            if (comment) run.comment = comment;
+            out.push(run);
+          };
           for (const c of kids(el)) {
             if (c.localName === 't') push(c.textContent ?? '');
             else if (c.localName === 'tab') push('\t');
@@ -566,6 +642,14 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
         case 'sdt':
           await readRuns(child(el, 'sdtContent') ?? el, out, pics, marks, link);
           break;
+        case 'commentRangeStart':
+          openComments.push(attr(el, 'id') ?? '');
+          break;
+        case 'commentRangeEnd': {
+          const k = openComments.lastIndexOf(attr(el, 'id') ?? '');
+          if (k >= 0) openComments.splice(k, 1);
+          break;
+        }
         default:
         // Deleted text, comments, bookmarks, properties: not text.
       }
@@ -632,6 +716,11 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     for (const c of kids(el)) {
       if (c.localName === 'p') await paragraph(c);
       else if (c.localName === 'tbl') table(c);
+      else if (c.localName === 'commentRangeStart') openComments.push(attr(c, 'id') ?? '');
+      else if (c.localName === 'commentRangeEnd') {
+        const k = openComments.lastIndexOf(attr(c, 'id') ?? '');
+        if (k >= 0) openComments.splice(k, 1);
+      }
       else if (c.localName === 'sdt') await walk(child(c, 'sdtContent') ?? c);
       else if (c.localName === 'customXml' || c.localName === 'ins') await walk(c);
     }

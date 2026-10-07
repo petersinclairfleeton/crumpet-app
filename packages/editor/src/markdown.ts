@@ -20,7 +20,7 @@
 // lines, fenced code and autolinks. Things Crumpet can't show yet (images,
 // tables, other HTML) are kept as their literal text.
 
-import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
+import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -187,7 +187,8 @@ function escapeText(text: string): string {
   return text
     .replace(/[\\`*_~[\]<>]/g, (c) => `\\${c}`)
     .replace(/&(?=[a-zA-Z#][a-zA-Z0-9]*;)/g, '&amp;')
-    .replace(/[\t\n\r]/g, (c) => `&#${c.charCodeAt(0)};`);
+    .replace(/[\t\n\r]/g, (c) => `&#${c.charCodeAt(0)};`)
+    .replace(/\{(?=[=+-]{2})/g, '\\{');
 }
 
 /** Whitespace at the start or end of a line would be dropped, so it's written as character references. */
@@ -224,6 +225,46 @@ function formatting(r: Run): Mark[] {
  * properly. A mark that covers a whole link stays open around it.
  */
 function writeRuns(runs: Run[], style: Style): string {
+  let out = '';
+  // Commented text is CriticMarkup: {==the text==}{>>the comment<<}{>>a reply<<}.
+  for (let i = 0; i < runs.length; ) {
+    const c = runs[i].comment;
+    let j = i + 1;
+    while (j < runs.length && runs[j].comment?.id === c?.id) j++;
+    const part = writeFormatted(runs.slice(i, j), style);
+    out += c ? `{==${part}==}${commentMarkup(c)}` : part;
+    i = j;
+  }
+  return out;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** A time as written in a comment: 2026-10-07 09:32Z. */
+function commentTime(at: number): string {
+  const d = new Date(at);
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}Z`;
+}
+
+function commentMarkup(c: Comment): string {
+  return [c, ...(c.replies ?? [])]
+    .map((m) => {
+      const who = m.author.replace(/[()]/g, '') || (m.at ? 'Someone' : '');
+      const head = who ? `${who} (${m.at ? commentTime(m.at) : 'undated'}): ` : '';
+      return `{>>${head}${m.text.replace(/\s+/g, ' ').replace(/<<\}/g, '<< }')}<<}`;
+    })
+    .join('');
+}
+
+/** A comment (or reply) as written: "Author (2026-10-07 09:32Z): text", or just text. */
+function readCommentPart(raw: string): CommentReply {
+  const m = /^([^()]*?) \((\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d)Z\): ([\s\S]*)$/.exec(raw) ?? /^([^()]*?) \((undated)\)(): ([\s\S]*)$/.exec(raw);
+  if (!m) return { author: '', at: 0, text: raw.trim() };
+  if (m[2] === 'undated') return { author: m[1].trim(), at: 0, text: m[4].trim() };
+  return { author: m[1].trim(), at: Date.UTC(+m[2], +m[3] - 1, +m[4], +m[5], +m[6]), text: m[7].trim() };
+}
+
+function writeFormatted(runs: Run[], style: Style): string {
   let out = '';
   const open: Mark[] = [];
   const moveTo = (want: Mark[]) => {
@@ -288,14 +329,15 @@ function spacesOutside(runs: Run[]): Run[] {
       continue;
     }
     let j = i;
-    while (j < chars.length && isSpace(chars[j]) && chars[j].link === chars[i].link) j++;
+    while (j < chars.length && isSpace(chars[j]) && chars[j].link === chars[i].link && chars[j].comment?.id === chars[i].comment?.id) j++;
     // Spaces inside a link label stop at the label's edges; spaces outside can sit next to a link.
     const link = chars[i].link;
-    const reach = (c: Run | undefined) => (c && !isSpace(c) && (link === undefined || c.link === link) ? formatting(c) : []);
+    const comment = chars[i].comment?.id;
+    const reach = (c: Run | undefined) => (c && !isSpace(c) && (link === undefined || c.link === link) && (comment === undefined || c.comment?.id === comment) ? formatting(c) : []);
     const left = reach(chars[i - 1]);
     const right = reach(chars[j]);
     const marks = left.filter((m) => right.includes(m));
-    for (let k = i; k < j; k++) chars[k] = chars[k].link ? { text: chars[k].text, marks, link: chars[k].link } : { text: chars[k].text, marks };
+    for (let k = i; k < j; k++) chars[k] = { ...withText(chars[k], chars[k].text), marks };
     i = j;
   }
   return normalizeRuns(chars);
@@ -523,7 +565,7 @@ interface Delim {
   node: TextNode;
 }
 
-type Node = TextNode | Delim | { kind: 'mark'; mark: Mark; open: boolean } | { kind: 'link'; open: boolean; href?: string };
+type Node = TextNode | Delim | { kind: 'mark'; mark: Mark; open: boolean } | { kind: 'link'; open: boolean; href?: string } | { kind: 'comment'; open: boolean; comment?: Comment };
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
@@ -551,6 +593,7 @@ export function parseInline(src: string): Run[] {
   // Walk the nodes, keeping track of which marks and link are active.
   const active = new Map<Mark, number>();
   const links: string[] = [];
+  const notes: Comment[] = [];
   const runs: Run[] = [];
   for (const n of nodes) {
     if (n.kind === 'mark') {
@@ -562,12 +605,18 @@ export function parseInline(src: string): Run[] {
       else links.pop();
       continue;
     }
+    if (n.kind === 'comment') {
+      if (n.open) notes.push(n.comment!);
+      else notes.pop();
+      continue;
+    }
     const node = n.kind === 'delim' ? n.node : n;
     if (!node.text) continue;
     const marks = sortMarks([...node.marks, ...[...active.entries()].filter(([, c]) => c > 0).map(([m]) => m)]);
     const link = node.link ?? links[links.length - 1];
     const run: Run = link ? { text: node.text, marks, link } : { text: node.text, marks };
     if (node.footnote !== undefined) run.footnote = node.footnote;
+    if (notes.length) run.comment = notes[notes.length - 1];
     runs.push(run);
   }
   return normalizeRuns(runs);
@@ -618,6 +667,29 @@ function tokenize(src: string): Node[] {
         flush();
         nodes.push({ kind: 'text', text: auto[1], marks: [], link: auto[1] });
         i += auto[0].length;
+        continue;
+      }
+    }
+    // A comment: {==the text==}{>>the comment<<}, and any replies after it.
+    if (c === '{' && src.startsWith('{==', i)) {
+      const close = src.indexOf('==}', i + 3);
+      const parts: string[] = [];
+      let k = close + 3;
+      while (close >= 0 && src.startsWith('{>>', k)) {
+        const end = src.indexOf('<<}', k + 3);
+        if (end < 0) break;
+        parts.push(src.slice(k + 3, end));
+        k = end + 3;
+      }
+      if (parts.length) {
+        flush();
+        const [first, ...replies] = parts.map(readCommentPart);
+        const comment: Comment = { id: commentId(first.author, first.at, first.text), ...first };
+        if (replies.length) comment.replies = replies;
+        nodes.push({ kind: 'comment', open: true, comment });
+        nodes.push(...tokenize(src.slice(i + 3, close)));
+        nodes.push({ kind: 'comment', open: false });
+        i = k;
         continue;
       }
     }

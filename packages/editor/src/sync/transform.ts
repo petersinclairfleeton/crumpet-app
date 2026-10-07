@@ -19,7 +19,7 @@
 // the same order, so they always end up identical. This file only has to make
 // the rewritten edits land where the person meant them.
 
-import { type Doc, type Pos, type Selection, blockIndex, getBlock, runsLength, runsText, setLinkOnRuns, setMarkOnRuns, sliceRuns } from '../model';
+import { type Doc, type Pos, type Selection, blockIndex, getBlock, runsLength, runsText, setCommentOnRuns, setLinkOnRuns, setMarkOnRuns, sliceRuns } from '../model';
 import { type Op, applyOp, attrsOf, invertOp, sameAttrs } from '../ops';
 
 type Assoc = -1 | 1;
@@ -253,6 +253,7 @@ export function materialise(op: Op, map: MapFn, target: Doc): Op[] {
       }
       return spans(target, from, to).map((s) => {
         const before = sliceRuns(getBlock(target, s.id).runs, s.from, s.to);
+        if (op.comment !== undefined) return { type: 'format' as const, block: s.id, offset: s.from, before, after: setCommentOnRuns(before, op.comment), comment: op.comment };
         return op.link !== undefined
           ? { type: 'format' as const, block: s.id, offset: s.from, before, after: setLinkOnRuns(before, op.link), link: op.link }
           : { type: 'format' as const, block: s.id, offset: s.from, before, after: setMarkOnRuns(before, op.mark, op.on), mark: op.mark, on: op.on };
