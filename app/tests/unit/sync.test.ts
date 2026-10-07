@@ -270,6 +270,33 @@ describe('syncing two devices through files', () => {
   });
 });
 
+describe('syncing pictures and files', () => {
+  it('copies attached files to the Attachments folder, which never becomes a notebook', async () => {
+    const cloud = new MemoryProvider(now);
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const uploads: string[] = [];
+    const engine = new SyncEngine(mac.store, cloud, { load: async () => null, save: async () => {} }, { now, newId, uploadFiles: async (p) => (await p.writeBytes!('Attachments/abc1234-lamp.png', new Blob(['png'])), uploads.push('lamp')) });
+    const nb = mac.store.createNotebook('Pictures');
+    mac.store.createNote({ title: 'With a picture', notebookId: nb.id, doc: md('Here:\n\n![The lamp](Attachments/abc1234-lamp.png)\n') });
+    mac.store.flush();
+    await engine.sync();
+    expect(uploads).toEqual(['lamp']);
+    expect(cloud.blobs.has('Attachments/abc1234-lamp.png')).toBe(true);
+    await phone.engine.sync();
+    expect(phone.store.getState().notebooks.map((n) => n.name)).toEqual(['Pictures']);
+    expect(body(phone.store, 'With a picture')).toBe('Here:\n\n![The lamp](Attachments/abc1234-lamp.png)\n');
+    // A notebook called Attachments gets a folder of its own.
+    mac.store.createNotebook('Attachments');
+    mac.store.createNote({ title: 'Odd', notebookId: mac.store.getState().notebooks.find((n) => n.name === 'Attachments')!.id });
+    mac.store.flush();
+    await engine.sync();
+    expect(cloud.files.has('Attachments 2/Odd.md')).toBe(true);
+    await phone.engine.sync();
+    expect(phone.store.getState().notebooks.map((n) => n.name).sort()).toEqual(['Attachments', 'Pictures']);
+  });
+});
+
 describe('random syncing', () => {
   function rng(seed: number) {
     let s = seed >>> 0;

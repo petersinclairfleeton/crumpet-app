@@ -11,6 +11,7 @@ import {
   styleAllowed,
   commonLink,
   isList,
+  isMedia,
   type Run,
   blockIndex,
   insertRuns,
@@ -50,13 +51,14 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
   const a = blockAttrs(b.type, b.checked, b.indent);
   if (b.style && styleAllowed(b.type, b.style)) a.style = b.style;
   if (b.align && b.align !== 'left') a.align = b.align;
+  if (isMedia(b.type) && b.src) a.src = b.src;
   return a;
 }
 
 export function sameAttrs(a: BlockAttrs, b: BlockAttrs): boolean {
   const x = attrsOf(a);
   const y = attrsOf(b);
-  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left');
+  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '');
 }
 
 export function applyOp(doc: Doc, op: Op): Doc {

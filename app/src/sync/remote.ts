@@ -15,7 +15,7 @@
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { type ChapterStatus, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
-import { type Layout, META_FILE, PROJECTS, PROJECT_FILE, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
+import { ATTACHMENTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
 import { type NoteFile, parseNoteFile } from './notefile';
 import type { Entry, Provider } from './provider';
 import { type TChapter, type TNote, type Tree, emptyTree, hashId } from './tree';
@@ -172,6 +172,8 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   };
   for (const e of snap.entries) {
     if (e.path.split('/').some((s) => s.startsWith('.')) || inProject(e.path)) continue;
+    // The attachments folder holds pictures and files, not notes.
+    if ((e.path === ATTACHMENTS || e.path.startsWith(`${ATTACHMENTS}/`)) && !isNotePath(e.path)) continue;
     if (e.kind === 'folder') addFolder(e.path);
     else if (isNotePath(e.path)) addFolder(parentOf(e.path));
   }

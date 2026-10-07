@@ -6,6 +6,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore } from './hooks';
 import { allTags, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
 import { EditorHost } from './EditorHost';
+import { chooseFiles } from './editing';
 import { Tour } from './Tour';
 import { IconBack, IconFocus, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
@@ -126,6 +127,16 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
       </button>
       {menu && (
         <Popover onClose={() => setMenu(false)} label="Note options">
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              setMenu(false);
+              if (editorRef.current) chooseFiles(editorRef.current);
+            }}
+          >
+            Add a picture or file…
+          </button>
           <button
             type="button"
             className="menu-item danger"

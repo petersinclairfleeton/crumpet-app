@@ -21,6 +21,8 @@ import {
   currentLink,
   setBlockStyle,
   setAlign,
+  insertMedia,
+  joinForward,
 } from '../src/commands';
 import { normalizeLink } from '../src/model';
 import { History } from '../src/history';
@@ -350,5 +352,48 @@ describe('styles and alignment', () => {
       const t = markdownShortcut(state(doc, caret({ block: doc.blocks[0].id, offset: prefix.length + 1 })))!;
       expect(applyOps(doc, t.ops).blocks[0].type).toBe(type);
     }
+  });
+});
+
+describe('pictures and files', () => {
+  const run = (doc: Doc, t: { ops: Parameters<typeof applyOps>[1] } | null) => applyOps(doc, t!.ops);
+  const kinds = (doc: Doc) => doc.blocks.map((b) => `${b.type}${b.src ? `:${b.src}` : ''}:${runsText(b.runs)}`);
+
+  it('go in place of an empty line, or split the text at the caret, with somewhere to keep writing', () => {
+    const empty: Doc = { blocks: [makeBlock('paragraph')] };
+    let t = insertMedia(state(empty), 'image', 'Attachments/a-x.png');
+    let after = run(empty, t);
+    expect(kinds(after)).toEqual(['image:Attachments/a-x.png:', 'paragraph:']);
+    expect(t.selectionAfter.focus.block).toBe(after.blocks[1].id);
+    const text: Doc = { blocks: [makeBlock('paragraph', 'Before after')] };
+    t = insertMedia(state(text, caret({ block: text.blocks[0].id, offset: 7 })), 'file', 'Attachments/b-y.pdf', 'y.pdf');
+    after = run(text, t);
+    expect(kinds(after)).toEqual(['paragraph:Before ', 'file:Attachments/b-y.pdf:y.pdf', 'paragraph:after']);
+    // Undo puts it back as it was.
+    expect(texts(applyOps(after, invertOps(t.ops)))).toEqual(['Before after']);
+  });
+
+  it('Enter after a caption starts a paragraph; Backspace at the start of a caption removes the picture but keeps the words', () => {
+    const doc: Doc = { blocks: [makeBlock('image', 'Lamp', [], { src: 'Attachments/a-x.png' })] };
+    const id = doc.blocks[0].id;
+    let t = splitBlock(state(doc, caret({ block: id, offset: 4 })));
+    expect(kinds(run(doc, t))).toEqual(['image:Attachments/a-x.png:Lamp', 'paragraph:']);
+    t = splitBlock(state(doc, caret({ block: id, offset: 2 })));
+    expect(kinds(run(doc, t))).toEqual(['image:Attachments/a-x.png:La', 'paragraph:mp']);
+    t = joinBackward(state(doc, caret({ block: id, offset: 0 })))!;
+    expect(kinds(run(doc, t))).toEqual(['paragraph:Lamp']);
+  });
+
+  it('text next to a picture is never pulled into its caption', () => {
+    const doc: Doc = { blocks: [makeBlock('paragraph', 'Above'), makeBlock('image', '', [], { src: 'Attachments/a-x.png' }), makeBlock('paragraph', 'Below')] };
+    const [above, pic, below] = doc.blocks.map((b) => b.id);
+    let t = joinBackward(state(doc, caret({ block: below, offset: 0 })))!;
+    expect(kinds(run(doc, t))).toEqual(kinds(doc));
+    expect(t.selectionAfter.focus).toEqual({ block: pic, offset: 0 });
+    t = joinForward(state(doc, caret({ block: above, offset: 5 })))!;
+    expect(kinds(run(doc, t))).toEqual(kinds(doc));
+    // Turning the lines into a list leaves the picture alone.
+    t = setBlockType(state(doc, { anchor: { block: above, offset: 0 }, focus: { block: below, offset: 5 } }), 'bullet');
+    expect(run(doc, t).blocks.map((b) => b.type)).toEqual(['bullet', 'image', 'bullet']);
   });
 });

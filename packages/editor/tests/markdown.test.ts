@@ -195,8 +195,8 @@ describe('reading Markdown written elsewhere', () => {
   });
 
   it('keeps things it does not understand as text', () => {
-    expect(read('![img](a.png)\n\n| a | b |')).toEqual([
-      { type: 'paragraph', indent: 0, checked: undefined, runs: [r('!'), { text: 'img', marks: [], link: 'a.png' }] },
+    expect(read('Text ![img](a.png)\n\n| a | b |')).toEqual([
+      { type: 'paragraph', indent: 0, checked: undefined, runs: [r('Text !'), { text: 'img', marks: [], link: 'a.png' }] },
       { type: 'paragraph', indent: 0, checked: undefined, runs: [r('| a | b |')] },
     ]);
   });
@@ -314,5 +314,25 @@ describe('styles and alignment', () => {
     const d = fromMarkdown('---\n\n***\n\n_ _ _\n\nKeep {.unknown}\n');
     expect(d.blocks.map((b) => b.style ?? b.type)).toEqual(['scenebreak', 'scenebreak', 'scenebreak', 'paragraph']);
     expect(d.blocks[3].runs[0].text).toBe('Keep {.unknown}');
+  });
+});
+
+describe('pictures and attached files', () => {
+  it('are written as Markdown images and links on their own lines, and read back', () => {
+    const doc = { blocks: [makeBlock('paragraph', 'Before.'), makeBlock('image', 'The lamp [lit] at dusk', [], { src: 'Attachments/k3j9a2x-lamp.jpg' }), makeBlock('file', 'Ferry timetable', [], { src: 'Attachments/p0q1r2s-timetable.pdf' }), makeBlock('image', '', [], { src: 'https://example.com/a(1).png', align: 'center' })] };
+    const md = toMarkdown(doc);
+    expect(md).toBe('Before.\n\n![The lamp \\[lit\\] at dusk](Attachments/k3j9a2x-lamp.jpg)\n\n[Ferry timetable](Attachments/p0q1r2s-timetable.pdf)\n\n![](https://example.com/a\\(1\\).png) {.center}\n');
+    const back = fromMarkdown(md);
+    expect(back.blocks.map((b) => [b.type, b.src ?? '', b.runs.map((r) => r.text).join(''), b.align ?? ''])).toEqual([
+      ['paragraph', '', 'Before.', ''],
+      ['image', 'Attachments/k3j9a2x-lamp.jpg', 'The lamp [lit] at dusk', ''],
+      ['file', 'Attachments/p0q1r2s-timetable.pdf', 'Ferry timetable', ''],
+      ['image', 'https://example.com/a(1).png', '', 'center'],
+    ]);
+  });
+
+  it('leaves ordinary links and pictures inside text as text', () => {
+    expect(fromMarkdown('[a site](https://example.com)\n').blocks[0].type).toBe('paragraph');
+    expect(fromMarkdown('Look: ![x](y.png)\n').blocks[0].type).toBe('paragraph');
   });
 });

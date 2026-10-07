@@ -89,6 +89,24 @@ export class DriveProvider implements Provider {
     return { path, kind: 'file', rev: rev(f), modified: f.modifiedTime ? Date.parse(f.modifiedTime) : Date.now() };
   }
 
+  async readBytes(path: string): Promise<Blob> {
+    const id = await this.idOf(path);
+    return (await this.call(`${API}/files/${id}?alt=media`)).blob();
+  }
+
+  async writeBytes(path: string, data: Blob): Promise<Entry> {
+    let id = this.ids.get(path);
+    if (!id || this.kinds.get(path) !== 'file') {
+      const parent = await this.folder(parentOf(path));
+      const created = (await (await this.call(`${API}/files?fields=${FIELDS}`, { method: 'POST', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: JSON.stringify({ name: baseName(path), parents: [parent], mimeType: data.type || 'application/octet-stream' }) })).json()) as DriveFile;
+      id = created.id;
+      this.ids.set(path, id);
+      this.kinds.set(path, 'file');
+    }
+    const f = (await (await this.call(`${UPLOAD}/files/${id}?uploadType=media&fields=${FIELDS}`, { method: 'PATCH', headers: { 'Content-Type': data.type || 'application/octet-stream' }, body: data })).json()) as DriveFile;
+    return { path, kind: 'file', rev: rev(f), modified: f.modifiedTime ? Date.parse(f.modifiedTime) : Date.now() };
+  }
+
   async mkdir(path: string): Promise<void> {
     await this.folder(path);
   }

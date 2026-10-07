@@ -66,3 +66,18 @@
 
 /* Page view: the gap that carries text on to the next page. */
 .page-break { display: block; pointer-events: none; user-select: none; -webkit-user-select: none; }
+/* Pictures and attached files: the picture or file above, its caption below. */
+.blk-image, .blk-file { margin: 14px 0; }
+.blk-image .media, .blk-file .media { display: block; user-select: none; }
+.blk-image img { display: block; max-width: 100%; max-height: 70vh; margin: 0 auto; border-radius: 6px; }
+.blk-image[data-align='left'] img { margin-left: 0; }
+.blk-image[data-align='right'] img { margin-right: 0; }
+.blk-image .text { display: block; margin-top: 6px; text-align: center; font-size: 0.85em; font-style: italic; color: var(--muted, #666); }
+.media.missing { display: flex; align-items: center; justify-content: center; min-height: 80px; border: 1px dashed var(--line2, #ccc); border-radius: 6px; color: var(--muted, #666); font-size: 13px; }
+.blk-image .media.missing img { display: none; }
+.media.missing::after { content: 'This file isn’t on this device yet'; }
+.blk-file .media.missing { min-height: 0; padding: 8px 12px; justify-content: flex-start; }
+.blk-file .media.missing .file-chip { display: none; }
+.file-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line2, #ccc); border-radius: 10px; background: var(--field, #f4f4f4); color: var(--text, inherit); font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.file-chip::before { content: ''; width: 11px; height: 14px; border: 1.5px solid currentColor; border-radius: 2px 5px 2px 2px; opacity: 0.7; }
+.blk-file .text { display: block; margin-top: 4px; font-size: 0.85em; color: var(--muted, #666); }

@@ -25,6 +25,9 @@ export interface Provider {
   move(from: string, to: string): Promise<Entry>;
   /** Removes a file, or a folder that is empty. */
   remove(path: string): Promise<void>;
+  /** Pictures and other attached files. */
+  readBytes?(path: string): Promise<Blob>;
+  writeBytes?(path: string, data: Blob): Promise<Entry>;
 }
 
 /** Raised when the place the files live can't be reached (offline, signed out...). */
@@ -67,6 +70,21 @@ export class MemoryProvider implements Provider {
     const f = { text, rev: ++this.counter, modified: this.now() };
     this.files.set(path, f);
     return { path, kind: 'file', rev: String(f.rev), modified: f.modified };
+  }
+
+  blobs = new Map<string, Blob>();
+
+  async readBytes(path: string): Promise<Blob> {
+    const b = this.blobs.get(path);
+    if (!b) throw new ProviderError(`No file ${path}`, 'missing');
+    return b;
+  }
+
+  async writeBytes(path: string, data: Blob): Promise<Entry> {
+    this.log.push(`write ${path}`);
+    this.blobs.set(path, data);
+    // Listed like any other file (its text is never read).
+    return this.write(path, '').then((e) => (this.log.pop(), e));
   }
 
   async mkdir(path: string) {

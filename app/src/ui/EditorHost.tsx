@@ -88,7 +88,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
       )}
       {floating && ed && (
         <SelectionBar host={host}>
-          <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
+          <FormatTools compact attach={false} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
         </SelectionBar>
       )}
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
