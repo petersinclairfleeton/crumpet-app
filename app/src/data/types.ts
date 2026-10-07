@@ -34,6 +34,37 @@ export interface Note {
 }
 
 /** Crumpet's own looks follow the device (system) or are fixed light or dark; the rest are styles of their own. */
+/** Where a chapter is in the writing. */
+export type ChapterStatus = 'todo' | 'draft' | 'revised' | 'done';
+
+/** A project's order of parts and chapters. A chapter belongs to the part above it. */
+export type OutlineItem = { type: 'part'; id: string; title: string } | { type: 'chapter'; id: string };
+
+/** A piece of writing made of chapters, optionally grouped into parts: a book, an essay, a thesis. */
+export interface Project {
+  id: string;
+  name: string;
+  /** Word goal for the whole project, or null. */
+  goal: number | null;
+  outline: OutlineItem[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Chapter {
+  id: string;
+  projectId: string;
+  title: string;
+  doc: Doc;
+  status: ChapterStatus;
+  /** A short summary of what happens. */
+  synopsis: string;
+  /** Word goal for this chapter, or null. */
+  goal: number | null;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type Theme = 'system' | 'light' | 'dark' | 'classic' | 'vapor' | 'console' | 'mac' | 'glass' | 'sepia' | 'midnight';
 
 /** The font notes are written in. */
@@ -67,6 +98,7 @@ export type View =
   | { kind: 'notebook'; id: string }
   | { kind: 'stack'; id: string }
   | { kind: 'tag'; tag: string }
+  | { kind: 'project'; id: string }
   | { kind: 'trash' };
 
 export const NOTEBOOK_COLORS = ['#C98A4B', '#6F93BF', '#D4A257', '#9A82BC', '#78A88A', '#C27D74', '#B39A73', '#9A9A9A'];

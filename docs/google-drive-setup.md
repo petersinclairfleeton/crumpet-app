@@ -101,10 +101,16 @@ Crumpet/
   Loose thought.md          a note in no notebook
   .trash/                   the Trash
   .crumpet/vault.json       notebook colours and ids
+  Projects/
+    The Lighthouse/         a project
+      project.json          its name, word goal and order of parts and chapters
+      01 The Keeper.md      its chapters, numbered in order
+      02 Salt.md
 ```
 
 Each note is Markdown with a short header (front matter) holding its title,
-tags and dates. Deleting a note in Crumpet moves its file to Drive's own bin,
+tags and dates. Chapters are the same, with their status, synopsis and word
+goal in the header. Deleting a note in Crumpet moves its file to Drive's own bin,
 where it stays for 30 days.
 
 The claude.ai artifact preview of Crumpet can't sign in to Google: its address

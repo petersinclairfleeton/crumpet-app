@@ -13,18 +13,20 @@
 // again from the last agreed version. Every step is safe to repeat.
 
 import type { AppStore } from '../data/store';
-import { type Layout, META_FILE, layout, parentOf } from './layout';
+import { type Layout, META_FILE, PROJECT_FILE, fullLayout, layout, parentOf } from './layout';
 import { mergeTrees } from './merge';
 import { type NoteFile, writeNoteFile } from './notefile';
 import { type Provider, ProviderError } from './provider';
-import { type Base, type FileCache, type Snapshot, emptyBase, readRemote, remoteTree, writeMeta } from './remote';
-import { type TNote, type Tree, localTree, sameNote } from './tree';
+import { type Base, type FileCache, type ProjectCache, type Snapshot, emptyBase, readRemote, remoteTree, writeMeta, writeProject } from './remote';
+import { type TChapter, type TNote, type Tree, fullTree, localTree, sameChapter, sameNote } from './tree';
 
 export interface SyncState {
   base: Base;
   cache: FileCache;
   meta: { rev: string; text: string } | null;
   lastSynced: number;
+  /** project.json files as last read or written. */
+  projectFiles?: ProjectCache;
 }
 
 export interface SyncStatePersistence {
@@ -137,11 +139,14 @@ export class SyncEngine {
   }
 
   private async once(): Promise<number> {
-    const state = (await this.persistence.load()) ?? { base: emptyBase(), cache: {}, meta: null, lastSynced: 0 };
-    const snap = await readRemote(this.provider, state.cache, state.meta);
+    const saved = (await this.persistence.load()) ?? { base: emptyBase(), cache: {}, meta: null, lastSynced: 0 };
+    // State saved by an earlier version may not know about projects yet.
+    const state: SyncState = { ...saved, base: { ...saved.base, tree: fullTree(saved.base.tree), layout: fullLayout(saved.base.layout) } };
+    const snap = await readRemote(this.provider, state.cache, state.meta, state.projectFiles ?? {});
     const { tree: remote, layout: at } = remoteTree(snap, state.base);
     // Every file gone at once is far more likely a missing or disconnected folder than a decision to delete everything.
-    if (!Object.keys(remote.notes).length && !snap.meta && Object.keys(state.base.tree.notes).length) {
+    const count = (t: Tree) => Object.keys(t.notes).length + Object.keys(t.chapters).length;
+    if (!count(remote) && !snap.meta && count(state.base.tree)) {
       throw new ProviderError('The notes folder is empty or missing, so nothing was changed.', 'missing');
     }
 
@@ -156,7 +161,7 @@ export class SyncEngine {
     // Apply here, keeping anything typed while the sync ran.
     this.store.flush();
     const s1 = this.store.getState();
-    const unchanged = s1.notes === s0.notes && s1.notebooks === s0.notebooks && s1.stacks === s0.stacks;
+    const unchanged = s1.notes === s0.notes && s1.notebooks === s0.notebooks && s1.stacks === s0.stacks && s1.projects === s0.projects && s1.chapters === s0.chapters;
     const final = unchanged ? merged : mergeTrees(local, localTree(s1), merged, opts).tree;
     this.applying = true;
     try {
@@ -164,7 +169,7 @@ export class SyncEngine {
     } finally {
       this.applying = false;
     }
-    await this.persistence.save({ base: { tree: merged, layout: want, ids: pushed.ids }, cache: pushed.cache, meta: pushed.meta, lastSynced: this.now() });
+    await this.persistence.save({ base: { tree: merged, layout: want, ids: pushed.ids }, cache: pushed.cache, meta: pushed.meta, projectFiles: pushed.projectFiles, lastSynced: this.now() });
     if (!unchanged) this.again = true;
     return copies.length;
   }
@@ -202,7 +207,7 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
   };
 
   // Folders for every stack and notebook (an empty notebook is an empty folder).
-  const folders = new Set([...Object.values(want.stacks), ...Object.values(want.notebooks)]);
+  const folders = new Set([...Object.values(want.stacks), ...Object.values(want.notebooks), ...Object.values(want.projects)]);
   for (const f of [...folders].sort()) {
     if (live.has(f)) continue;
     await p.mkdir(f);
@@ -218,12 +223,25 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
     delete cache[path];
   }
 
-  // Moves and renames. A note can only move into a free name; when notes swap
-  // names, one steps aside first.
+  // Deleted chapters.
+  for (const id of Object.keys(remote.chapters)) {
+    if (merged.chapters[id]) continue;
+    const path = at.chapters[id];
+    await p.remove(path);
+    live.delete(path);
+    delete cache[path];
+  }
+
+  // Moves and renames. A file can only move into a free name; when files swap
+  // names (chapters being reordered), one steps aside first.
   const moves = new Map<string, string>();
   for (const id of Object.keys(merged.notes)) {
     const from = at.notes[id];
     if (from !== undefined && from !== want.notes[id]) moves.set(from, want.notes[id]);
+  }
+  for (const id of Object.keys(merged.chapters)) {
+    const from = at.chapters[id];
+    if (from !== undefined && from !== want.chapters[id]) moves.set(from, want.chapters[id]);
   }
   const move = async (from: string, to: string) => {
     const e = await p.move(from, to);
@@ -260,8 +278,48 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
     cache[path] = { rev: e.rev, file };
   }
 
-  // Folders of stacks and notebooks that moved or went, once nothing is left inside.
-  const old = [...Object.values(at.stacks), ...Object.values(at.notebooks)].filter((f) => !folders.has(f));
+  // New and changed chapters.
+  for (const c of Object.values(merged.chapters)) {
+    const r = remote.chapters[c.id];
+    if (at.chapters[c.id] !== undefined && r && sameChapter({ ...c, projectId: '' }, { ...r, projectId: '' })) continue;
+    const path = want.chapters[c.id];
+    const file = chapterFile(c);
+    const e = await p.write(path, writeNoteFile(file));
+    addLive(path);
+    cache[path] = { rev: e.rev, file };
+  }
+
+  // Each project's name, goal and outline.
+  const projectFiles: ProjectCache = {};
+  for (const pr of Object.values(merged.projects)) {
+    const path = `${want.projects[pr.id]}/${PROJECT_FILE}`;
+    const was = at.projects[pr.id] !== undefined ? `${at.projects[pr.id]}/${PROJECT_FILE}` : null;
+    const text = writeProject(pr);
+    const current = was === path ? snap.projectFiles[path] : undefined;
+    if (current && current.text === text) {
+      projectFiles[path] = current;
+      continue;
+    }
+    const e = await p.write(path, text);
+    addLive(path);
+    projectFiles[path] = { rev: e.rev, text };
+    if (was && was !== path && live.has(was)) {
+      await p.remove(was);
+      live.delete(was);
+    }
+  }
+  // Projects that went: their project.json (their chapters are already gone).
+  for (const id of Object.keys(remote.projects)) {
+    if (merged.projects[id]) continue;
+    const path = `${at.projects[id]}/${PROJECT_FILE}`;
+    if (live.has(path)) {
+      await p.remove(path);
+      live.delete(path);
+    }
+  }
+
+  // Folders of stacks, notebooks and projects that moved or went, once nothing is left inside.
+  const old = [...Object.values(at.stacks), ...Object.values(at.notebooks), ...Object.values(at.projects)].filter((f) => !folders.has(f));
   for (const f of old.sort((a, b) => b.split('/').length - a.split('/').length)) {
     if ([...live].some((q) => q.startsWith(`${f}/`))) continue;
     try {
@@ -285,5 +343,25 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
 
   const ids: Record<string, string> = {};
   for (const id of Object.keys(merged.notes)) ids[want.notes[id]] = id;
-  return { cache, ids, meta };
+  for (const id of Object.keys(merged.chapters)) ids[want.chapters[id]] = id;
+  return { cache, ids, meta, projectFiles };
+}
+
+/** A chapter as its file says it. */
+export function chapterFile(c: TChapter): NoteFile {
+  return {
+    id: c.id,
+    title: c.title,
+    tags: [],
+    favorite: false,
+    created: c.created,
+    updated: c.updated,
+    trashed: null,
+    from: null,
+    extra: '',
+    body: c.body,
+    status: c.status,
+    synopsis: c.synopsis,
+    goal: c.goal,
+  };
 }

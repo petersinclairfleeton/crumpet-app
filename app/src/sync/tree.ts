@@ -5,6 +5,7 @@
 
 import { toMarkdown } from '@crumpet/editor/markdown';
 import type { AppState } from '../data/store';
+import type { ChapterStatus, OutlineItem } from '../data/types';
 
 export interface TStack {
   id: string;
@@ -35,18 +36,47 @@ export interface TNote {
   extra: string;
 }
 
+export interface TProject {
+  id: string;
+  name: string;
+  goal: number | null;
+  outline: OutlineItem[];
+  created: number;
+  updated: number;
+}
+
+export interface TChapter {
+  id: string;
+  projectId: string;
+  title: string;
+  status: ChapterStatus;
+  synopsis: string;
+  goal: number | null;
+  created: number;
+  updated: number;
+  /** Markdown. */
+  body: string;
+}
+
 export interface Tree {
   stacks: Record<string, TStack>;
   notebooks: Record<string, TNotebook>;
   notes: Record<string, TNote>;
+  projects: Record<string, TProject>;
+  chapters: Record<string, TChapter>;
 }
 
 export function emptyTree(): Tree {
-  return { stacks: {}, notebooks: {}, notes: {} };
+  return { stacks: {}, notebooks: {}, notes: {}, projects: {}, chapters: {} };
+}
+
+/** A tree saved by an earlier version, with every part present. */
+export function fullTree(t: Partial<Tree> | undefined): Tree {
+  return { ...emptyTree(), ...(t ?? {}) };
 }
 
 /** This device's notes as a tree. */
-export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'>): Tree {
+export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'> & Partial<Pick<AppState, 'projects' | 'chapters'>>): Tree {
   const tree = emptyTree();
   for (const s of state.stacks) tree.stacks[s.id] = { id: s.id, name: s.name, created: s.createdAt };
   for (const nb of state.notebooks) {
@@ -67,7 +97,36 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
       extra: n.extra ?? '',
     };
   }
+  for (const p of state.projects ?? []) tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt };
+  for (const c of state.chapters ?? []) {
+    if (!tree.projects[c.projectId]) continue;
+    tree.chapters[c.id] = { id: c.id, projectId: c.projectId, title: c.title, status: c.status, synopsis: c.synopsis, goal: c.goal, created: c.createdAt, updated: c.updatedAt, body: toMarkdown(c.doc) };
+  }
   return tree;
+}
+
+export function sameOutline(a: OutlineItem[], b: OutlineItem[]): boolean {
+  return a.length === b.length && a.every((x, i) => x.type === b[i].type && x.id === b[i].id && (x.type !== 'part' || x.title === (b[i] as typeof x).title));
+}
+
+export function sameProject(a: TProject | undefined, b: TProject | undefined): boolean {
+  return a === b || (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline));
+}
+
+export function sameChapter(a: TChapter | undefined, b: TChapter | undefined): boolean {
+  return (
+    a === b ||
+    (!!a &&
+      !!b &&
+      a.projectId === b.projectId &&
+      a.title === b.title &&
+      a.status === b.status &&
+      a.synopsis === b.synopsis &&
+      a.goal === b.goal &&
+      a.created === b.created &&
+      a.updated === b.updated &&
+      a.body === b.body)
+  );
 }
 
 export function sameStack(a: TStack | undefined, b: TStack | undefined): boolean {

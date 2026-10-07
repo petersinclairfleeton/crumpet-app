@@ -41,6 +41,7 @@ Also wanted, not yet scheduled: more storage choices (a folder on the computer, 
 
 - **Notes app (v1)**: first version in `app/`: notebooks and stacks (all created by the person; it starts empty), tags, search, Favorites, Trash, settings, phone layout, notes saved on the device. Not yet: sync, images, desktop and mobile wrappers.
 - **Editor**: `packages/editor`, used by the app; lists, links, undo across devices.
+- **Projects**: books and other long writing as parts and chapters, with status, synopsis and word goals; written a chapter at a time or as one manuscript; synced as a folder of numbered Markdown files.
 - **Your files, your cloud**: notes sync as Markdown files to a folder the person owns. Google Drive works (`app/src/sync`, setup in `docs/google-drive-setup.md`); a local folder on the computer is next, then other cloud services. No Crumpet server or account.
 
 ## v1 scope: Notes

@@ -30,9 +30,13 @@ export interface NoteFile {
   /** Front matter lines Crumpet doesn't use, kept as written. */
   extra: string;
   body: string;
+  /** Chapters only: status, synopsis and word goal. */
+  status?: string;
+  synopsis?: string;
+  goal?: number | null;
 }
 
-const KNOWN = new Set(['id', 'title', 'tags', 'favorite', 'created', 'updated', 'trashed', 'from']);
+const KNOWN = new Set(['id', 'title', 'tags', 'favorite', 'created', 'updated', 'trashed', 'from', 'status', 'synopsis', 'goal']);
 
 export function writeNoteFile(f: NoteFile): string {
   const lines = ['---'];
@@ -44,6 +48,9 @@ export function writeNoteFile(f: NoteFile): string {
   if (f.updated !== null) lines.push(`updated: ${date(f.updated)}`);
   if (f.trashed !== null) lines.push(`trashed: ${date(f.trashed)}`);
   if (f.from !== null) lines.push(`from: ${scalar(f.from)}`);
+  if (f.status !== undefined) lines.push(`status: ${scalar(f.status)}`);
+  if (f.synopsis !== undefined) lines.push(`synopsis: ${f.synopsis ? scalar(f.synopsis) : '""'}`);
+  if (f.goal !== undefined && f.goal !== null) lines.push(`goal: ${f.goal}`);
   if (f.extra) lines.push(f.extra.replace(/\n+$/, ''));
   lines.push('---');
   return f.body ? `${lines.join('\n')}\n\n${f.body}` : `${lines.join('\n')}\n`;
@@ -101,6 +108,17 @@ export function parseNoteFile(text: string): NoteFile {
       case 'from':
         f.from = parseScalar(raw) || null;
         break;
+      case 'status':
+        f.status = parseScalar(raw);
+        break;
+      case 'synopsis':
+        f.synopsis = parseScalar(raw);
+        break;
+      case 'goal': {
+        const n = parseInt(parseScalar(raw), 10);
+        f.goal = Number.isFinite(n) && n > 0 ? n : null;
+        break;
+      }
       case 'favorite':
         f.favorite = /^(true|yes|on)$/i.test(parseScalar(raw));
         break;
