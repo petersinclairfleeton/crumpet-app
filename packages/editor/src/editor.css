@@ -1,6 +1,6 @@
 /* Styles for the editable note content. Hosts provide the colour tokens (--text, --muted, --accent, ...). */
 
-.editor { outline: none; font-size: 16px; line-height: 1.75; caret-color: var(--accent-ink); white-space: pre-wrap; word-wrap: break-word; }
+.editor { position: relative; outline: none; font-size: 16px; line-height: 1.75; caret-color: var(--accent-ink); white-space: pre-wrap; word-wrap: break-word; }
 .editor[data-empty] .blk:first-child .text::before { content: 'Start writing…'; color: var(--muted); pointer-events: none; position: absolute; }
 .blk { margin: 0 0 10px; }
 .blk-heading1 { font-size: 30px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; margin: 0 0 14px; }

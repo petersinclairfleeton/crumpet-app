@@ -3,9 +3,9 @@ import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
 import { statusText } from './SyncSettings';
 import { SettingsDialog } from './Settings';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
-import { allTags, displayTitle, noteCounts, notebookTree, recentNotes, sameView } from '../data/selectors';
+import { allTags, displayTitle, noteCounts, notebookTree, projectWords, recentNotes, sameView } from '../data/selectors';
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
-import { IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { IconBook, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenView(view: View): void;
@@ -19,7 +19,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
   const store = useAppStore();
   const [collapsed, setCollapsed] = useState<string[]>(() => remember('collapsedStacks', []));
   const [tagsOpen, setTagsOpen] = useState<boolean>(() => remember('tagsOpen', false));
-  const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack'>(null);
+  const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack' | 'project'>(null);
   // A link ending in #connect opens straight to connecting Google Drive.
   const [settingsOpen, setSettingsOpen] = useState(() => typeof location !== 'undefined' && location.hash === '#connect');
   const { state: sync } = useSync();
@@ -78,6 +78,42 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose }: Props) {
       <section className="side-section">
         <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
         <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
+
+        <div className="side-heading">
+          <span>Projects</span>
+          <button type="button" className="icon-btn" aria-label="New project" title="New project" onClick={() => setCreating(creating === 'project' ? null : 'project')}>
+            <IconPlus size={13} />
+          </button>
+        </div>
+        {creating === 'project' && (
+          <InlineInput
+            label="Project name"
+            placeholder="Project name"
+            onDone={(name) => {
+              setCreating(null);
+              if (name) onOpenView({ kind: 'project', id: store.createProject(name).id });
+            }}
+          />
+        )}
+        {state.projects.length === 0 && creating !== 'project' && (
+          <div className="side-empty">
+            <p>Books, essays and other long writing, in chapters.</p>
+            <button type="button" className="side-link" onClick={() => setCreating('project')}>
+              Start a project
+            </button>
+          </div>
+        )}
+        {state.projects.map((p) => (
+          <SideRow
+            key={p.id}
+            icon={<IconBook size={13} />}
+            label={p.name}
+            count={projectWords(p, state.chapters) || undefined}
+            countLabel="words"
+            active={active({ kind: 'project', id: p.id })}
+            onClick={() => onOpenView({ kind: 'project', id: p.id })}
+          />
+        ))}
 
         <div className="side-heading">
           <span>Notebooks</span>
@@ -182,12 +218,16 @@ function initials(name: string): string {
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
-function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; active: boolean; onClick(): void; strong?: boolean; indent?: boolean }) {
+function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean }) {
   return (
     <button type="button" className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}`} aria-current={props.active ? 'page' : undefined} onClick={props.onClick}>
       {props.icon}
       <span className="grow ellipsis">{props.label}</span>
-      {props.count !== undefined && <span className="count">{props.count}</span>}
+      {props.count !== undefined && (
+        <span className="count" title={props.countLabel ? `${props.count.toLocaleString()} ${props.countLabel}` : undefined}>
+          {props.countLabel ? compact(props.count) : props.count}
+        </span>
+      )}
     </button>
   );
 }
@@ -472,6 +512,8 @@ export function InlineInput({ label, placeholder, initial = '', list, onDone, fi
         placeholder={placeholder}
         value={value}
         list={list ? listId : undefined}
+        // Renaming: the current name is selected, so typing replaces it.
+        onFocus={(e) => e.currentTarget.select()}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') finish(value.trim() || null);
@@ -497,4 +539,9 @@ function footText(temporary: boolean, sync: ReturnType<typeof useSync>['state'])
   if (s?.phase === 'syncing') return 'Syncing…';
   if (s?.phase === 'error') return s.error?.kind === 'offline' ? 'Offline · saved on this device' : 'Sync needs attention';
   return statusText(s).replace(/\.$/, '').replace(/^Synced/, 'Google Drive · synced');
+}
+
+/** 1234 → "1.2k", for word counts in narrow places. */
+function compact(n: number): string {
+  return n < 1000 ? String(n) : n < 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n / 1000)}k`;
 }

@@ -181,7 +181,9 @@ export function NotePane({ onBack, narrow }: { onBack(): void; narrow: boolean }
   return (
     <section className="pane" aria-label="Note">
       <EditorHost
-        note={note}
+        docId={note.id}
+        doc={note.doc}
+        onDoc={(doc) => store.setDoc(note.id, doc)}
         readOnly={trashed || reading}
         reading={reading && !trashed}
         lead={lead}

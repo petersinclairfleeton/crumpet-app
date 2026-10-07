@@ -3,6 +3,7 @@ import { useAppState, useAppStore } from './hooks';
 import { Sidebar } from './Sidebar';
 import { NoteList } from './NoteList';
 import { NotePane } from './NotePane';
+import { ProjectOutline, ProjectPane } from './Project';
 import { TopBar } from './TopBar';
 import { applyTheme } from './theme';
 import type { View } from '../data/types';
@@ -43,6 +44,14 @@ export function App() {
     [store],
   );
 
+  const openChapter = useCallback(
+    (id: string) => {
+      store.selectChapter(id);
+      setPane('note');
+    },
+    [store],
+  );
+
   const newNote = useCallback(() => {
     store.createNote();
     setPane('note');
@@ -64,6 +73,9 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // A search shows matching notes, even from inside a project.
+  const project = state.view.kind === 'project' && !state.query.trim() ? store.project(state.view.id) : undefined;
+
   if (!state.ready) return <div className="loading">Opening your notes…</div>;
 
   return (
@@ -83,8 +95,17 @@ export function App() {
         <div className="workspace">
           <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} />
           <div className="panes">
-            <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />
-            <NotePane onBack={() => setPane('list')} narrow={narrow} />
+            {project ? (
+              <>
+                <ProjectOutline project={project} onOpenChapter={openChapter} />
+                <ProjectPane project={project} narrow={narrow} onBack={() => setPane('list')} />
+              </>
+            ) : (
+              <>
+                <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />
+                <NotePane onBack={() => setPane('list')} narrow={narrow} />
+              </>
+            )}
           </div>
         </div>
       </div>

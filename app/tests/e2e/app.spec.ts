@@ -356,3 +356,58 @@ test('reading view shows the note as a book page, and Escape goes back to editin
   await expect(pane).not.toHaveClass(/reading/);
   await expect(page.locator('.note-pane [contenteditable]')).toHaveAttribute('contenteditable', 'true');
 });
+
+test('projects: chapters and parts, status, synopsis, goals, reordering and the manuscript', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await expect(outline.locator('h1')).toHaveText('The Lighthouse');
+
+  // Write the first chapter.
+  await page.getByLabel('Chapter title').fill('The Keeper');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The lamp had not been lit for eleven years.');
+  await page.getByLabel('Status').selectOption('draft');
+  await page.getByLabel('Synopsis').fill('Mara climbs the lighthouse.');
+  await page.getByRole('button', { name: 'Set word goal' }).click();
+  await page.getByLabel('Word goal for this chapter').fill('2000');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.chapter-words')).toHaveText('9 of 2,000 words');
+  const first = outline.locator('.outline-chapter').first();
+  await expect(first).toContainText('The Keeper');
+  await expect(first).toContainText('Mara climbs the lighthouse.');
+  await expect(first.locator('.status-dot')).toHaveClass(/draft/);
+
+  // A second chapter, a part, and moving the part to the top.
+  await outline.getByRole('button', { name: 'Add chapter' }).click();
+  await page.getByLabel('Chapter title').fill('Salt');
+  await outline.getByRole('button', { name: 'Add part' }).click();
+  await page.keyboard.type('Part One');
+  await page.keyboard.press('Enter');
+  await outline.getByRole('button', { name: 'Options for Part One' }).click();
+  await page.getByRole('button', { name: 'Move up' }).click();
+  await outline.getByRole('button', { name: 'Options for Part One' }).click();
+  await page.getByRole('button', { name: 'Move up' }).click();
+  await expect(outline.locator('.outline-items > li').first()).toHaveText(/Part One/);
+  await outline.getByRole('button', { name: 'Options for Part One' }).click();
+  await expect(page.getByRole('button', { name: 'Move up' })).toBeDisabled();
+  await page.keyboard.press('Escape');
+  await outline.locator('.outline-open', { hasText: 'The Keeper' }).click();
+  await expect(page.locator('.chapter-kicker')).toHaveText('Part One · Chapter 1');
+
+  // The whole manuscript: both chapters, editable in place.
+  await outline.getByRole('button', { name: 'Manuscript' }).click();
+  const ms = page.getByRole('region', { name: 'Manuscript' });
+  await expect(ms.locator('.ms-part')).toHaveText('Part One');
+  await ms.getByLabel('Text of chapter 2').click();
+  await page.keyboard.type('At the top, the glass was furred with salt.');
+  await expect(outline.locator('.list-sub')).toContainText('18 words');
+
+  // Everything is still there after a reload.
+  await page.reload();
+  await sidebar(page).getByRole('button', { name: /The Lighthouse/ }).click();
+  await expect(page.getByRole('region', { name: 'Outline' }).locator('.outline-chapter')).toHaveCount(2);
+  await expect(page.getByRole('region', { name: 'Outline' })).toContainText('Salt');
+});

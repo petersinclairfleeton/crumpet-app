@@ -3,15 +3,17 @@
 // If it can't be opened (some private-browsing modes), the store falls back to
 // memory and the app says so, rather than silently losing work.
 
-import type { Note, Notebook, Settings, Stack } from './types';
+import type { Chapter, Note, Notebook, Project, Settings, Stack } from './types';
 
 const DB_NAME = 'crumpet';
-const VERSION = 3;
+const VERSION = 4;
 
 export interface Persisted {
   stacks: Stack[];
   notebooks: Notebook[];
   notes: Note[];
+  projects: Project[];
+  chapters: Chapter[];
   settings: Settings | null;
 }
 
@@ -24,6 +26,10 @@ export interface Storage {
   putStack(stack: Stack): Promise<void>;
   deleteStack(id: string): Promise<void>;
   putSettings(s: Settings): Promise<void>;
+  putProject(p: Project): Promise<void>;
+  deleteProject(id: string): Promise<void>;
+  putChapter(c: Chapter): Promise<void>;
+  deleteChapter(id: string): Promise<void>;
   /** Sync's own records (connection, last agreed version), by key. */
   getSync<T>(key: string): Promise<T | null>;
   putSync(key: string, value: unknown): Promise<void>;
@@ -49,6 +55,8 @@ function open(name: string): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings');
       if (!db.objectStoreNames.contains('stacks')) db.createObjectStore('stacks', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('sync')) db.createObjectStore('sync');
+      if (!db.objectStoreNames.contains('projects')) db.createObjectStore('projects', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('chapters')) db.createObjectStore('chapters', { keyPath: 'id' });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -61,14 +69,16 @@ class IdbStorage implements Storage {
   constructor(private db: IDBDatabase) {}
 
   async load(): Promise<Persisted> {
-    const tx = this.db.transaction(['notes', 'notebooks', 'stacks', 'settings'], 'readonly');
-    const [notes, notebooks, stacks, settings] = await Promise.all([
+    const tx = this.db.transaction(['notes', 'notebooks', 'stacks', 'settings', 'projects', 'chapters'], 'readonly');
+    const [notes, notebooks, stacks, settings, projects, chapters] = await Promise.all([
       request(tx.objectStore('notes').getAll() as IDBRequest<Note[]>),
       request(tx.objectStore('notebooks').getAll() as IDBRequest<Notebook[]>),
       request(tx.objectStore('stacks').getAll() as IDBRequest<Stack[]>),
       request(tx.objectStore('settings').get('settings') as IDBRequest<Settings | undefined>),
+      request(tx.objectStore('projects').getAll() as IDBRequest<Project[]>),
+      request(tx.objectStore('chapters').getAll() as IDBRequest<Chapter[]>),
     ]);
-    return { notes, notebooks, stacks, settings: settings ?? null };
+    return { notes, notebooks, stacks, projects, chapters, settings: settings ?? null };
   }
 
   private async write(store: string, fn: (s: IDBObjectStore) => IDBRequest): Promise<void> {
@@ -102,6 +112,18 @@ class IdbStorage implements Storage {
   deleteStack(id: string) {
     return this.write('stacks', (s) => s.delete(id));
   }
+  putProject(p: Project) {
+    return this.write('projects', (s) => s.put(p));
+  }
+  deleteProject(id: string) {
+    return this.write('projects', (s) => s.delete(id));
+  }
+  putChapter(c: Chapter) {
+    return this.write('chapters', (s) => s.put(c));
+  }
+  deleteChapter(id: string) {
+    return this.write('chapters', (s) => s.delete(id));
+  }
   async getSync<T>(key: string): Promise<T | null> {
     const tx = this.db.transaction('sync', 'readonly');
     return ((await request(tx.objectStore('sync').get(key))) as T | undefined) ?? null;
@@ -120,9 +142,30 @@ export class MemoryStorage implements Storage {
   notes = new Map<string, Note>();
   notebooks = new Map<string, Notebook>();
   stacks = new Map<string, Stack>();
+  projects = new Map<string, Project>();
+  chapters = new Map<string, Chapter>();
   settings: Settings | null = null;
   async load(): Promise<Persisted> {
-    return { notes: [...this.notes.values()], notebooks: [...this.notebooks.values()], stacks: [...this.stacks.values()], settings: this.settings };
+    return {
+      notes: [...this.notes.values()],
+      notebooks: [...this.notebooks.values()],
+      stacks: [...this.stacks.values()],
+      projects: [...this.projects.values()],
+      chapters: [...this.chapters.values()],
+      settings: this.settings,
+    };
+  }
+  async putProject(p: Project) {
+    this.projects.set(p.id, p);
+  }
+  async deleteProject(id: string) {
+    this.projects.delete(id);
+  }
+  async putChapter(c: Chapter) {
+    this.chapters.set(c.id, c);
+  }
+  async deleteChapter(id: string) {
+    this.chapters.delete(id);
   }
   async putStack(s: Stack) {
     this.stacks.set(s.id, s);

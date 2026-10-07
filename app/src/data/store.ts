@@ -11,7 +11,7 @@ import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { matchIds } from '@crumpet/editor/diff';
 import type { Tree } from '../sync/tree';
 import type { Persisted, Storage } from './db';
-import { type Note, type Notebook, NOTEBOOK_COLORS, type Settings, type Stack, TRASH_DAYS, type View } from './types';
+import { type Chapter, type ChapterStatus, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
 export interface AppState {
   ready: boolean;
@@ -20,9 +20,15 @@ export interface AppState {
   stacks: Stack[];
   notebooks: Notebook[];
   notes: Note[];
+  projects: Project[];
+  chapters: Chapter[];
   settings: Settings;
   view: View;
   selectedId: string | null;
+  /** The chapter open in the project being viewed. */
+  chapterId: string | null;
+  /** In a project: one chapter at a time, or the whole manuscript on one page. */
+  projectMode: 'chapter' | 'manuscript';
   query: string;
 }
 
@@ -49,9 +55,13 @@ export class AppStore {
     stacks: [],
     notebooks: [],
     notes: [],
+    projects: [],
+    chapters: [],
     settings: DEFAULT_SETTINGS,
     view: { kind: 'all' },
     selectedId: null,
+    chapterId: null,
+    projectMode: 'chapter',
     query: '',
   };
   private listeners = new Set<() => void>();
@@ -112,7 +122,8 @@ export class AppStore {
     for (const id of expired) this.save(this.storage.deleteNote(id));
     const notes = data.notes.filter((n) => !expired.has(n.id));
     const settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}), dataVersion: DATA_VERSION };
-    this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, settings });
+    const projects = [...(data.projects ?? [])].sort((a, b) => a.createdAt - b.createdAt);
+    this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, projects, chapters: data.chapters ?? [], settings });
     if (data.settings?.dataVersion !== DATA_VERSION) this.save(this.storage.putSettings(settings));
     this.set({ selectedId: visibleIn(this.state, this.state.view)[0]?.id ?? null });
   }
@@ -177,6 +188,7 @@ export class AppStore {
   // ---------- navigation ----------
 
   setView(view: View): void {
+    if (view.kind === 'project') return this.openProject(view.id);
     const notes = visibleIn(this.state, view);
     const keep = this.state.selectedId && notes.some((n) => n.id === this.state.selectedId);
     this.set({ view, query: '', selectedId: keep ? this.state.selectedId : (notes[0]?.id ?? null) });
@@ -209,7 +221,7 @@ export class AppStore {
     };
     // Show the new note where it lives: its notebook, or All Notes if it isn't in one.
     const nextView: View =
-      view.kind === 'trash' || view.kind === 'stack' ? (note.notebookId ? { kind: 'notebook', id: note.notebookId } : { kind: 'all' }) : view;
+      view.kind === 'trash' || view.kind === 'stack' || view.kind === 'project' ? (note.notebookId ? { kind: 'notebook', id: note.notebookId } : { kind: 'all' }) : view;
     this.set({ notes: [note, ...this.state.notes], selectedId: note.id, view: nextView, query: '' });
     this.save(this.storage.putNote(note));
     return note;
@@ -453,8 +465,7 @@ export class AppStore {
       id,
       setTimeout(() => {
         this.pendingDocs.delete(id);
-        const note = this.note(id);
-        if (note) this.save(this.storage.putNote(note));
+        this.saveNow(id);
       }, SAVE_DELAY_MS),
     );
   }
@@ -465,13 +476,190 @@ export class AppStore {
     this.pendingDocs.delete(id);
   }
 
+  /** Saves a note or chapter by id. */
+  private saveNow(id: string): void {
+    const note = this.note(id);
+    if (note) this.save(this.storage.putNote(note));
+    const chapter = this.chapter(id);
+    if (chapter) this.save(this.storage.putChapter(chapter));
+  }
+
   /** Saves anything waiting for typing to pause. Called when switching notes and when the page is hidden. */
   flush(): void {
     for (const id of [...this.pendingDocs.keys()]) {
       this.cancelSave(id);
-      const note = this.note(id);
-      if (note) this.save(this.storage.putNote(note));
+      this.saveNow(id);
     }
+  }
+
+  // ---------- projects ----------
+
+  project(id: string | null): Project | undefined {
+    return id ? this.state.projects.find((p) => p.id === id) : undefined;
+  }
+
+  chapter(id: string | null): Chapter | undefined {
+    return id ? this.state.chapters.find((c) => c.id === id) : undefined;
+  }
+
+  /** A new project with one chapter, opened. */
+  createProject(name: string): Project {
+    const t = this.now();
+    const first = this.makeChapter('', 'Chapter 1', t);
+    const project: Project = { id: newId(), name: name.trim() || 'Untitled project', goal: null, outline: [{ type: 'chapter', id: first.id }], createdAt: t, updatedAt: t };
+    first.projectId = project.id;
+    this.set({ projects: [...this.state.projects, project], chapters: [...this.state.chapters, first] });
+    this.save(this.storage.putProject(project));
+    this.save(this.storage.putChapter(first));
+    this.openProject(project.id, first.id);
+    return project;
+  }
+
+  openProject(id: string, chapterId?: string | null): void {
+    const project = this.project(id);
+    if (!project) return;
+    this.flush();
+    const keep = this.chapter(this.state.chapterId)?.projectId === id ? this.state.chapterId : null;
+    const first = project.outline.find((x) => x.type === 'chapter')?.id ?? null;
+    this.set({ view: { kind: 'project', id }, query: '', chapterId: chapterId ?? keep ?? first });
+  }
+
+  selectChapter(id: string | null): void {
+    this.flush();
+    this.set({ chapterId: id });
+  }
+
+  setProjectMode(mode: 'chapter' | 'manuscript'): void {
+    this.flush();
+    this.set({ projectMode: mode });
+  }
+
+  private updateProject(id: string, patch: Partial<Project>): void {
+    let updated: Project | undefined;
+    const projects = this.state.projects.map((p) => (p.id === id ? (updated = { ...p, ...patch, updatedAt: this.now() }) : p));
+    if (!updated) return;
+    this.set({ projects });
+    this.save(this.storage.putProject(updated));
+  }
+
+  renameProject(id: string, name: string): void {
+    if (name.trim()) this.updateProject(id, { name: name.trim() });
+  }
+
+  setProjectGoal(id: string, goal: number | null): void {
+    this.updateProject(id, { goal: goal && goal > 0 ? Math.round(goal) : null });
+  }
+
+  /** Deletes a project and all its chapters. */
+  deleteProject(id: string): void {
+    const gone = this.state.chapters.filter((c) => c.projectId === id);
+    for (const c of gone) {
+      this.cancelSave(c.id);
+      this.save(this.storage.deleteChapter(c.id));
+    }
+    const view: View = this.state.view.kind === 'project' && this.state.view.id === id ? { kind: 'all' } : this.state.view;
+    this.set({ projects: this.state.projects.filter((p) => p.id !== id), chapters: this.state.chapters.filter((c) => c.projectId !== id), view });
+    this.save(this.storage.deleteProject(id));
+    if (view.kind === 'all') this.reselectIfHidden();
+  }
+
+  private makeChapter(projectId: string, title: string, t = this.now()): Chapter {
+    return { id: newId(), projectId, title, doc: emptyDoc(), status: 'todo', synopsis: '', goal: null, createdAt: t, updatedAt: t };
+  }
+
+  /** Adds a chapter after `afterId` (a part or chapter), or at the end; opens it. */
+  addChapter(projectId: string, afterId: string | null = null): Chapter | undefined {
+    const project = this.project(projectId);
+    if (!project) return undefined;
+    const count = project.outline.filter((x) => x.type === 'chapter').length;
+    const chapter = this.makeChapter(projectId, `Chapter ${count + 1}`);
+    const at = afterId ? project.outline.findIndex((x) => x.id === afterId) + 1 : project.outline.length;
+    const outline = [...project.outline];
+    outline.splice(at > 0 ? at : outline.length, 0, { type: 'chapter', id: chapter.id });
+    this.set({ chapters: [...this.state.chapters, chapter] });
+    this.save(this.storage.putChapter(chapter));
+    this.updateProject(projectId, { outline });
+    this.selectChapter(chapter.id);
+    return chapter;
+  }
+
+  /** Adds a part at the end; chapters added after it belong to it. */
+  addPart(projectId: string, title?: string): string | undefined {
+    const project = this.project(projectId);
+    if (!project) return undefined;
+    const count = project.outline.filter((x) => x.type === 'part').length;
+    const part: OutlineItem = { type: 'part', id: newId(), title: title?.trim() || `Part ${['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][count] ?? count + 1}` };
+    this.updateProject(projectId, { outline: [...project.outline, part] });
+    return part.id;
+  }
+
+  renamePart(projectId: string, partId: string, title: string): void {
+    const project = this.project(projectId);
+    if (!project || !title.trim()) return;
+    this.updateProject(projectId, { outline: project.outline.map((x) => (x.id === partId && x.type === 'part' ? { ...x, title: title.trim() } : x)) });
+  }
+
+  /** Removes a part; its chapters stay, joining the part above. */
+  deletePart(projectId: string, partId: string): void {
+    const project = this.project(projectId);
+    if (project) this.updateProject(projectId, { outline: project.outline.filter((x) => x.id !== partId) });
+  }
+
+  /** Moves an outline item (part or chapter) to a new position. */
+  moveOutlineItem(projectId: string, id: string, to: number): void {
+    const project = this.project(projectId);
+    if (!project) return;
+    const from = project.outline.findIndex((x) => x.id === id);
+    if (from < 0) return;
+    const outline = [...project.outline];
+    const [item] = outline.splice(from, 1);
+    const at = Math.max(0, Math.min(outline.length, to > from ? to - 1 : to));
+    if (at === from) return;
+    outline.splice(at, 0, item);
+    this.updateProject(projectId, { outline });
+  }
+
+  private updateChapter(id: string, patch: Partial<Chapter>, delaySave = false): void {
+    let updated: Chapter | undefined;
+    const chapters = this.state.chapters.map((c) => (c.id === id ? (updated = { ...c, ...patch, updatedAt: this.now() }) : c));
+    if (!updated) return;
+    this.set({ chapters });
+    if (delaySave) this.scheduleSave(id);
+    else this.save(this.storage.putChapter(updated));
+  }
+
+  setChapterDoc(id: string, doc: Doc): void {
+    this.updateChapter(id, { doc }, true);
+  }
+
+  setChapterTitle(id: string, title: string): void {
+    this.updateChapter(id, { title }, true);
+  }
+
+  setChapterSynopsis(id: string, synopsis: string): void {
+    this.updateChapter(id, { synopsis }, true);
+  }
+
+  setChapterStatus(id: string, status: ChapterStatus): void {
+    this.updateChapter(id, { status });
+  }
+
+  setChapterGoal(id: string, goal: number | null): void {
+    this.updateChapter(id, { goal: goal && goal > 0 ? Math.round(goal) : null });
+  }
+
+  /** Deletes a chapter; the next one (or the one before) opens. */
+  deleteChapter(id: string): void {
+    const chapter = this.chapter(id);
+    if (!chapter) return;
+    const project = this.project(chapter.projectId);
+    this.cancelSave(id);
+    const ids = project ? project.outline.filter((x) => x.type === 'chapter').map((x) => x.id) : [];
+    const i = ids.indexOf(id);
+    const next = ids[i + 1] ?? ids[i - 1] ?? null;
+    this.set({ chapters: this.state.chapters.filter((c) => c.id !== id), chapterId: this.state.chapterId === id ? next : this.state.chapterId });
+    this.save(this.storage.deleteChapter(id));
+    if (project) this.updateProject(project.id, { outline: project.outline.filter((x) => x.id !== id) });
   }
 }
 
@@ -516,6 +704,8 @@ export function visibleIn(state: Pick<AppState, 'notes' | 'notebooks'>, view: Vi
     case 'tag':
       out = live.filter((n) => n.tags.includes(view.tag));
       break;
+    case 'project':
+      return [];
     case 'trash':
       return state.notes.filter((n) => n.trashedAt !== null).sort((a, b) => (b.trashedAt ?? 0) - (a.trashedAt ?? 0));
   }

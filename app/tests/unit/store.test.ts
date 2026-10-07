@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeBlock } from '@crumpet/editor/model';
 import { MemoryStorage, openStorage } from '../../src/data/db';
 import { AppStore, DATA_VERSION, cleanTag, visibleIn } from '../../src/data/store';
-import { groupByDate, listedNotes, matches, matchingNotebooks, notebookTree, preview, wordCount } from '../../src/data/selectors';
+import { groupByDate, listedNotes, matches, matchingNotebooks, notebookTree, preview, projectChapters, projectGoal, projectWords, wordCount } from '../../src/data/selectors';
 import type { Note, Notebook } from '../../src/data/types';
 
 const DAY = 86_400_000;
@@ -273,5 +273,82 @@ describe('selectors', () => {
     const n = store.createNote({ title: 'Two words', doc: { blocks: [makeBlock('heading1', 'A heading'), makeBlock('paragraph', 'and some body text that’s here')] } });
     expect(preview(n, 22)).toBe('A heading · and some…');
     expect(wordCount(n)).toBe(10);
+  });
+});
+
+describe('projects', () => {
+  const outline = (store: AppStore, id: string) =>
+    store.project(id)!.outline.map((x) => (x.type === 'part' ? `[${x.title}]` : store.chapter(x.id)!.title));
+
+  it('start with one chapter, and grow by chapters and parts', async () => {
+    const { store } = await fresh();
+    const p = store.createProject('Novel');
+    expect(store.getState().view).toEqual({ kind: 'project', id: p.id });
+    expect(outline(store, p.id)).toEqual(['Chapter 1']);
+    expect(store.getState().chapterId).toBe(p.outline[0].id);
+    store.addPart(p.id);
+    store.addChapter(p.id);
+    store.addPart(p.id, 'Coda');
+    store.addChapter(p.id);
+    expect(outline(store, p.id)).toEqual(['Chapter 1', '[Part One]', 'Chapter 2', '[Coda]', 'Chapter 3']);
+    const parts = projectChapters(store.project(p.id)!, store.getState().chapters).map((x) => x.part?.title ?? null);
+    expect(parts).toEqual([null, 'Part One', 'Coda']);
+  });
+
+  it('reorder, rename and remove parts and chapters', async () => {
+    const { store } = await fresh();
+    const p = store.createProject('Essay');
+    const c2 = store.addChapter(p.id)!;
+    const c3 = store.addChapter(p.id)!;
+    const part = store.addPart(p.id)!;
+    store.moveOutlineItem(p.id, part, 0);
+    store.moveOutlineItem(p.id, c3.id, 1);
+    expect(outline(store, p.id)).toEqual(['[Part One]', 'Chapter 3', 'Chapter 1', 'Chapter 2']);
+    store.moveOutlineItem(p.id, c3.id, 4);
+    expect(outline(store, p.id)).toEqual(['[Part One]', 'Chapter 1', 'Chapter 2', 'Chapter 3']);
+    store.renamePart(p.id, part, 'Beginnings');
+    store.deletePart(p.id, part);
+    expect(outline(store, p.id)).toEqual(['Chapter 1', 'Chapter 2', 'Chapter 3']);
+    store.selectChapter(c2.id);
+    store.deleteChapter(c2.id);
+    expect(outline(store, p.id)).toEqual(['Chapter 1', 'Chapter 3']);
+    expect(store.getState().chapterId).toBe(c3.id);
+  });
+
+  it('count words against goals, per chapter and for the project', async () => {
+    const { store } = await fresh();
+    const p = store.createProject('Book');
+    const c1 = store.getState().chapters[0];
+    store.setChapterDoc(c1.id, { blocks: [makeBlock('paragraph', 'One two three four.')] });
+    const c2 = store.addChapter(p.id)!;
+    store.setChapterDoc(c2.id, { blocks: [makeBlock('paragraph', 'Five six.')] });
+    store.setChapterGoal(c1.id, 1000);
+    store.setChapterGoal(c2.id, 500);
+    const st = () => store.getState();
+    expect(projectWords(store.project(p.id)!, st().chapters)).toBe(6);
+    expect(projectGoal(store.project(p.id)!, st().chapters)).toBe(1500);
+    store.setProjectGoal(p.id, 80000);
+    expect(projectGoal(store.project(p.id)!, st().chapters)).toBe(80000);
+    store.setChapterStatus(c1.id, 'done');
+    store.setChapterSynopsis(c1.id, 'It begins.');
+    expect(store.chapter(c1.id)).toMatchObject({ status: 'done', synopsis: 'It begins.', goal: 1000 });
+  });
+
+  it('are saved, and deleting one removes its chapters', async () => {
+    const { store, storage } = await fresh();
+    const p = store.createProject('Saved');
+    const c = store.addChapter(p.id)!;
+    store.setChapterTitle(c.id, 'Typed');
+    store.flush();
+    await tick();
+    expect(storage.projects.get(p.id)?.outline).toHaveLength(2);
+    expect(storage.chapters.get(c.id)?.title).toBe('Typed');
+    const again = new AppStore(storage);
+    await again.load();
+    expect(again.getState().projects.map((x) => x.name)).toEqual(['Saved']);
+    store.deleteProject(p.id);
+    await tick();
+    expect([storage.projects.size, storage.chapters.size]).toEqual([0, 0]);
+    expect(store.getState().view).toEqual({ kind: 'all' });
   });
 });

@@ -3,7 +3,8 @@
 
 import { runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
-import type { Note, Notebook, Stack, View } from './types';
+import type { Doc } from '@crumpet/editor/model';
+import type { Chapter, Note, Notebook, OutlineItem, Project, Stack, View } from './types';
 
 /** Plain text of a note's body, one line per block. */
 export function noteText(note: Note): string {
@@ -128,7 +129,7 @@ export function recentNotes(notes: Note[], n = 3): Note[] {
   return notes.filter((x) => x.trashedAt === null).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, n);
 }
 
-export function viewTitle(view: View, state: Pick<AppState, 'notebooks' | 'stacks'>): string {
+export function viewTitle(view: View, state: Pick<AppState, 'notebooks' | 'stacks' | 'projects'>): string {
   switch (view.kind) {
     case 'all':
       return 'All Notes';
@@ -142,6 +143,8 @@ export function viewTitle(view: View, state: Pick<AppState, 'notebooks' | 'stack
       return state.stacks.find((s) => s.id === view.id)?.name ?? 'Stack';
     case 'notebook':
       return state.notebooks.find((n) => n.id === view.id)?.name ?? 'Notebook';
+    case 'project':
+      return state.projects.find((p) => p.id === view.id)?.name ?? 'Project';
   }
 }
 
@@ -150,5 +153,44 @@ export function sameView(a: View, b: View): boolean {
   if (a.kind === 'notebook' && b.kind === 'notebook') return a.id === b.id;
   if (a.kind === 'stack' && b.kind === 'stack') return a.id === b.id;
   if (a.kind === 'tag' && b.kind === 'tag') return a.tag === b.tag;
+  if (a.kind === 'project' && b.kind === 'project') return a.id === b.id;
   return true;
+}
+
+// ---- projects
+
+const WORD = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
+
+export function docWords(doc: Doc): number {
+  return doc.blocks.reduce((n, b) => n + (runsText(b.runs).match(WORD) ?? []).length, 0);
+}
+
+export function chapterWords(c: Chapter): number {
+  return docWords(c.doc);
+}
+
+/** The project's chapters in outline order, each with the part it's in. */
+export function projectChapters(project: Project, chapters: Chapter[]): { chapter: Chapter; part: Extract<OutlineItem, { type: 'part' }> | null; number: number }[] {
+  const byId = new Map(chapters.filter((c) => c.projectId === project.id).map((c) => [c.id, c]));
+  const out: { chapter: Chapter; part: Extract<OutlineItem, { type: 'part' }> | null; number: number }[] = [];
+  let part: Extract<OutlineItem, { type: 'part' }> | null = null;
+  for (const item of project.outline) {
+    if (item.type === 'part') part = item;
+    else {
+      const chapter = byId.get(item.id);
+      if (chapter) out.push({ chapter, part, number: out.length + 1 });
+    }
+  }
+  return out;
+}
+
+export function projectWords(project: Project, chapters: Chapter[]): number {
+  return chapters.filter((c) => c.projectId === project.id).reduce((n, c) => n + chapterWords(c), 0);
+}
+
+/** Total of the chapters' goals when the project has none of its own. */
+export function projectGoal(project: Project, chapters: Chapter[]): number | null {
+  if (project.goal) return project.goal;
+  const goals = chapters.filter((c) => c.projectId === project.id && c.goal).map((c) => c.goal!);
+  return goals.length ? goals.reduce((a, b) => a + b, 0) : null;
 }
