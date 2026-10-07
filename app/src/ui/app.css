@@ -806,3 +806,24 @@ input, select { font: inherit; color: inherit; }
 .backlink { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); color: var(--text); font-size: 13px; cursor: pointer; }
 .backlink:hover { border-color: var(--accent); }
 .backlinks + .note-foot { margin-top: 12px; }
+
+/* ---- Search: filters, sorting, saved searches; several notes at once ---- */
+.sort-pick select { height: 26px; padding: 0 6px; border: 1px solid var(--line2); border-radius: 6px; background: var(--page); color: var(--text2); font-size: 12px; }
+.search-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; }
+.filter-chip { height: 26px; padding: 0 10px; border: none; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 600; cursor: pointer; }
+.filter-chip span { margin-left: 4px; opacity: 0.7; }
+.filter-menu { position: relative; }
+.filter-menu .popover { top: 30px; left: 0; right: auto; width: 240px; max-height: 60vh; overflow-y: auto; }
+.filter-add { height: 26px; padding: 0 10px; border: 1px dashed var(--line2); border-radius: 999px; background: none; color: var(--muted); font-size: 12px; cursor: pointer; }
+.link-btn.small { font-size: 12px; }
+.search-tools .inline-input { flex: 1 1 160px; padding: 0; }
+.search-tools .inline-input input { height: 28px; }
+.saved-search .row-more { opacity: 0; width: 22px; height: 22px; }
+.saved-search:hover .row-more, .saved-search .row-more:focus-visible { opacity: 1; }
+.picked-bar { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 12px 6px; padding: 8px 10px; border-radius: 10px; background: var(--text); color: var(--page); box-shadow: var(--shadow); font-size: 13px; }
+.picked-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.picked-bar .btn { height: 28px; background: transparent; border-color: color-mix(in srgb, var(--page) 35%, transparent); color: var(--page); }
+.picked-bar .btn.danger { color: #ffb4b4; }
+.picked-bar .icon-btn { color: var(--page); }
+.picked-menu { position: relative; }
+.picked-menu .popover { top: 32px; left: 0; right: auto; width: 220px; color: var(--text); }

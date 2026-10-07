@@ -1,6 +1,7 @@
 // Things the UI derives from the state: what the list shows, search, date
 // groups, previews, counts and the sidebar tree.
 
+import { matchesFilters, parseQuery } from './search';
 import { runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
 import type { Doc } from '@crumpet/editor/model';
@@ -38,13 +39,19 @@ export function matches(note: Note, query: string, notebookName = ''): boolean {
 /** The notes the list shows: the current view, or, while searching, matching notes from every notebook. */
 export function listedNotes(state: AppState): Note[] {
   if (!state.query.trim()) return visibleIn(state, state.view);
-  const names = new Map(state.notebooks.map((n) => [n.id, n.name]));
-  return visibleIn(state, { kind: 'all' }).filter((n) => matches(n, state.query, names.get(n.notebookId ?? '')));
+  const { filters } = parseQuery(state.query);
+  const stacks = new Map(state.stacks.map((s) => [s.id, s.name]));
+  const books = new Map(state.notebooks.map((n) => [n.id, n]));
+  return visibleIn(state, { kind: 'all' }).filter((n) => {
+    const nb = books.get(n.notebookId ?? '');
+    const places = nb ? [nb.name, stacks.get(nb.stackId ?? '') ?? ''] : [];
+    return matchesFilters(n, filters, `${n.title}\n${noteText(n)}\n${n.tags.map((t) => '#' + t).join(' ')}\n${nb?.name ?? ''}`, places);
+  });
 }
 
 /** Notebooks whose name, or whose stack's name, matches the search, to jump straight to. */
 export function matchingNotebooks(state: AppState): Notebook[] {
-  const words = state.query.toLowerCase().split(/\s+/).filter(Boolean);
+  const words = parseQuery(state.query).filters.words;
   if (!words.length) return [];
   const stackName = new Map(state.stacks.map((s) => [s.id, s.name.toLowerCase()]));
   return state.notebooks

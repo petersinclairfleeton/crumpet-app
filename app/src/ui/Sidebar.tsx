@@ -7,7 +7,7 @@ import { allTags, displayTitle, noteCounts, notebookTree, projectWords, recentNo
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
 import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from '../data/templates';
 import { toMarkdown } from '@crumpet/editor/markdown';
-import { IconBook, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { IconBook, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenView(view: View): void;
@@ -88,6 +88,33 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
         <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
         <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
+
+        {(state.settings.savedSearches ?? []).length > 0 && (
+          <>
+            <div className="side-heading">
+              <span>Saved searches</span>
+            </div>
+            {state.settings.savedSearches!.map((q) => (
+              <div key={q.id} className={`side-row saved-search${state.query.trim() === q.query ? ' active' : ''}`}>
+                <button
+                  type="button"
+                  className="row-main"
+                  onClick={() => {
+                    store.setQuery(q.query);
+                    if (state.settings.layout?.list === false) store.updateLayout({ list: true });
+                    onClose();
+                  }}
+                >
+                  <IconSearch size={13} />
+                  <span className="ellipsis">{q.name}</span>
+                </button>
+                <button type="button" className="icon-btn row-more" aria-label={`Forget saved search ${q.name}`} title="Forget this search" onClick={() => store.updateSettings({ savedSearches: state.settings.savedSearches!.filter((x) => x.id !== q.id) })}>
+                  <IconClose size={11} />
+                </button>
+              </div>
+            ))}
+          </>
+        )}
 
         <div className="side-heading">
           <span>Projects</span>
