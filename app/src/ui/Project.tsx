@@ -13,7 +13,7 @@ import type { PageSetup } from '../data/styles';
 import { EditorHost } from './EditorHost';
 import { FormatTools, LinkBar, useDocEditor } from './editing';
 import { useAppState, useAppStore } from './hooks';
-import { IconBack, IconMore, IconPlus } from './icons';
+import { IconBack, IconFocus, IconMore, IconPlus } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -361,6 +361,9 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
 
   const trail = (
     <div className="note-actions">
+      <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" title="Focus mode (Ctrl+Shift+F)" onClick={() => store.setFocusMode(true)}>
+        <IconFocus size={16} />
+      </button>
       <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
       <button type="button" className="icon-btn" aria-label="Previous chapter" title="Previous chapter" disabled={!prev} onClick={() => prev && store.selectChapter(prev.id)}>
         ‹

@@ -1,4 +1,4 @@
-import { createContext, useContext, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
 import type { AppState, AppStore } from '../data/store';
 import type { ConnectionState, SyncConnection } from '../sync/connection';
 
@@ -46,3 +46,16 @@ export function useSync(): { sync: SyncConnection | null; state: ConnectionState
 }
 
 const noSubscribe = () => () => {};
+
+/** Whether a CSS media query matches, following changes. */
+export function useMedia(query: string): boolean {
+  const [on, setOn] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const change = () => setOn(mq.matches);
+    change();
+    mq.addEventListener('change', change);
+    return () => mq.removeEventListener('change', change);
+  }, [query]);
+  return on;
+}

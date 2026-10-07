@@ -29,6 +29,8 @@ export interface AppState {
   /** With two notes open: the other note, and which side is being worked in. */
   secondId: string | null;
   activeSide: 'first' | 'second';
+  /** Focus mode: only the page being written on. */
+  focusMode: boolean;
   /** The chapter open in the project being viewed. */
   chapterId: string | null;
   /** In a project: one chapter at a time, or the whole manuscript on one page. */
@@ -68,6 +70,7 @@ export class AppStore {
     selectedId: null,
     secondId: null,
     activeSide: 'first',
+    focusMode: false,
     chapterId: null,
     projectMode: 'chapter',
     query: '',
@@ -213,6 +216,10 @@ export class AppStore {
   openSecond(id: string | null): void {
     this.flush();
     this.set({ secondId: id, activeSide: 'second' });
+  }
+
+  setFocusMode(on: boolean): void {
+    if (this.state.focusMode !== on) this.set({ focusMode: on });
   }
 
   setActiveSide(side: 'first' | 'second'): void {

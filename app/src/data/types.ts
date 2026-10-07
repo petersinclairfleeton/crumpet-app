@@ -95,6 +95,8 @@ export interface Settings {
   /** The named styles notes use; Crumpet's own when unset. */
   noteStyles?: StyleSheet;
   notePage?: PageSetup;
+  /** The formatting bar: always shown, or floating above selected text (the default). */
+  toolbar?: 'always' | 'selection';
   /** How the window is arranged (computers and tablets). */
   layout?: LayoutPrefs;
   /** Show notes and projects as pages. */

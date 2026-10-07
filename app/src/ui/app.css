@@ -650,6 +650,27 @@ input, select { font: inherit; color: inherit; }
 .layout-hint { margin: 0; font-size: 12px; line-height: 1.45; color: var(--muted); }
 @media (max-width: 759px) { .layout-menu, .resizer { display: none; } }
 
+/* ---- The floating formatting bar ---- */
+.selection-bar { position: fixed; z-index: 40; padding: 4px; border-radius: 12px; background: var(--text); color: var(--page); box-shadow: var(--shadow); animation: bar-in 0.12s ease-out; }
+.selection-bar .tools { flex-wrap: nowrap; }
+.selection-bar .tools button { color: var(--page); min-width: 30px; }
+.selection-bar .tools button:hover:not(:disabled) { background: color-mix(in srgb, var(--page) 16%, transparent); }
+.selection-bar .tools button.active { background: color-mix(in srgb, var(--page) 24%, transparent); color: var(--page); }
+.selection-bar .tools .sep { background: color-mix(in srgb, var(--page) 25%, transparent); }
+.selection-bar .popover { color: var(--text); }
+@keyframes bar-in { from { opacity: 0; transform: translateY(4px); } }
+.pin-tools { font-family: var(--title-font, inherit); font-size: 15px; font-weight: 600; width: auto; padding: 0 8px; }
+
+/* ---- Focus mode: only the page ---- */
+.focus-mode .sidebar, .focus-mode .rail, .focus-mode .topbar, .focus-mode .list, .focus-mode .resizer, .focus-mode [data-side='second'], .focus-mode .note-toolbar, .focus-mode .banner { display: none !important; }
+.focus-mode .notes-split > [data-side='first'] { margin: 0; border: none; }
+.focus-mode .pane, .focus-mode .pane-empty { margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+.focus-mode .note-body { padding-top: 72px; }
+.exit-focus { position: fixed; top: 14px; right: 18px; z-index: 30; opacity: 0.55; transition: opacity 0.2s; }
+.exit-focus:hover, .exit-focus:focus-visible { opacity: 1; }
+.exit-focus kbd { font: inherit; font-size: 11px; padding: 1px 5px; border: 1px solid var(--line2); border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { .selection-bar { animation: none; } }
+
 /* ---- Medium screens: narrower list ---- */
 @media (max-width: 1099px) {
   .sidebar { flex-basis: var(--side-w, 208px); width: var(--side-w, 208px); }
