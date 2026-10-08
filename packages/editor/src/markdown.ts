@@ -21,6 +21,7 @@
 // tables, other HTML) are kept as their literal text.
 
 import { readTableAttrs, tableAttrs, tidyTable } from './table';
+import { readShapeLine, shapeLine, tidyShape } from './shape';
 import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia } from './model';
 
 // ---------------------------------------------------------------- writing
@@ -54,6 +55,8 @@ export function toMarkdown(doc: Doc): string {
 function blockLine(b: Block, number: number): string {
   // A table of contents is [TOC] on a line of its own, as in several Markdown tools.
   if (b.type === 'toc') return '[TOC]';
+  // A text box or shape: its look in braces, then its text.
+  if (b.type === 'shape') return shapeLine(b.shape ?? tidyShape(undefined), b.align && b.align !== 'left' ? b.align : undefined);
   // Tables are GitHub-style pipe tables; the first row is the header.
   if (b.type === 'table') {
     const rows = tidyRows(b.rows);
@@ -179,7 +182,7 @@ function applyAttrs(b: Block, classes: string[]): Block {
 
 /** Text that happens to start like a block marker gets that marker escaped. */
 function escapeLineStart(text: string): string {
-  if (/^(#{1,6}(\s|$)|[-+*](\s|$)|\d{1,9}[.)](\s|$)|-{2,}\s*$|={2,}\s*$)/.test(text)) {
+  if (/^(#{1,6}(\s|$)|[-+*](\s|$)|\d{1,9}[.)](\s|$)|-{2,}\s*$|={2,}\s*$|\{shape )/.test(text)) {
     const m = /^\d+/.exec(text);
     return m ? `${m[0]}\\${text.slice(m[0].length)}` : `\\${text}`;
   }
@@ -506,6 +509,13 @@ export function fromMarkdown(md: string): Doc {
       flushPara();
       listIndents = [];
       blocks.push(applyAttrs(makeBlock('paragraph', '', [], { style: 'scenebreak' }), classes));
+      continue;
+    }
+    const shapeRead = !para.length ? readShapeLine(line) : null;
+    if (shapeRead) {
+      flushPara();
+      listIndents = [];
+      blocks.push(makeBlock('shape', '', [], { shape: shapeRead.shape, ...(shapeRead.align ? { align: shapeRead.align as Align } : {}) }));
       continue;
     }
     if (!para.length && /^ {0,3}\[TOC\][ \t]*$/i.test(line)) {

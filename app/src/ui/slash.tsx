@@ -40,6 +40,8 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'title', label: 'Title', hint: 'The document’s title style', words: 'title', glyph: 'T', run: (ed) => ed.setBlockStyle('paragraph', 'title') },
   { id: 'scene', label: 'Scene break', hint: '* * *', words: 'divider separator line rule section break', glyph: '⁂', run: (ed) => ed.setBlockStyle('paragraph', 'scenebreak') },
   { id: 'table', label: 'Table', hint: 'Rows and columns', words: 'grid columns rows spreadsheet', glyph: '▦', run: (ed) => ed.insertTable() },
+  { id: 'textbox', label: 'Text box', hint: 'A box of text on the page', words: 'textbox box callout sidebar', glyph: '▭', run: (ed) => ed.insertShape('rect', true) },
+  { id: 'shape', label: 'Shape', hint: 'A rectangle, oval, line or arrow', words: 'shape rectangle oval circle arrow line drawing', glyph: '◯', run: (ed) => ed.insertShape('ellipse') },
   { id: 'toc', label: 'Table of contents', hint: 'The headings, with page numbers', words: 'contents toc index outline headings', glyph: '☰', run: (ed) => ed.insertToc() },
   { id: 'footnote', label: 'Footnote', hint: 'A numbered note at the bottom', words: 'footnote endnote note reference citation', glyph: '¹', run: addFootnoteHere },
   { id: 'picture', label: 'Picture or file', hint: 'From this device', words: 'image photo attachment upload pdf', glyph: '▣', run: (ed) => chooseFiles(ed) },

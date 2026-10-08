@@ -89,6 +89,8 @@ import {
   setListStyle,
   setListStart,
   insertToc,
+  insertShape,
+  setShape,
   insertColumnBreak,
   insertSectionBreak,
   setSection,
@@ -98,7 +100,8 @@ import {
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { type TocEntry, View, readTable } from './view';
-import { cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
+import { type ShapeKind, type ShapeLook } from './shape';
+import { readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
 import { noteLink } from './markdown';
 import { type PageBox, type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
@@ -335,8 +338,15 @@ export class Editor {
     clearTimeout(this.tableTimers.get(id));
     this.tableTimers.delete(id);
     const el = this.view.blockElement(id);
-    if (!el || !this.state.doc.blocks.some((b) => b.id === id)) return;
-    this.dispatch(setTableRows(this.state, id, readTable(el, this.state.doc.blocks.find((b) => b.id === id)!)), 'input', true, true);
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!el || !blk) return;
+    // A text box: its text.
+    if (blk.type === 'shape') {
+      const box = el.querySelector<HTMLElement>('.shape-text');
+      if (box) this.dispatch(setShape(this.state, id, { text: readCell(box) }), 'input', true, true);
+      return;
+    }
+    this.dispatch(setTableRows(this.state, id, readTable(el, blk)), 'input', true, true);
   }
 
   private commitTables(): void {
@@ -470,11 +480,83 @@ export class Editor {
     this.dispatch(setTableRows(this.state, id, next.rows, next.tbl), 'command', true, true);
   }
 
+  /** In a text box: bold and the rest, undo; Escape (or Tab) leaves it for the line after. */
+  private onShapeKey(e: KeyboardEvent, cell: HTMLElement, id: string): void {
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    const keyMark: Record<string, Mark> = { b: 'bold', i: 'italic', u: 'underline' };
+    if (mod && !e.altKey && !e.shiftKey && keyMark[e.key.toLowerCase()]) {
+      e.preventDefault();
+      toggleCellMark(cell, keyMark[e.key.toLowerCase()]);
+      return;
+    }
+    if (mod && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      this.commitTables();
+      if (e.shiftKey) this.redo();
+      else this.undo();
+      return;
+    }
+    // One paragraph of text in a box.
+    if (e.key === 'Enter') e.preventDefault();
+    if (e.key === 'Escape' || e.key === 'Tab') {
+      e.preventDefault();
+      this.commitTable(id);
+      const i = this.state.doc.blocks.findIndex((b) => b.id === id);
+      const to = this.state.doc.blocks[i + 1];
+      if (to) {
+        this.state = { ...this.state, selection: caret({ block: to.id, offset: 0 }) };
+        this.focusText();
+        this.emit(null);
+      }
+    }
+  }
+
+  /** Puts a text box or shape at the caret. */
+  insertShape(kind: ShapeKind, textBox = false): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(insertShape(this.state, kind, textBox), 'command');
+    const shape = this.state.doc.blocks.find((b, i, all) => b.type === 'shape' && all[i + 1]?.id === this.state.selection.focus.block);
+    const text = shape && this.view.blockElement(shape.id)?.querySelector<HTMLElement>('.shape-text');
+    if (textBox && text) text.focus();
+  }
+
+  /** Changes a shape's look (fill, line, wrapping, size). */
+  setShapeLook(id: string, patch: Partial<ShapeLook>): void {
+    this.commitTable(id);
+    this.dispatch(setShape(this.state, id, patch), 'command');
+  }
+
+  /** Drags a shape's corner to resize it. */
+  private resizeShape(grip: HTMLElement, startX: number, startY: number): void {
+    const el = grip.closest<HTMLElement>('[data-block]');
+    const id = el?.dataset.block;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    const box = grip.closest<HTMLElement>('.shape-box');
+    if (!id || !blk?.shape || !box || this.isReadOnly) return;
+    const scale = box.getBoundingClientRect().width / (box.offsetWidth || 1) || 1;
+    const { w, h } = blk.shape;
+    let size = { w, h };
+    const move = (ev: PointerEvent) => {
+      size = { w: Math.max(0.2, w + (ev.clientX - startX) / scale / 96), h: Math.max(0.1, h + (ev.clientY - startY) / scale / 96) };
+      box.style.width = `${size.w}in`;
+      box.style.height = `${size.h}in`;
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (size.w !== w || size.h !== h) this.setShapeLook(id, { w: Math.round(size.w * 100) / 100, h: Math.round(size.h * 100) / 100 });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
   /** Tab and Enter move between cells (adding a row at the end); Esc leaves the table. */
   private onTableKey(e: KeyboardEvent): void {
     const cell = (e.target as HTMLElement).closest<HTMLElement>('.cell');
     const id = cell?.closest<HTMLElement>('[data-block]')?.dataset.block;
     if (!cell || !id || e.isComposing) return;
+    if (cell.classList.contains('shape-text')) return this.onShapeKey(e, cell, id);
     const r = Number(cell.dataset.r);
     const c = Number(cell.dataset.c);
     const el = this.view.blockElement(id)!;
@@ -1219,6 +1301,29 @@ export class Editor {
       // ⌘/Ctrl-click opens a link; a plain click just places the caret, so links stay editable.
       e.preventDefault();
       window.open(link.href, '_blank', 'noopener');
+      return;
+    }
+    const shapeAction = (e.target as Element).closest?.<HTMLElement>('[data-shape-action]');
+    if (shapeAction) {
+      e.preventDefault();
+      const id = shapeAction.closest<HTMLElement>('[data-block]')!.dataset.block!;
+      const action = shapeAction.dataset.shapeAction!;
+      const tools = shapeAction.closest<HTMLElement>('.shape-tools');
+      if (action === 'resize') return this.resizeShape(shapeAction, e.clientX, e.clientY);
+      if (action === 'menu') {
+        tools?.classList.toggle('open');
+        return;
+      }
+      tools?.classList.remove('open');
+      const value = shapeAction.dataset.value ?? '';
+      if (action === 'fill') this.setShapeLook(id, { fill: value || null });
+      else if (action === 'line') this.setShapeLook(id, { line: value || null });
+      else if (action === 'wrap') this.setShapeLook(id, { wrap: value as ShapeLook['wrap'] });
+      else if (action === 'delete') {
+        const blk = this.state.doc.blocks.find((b) => b.id === id)!;
+        this.dispatch({ ops: [{ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('paragraph') }], selectionBefore: this.state.selection, selectionAfter: caret({ block: id, offset: 0 }) }, 'command');
+        this.focusText();
+      }
       return;
     }
     const grip = (e.target as Element).closest?.<HTMLElement>('.col-grip');

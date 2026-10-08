@@ -4,6 +4,7 @@
 
 import type { Block, Doc, Mark, Pos, Run, Selection } from './model';
 import { isCovered, mergeAt } from './table';
+import { type ShapeLook, tidyShape } from './shape';
 import { fillCell, readCell } from './cells';
 import { BULLETS, isHeading, isList, listLabels, runsLength } from './model';
 
@@ -21,6 +22,7 @@ const TAGS: Record<Block['type'], string> = {
   file: 'div',
   table: 'div',
   toc: 'nav',
+  shape: 'div',
 };
 
 /**
@@ -76,6 +78,11 @@ export class View {
       const old = this.rendered.get(block.id);
       if (old && old.block === block && !force.has(block.id)) continue;
       // A table being edited keeps its element: only cells that changed are updated, so the caret stays put.
+      // A shape being typed in likewise keeps its text box.
+      if (old && old.block.type === 'shape' && block.type === 'shape' && patchShape(old.el, block)) {
+        this.rendered.set(block.id, { block, el: old.el });
+        continue;
+      }
       if (old && old.block.type === 'table' && block.type === 'table' && patchTable(old.el, block)) {
         this.rendered.set(block.id, { block, el: old.el });
         continue;
@@ -303,6 +310,10 @@ function buildBlock(block: Block): HTMLElement {
   }
   if (block.type === 'image' || block.type === 'file') el.appendChild(buildMedia(block));
   if (block.type === 'table') el.appendChild(buildTable(block));
+  if (block.type === 'shape') {
+    el.dataset.wrap = block.shape?.wrap ?? 'inline';
+    el.appendChild(buildShape(block));
+  }
   if (block.type === 'toc') {
     const box = document.createElement('div');
     box.className = 'toc-box';
@@ -495,6 +506,142 @@ function fillToc(el: HTMLElement, entries: TocEntry[]): void {
     row.append(text, dots, page);
     box.appendChild(row);
   }
+}
+
+// ---------------------------------------------------------------- text boxes and shapes
+
+const SHAPE_COLORS: [string, string][] = [
+  ['#ffffff', 'White'], ['#f2f2f2', 'Light grey'], ['#fff2cc', 'Light gold'], ['#fce5cd', 'Light orange'], ['#f4cccc', 'Light red'],
+  ['#d9d2e9', 'Light purple'], ['#cfe2f3', 'Light blue'], ['#d9ead3', 'Light green'], ['#333333', 'Dark grey'], ['#1155cc', 'Blue'],
+];
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** The shape itself, drawn to fill its box. */
+function shapeArt(s: ShapeLook): SVGSVGElement {
+  const W = s.w * 96;
+  const H = s.h * 96;
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', 'shape-art');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('aria-hidden', 'true');
+  const add = (tag: string, attrs: Record<string, string | number>) => {
+    const el = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    el.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.appendChild(el);
+    return el;
+  };
+  const fill = s.fill ?? 'none';
+  const stroke = s.line ?? 'none';
+  const sw = 1.5;
+  if (s.kind === 'rect') add('rect', { x: sw / 2, y: sw / 2, width: W - sw, height: H - sw, fill, stroke, 'stroke-width': sw });
+  else if (s.kind === 'rounded') add('rect', { x: sw / 2, y: sw / 2, width: W - sw, height: H - sw, rx: Math.min(W, H) * 0.18, fill, stroke, 'stroke-width': sw });
+  else if (s.kind === 'ellipse') add('ellipse', { cx: W / 2, cy: H / 2, rx: W / 2 - sw, ry: H / 2 - sw, fill, stroke, 'stroke-width': sw });
+  else {
+    const head = s.kind === 'arrow' ? Math.min(14, W / 4) : 0;
+    add('line', { x1: 0, y1: H / 2, x2: W - head, y2: H / 2, stroke: s.line ?? '#333333', 'stroke-width': 2 });
+    if (head) add('polygon', { points: `${W - head},${H / 2 - head / 2} ${W},${H / 2} ${W - head},${H / 2 + head / 2}`, fill: s.line ?? '#333333' });
+  }
+  return svg;
+}
+
+/** A text box or shape: drawn at its size, with its text, a corner to drag, and a menu under it. */
+function buildShape(block: Block): HTMLElement {
+  const s = block.shape ?? tidyShape(undefined);
+  const wrap = document.createElement('div');
+  wrap.className = 'shape-wrap';
+  wrap.contentEditable = 'false';
+  wrap.dataset.widget = 'shape';
+  const box = document.createElement('div');
+  box.className = 'shape-box';
+  box.style.width = `${s.w}in`;
+  box.style.height = `${s.h}in`;
+  box.dataset.kind = s.kind;
+  box.appendChild(shapeArt(s));
+  if (s.kind !== 'line' && s.kind !== 'arrow') {
+    const text = document.createElement('div');
+    text.className = 'cell shape-text';
+    text.contentEditable = 'true';
+    text.setAttribute('role', 'textbox');
+    text.setAttribute('aria-label', 'Text in the shape');
+    fillCell(text, s.text);
+    box.appendChild(text);
+  }
+  const grip = document.createElement('span');
+  grip.className = 'shape-grip';
+  grip.dataset.shapeAction = 'resize';
+  grip.title = 'Drag to resize';
+  box.appendChild(grip);
+  const tools = document.createElement('div');
+  tools.className = 'table-tools shape-tools';
+  const button = (action: string, label: string, title = label, value?: string) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.shapeAction = action;
+    if (value !== undefined) b.dataset.value = value;
+    b.textContent = label;
+    b.title = title;
+    b.tabIndex = -1;
+    return b;
+  };
+  tools.append(button('menu', 'Shape ▾', 'Fill, line and wrapping'));
+  const menu = document.createElement('div');
+  menu.className = 'table-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'Shape');
+  const group = (name: string, items: HTMLElement[]) => {
+    const g = document.createElement('div');
+    g.className = 'table-menu-group';
+    const h = document.createElement('span');
+    h.className = 'table-menu-head';
+    h.textContent = name;
+    g.append(h, ...items);
+    menu.appendChild(g);
+  };
+  const swatches = (action: string, what: string) => {
+    const box = document.createElement('div');
+    box.className = 'table-swatches';
+    for (const [hex, name] of SHAPE_COLORS) {
+      const b = button(action, '', `${what}: ${name}`, hex);
+      b.setAttribute('aria-label', `${what} ${name.toLowerCase()}`);
+      b.style.background = hex;
+      box.appendChild(b);
+    }
+    return box;
+  };
+  group('Fill', [swatches('fill', 'Fill'), button('fill', 'No fill', 'No fill', '')]);
+  group('Line', [swatches('line', 'Line'), button('line', 'No line', 'No line', '')]);
+  group('Wrap text', [button('wrap', 'In line with text', 'In line with text', 'inline'), button('wrap', 'Square, on the left', 'Text wraps round it, on the left', 'left'), button('wrap', 'Square, on the right', 'Text wraps round it, on the right', 'right')]);
+  group('', [button('delete', 'Delete shape')]);
+  tools.appendChild(menu);
+  wrap.append(box, tools);
+  markShape(wrap, s);
+  return wrap;
+}
+
+/** Shows the shape's wrapping and colours as chosen in its menu. */
+function markShape(wrap: HTMLElement, s: ShapeLook): void {
+  wrap.closest<HTMLElement>('.blk')?.setAttribute('data-wrap', s.wrap);
+  wrap.querySelectorAll<HTMLElement>('[data-shape-action="wrap"]').forEach((b) => b.classList.toggle('on', b.dataset.value === s.wrap));
+}
+
+/** Updates a shape in place (keeping its text box, which may be being typed in). False when it must be built again. */
+function patchShape(el: HTMLElement, block: Block): boolean {
+  const s = block.shape;
+  const box = el.querySelector<HTMLElement>('.shape-box');
+  if (!s || !box || box.dataset.kind !== s.kind) return false;
+  box.style.width = `${s.w}in`;
+  box.style.height = `${s.h}in`;
+  box.querySelector('.shape-art')?.replaceWith(shapeArt(s));
+  const text = box.querySelector<HTMLElement>('.shape-text');
+  if (text && text !== el.ownerDocument.activeElement && readCell(text) !== s.text) fillCell(text, s.text);
+  el.dataset.wrap = s.wrap;
+  markShape(box.parentElement!, s);
+  if (block.align) el.dataset.align = block.align;
+  else delete el.dataset.align;
+  return true;
 }
 
 // ---------------------------------------------------------------- tables
