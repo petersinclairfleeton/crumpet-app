@@ -1133,3 +1133,35 @@ test('web clipper: the bookmark on another site opens Crumpet with the page, to 
   await expect(d2.locator('.clip-preview')).toContainText('It stands alone on the rock.');
   await expect(d2.locator('.clip-preview')).not.toContainText('Paragraph 1');
 });
+
+test('pasting from a web page or Word keeps headings, lists and formatting', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Pasted', 'Start ');
+  const paste = (html: string, text: string) =>
+    page.evaluate(
+      ([h, t]) => {
+        const dt = new DataTransfer();
+        dt.setData('text/html', h);
+        dt.setData('text/plain', t);
+        document.querySelector('.note-editor')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      },
+      [html, text],
+    );
+  await paste('<meta charset="utf-8"><h2>Recipe</h2><ul><li>Flour</li><li><b>Butter</b></li></ul><p>Mix <a href="https://example.com/">well</a>.</p>', 'Recipe Flour Butter Mix well.');
+  const body = page.locator('.note-editor');
+  await expect(body.locator('.blk')).toHaveCount(5);
+  await expect(body.locator('.blk').first()).toHaveText('Start');
+  await expect(body.locator('h2')).toHaveText('Recipe');
+  await expect(body.locator('.blk-bullet')).toHaveText(['Flour', 'Butter']);
+  await expect(body.locator('.blk-bullet strong')).toHaveText('Butter');
+  await expect(body.locator('a[href="https://example.com/"]')).toHaveText('well');
+  // The caret is after the pasted text.
+  await page.keyboard.type(' Done.');
+  await expect(body.locator('.blk').last()).toHaveText('Mix well. Done.');
+  // Plain text still pastes as text; with track changes on, pasted text is marked as added.
+  await page.getByRole('button', { name: 'Track changes' }).click();
+  await body.locator('.blk').last().click();
+  await page.keyboard.press('End');
+  await paste('<span style="font-weight:700">Bold bit</span>', 'Bold bit');
+  await expect(body.locator('ins.trk strong')).toHaveText('Bold bit');
+});

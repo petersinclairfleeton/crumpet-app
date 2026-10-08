@@ -26,7 +26,7 @@ import {
   toggleFold,
   foldedUnder,
 } from '../src/commands';
-import { insertFootnote, setFootnote, addComment, setComment, insertText as typeIn, trackedInsertText, trackedDelete, resolveChanges } from '../src/commands';
+import { insertFootnote, setFootnote, addComment, setComment, insertText as typeIn, trackedInsertText, trackedDelete, resolveChanges, insertBlocks } from '../src/commands';
 import { comments, makeComment } from '../src/model';
 import { footnotes } from '../src/model';
 import { diffDocs } from '../src/diff';
@@ -520,5 +520,50 @@ describe('track changes', () => {
   it('at the edge of a paragraph there is nothing to mark', () => {
     const p = makeBlock('paragraph', 'Hi');
     expect(trackedDelete(state({ blocks: [p] }, caret({ block: p.id, offset: 0 })), -1, 'R')).toBeNull();
+  });
+});
+
+describe('pasting paragraphs', () => {
+  const kinds = (d: Doc) => d.blocks.map((b) => `${b.type}:${runsText(b.runs)}`);
+  const frag = () => [makeBlock('heading2', 'Title'), makeBlock('bullet', 'One'), makeBlock('paragraph', 'End')];
+  it('in the middle of a paragraph: the first joins it, the text after the caret ends up after the last', () => {
+    const p = makeBlock('paragraph', 'Before after');
+    const s0 = state({ blocks: [p] }, caret({ block: p.id, offset: 7 }));
+    const t = insertBlocks(s0, frag())!;
+    const d = applyOps(s0.doc, t.ops);
+    expect(kinds(d)).toEqual(['paragraph:Before Title', 'bullet:One', 'paragraph:Endafter']);
+    expect(t.selectionAfter.focus).toEqual({ block: d.blocks[2].id, offset: 3 });
+    expect(kinds(applyOps(d, invertOps(t.ops)))).toEqual(['paragraph:Before after']);
+  });
+
+  it('on an empty line: it takes the first paragraph’s kind, with no empty line left over', () => {
+    const p = makeBlock('paragraph', '');
+    const s0 = state({ blocks: [p] }, caret({ block: p.id, offset: 0 }));
+    const d = applyOps(s0.doc, insertBlocks(s0, frag())!.ops);
+    expect(kinds(d)).toEqual(['heading2:Title', 'bullet:One', 'paragraph:End']);
+  });
+
+  it('a picture or table pasted keeps the text after it on its own line', () => {
+    const p = makeBlock('paragraph', 'AB');
+    const s0 = state({ blocks: [p] }, caret({ block: p.id, offset: 1 }));
+    const d = applyOps(s0.doc, insertBlocks(s0, [makeBlock('paragraph', 'x'), makeBlock('image', 'cap', [], { src: 'https://e.com/a.png' })])!.ops);
+    expect(kinds(d)).toEqual(['paragraph:Ax', 'image:cap', 'paragraph:B']);
+  });
+
+  it('a single paragraph goes in like typed text', () => {
+    const p = makeBlock('heading1', 'Hi there');
+    const s0 = state({ blocks: [p] }, caret({ block: p.id, offset: 2 }));
+    const d = applyOps(s0.doc, insertBlocks(s0, [{ ...makeBlock('paragraph'), runs: [{ text: '!!', marks: ['bold'] }] }])!.ops);
+    expect(d.blocks.map((b) => b.runs)).toEqual([[{ text: 'Hi', marks: [] }, { text: '!!', marks: ['bold'] }, { text: ' there', marks: [] }]]);
+    expect(d.blocks[0].type).toBe('heading1');
+  });
+});
+
+describe('pasting a heading at the end of a line', () => {
+  it('starts a new line', () => {
+    const p = makeBlock('paragraph', 'Start');
+    const s0 = state({ blocks: [p] }, caret({ block: p.id, offset: 5 }));
+    const d = applyOps(s0.doc, insertBlocks(s0, [makeBlock('heading2', 'Title'), makeBlock('paragraph', 'Body')])!.ops);
+    expect(d.blocks.map((b) => `${b.type}:${runsText(b.runs)}`)).toEqual(['paragraph:Start', 'heading2:Title', 'paragraph:Body']);
   });
 });

@@ -63,6 +63,7 @@ import {
   trackedInsertText,
   trackedDelete,
   resolveChanges,
+  insertBlocks,
   setTableRows,
 } from './commands';
 import { History } from './history';
@@ -542,6 +543,9 @@ export class Editor {
     }
   }
 
+  /** Turns pasted HTML into paragraphs (set by the app); null or nothing returned pastes plain text. */
+  htmlToBlocks: ((html: string) => Block[] | null) | null = null;
+
   /** Track changes: who is editing, or null when changes aren't tracked. */
   tracking: { author: string } | null = null;
 
@@ -890,8 +894,24 @@ export class Editor {
       this.onFiles(files);
       return;
     }
+    // Formatted text (from a web page, Word, Google Docs): kept with its headings, lists and formatting.
+    const html = e.clipboardData?.getData('text/html');
+    if (html && this.htmlToBlocks && !this.isReadOnly) {
+      let blocks = this.htmlToBlocks(html);
+      if (blocks?.length) {
+        if (this.tracking) {
+          const change = makeChange('ins', this.tracking.author);
+          blocks = blocks.map((b) => ({ ...b, runs: b.runs.map((r) => ({ ...r, change })) }));
+          // Pasting over a selection marks it deleted first.
+          if (!isCollapsed(this.state.selection)) this.dispatch(trackedDelete(this.state, 1, this.tracking.author));
+        }
+        this.dispatch(insertBlocks(this.state, blocks));
+        return;
+      }
+    }
     const text = e.clipboardData?.getData('text/plain')?.replaceAll(FOOTNOTE, '');
     if (!text) return;
+    if (this.tracking) return this.dispatch(trackedInsertText(this.state, text, this.tracking.author));
     this.dispatch(pasteLink(this.state, text) ?? insertText(this.state, text));
   }
 

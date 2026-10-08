@@ -1,6 +1,7 @@
 // Pieces shared by everything that edits text: notes, chapters, and the
 // manuscript (several chapters on one page sharing one toolbar).
 
+import { htmlToDoc } from '../data/clip';
 import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Editor } from '@crumpet/editor/editor';
@@ -94,6 +95,11 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
     el.addEventListener('keydown', onKey);
     // Pictures and files dropped or pasted in.
     ed.onFiles = (files) => void insertFiles(ed, files);
+    // Text copied from a web page, Word or Google Docs keeps its headings, lists and formatting.
+    ed.htmlToBlocks = (html) => {
+      const { blocks } = htmlToDoc(html, location.href);
+      return blocks.length === 1 && !blocks[0].runs.length && blocks[0].type === 'paragraph' ? null : blocks;
+    };
     // Links to other notes open them (a plain click: they're part of Crumpet, not the web).
     ed.onLinkClick = (href) => {
       if (!href.startsWith(NOTE_LINK)) return false;

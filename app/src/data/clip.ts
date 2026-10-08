@@ -183,14 +183,26 @@ export function htmlToDoc(html: string, base: string): Doc {
       block(el);
       return;
     }
-    const m = MARKS[tag];
+    // Word's list bullets and numbers are written out as text; the list itself is what counts.
+    if (/mso-list:\s*ignore/i.test(el.getAttribute('style') ?? '')) return;
     const style = (el.getAttribute('style') ?? '').toLowerCase();
-    const extra: Mark[] = [];
-    if (m) extra.push(m);
-    if (/font-weight:\s*(bold|[6-9]00)/.test(style)) extra.push('bold');
-    if (/font-style:\s*italic/.test(style)) extra.push('italic');
+    let here = [...marks];
+    const add = (mk: Mark) => {
+      if (!here.includes(mk)) here.push(mk);
+    };
+    const drop = (mk: Mark) => {
+      here = here.filter((x) => x !== mk);
+    };
+    if (MARKS[tag]) add(MARKS[tag]);
+    // Inline styles win (Google Docs wraps everything in <b style="font-weight:normal">).
+    if (/font-weight:\s*(bold|[6-9]00)/.test(style)) add('bold');
+    else if (/font-weight:\s*(normal|[1-5]00)/.test(style)) drop('bold');
+    if (/font-style:\s*italic/.test(style)) add('italic');
+    else if (/font-style:\s*normal/.test(style)) drop('italic');
+    if (/text-decoration[^;]*underline/.test(style)) add('underline');
+    if (/text-decoration[^;]*line-through/.test(style)) add('strike');
     const href = tag === 'a' ? absolute(el.getAttribute('href') ?? '', base) : null;
-    for (const c of Array.from(el.childNodes)) inline(c, [...marks, ...extra], href ?? link);
+    for (const c of Array.from(el.childNodes)) inline(c, here, href ?? link);
   };
 
   const listDepth: ('bullet' | 'numbered')[] = [];
@@ -272,11 +284,21 @@ export function htmlToDoc(html: string, base: string): Doc {
         kids();
         start('paragraph');
         return;
-      default:
+      default: {
+        // A Word list item: a paragraph styled as a list, its bullet or number written out.
+        const mso = /mso-list:\s*l\d+\s+level(\d+)/i.exec(el.getAttribute('style') ?? '');
+        if (tag === 'p' && (mso || /MsoListParagraph/i.test(el.getAttribute('class') ?? ''))) {
+          const marker = el.querySelector('[style*="mso-list"]')?.textContent ?? '';
+          start(/\d|^[a-z]\.|^[ivx]+\./i.test(marker.trim()) ? 'numbered' : 'bullet', { indent: Math.min(6, Math.max(0, Number(mso?.[1] ?? 1) - 1)) });
+          kids();
+          start('paragraph');
+          return;
+        }
         // p, div, section…: their own paragraph(s).
         start('paragraph');
         kids();
         start('paragraph');
+      }
     }
   };
 
