@@ -117,6 +117,8 @@ export class Paginator {
   pageBoxes: PageBox[] = [];
   /** The page each block starts on (from 0). */
   pageOf = new Map<string, number>();
+  /** Pages before this document's first (a chapter in a book): the contents' page numbers count on from them. */
+  pageOffset = 0;
   /** How tall footnote `index` is at the foot of a page, in px; without it footnotes take no room. */
   noteHeight: ((index: number) => number) | null = null;
 
@@ -134,7 +136,7 @@ export class Paginator {
   /** Puts the text back as one flow of blocks (continuations joined back on, pages taken away). */
   clear(): void {
     const root = this.root;
-    root.querySelectorAll('.toc-page').forEach((el) => el.textContent && (el.textContent = ''));
+    root.querySelectorAll('.toc-page:not([data-fixed])').forEach((el) => el.textContent && (el.textContent = ''));
     if (!root.querySelector('.pg, .pg-measure')) return;
     // Continuations hand their text back to the block they continue.
     const last = new Map<string, HTMLElement>();
@@ -496,8 +498,8 @@ export class Paginator {
     // A table of contents shows the page each heading is on.
     for (const entry of root.querySelectorAll<HTMLElement>('[data-toc-target]')) {
       const n = this.pageOf.get(entry.dataset.tocTarget!);
-      const span = entry.querySelector('.toc-page');
-      if (span && n !== undefined) span.textContent = String(n + 1);
+      const span = entry.querySelector('.toc-page:not([data-fixed])');
+      if (span && n !== undefined) span.textContent = String(this.pageOffset + n + 1);
     }
   }
 }

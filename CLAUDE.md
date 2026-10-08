@@ -146,8 +146,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   (pasting keeps formatting instead) or in the single-file build.
 - Word features not built: text boxes and shapes, styles of tables beyond
   the Table menu, paper size per section. Printing turns landscape pages only
-  in browsers that support named pages (Chrome, Edge, Firefox). Tables of contents
-  list one chapter at a time in a project (Word fills in the whole book's
-  when it updates the field).
+  in browsers that support named pages (Chrome, Edge, Firefox). A book's table of contents
+  guesses the pages of headings in chapters not laid out yet (from their
+  words) until they have been.
 - Not built yet: native Mac/iPhone/iPad apps, other storage (local folder,
   Dropbox, OneDrive, iCloud), version history, reminders, sharing.

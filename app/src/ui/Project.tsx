@@ -13,6 +13,8 @@ import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
 import type { PageSetup, StyleKey } from '../data/styles';
 import { StylesPane } from './stylespane';
+import { bookEntries, goToLater, useBookToc } from './booktoc';
+import type { TocEntry } from '@crumpet/editor/view';
 import { EditorHost } from './EditorHost';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, isMac, useDocEditor } from './editing';
 import { FindBar, useFindKey } from './find';
@@ -528,6 +530,16 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const perPage = pages && n >= 100 ? n / pages : undefined;
   const count = (c: Chapter) => chapterPages(c.id, chapterWords(c), pageSetup, styles, perPage);
   const offset = list.slice(0, Math.max(0, at)).reduce((sum, x) => sum + count(x.chapter), 0);
+  // A table of contents here lists the whole book.
+  const startOf = (c: Chapter) => list.slice(0, list.findIndex((x) => x.chapter.id === c.id)).reduce((sum, x) => sum + count(x.chapter), 0);
+  const tocEntries = bookEntries(list, chapter.id, startOf, count);
+  const onTocTarget = useCallback(
+    (t: { chapter: string; block?: string }) => {
+      goToLater(t);
+      store.selectChapter(t.chapter);
+    },
+    [store],
+  );
   const after = list.slice(at + 1).reduce((sum, x) => sum + count(x.chapter), 0);
 
   const lead = narrow ? (
@@ -669,6 +681,7 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
         }}
       />
       <CastSpotting editor={chapterEditor} project={project} />
+      <BookToc editor={chapterEditor} chapterId={chapter.id} entries={tocEntries} offset={offset} onTarget={onTocTarget} />
     </section>
   );
 }
@@ -716,6 +729,17 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const order = project.outline.flatMap((x) => (x.type === 'chapter' && chapters.has(x.id) ? [chapters.get(x.id)!] : []));
   const pagesOf = (c: Chapter) => counts[c.id] ?? chapterPages(c.id, chapterWords(c), pageSetup, styles);
   const allPages = order.reduce((sum, c) => sum + pagesOf(c), 0);
+  // The book's contents, for a table of contents in any chapter; a line goes to its chapter or heading.
+  const numbered = order.map((chapter, i) => ({ chapter, number: i + 1 }));
+  const startOf = (c: Chapter) => order.slice(0, order.indexOf(c)).reduce((sum, x) => sum + pagesOf(x), 0);
+  const onTocTarget = useCallback(
+    (t: { chapter: string; block?: string }) => {
+      const ed = editors[t.chapter];
+      if (ed && t.block) ed.goToBlock(t.block);
+      else scroll.current?.querySelector(`[data-chapter="${t.chapter}"]`)?.scrollIntoView({ block: 'start' });
+    },
+    [editors],
+  );
 
   // Choosing a chapter in the outline scrolls to it.
   const target = state.chapterId;
@@ -828,6 +852,8 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
                   }}
                   onEditor={onEditor}
                   onLinkKey={() => setLinkOpen(true)}
+                  toc={bookEntries(numbered, c.id, startOf, pagesOf)}
+                  onTocTarget={onTocTarget}
                 />
               );
             })}
@@ -852,6 +878,8 @@ interface ManuscriptChapterProps {
   onActive(ed: Editor): void;
   /** Tells the manuscript this chapter's editor (null when it goes). */
   onEditor(id: string, ed: Editor | null): void;
+  toc: TocEntry[];
+  onTocTarget(t: { chapter: string; block?: string }): void;
   onLinkKey(): void;
   onPage(p: PageSetup): void;
   fields: PageFields;
@@ -861,7 +889,7 @@ interface ManuscriptChapterProps {
   onPages(chapterId: string, n: number): void;
 }
 
-function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEditor, onLinkKey, onPage, fields, offset, total, onPages }: ManuscriptChapterProps) {
+function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEditor, onLinkKey, onPage, fields, offset, total, onPages, toc, onTocTarget }: ManuscriptChapterProps) {
   const store = useAppStore();
   const reportPages = useCallback((n: number) => onPages(chapter.id, n), [onPages, chapter.id]);
   const nav = useNav();
@@ -881,6 +909,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
   useFontKeys(editor, msSheet);
   useDocFontsLoaded(editor);
   useParaKeys(editor);
+  useBookToc(editor, chapter.id, toc, offset, onTocTarget);
   useEffect(() => {
     if (!editor) return;
     onEditor(chapter.id, editor);
@@ -914,4 +943,10 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
       <CommentList doc={chapter.doc} editor={editor} />
     </section>
   );
+}
+
+/** The book's contents for a chapter's editor (a component, so the chapter view can use the hook beside its editor). */
+function BookToc({ editor, chapterId, entries, offset, onTarget }: { editor: Editor | null; chapterId: string; entries: TocEntry[]; offset: number; onTarget(t: { chapter: string; block?: string }): void }) {
+  useBookToc(editor, chapterId, entries, offset, onTarget);
+  return null;
 }

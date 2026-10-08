@@ -97,7 +97,7 @@ import {
 } from './commands';
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
-import { View, readTable } from './view';
+import { type TocEntry, View, readTable } from './view';
 import { cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
 import { noteLink } from './markdown';
 import { type PageBox, type PageGeometry, Paginator } from './paginate';
@@ -143,6 +143,27 @@ export class Editor {
   get pageBoxes(): PageBox[] {
     return this.paginator.pageBoxes;
   }
+
+  /**
+   * A table of contents listing more than this document (a book's chapters
+   * and their headings); null: this document's headings.
+   */
+  setTocEntries(entries: TocEntry[] | null): void {
+    if (JSON.stringify(entries) === JSON.stringify(this.view.tocOverride)) return;
+    this.view.tocOverride = entries;
+    const tocs = this.state.doc.blocks.filter((b) => b.type === 'toc');
+    if (tocs.length) this.draw(this.state.doc, new Set(tocs.map((b) => b.id)));
+  }
+
+  /** Pages before this document's first, for the page numbers in its table of contents. */
+  setPageOffset(n: number): void {
+    if (this.paginator.pageOffset === n) return;
+    this.paginator.pageOffset = n;
+    if (this.paged && this.state.doc.blocks.some((b) => b.type === 'toc')) this.repaginate();
+  }
+
+  /** A line of the table of contents for something not in this document (another chapter) was clicked. */
+  onTocTarget: ((target: { chapter: string; block?: string }) => void) | null = null;
 
   /** Page view: the page (from 0) a block starts on. */
   pageOfBlock(id: string): number | undefined {
@@ -1207,11 +1228,13 @@ export class Editor {
       else this.dragColumn(grip, e.clientX);
       return;
     }
-    const entry = (e.target as Element).closest?.<HTMLElement>('[data-toc-target]');
+    const entry = (e.target as Element).closest?.<HTMLElement>('[data-toc-target], [data-toc-chapter]');
     if (entry) {
-      // A line in the table of contents goes to its heading.
+      // A line in the table of contents goes to its heading (or, for another chapter, the app opens it).
       e.preventDefault();
-      this.goToBlock(entry.dataset.tocTarget!);
+      const id = entry.dataset.tocTarget;
+      if (id && this.state.doc.blocks.some((b) => b.id === id)) this.goToBlock(id);
+      else if (entry.dataset.tocChapter) this.onTocTarget?.({ chapter: entry.dataset.tocChapter, block: id });
       return;
     }
     const action = (e.target as Element).closest?.<HTMLElement>('[data-table-action]');
