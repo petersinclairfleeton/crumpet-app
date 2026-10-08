@@ -37,12 +37,18 @@ In this order:
 
 Also wanted, not yet scheduled: more storage choices (a folder on the computer, Dropbox, OneDrive, iCloud).
 
-## Status
+## Status (October 2026)
 
-- **Notes app (v1)**: first version in `app/`: notebooks and stacks (all created by the person; it starts empty), tags, search, Favorites, Trash, settings, phone layout, notes saved on the device. Not yet: sync, images, desktop and mobile wrappers.
-- **Editor**: `packages/editor`, used by the app; lists, links, undo across devices.
-- **Projects**: books and other long writing as parts and chapters, with status, synopsis and word goals; written a chapter at a time or as one manuscript; synced as a folder of numbered Markdown files.
-- **Your files, your cloud**: notes sync as Markdown files to a folder the person owns. Google Drive works (`app/src/sync`, setup in `docs/google-drive-setup.md`); a local folder on the computer is next, then other cloud services. No Crumpet server or account.
+Live at https://petersinclairfleeton.github.io/crumpet-app/ and installable as an app that works offline. Done so far:
+
+- **Notes**: notebooks and stacks, nested tags, Favorites, Trash, search with filters and saved searches, templates, today's note, links between notes with backlinks, pictures and files, tables, fold-away sections, the "/" menu, writing stats and streaks.
+- **Writing**: projects with parts and chapters (one at a time, as a manuscript, or as corkboard cards), research notes and files beside the writing, characters and places spotted in the text.
+- **Word features**: page view, styles, headers and footers, footnotes, comments, tracked changes, `.docx` export and import, print or save as PDF, ePub e-books.
+- **Look**: themes including Paper and ink, writing fonts, layout you control, focus mode, phone and tablet layouts, a first-visit tour.
+- **Your files, your cloud**: notes sync as Markdown files to a folder the person owns (Google Drive; setup in `docs/google-drive-setup.md`). No Crumpet server or account.
+- **Web clipper**: a "Clip to Crumpet" bookmark, and pasting from web pages keeps formatting.
+
+Next possibilities: native Mac and iPhone/iPad apps, more storage choices (a folder on the computer, Dropbox, OneDrive, iCloud), version history, reminders, sharing. See `CLAUDE.md` for how we work and known gaps.
 
 ## v1 scope: Notes
 
@@ -105,7 +111,7 @@ Softly rounded, never bubbly: sidebar rows 4 px, chips 4 px, buttons and fields 
 
 ### Logo
 
-A filled accent circle with a few round "holes", like a crumpet. Used in the sidebar footer, app icon and loading states.
+A golden crumpet with a few round holes and a page curling off it (`app/public/brand/`): the icon alone for the app icon, browser tab and inside the app; with the "Crumpet" name for the README and web pages.
 
 ## Architecture (proposed, open for discussion)
 
