@@ -1454,3 +1454,19 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 @media (prefers-reduced-motion: reduce) { .speech-dot.listening { animation: none; } }
 .speech-pick select { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; font-size: 12.5px; max-width: 160px; }
 ::highlight(crumpet-speak) { background-color: color-mix(in srgb, var(--accent) 40%, transparent); color: var(--text); }
+
+/* Thesaurus tab and format painter. */
+.thesaurus { padding: 10px 14px 16px; }
+.thesaurus-search { width: 100%; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--page); color: var(--text); font: inherit; font-size: 14px; box-sizing: border-box; }
+.thesaurus h3 { margin: 14px 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.thesaurus .right-empty { margin: 8px 0; }
+.thesaurus-hint { font-size: 12px !important; }
+.syn-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.syn-list button { padding: 3px 9px; border: 1px solid var(--line); border-radius: 13px; background: var(--page); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+.syn-list button:hover { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.senses { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.45; }
+.senses li { margin-bottom: 6px; }
+.senses em { color: var(--muted); }
+.sense-example { color: var(--muted); font-style: italic; }
+.thesaurus-credit { margin-top: 14px; font-size: 11px; color: var(--muted); }
+.painting, .painting * { cursor: copy !important; }

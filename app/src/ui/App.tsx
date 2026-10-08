@@ -161,6 +161,11 @@ export function App() {
         else store.updateLayout({ sidebar: (layout?.sidebar ?? 'full') === 'hidden' ? 'full' : 'hidden' });
       }
       if (e.key === 'Escape') setPeek(null);
+      // Shift+F7: the thesaurus, as in Word.
+      if (e.shiftKey && e.key === 'F7') {
+        e.preventDefault();
+        store.updateLayout({ right: true, rightTab: 'thesaurus' });
+      }
       // Ctrl+Alt+Space (⌘⌥Space): read aloud; Ctrl+Alt+D (⌘⌥D): dictate.
       if ((e.metaKey || e.ctrlKey) && e.altKey && (e.code === 'Space' || e.code === 'KeyD')) {
         const h = currentHelped();

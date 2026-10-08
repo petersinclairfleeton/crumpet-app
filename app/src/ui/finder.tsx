@@ -17,6 +17,7 @@ import { THEMES } from './themes';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { REVISIONS, hasRevisions } from '../data/revisions';
 import { startReading, toggleDictation } from './speech';
+import { startPainting } from './painter';
 import type { Tab } from '../data/panes';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -134,6 +135,7 @@ function useCommands(actions: Actions): Item[] {
     cmd(layout.right ? 'Hide the right sidebar' : 'Show the right sidebar', () => set({ right: !layout.right }), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}\\`),
     ...(['outline', 'styles', 'comments', 'links', 'snapshots'] as const).map((t) => cmd(`Show ${t === 'styles' ? 'the Styles pane' : t}`, () => set({ right: true, rightTab: t }))),
     cmd('Text statistics, highlighting and session target', () => set({ right: true, rightTab: 'writing' })),
+    cmd('Thesaurus and definitions', () => set({ right: true, rightTab: 'thesaurus' }), isMac ? '⇧F7' : 'Shift+F7'),
     cmd('Split right', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'right')),
     cmd('Split down', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'bottom')),
     cmd('Close tab', () => panes.closeActive()),
@@ -178,6 +180,7 @@ function useCommands(actions: Actions): Item[] {
       cmd('Underline', onText((e) => e.toggleMark('underline')), `${mod}U`),
       cmd('Strikethrough', onText((e) => e.toggleMark('strike'))),
       cmd('Clear formatting', onText((e) => e.clearFormatting())),
+      cmd('Format painter', onText((e) => startPainting(e))),
       cmd('Read aloud', onText((e) => startReading(e, state.settings)), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}Space`),
       cmd('Dictate', onText((e) => toggleDictation(e)), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}D`),
       cmd('Align left', onText((e) => e.setAlign('left'))),
