@@ -18,6 +18,7 @@ import {
   normalizeLink,
   orderedRange,
   runsLength,
+  tidyRows,
   runsText,
   sliceRuns,
   footnotes,
@@ -35,6 +36,7 @@ import {
   type BulletKind,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
+import { type CellAlign, type TableBorders, type TableShape, addCol, addRow, alignCol, deleteCol, deleteRow, mergeAt, mergeCells, setTableLook, shadeCell, splitCell } from './table';
 import {
   type EditorState,
   type Transaction,
@@ -240,7 +242,7 @@ export class Editor {
     this.tableTimers.delete(id);
     const el = this.view.blockElement(id);
     if (!el || !this.state.doc.blocks.some((b) => b.id === id)) return;
-    this.dispatch(setTableRows(this.state, id, readTable(el)), 'input', true, true);
+    this.dispatch(setTableRows(this.state, id, readTable(el, this.state.doc.blocks.find((b) => b.id === id)!)), 'input', true, true);
   }
 
   private commitTables(): void {
@@ -256,36 +258,44 @@ export class Editor {
     sel?.collapseToEnd();
   }
 
-  /** Changes a table's shape (adding or removing rows and columns) from the cell at r, c. */
-  private reshapeTable(id: string, action: string, r: number, c: number): void {
+  /** Changes a table's shape or look (Word's Table Layout and Design) from the cell at r, c. */
+  private reshapeTable(id: string, action: string, r: number, c: number, value?: string): void {
     this.commitTable(id);
-    const el = this.view.blockElement(id);
-    if (!el) return;
-    const rows = readTable(el);
-    const width = rows[0]?.length ?? 1;
-    let next = rows;
-    let at = { r, c };
-    if (action === 'row') {
-      next = [...rows.slice(0, r + 1), Array(width).fill(''), ...rows.slice(r + 1)];
-      at = { r: r + 1, c };
-    } else if (action === 'col') {
-      next = rows.map((row) => [...row.slice(0, c + 1), '', ...row.slice(c + 1)]);
-      at = { r, c: c + 1 };
-    } else if (action === 'del-row' && rows.length > 1) {
-      next = rows.filter((_, i) => i !== r);
-      at = { r: Math.max(0, Math.min(r, next.length - 1)), c };
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!blk || blk.type !== 'table') return;
+    const now: TableShape = { rows: tidyRows(blk.rows), tbl: blk.tbl };
+    const width = now.rows[0].length;
+    // A merged cell counts as its whole span: rows go below it, columns to its right.
+    const [mr, mc, rs, cs] = mergeAt(now.tbl, r, c) ?? [r, c, 1, 1];
+    let next: TableShape | null = null;
+    let at = { r: mr, c: mc };
+    if (action === 'row') (next = addRow(now, mr + rs)), (at = { r: mr + rs, c: mc });
+    else if (action === 'row-above') (next = addRow(now, mr)), (at = { r: mr, c: mc });
+    else if (action === 'col') (next = addCol(now, mc + cs)), (at = { r: mr, c: mc + cs });
+    else if (action === 'col-left') (next = addCol(now, mc)), (at = { r: mr, c: mc });
+    else if (action === 'del-row' && now.rows.length > 1) {
+      next = deleteRow(now, r);
+      at = { r: Math.max(0, Math.min(r, next.rows.length - 1)), c };
     } else if (action === 'del-col' && width > 1) {
-      next = rows.map((row) => row.filter((_, i) => i !== c));
+      next = deleteCol(now, c);
       at = { r, c: Math.max(0, Math.min(c, width - 2)) };
-    } else if (action === 'delete' || (action === 'del-col' && width === 1)) {
+    } else if (action === 'merge-right' || action === 'merge-down') next = mergeCells(now, r, c, action === 'merge-right' ? 'right' : 'down');
+    else if (action === 'split') next = splitCell(now, r, c);
+    else if (action === 'shade') next = shadeCell(now, r, c, value || null);
+    else if (action === 'align') next = alignCol(now, c, (value || null) as CellAlign | null);
+    else if (action === 'header') next = setTableLook(now, { noHeader: !now.tbl?.noHeader });
+    else if (action === 'banded') next = setTableLook(now, { banded: !now.tbl?.banded });
+    else if (action === 'borders') next = setTableLook(now, { borders: (value || undefined) as TableBorders | undefined });
+    else if (action === 'delete' || (action === 'del-col' && width === 1)) {
       // The table goes; an empty line takes its place.
-      const blk = this.state.doc.blocks.find((b) => b.id === id)!;
       this.dispatch({ ops: [{ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('paragraph') }], selectionBefore: this.state.selection, selectionAfter: caret({ block: id, offset: 0 }) }, 'command');
       this.focus();
       return;
-    } else return;
-    this.dispatch(setTableRows(this.state, id, next), 'command', true, true);
-    this.focusCell(id, at.r, at.c);
+    }
+    if (!next) return;
+    this.dispatch(setTableRows(this.state, id, next.rows, next.tbl), 'command', true, true);
+    const m = mergeAt(next.tbl, at.r, at.c);
+    this.focusCell(id, m ? m[0] : at.r, m ? m[1] : at.c);
   }
 
   /** Tab and Enter move between cells (adding a row at the end); Esc leaves the table. */
@@ -296,8 +306,8 @@ export class Editor {
     const r = Number(cell.dataset.r);
     const c = Number(cell.dataset.c);
     const el = this.view.blockElement(id)!;
-    const rows = el.querySelector('table')!.rows.length;
-    const cols = el.querySelector('table')!.rows[0].cells.length;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    const rows = blk?.rows?.length ?? 1;
     const mod = isMac ? e.metaKey : e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault();
@@ -308,17 +318,21 @@ export class Editor {
     }
     if (e.key === 'Tab') {
       e.preventDefault();
-      const i = r * cols + c + (e.shiftKey ? -1 : 1);
+      // Cell to cell in reading order (a merged cell is one stop); past the last, a new row.
+      const cells = Array.from(el.querySelectorAll<HTMLElement>('table .cell'));
+      const i = cells.indexOf(cell) + (e.shiftKey ? -1 : 1);
       if (i < 0) return;
-      if (i >= rows * cols) return this.reshapeTable(id, 'row', r, 0);
+      if (i >= cells.length) return this.reshapeTable(id, 'row', r, 0);
       this.commitTable(id);
-      this.focusCell(id, Math.floor(i / cols), i % cols);
+      this.focusCell(id, Number(cells[i].dataset.r), Number(cells[i].dataset.c));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (r + 1 >= rows) return this.reshapeTable(id, 'row', r, c);
+      const below = r + (mergeAt(blk?.tbl, r, c)?.[2] ?? 1);
+      if (below >= rows) return this.reshapeTable(id, 'row', r, c);
       this.commitTable(id);
-      this.focusCell(id, r + 1, c);
-    } else if (e.key === 'Escape' || (e.key === 'ArrowDown' && r === rows - 1) || (e.key === 'ArrowUp' && r === 0)) {
+      const m = mergeAt(blk?.tbl, below, c);
+      this.focusCell(id, m ? m[0] : below, m ? m[1] : c);
+    } else if (e.key === 'Escape' || (e.key === 'ArrowDown' && r + (mergeAt(blk?.tbl, r, c)?.[2] ?? 1) >= rows) || (e.key === 'ArrowUp' && r === 0)) {
       e.preventDefault();
       this.commitTable(id);
       // Out of the table: to the line after it (or before it, going up).
@@ -964,11 +978,17 @@ export class Editor {
       const inThis = cell?.classList.contains('cell') && action.closest('[data-block]')!.contains(cell);
       const r = inThis ? Number(cell!.dataset.r) : -1;
       const c = inThis ? Number(cell!.dataset.c) : -1;
-      const el = this.view.blockElement(id)!;
-      const rows = el.querySelector('table')!.rows.length;
-      const cols = el.querySelector('table')!.rows[0].cells.length;
+      const blk = this.state.doc.blocks.find((b) => b.id === id);
+      const rows = blk?.rows?.length ?? 1;
+      const cols = blk?.rows?.[0]?.length ?? 1;
+      const tools = action.closest<HTMLElement>('.table-tools');
+      if (action.dataset.tableAction === 'menu') {
+        tools?.classList.toggle('open');
+        return;
+      }
+      tools?.classList.remove('open');
       // Without a cell to work from: add at the end, remove the last.
-      this.reshapeTable(id, action.dataset.tableAction!, r >= 0 ? r : rows - 1, c >= 0 ? c : cols - 1);
+      this.reshapeTable(id, action.dataset.tableAction!, r >= 0 ? r : rows - 1, c >= 0 ? c : cols - 1, action.dataset.value);
       return;
     }
     const fold = (e.target as Element).closest?.('.fold');

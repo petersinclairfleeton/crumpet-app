@@ -20,6 +20,7 @@
 // lines, fenced code and autolinks. Things Crumpet can't show yet (images,
 // tables, other HTML) are kept as their literal text.
 
+import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia } from './model';
 
 // ---------------------------------------------------------------- writing
@@ -54,8 +55,12 @@ function blockLine(b: Block, number: number): string {
   // Tables are GitHub-style pipe tables; the first row is the header.
   if (b.type === 'table') {
     const rows = tidyRows(b.rows);
+    const t = tidyTable(b.tbl, rows.length, rows[0].length);
     const row = (cells: string[]) => `| ${cells.map((c) => c.replace(/([\\|])/g, '\\$1') || ' ').join(' | ')} |`.replace(/ {2,}\|/g, ' |');
-    return [row(rows[0]), `|${rows[0].map(() => ' --- ').join('|')}|`, ...rows.slice(1).map(row)].join('\n');
+    // Column alignment is Markdown's own (:---: and ---:); the rest of the table's look goes on a line under it.
+    const rule = `|${rows[0].map((_, c) => (t?.aligns?.[c] === 'center' ? ' :---: ' : t?.aligns?.[c] === 'right' ? ' ---: ' : ' --- ')).join('|')}|`;
+    const look = tableAttrs({ ...t, aligns: undefined });
+    return [row(rows[0]), rule, ...rows.slice(1).map(row), ...(look ? [look] : [])].join('\n');
   }
   // Pictures are Markdown images; attached files are links, each on a line of its own.
   if (b.type === 'image' || b.type === 'file') {
@@ -501,9 +506,13 @@ export function fromMarkdown(md: string): Doc {
       flushPara();
       listIndents = [];
       const rows = [tableCells(line)];
-      li++;
+      const aligns = tableCells(lines[++li]).map((cell) => (/^:-+:$/.test(cell) ? 'center' : /^-+:$/.test(cell) ? 'right' : null));
       while (li + 1 < lines.length && /^ {0,3}\|/.test(lines[li + 1])) rows.push(tableCells(lines[++li]));
-      blocks.push(makeBlock('table', '', [], { rows: tidyRows(rows) }));
+      const look = li + 1 < lines.length ? readTableAttrs(lines[li + 1]) : null;
+      if (look) li++;
+      const tidy = tidyRows(rows);
+      const tbl = tidyTable({ ...look, aligns }, tidy.length, tidy[0].length);
+      blocks.push(makeBlock('table', '', [], { rows: tidy, ...(tbl ? { tbl } : {}) }));
       continue;
     }
     // A picture, or a link to an attached file, alone on its line.

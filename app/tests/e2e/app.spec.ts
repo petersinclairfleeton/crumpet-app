@@ -944,6 +944,7 @@ test('tables: add one from the / menu, type in cells, Tab along, and it saves as
   await page.reload();
   await expect(table.locator('td .cell').first()).toHaveText('Lamp');
   await table.locator('td .cell').first().click();
+  await page.locator('.table-tools').getByRole('button', { name: 'Table ▾' }).click();
   await page.locator('.table-tools').getByRole('button', { name: 'Delete table' }).click();
   await expect(page.locator('.note-editor .blk-table')).toHaveCount(0);
 });
@@ -1815,4 +1816,48 @@ test('list styles from the libraries, a numbering value, and paragraph borders a
   await (await toolButton(page, 'Shading')).click();
   await page.getByRole('button', { name: 'Light gold' }).click();
   await expect(boxed).toHaveCSS('background-color', 'rgb(255, 242, 204)');
+});
+
+test('table layout and design: merge and split cells, shade a cell, align a column, banding, lines and the heading row', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Cast', 'Who is who:');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+  const table = page.locator('.note-editor .blk-table table');
+  for (const text of ['Name', 'Role', 'Age', 'Mara', 'Daughter', '32']) {
+    await page.keyboard.type(text);
+    await page.keyboard.press('Tab');
+  }
+  const menu = async (name: string) => {
+    await page.getByRole('button', { name: 'Table ▾' }).click();
+    await page.locator('.table-menu button', { hasText: new RegExp(`^${name}$`) }).click();
+  };
+  // Merge Mara with Daughter.
+  await table.locator('.cell[data-r="1"][data-c="0"]').click();
+  await menu('Merge with cell to the right');
+  await expect(table.locator('td[colspan="2"]')).toHaveText('Mara Daughter');
+  await expect(table.locator('tr').nth(1).locator('td')).toHaveCount(2);
+  await menu('Split cell');
+  await expect(table.locator('tr').nth(1).locator('td')).toHaveCount(3);
+  // Shade a cell and right-align the Age column.
+  await table.locator('.cell[data-r="1"][data-c="2"]').click();
+  await page.getByRole('button', { name: 'Table ▾' }).click();
+  await page.getByRole('button', { name: 'Shade cell light gold' }).click();
+  await expect(table.locator('td').filter({ hasText: '32' })).toHaveCSS('background-color', 'rgb(255, 242, 204)');
+  await menu('Right');
+  await expect(table.locator('td').filter({ hasText: '32' })).toHaveCSS('text-align', 'right');
+  await menu('Banded rows');
+  await expect(table).toHaveClass(/banded/);
+  await menu('Outside only');
+  await expect(table).toHaveAttribute('data-borders', 'outside');
+  await menu('Heading row');
+  await expect(table.locator('th')).toHaveCount(0);
+  const md = await page.evaluate(async () => {
+    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+    return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+  });
+  expect(md).toContain('| --- | --- | ---: |');
+  expect(md).toContain('{table .noheader .banded borders=outside shade=1-2-#fff2cc}');
 });

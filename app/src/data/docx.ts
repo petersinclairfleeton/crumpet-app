@@ -4,6 +4,7 @@
 // back what Crumpet can show.
 
 import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type TableLook, mergeAt, tidyTable } from '@crumpet/editor/table';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { PAGE_SIZES, type PageSetup } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -260,15 +261,39 @@ class Writer {
   table(b: Block): string {
     const rows = tidyRows(b.rows);
     const cols = rows[0].length;
+    const t = b.tbl;
+    const head = !t?.noHeader;
     const w = Math.floor((this.contentWidth / 96) * TWIPS / cols);
     const grid = `<w:tblGrid>${Array.from({ length: cols }, () => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
     const tr = rows
       .map((row, r) => {
-        const cells = row.map((text) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/></w:tcPr>${this.paragraph('TableText', text ? `<w:r>${r === 0 ? '<w:rPr><w:b/></w:rPr>' : ''}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` : '')}</w:tc>`).join('');
-        return `<w:tr>${r === 0 ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}${cells}</w:tr>`;
+        const cells = row
+          .map((text, c) => {
+            const m = mergeAt(t, r, c);
+            // Inside a merged cell: nothing, or (in a row below its top) a cell carrying the merge down.
+            if (m && c !== m[1]) return '';
+            const span = m && m[3] > 1 ? `<w:gridSpan w:val="${m[3]}"/>` : '';
+            const width = `<w:tcW w:w="${w * (m?.[3] ?? 1)}" w:type="dxa"/>`;
+            if (m && r !== m[0]) return `<w:tc><w:tcPr>${width}${span}<w:vMerge/></w:tcPr><w:p/></w:tc>`;
+            const vMerge = m && m[2] > 1 ? '<w:vMerge w:val="restart"/>' : '';
+            const shade = t?.shades?.[`${r},${c}`];
+            const shd = shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${shade.slice(1).toUpperCase()}"/>` : '';
+            const align = t?.aligns?.[c];
+            const jc = align ? `<w:jc w:val="${align}"/>` : '';
+            const bold = r === 0 && head ? '<w:rPr><w:b/></w:rPr>' : '';
+            return `<w:tc><w:tcPr>${width}${span}${vMerge}${shd}</w:tcPr>${this.paragraph('TableText', text ? `<w:r>${bold}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` : '', jc)}</w:tc>`;
+          })
+          .join('');
+        return `<w:tr>${r === 0 && head ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}${cells}</w:tr>`;
       })
       .join('');
-    return `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="0" w:type="auto"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr>${grid}${tr}</w:tbl>`;
+    const line = (side: string, on: boolean) => `<w:${side} w:val="${on ? 'single' : 'none'}" w:sz="4" w:space="0" w:color="auto"/>`;
+    // Lines other than Table Grid's every line: which of top, left, bottom, right, between rows, between columns are drawn.
+    const ON: Record<string, string> = { outside: 'tlbr', rows: 'tbh', none: '' };
+    const on = t?.borders ? ON[t.borders] : null;
+    const borders = on === null ? '' : `<w:tblBorders>${(['t:top', 'l:left', 'b:bottom', 'r:right', 'h:insideH', 'v:insideV'] as const).map((x) => line(x.slice(2), on.includes(x[0]))).join('')}</w:tblBorders>`;
+    const look = `<w:tblLook w:val="${head ? '04A0' : '0480'}" w:firstRow="${head ? 1 : 0}" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="${t?.banded ? 0 : 1}" w:noVBand="1"/>`;
+    return `<w:tbl><w:tblPr><w:tblStyle w:val="${t?.banded ? 'TableGridBanded' : 'TableGrid'}"/><w:tblW w:w="0" w:type="auto"/>${borders}${look}</w:tblPr>${grid}${tr}</w:tbl>`;
   }
 
   async blocks(blocks: Block[], first: string): Promise<string> {
@@ -414,6 +439,7 @@ function stylesXml(font: string, size: number): string {
     `<w:style w:type="character" w:styleId="CommentReference"><w:name w:val="annotation reference"/><w:rPr><w:sz w:val="16"/></w:rPr></w:style>` +
     `<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>` +
     `<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:color="auto"/><w:left w:val="single" w:sz="4" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:color="auto"/><w:right w:val="single" w:sz="4" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:color="auto"/></w:tblBorders><w:tblCellMar><w:left w:w="108" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>` +
+    `<w:style w:type="table" w:styleId="TableGridBanded"><w:name w:val="Table Grid Banded"/><w:basedOn w:val="TableGrid"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/></w:tblPr><w:tblStylePr w:type="band1Horz"><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/></w:tcPr></w:tblStylePr></w:style>` +
     `</w:styles>`
   );
 }
@@ -998,9 +1024,60 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   };
 
   const table = (t: Element) => {
+    // Cells by grid position: a cell spanning columns (gridSpan) or carrying a merge down (vMerge) becomes a merged cell.
     const rows: string[][] = [];
-    for (const tr of kids(t).filter((c) => c.localName === 'tr')) rows.push(kids(tr).filter((c) => c.localName === 'tc').map((tc) => textOf(tc)));
-    if (rows.length) blocks.push(makeBlock('table', '', [], { rows: tidyRows(rows) }));
+    const merges: [number, number, number, number][] = [];
+    const shades: Record<string, string> = {};
+    const jcs: (string | null)[][] = [];
+    for (const tr of kids(t).filter((c) => c.localName === 'tr')) {
+      const r = rows.length;
+      const row: string[] = [];
+      const jc: (string | null)[] = [];
+      let c = Number(attr(child(child(tr, 'trPr'), 'gridBefore'), 'val') ?? 0);
+      for (let i = 0; i < c; i++) row.push(''), jc.push(null);
+      for (const tc of kids(tr).filter((x) => x.localName === 'tc')) {
+        const pr = child(tc, 'tcPr');
+        const span = Math.max(1, Number(attr(child(pr, 'gridSpan'), 'val') ?? 1) || 1);
+        const vm = child(pr, 'vMerge');
+        const above = vm && attr(vm, 'val') !== 'restart' ? merges.find((m) => m[1] === c && m[0] + m[2] === r) : undefined;
+        if (above) above[2]++;
+        else if (span > 1 || (vm && attr(vm, 'val') === 'restart')) merges.push([r, c, 1, span]);
+        if (!above) {
+          const fill = attr(child(pr, 'shd'), 'fill');
+          if (fill && /^[0-9a-f]{6}$/i.test(fill) && fill.toLowerCase() !== 'ffffff') shades[`${r},${c}`] = `#${fill.toLowerCase()}`;
+        }
+        const align = attr(child(child(child(tc, 'p'), 'pPr'), 'jc'), 'val');
+        for (let i = 0; i < span; i++) {
+          row.push(i === 0 && !above ? textOf(tc) : '');
+          jc.push(i === 0 && !above && textOf(tc).trim() ? (align === 'center' ? 'center' : align === 'right' || align === 'end' ? 'right' : 'left') : null);
+        }
+        c += span;
+      }
+      rows.push(row);
+      jcs.push(jc);
+    }
+    if (!rows.length) return;
+    const tidy = tidyRows(rows);
+    // A column is centred or right-aligned when every filled cell in it (below the heading row) is.
+    const aligns = tidy[0].map((_, c) => {
+      const seen = jcs.slice(1).map((row) => row[c]).filter((x): x is string => !!x);
+      return seen.length && seen.every((x) => x === seen[0]) && seen[0] !== 'left' ? (seen[0] as 'center' | 'right') : null;
+    });
+    const pr = child(t, 'tblPr');
+    const lookEl = child(pr, 'tblLook');
+    const first = attr(lookEl, 'firstRow') ?? (attr(lookEl, 'val') ? String((parseInt(attr(lookEl, 'val')!, 16) & 0x20) >> 5) : '1');
+    const bdr = child(pr, 'tblBorders');
+    const drawn = (side: string) => {
+      const v = attr(child(bdr, side), 'val');
+      return v !== null && v !== 'none' && v !== 'nil';
+    };
+    let borders: TableLook['borders'];
+    if (bdr) {
+      const sides = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].filter(drawn).join();
+      borders = sides === 'top,left,bottom,right' ? 'outside' : sides === 'top,bottom,insideH' || sides === 'insideH' ? 'rows' : sides === '' ? 'none' : undefined;
+    }
+    const tbl = tidyTable({ noHeader: first === '0', banded: attr(child(pr, 'tblStyle'), 'val') === 'TableGridBanded', borders, merges, shades, aligns }, tidy.length, tidy[0].length);
+    blocks.push(makeBlock('table', '', [], { rows: tidy, ...(tbl ? { tbl } : {}) }));
   };
 
   const body = xml.getElementsByTagNameNS(W_NS, 'body')[0];

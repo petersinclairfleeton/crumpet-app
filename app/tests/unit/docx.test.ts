@@ -270,3 +270,31 @@ describe('Word lists, borders and shading', () => {
     expect(back.doc.blocks.map((x) => x.para?.start)).toEqual([undefined, undefined, undefined, 3]);
   });
 });
+
+describe('Word tables', () => {
+  it('merged cells, shading, alignment, heading row, banding and lines are written and read back', async () => {
+    const rows = [
+      ['Name', 'Role', 'Age'],
+      ['Mara Quinn', '', '32'],
+      ['Tom', 'Keeper', '60'],
+      ['Ann', '', '41'],
+    ];
+    const tbl = { banded: true, borders: 'rows' as const, merges: [[1, 0, 1, 2], [2, 1, 2, 1]] as [number, number, number, number][], shades: { '2,2': '#fff2cc' }, aligns: [null, null, 'right' as const] };
+    const bytes = await toDocx([{ doc: { blocks: [makeBlock('table', '', [], { rows, tbl })] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:gridSpan w:val="2"/>');
+    expect(xml).toContain('<w:vMerge w:val="restart"/>');
+    expect(xml).toContain('<w:vMerge/>');
+    expect(xml).toContain('w:fill="FFF2CC"');
+    expect(xml).toContain('<w:tblStyle w:val="TableGridBanded"/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks[0].rows).toEqual(rows);
+    expect(back.doc.blocks[0].tbl).toEqual(tbl);
+  });
+
+  it('a table without a heading row, and with no lines', async () => {
+    const tbl = { noHeader: true, borders: 'none' as const };
+    const bytes = await toDocx([{ doc: { blocks: [makeBlock('table', '', [], { rows: [['a', 'b'], ['c', 'd']], tbl })] } }], { title: 'T' });
+    expect((await fromDocx(bytes)).doc.blocks[0].tbl).toEqual(tbl);
+  });
+});

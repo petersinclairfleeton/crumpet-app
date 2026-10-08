@@ -3,6 +3,7 @@
 // changed are rebuilt; the rest of the DOM is left alone.
 
 import type { Block, Doc, Mark, Pos, Selection } from './model';
+import { isCovered, mergeAt } from './table';
 import { BULLETS, MAX_INDENT, isHeading, isList, runsLength } from './model';
 
 const TAGS: Record<Block['type'], string> = {
@@ -380,43 +381,116 @@ function buildTable(block: Block): HTMLElement {
   wrap.dataset.widget = 'table';
   const tools = document.createElement('div');
   tools.className = 'table-tools';
-  for (const [action, label] of [
-    ['row', '+ Row'],
-    ['col', '+ Column'],
-    ['del-row', '− Row'],
-    ['del-col', '− Column'],
-    ['delete', 'Delete table'],
-  ]) {
+  const button = (action: string, label: string, title = label, value?: string) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.dataset.tableAction = action;
+    if (value !== undefined) b.dataset.value = value;
     b.textContent = label;
+    b.title = title;
     b.tabIndex = -1;
-    tools.appendChild(b);
+    return b;
+  };
+  tools.append(button('row', '+ Row', 'Insert a row below'), button('col', '+ Column', 'Insert a column to the right'), button('menu', 'Table ▾', 'Table layout and design'));
+  // Word's Table Layout and Table Design, in a menu under the table.
+  const menu = document.createElement('div');
+  menu.className = 'table-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'Table');
+  const group = (name: string, items: HTMLElement[]) => {
+    const g = document.createElement('div');
+    g.className = 'table-menu-group';
+    const h = document.createElement('span');
+    h.className = 'table-menu-head';
+    h.textContent = name;
+    g.append(h, ...items);
+    menu.appendChild(g);
+  };
+  group('Rows and columns', [
+    button('row-above', 'Insert row above'),
+    button('row', 'Insert row below'),
+    button('col-left', 'Insert column left'),
+    button('col', 'Insert column right'),
+    button('del-row', 'Delete row'),
+    button('del-col', 'Delete column'),
+  ]);
+  group('Merge', [button('merge-right', 'Merge with cell to the right'), button('merge-down', 'Merge with cell below'), button('split', 'Split cell')]);
+  group('Align column', [button('align', 'Left', 'Align column left', ''), button('align', 'Centre', 'Align column centre', 'center'), button('align', 'Right', 'Align column right', 'right')]);
+  const toggle = (action: string, label: string) => {
+    const b = button(action, label);
+    b.setAttribute('role', 'menuitemcheckbox');
+    return b;
+  };
+  group('Style', [toggle('header', 'Heading row'), toggle('banded', 'Banded rows')]);
+  group('Lines', [button('borders', 'All lines', 'All lines', ''), button('borders', 'Outside only', 'Outside only', 'outside'), button('borders', 'Between rows', 'Lines between rows', 'rows'), button('borders', 'No lines', 'No lines', 'none')]);
+  const swatches = document.createElement('div');
+  swatches.className = 'table-swatches';
+  for (const [hex, name] of CELL_SHADES) {
+    const b = button('shade', '', `Shade cell: ${name}`, hex);
+    b.setAttribute('aria-label', `Shade cell ${name.toLowerCase()}`);
+    b.style.background = hex;
+    swatches.appendChild(b);
   }
+  group('Cell shading', [swatches, button('shade', 'No shading', 'No shading', '')]);
+  group('', [button('delete', 'Delete table')]);
+  tools.appendChild(menu);
   // The table scrolls sideways on its own; the tools sit below it, so they never cover a cell.
   const scroll = document.createElement('div');
   scroll.className = 'table-scroll';
   const table = document.createElement('table');
   scroll.appendChild(table);
   wrap.append(scroll, tools);
-  fillTable(table, block.rows ?? [['']]);
+  fillTable(table, block);
   return wrap;
 }
 
-function fillTable(table: HTMLTableElement, rows: string[][]): void {
+const CELL_SHADES = [
+  ['#f2f2f2', 'Light grey'], ['#d9d9d9', 'Grey'], ['#fff2cc', 'Light gold'], ['#fce5cd', 'Light orange'], ['#f4cccc', 'Light red'],
+  ['#d9d2e9', 'Light purple'], ['#cfe2f3', 'Light blue'], ['#d0e0e3', 'Light teal'], ['#d9ead3', 'Light green'], ['#ffff00', 'Yellow'],
+];
+
+/** The table's shape and look, as a string: when it changes, the table is drawn again. */
+function tableKey(block: Block): string {
+  const rows = block.rows ?? [['']];
+  return JSON.stringify([rows.length, rows[0]?.length ?? 0, block.tbl ?? null]);
+}
+
+function fillTable(table: HTMLTableElement, block: Block): void {
+  const rows = block.rows ?? [['']];
+  const t = block.tbl;
   table.textContent = '';
+  table.dataset.key = tableKey(block);
+  if (t?.borders) table.dataset.borders = t.borders;
+  else delete table.dataset.borders;
+  table.classList.toggle('banded', !!t?.banded);
+  table.classList.toggle('no-header', !!t?.noHeader);
+  const wrap = table.closest('.table-wrap');
+  const check = (sel: string, on: boolean) => wrap?.querySelectorAll(sel).forEach((b) => b.setAttribute('aria-checked', String(on)));
+  check('[data-table-action="header"]', !t?.noHeader);
+  check('[data-table-action="banded"]', !!t?.banded);
+  wrap?.querySelectorAll<HTMLElement>('[data-table-action="borders"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (t?.borders ?? '')));
   rows.forEach((row, r) => {
     const tr = table.insertRow();
     row.forEach((text, c) => {
-      const cell = document.createElement(r === 0 ? 'th' : 'td');
+      if (isCovered(t, r, c)) return;
+      const head = r === 0 && !t?.noHeader;
+      const cell = document.createElement(head ? 'th' : 'td');
+      const m = mergeAt(t, r, c);
+      if (m) {
+        cell.rowSpan = m[2];
+        cell.colSpan = m[3];
+      }
+      const shade = t?.shades?.[`${r},${c}`];
+      if (shade) cell.style.background = shade;
+      const align = t?.aligns?.[c];
+      if (align) cell.style.textAlign = align;
       const box = document.createElement('div');
       box.className = 'cell';
       box.contentEditable = 'true';
       box.dataset.r = String(r);
       box.dataset.c = String(c);
       box.setAttribute('role', 'textbox');
-      box.setAttribute('aria-label', r === 0 ? `Heading ${c + 1}` : `Row ${r}, column ${c + 1}`);
+      box.setAttribute('aria-label', head ? `Heading ${c + 1}` : `Row ${t?.noHeader ? r + 1 : r}, column ${c + 1}`);
       box.textContent = text;
       cell.appendChild(box);
       tr.appendChild(cell);
@@ -429,13 +503,16 @@ function patchTable(el: HTMLElement, block: Block): boolean {
   const table = el.querySelector('table');
   const rows = block.rows ?? [['']];
   if (!table) return false;
-  const same = table.rows.length === rows.length && rows.every((r, i) => table.rows[i].cells.length === r.length);
-  if (!same) {
+  if (table.dataset.key !== tableKey(block)) {
     // Keep the caret's cell, if there still is one.
     const active = el.ownerDocument.activeElement as HTMLElement | null;
     const at = active?.classList.contains('cell') && el.contains(active) ? { r: Number(active.dataset.r), c: Number(active.dataset.c) } : null;
-    fillTable(table, rows);
-    if (at) table.querySelector<HTMLElement>(`.cell[data-r="${Math.min(at.r, rows.length - 1)}"][data-c="${Math.min(at.c, rows[0].length - 1)}"]`)?.focus();
+    fillTable(table, block);
+    if (at) {
+      const m = mergeAt(block.tbl, Math.min(at.r, rows.length - 1), Math.min(at.c, rows[0].length - 1));
+      const [r, c] = m ? [m[0], m[1]] : [Math.min(at.r, rows.length - 1), Math.min(at.c, rows[0].length - 1)];
+      table.querySelector<HTMLElement>(`.cell[data-r="${r}"][data-c="${c}"]`)?.focus();
+    }
     return true;
   }
   for (const box of table.querySelectorAll<HTMLElement>('.cell')) {
@@ -446,8 +523,12 @@ function patchTable(el: HTMLElement, block: Block): boolean {
 }
 
 /** The cells' text as the table shows it now. */
-export function readTable(el: HTMLElement): string[][] {
-  const table = el.querySelector('table');
-  if (!table) return [['']];
-  return Array.from(table.rows, (tr) => Array.from(tr.cells, (td) => (td.textContent ?? '').replace(/[\r\n]+/g, ' ')));
+export function readTable(el: HTMLElement, block: Block): string[][] {
+  const rows = (block.rows ?? [['']]).map((row) => [...row]);
+  for (const box of el.querySelectorAll<HTMLElement>('table .cell')) {
+    const r = Number(box.dataset.r);
+    const c = Number(box.dataset.c);
+    if (rows[r]?.[c] !== undefined) rows[r][c] = (box.textContent ?? '').replace(/[\r\n]+/g, ' ');
+  }
+  return rows;
 }
