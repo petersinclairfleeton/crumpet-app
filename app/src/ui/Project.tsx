@@ -19,7 +19,9 @@ import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
 import { ChangeCard, ChangesBar, TrackToggle, useTracking } from './changes';
-import { DOCX_TYPE, docxName, download, projectDocx } from '../data/wordfiles';
+import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, projectDocx, projectEpub } from '../data/wordfiles';
+import { PrintJob } from './print';
+import { makeBlock } from '@crumpet/editor/model';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
   { id: 'todo', label: 'To do' },
@@ -47,6 +49,18 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
   const store = useAppStore();
   const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'delete'>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const printParts = useMemo(
+    () =>
+      printing
+        ? projectChapters(project, state.chapters).map(({ chapter, number, part }) => ({
+            id: chapter.id,
+            doc: { blocks: [makeBlock('heading1', chapter.title || `Chapter ${number}`), ...chapter.doc.blocks] },
+            fields: { title: project.name, chapter: number, chapterTitle: chapter.title, part: part?.title, words: chapterWords(chapter) },
+          }))
+        : [],
+    [printing, project, state.chapters],
+  );
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
@@ -63,6 +77,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
 
   return (
     <section className="list outline" aria-label="Outline">
+      {printing && <PrintJob title={project.name} parts={printParts} page={project.page ?? manuscriptPage()} sheet={fullSheet(project.styles, 'manuscript')} chapters onDone={() => setPrinting(false)} />}
       <header className="list-head">
         <div className="list-title">
           {menu === 'rename' ? (
@@ -101,6 +116,26 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                       }}
                     >
                       Download as Word document
+                    </button>
+                    <button
+                      type="button"
+                      className="menu-item"
+                      onClick={() => {
+                        setMenu(null);
+                        setPrinting(true);
+                      }}
+                    >
+                      Print or save as PDF
+                    </button>
+                    <button
+                      type="button"
+                      className="menu-item"
+                      onClick={async () => {
+                        setMenu(null);
+                        download(await projectEpub(store.getState(), project), fileName(project.name, 'epub'), EPUB_TYPE);
+                      }}
+                    >
+                      Download as e-book (ePub)
                     </button>
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                       Delete project

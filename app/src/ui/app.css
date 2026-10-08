@@ -937,3 +937,20 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .cal-day.today { outline: 1.5px solid var(--text); outline-offset: 1px; }
 .cal-legend { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); margin-top: -8px; }
 .chart-tip { position: fixed; z-index: 60; transform: translate(-50%, calc(-100% - 6px)); padding: 4px 8px; border-radius: 6px; background: var(--text); color: var(--page); font-size: 12px; white-space: nowrap; pointer-events: none; }
+
+/* Printing (and saving as PDF): only the pages, at real size, in ink on white. */
+.print-root { position: fixed; left: -100000px; top: 0; width: max-content; pointer-events: none;
+  --page: #fff; --text: #111; --text2: #333; --muted: #555; --line: #ccc; --field: #f2f2f2; color: #111; background: #fff; }
+.print-root .page-view { padding: 0; display: block; }
+.print-root .sheet { border: none; box-shadow: none; border-radius: 0; background: #fff; }
+.print-root mark.cmt { background: none; border: none; }
+.print-root del.trk { display: none; }
+.print-root ins.trk { text-decoration: none; color: inherit; }
+.print-root .brk, .print-root .visually-hidden { display: none; }
+@media print {
+  html.printing body > *:not(.print-root) { display: none !important; }
+  html.printing, html.printing body { background: #fff !important; margin: 0; padding: 0; height: auto; overflow: visible; }
+  html.printing .print-root { position: static; left: auto; }
+  .print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+.print-root sup.fn { color: inherit; }

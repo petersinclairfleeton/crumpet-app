@@ -9,7 +9,9 @@ import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
 import { chooseFiles } from './editing';
 import { Tour } from './Tour';
-import { DOCX_TYPE, docxName, download, noteDocx } from '../data/wordfiles';
+import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
+import { PrintJob } from './print';
+import { makeBlock } from '@crumpet/editor/model';
 import { IconBack, IconFocus, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
@@ -48,6 +50,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
   const [addingTag, setAddingTag] = useState(false);
   const [reading, setReading] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
   const pageSetup = state.settings.notePage ?? defaultPage();
   const paged = !!state.settings.pageView?.notes;
@@ -162,6 +165,26 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
           </button>
           <button
             type="button"
+            className="menu-item"
+            onClick={() => {
+              setMenu(false);
+              setPrinting(true);
+            }}
+          >
+            Print or save as PDF
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            onClick={async () => {
+              setMenu(false);
+              download(await noteEpub(store.getState(), note), fileName(note.title, 'epub'), EPUB_TYPE);
+            }}
+          >
+            Download as e-book (ePub)
+          </button>
+          <button
+            type="button"
             className="menu-item danger"
             onClick={() => {
               setMenu(false);
@@ -174,6 +197,15 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
         </Popover>
       )}
       {closeSide}
+      {printing && (
+        <PrintJob
+          title={displayTitle(note)}
+          parts={[{ id: note.id, doc: note.title.trim() ? { blocks: [makeBlock('paragraph', note.title, [], { style: 'title' }), ...note.doc.blocks] } : note.doc, fields: { title: displayTitle(note), words: docWords(note.doc), created: note.createdAt, updated: note.updatedAt } }]}
+          page={pageSetup}
+          sheet={sheet}
+          onDone={() => setPrinting(false)}
+        />
+      )}
     </div>
   );
 

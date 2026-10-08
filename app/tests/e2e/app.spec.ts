@@ -1316,3 +1316,35 @@ test('writing stats: words today, a daily goal, streaks and a calendar', async (
   await dialog.getByRole('button', { name: 'Show as table' }).click();
   await expect(dialog.getByRole('table')).toContainText('650');
 });
+
+test('print or save as PDF: the pages as page view shows them, and e-books download', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Long essay', 'Opening line');
+  await page.keyboard.press('Control+Alt+f');
+  await page.getByRole('dialog', { name: 'Footnote 1' }).getByRole('textbox').fill('A note at the foot.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.insertText(Array.from({ length: 50 }, (_, i) => `Line ${i + 1} of the essay, long enough to fill some of the page.`).join('\n'));
+  await page.evaluate(() => {
+    (window as unknown as { printed: number }).printed = 0;
+    window.print = () => {
+      (window as unknown as { printed: number }).printed++;
+    };
+  });
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'Print or save as PDF' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
+  const sheets = await page.locator('.print-root .sheet').count();
+  expect(sheets).toBeGreaterThan(1);
+  await expect(page.locator('.print-root .page-notes-zone').first()).toContainText('A note at the foot.');
+  const pdf = await page.pdf({ preferCSSPageSize: true });
+  const pdfPages = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+  expect(pdfPages).toBe(sheets);
+  // Closing the print window tidies up.
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  await expect(page.locator('.print-root')).toHaveCount(0);
+  // E-book.
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as e-book (ePub)' }).click()]);
+  expect(download.suggestedFilename()).toBe('Long essay.epub');
+});
