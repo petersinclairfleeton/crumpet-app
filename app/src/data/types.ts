@@ -149,6 +149,10 @@ export interface Settings {
   typewriter?: { scroll?: boolean; fade?: boolean; sound?: boolean };
   /** Show notes and projects as pages. */
   pageView?: { notes?: boolean; projects?: boolean };
+  /** Page view zoom in per cent; unset fits the page to the window. */
+  zoom?: number;
+  /** Show the ruler above the pages. */
+  ruler?: boolean;
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
 }
