@@ -19,6 +19,8 @@ import { useLayoutItems } from './layouttools';
 import type { PageSetup } from '../data/styles';
 import { insertItems } from './inserttools';
 import { addFile } from '../data/files';
+import { MicGlyph, SpeakerGlyph } from './speechglyphs';
+import { canDictate, canRead, startReading, toggleDictation, useSpeech } from './speech';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
 
 export const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -175,7 +177,9 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   const para = useParaItems(ed, off);
   const layout = useLayoutItems(ed, off, { page, onPage, chapters });
   const store = useAppStore();
-  const layoutNow = useAppState().settings.layout;
+  const settings = useAppState().settings;
+  const layoutNow = settings.layout;
+  const speech = useSpeech();
   // The Styles pane is a tab of the right sidebar.
   const stylesPane = !!layoutNow?.right && (layoutNow.rightTab ?? 'outline') === 'styles';
   /** A button for the bar, and the same as a named line in the More menu. */
@@ -226,6 +230,8 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     tool('todo', 1, 'Checklist', 'Checklist', '☐', () => ed?.setBlockType('todo'), { active: type === 'todo' }),
     ...borderItems(ed, off),
     ...layout.items,
+    tool('readaloud', 1, speech.kind === 'reading' ? 'Stop reading aloud' : 'Read aloud', `Read aloud from the caret, or the selected text (${mod}${isMac ? '⌥' : 'Alt+'}Space)`, <SpeakerGlyph />, () => ed && startReading(ed, settings), { active: speech.kind === 'reading', disabled: !canRead }),
+    tool('dictate', 1, speech.kind === 'dictating' ? 'Stop dictating' : 'Dictate', `Dictate: type by speaking (${mod}${isMac ? '⌥' : 'Alt+'}D)`, <MicGlyph />, () => ed && toggleDictation(ed), { active: speech.kind === 'dictating', disabled: !canDictate }),
     tool('stylespane', 1, 'Styles pane', 'Styles pane: every style, with how often it’s used', <span className="glyph-styles">A¶</span>, () => store.updateLayout(stylesPane ? { right: false } : { right: true, rightTab: 'styles' }), { active: stylesPane }),
   ];
   items.push(...insertItems(ed, off));

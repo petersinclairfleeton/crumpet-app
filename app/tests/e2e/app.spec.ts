@@ -2409,3 +2409,70 @@ test('revision mode: typing in the round’s colour, and taking the colours off'
   await tab.getByRole('button', { name: 'Remove revision colours from this note' }).click();
   await expect.poll(md).toBe('First draft. Now better.\n');
 });
+
+test('read aloud lights up each word, and dictation types what is said', async ({ page }) => {
+  // The browser's speech, stood in for: speaking reports each word then ends; listening "hears" a sentence.
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>;
+    const spoken: string[] = [];
+    w.__spoken = spoken;
+    const synth = {
+      speaking: false,
+      getVoices: () => [],
+      addEventListener() {},
+      removeEventListener() {},
+      cancel() {},
+      pause() {},
+      resume() {},
+      speak(u: { text: string; onboundary?: (e: object) => void; onend?: () => void }) {
+        spoken.push(u.text);
+        let i = 0;
+        const words = [...u.text.matchAll(/\S+/g)];
+        const tick = () => {
+          if (i < words.length) {
+            u.onboundary?.({ name: 'word', charIndex: words[i].index, charLength: words[i][0].length });
+            i++;
+            setTimeout(tick, 120);
+          } else u.onend?.();
+        };
+        setTimeout(tick, 50);
+      },
+    };
+    Object.defineProperty(window, 'speechSynthesis', { value: synth });
+    w.SpeechSynthesisUtterance = class {
+      text: string;
+      constructor(t: string) {
+        this.text = t;
+      }
+    };
+    const Fake = class {
+      onresult: ((e: object) => void) | null = null;
+      onend: (() => void) | null = null;
+      start() {
+        setTimeout(() => this.onresult?.({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: 'the bell rang full stop' } }] }), 100);
+      }
+      stop() {
+        this.onend?.();
+      }
+    };
+    for (const name of ['SpeechRecognition', 'webkitSpeechRecognition']) Object.defineProperty(window, name, { value: Fake, configurable: true });
+  });
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 880 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Aloud', 'The lamp was dark.');
+  await page.keyboard.press('Home');
+  await (await toolButton(page, 'Read aloud')).click();
+  await expect(page.getByRole('status', { name: 'Reading aloud' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __spoken: string[] }).__spoken)).toEqual(['The lamp was dark.']);
+  await expect.poll(() => page.evaluate(() => CSS.highlights.has('crumpet-speak'))).toBe(true);
+  await expect(page.getByRole('status', { name: 'Reading aloud' })).toHaveCount(0);
+  // Dictation at the end of the text.
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await (await toolButton(page, 'Dictate')).click();
+  await expect(page.locator('.note-editor .blk').nth(1)).toHaveText('The bell rang.');
+  await page.getByRole('status', { name: 'Dictation' }).getByRole('button', { name: 'Stop' }).click();
+  await expect(page.getByRole('status', { name: 'Dictation' })).toHaveCount(0);
+});

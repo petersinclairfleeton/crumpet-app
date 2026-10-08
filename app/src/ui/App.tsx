@@ -18,6 +18,7 @@ import { SettingsDialog } from './Settings';
 import { applyTheme } from './theme';
 import { startSession } from './writingtab';
 import { useTodayWords } from './stats-ui';
+import { SpeechBar, startReading, toggleDictation } from './speech';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -160,6 +161,14 @@ export function App() {
         else store.updateLayout({ sidebar: (layout?.sidebar ?? 'full') === 'hidden' ? 'full' : 'hidden' });
       }
       if (e.key === 'Escape') setPeek(null);
+      // Ctrl+Alt+Space (⌘⌥Space): read aloud; Ctrl+Alt+D (⌘⌥D): dictate.
+      if ((e.metaKey || e.ctrlKey) && e.altKey && (e.code === 'Space' || e.code === 'KeyD')) {
+        const h = currentHelped();
+        if (!h) return;
+        e.preventDefault();
+        if (e.code === 'Space') startReading(h.editor, store.getState().settings);
+        else toggleDictation(h.editor);
+      }
       // Ctrl+Alt+S (⌘⌥S): a snapshot of what you're writing, shown in the right sidebar.
       if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === 'KeyS') {
         const h = currentHelped();
@@ -289,6 +298,7 @@ export function App() {
       <ClipDialog onSaved={() => setPane('note')} />
       {finder && <Finder mode={finder} actions={{ newNote, newProject, openToday, openSettings: () => setSettingsOpen(true) }} onClose={() => setFinder(null)} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      <SpeechBar />
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.

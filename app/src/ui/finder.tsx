@@ -16,6 +16,7 @@ import { SLASH_ITEMS } from './slash';
 import { THEMES } from './themes';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { REVISIONS, hasRevisions } from '../data/revisions';
+import { startReading, toggleDictation } from './speech';
 import type { Tab } from '../data/panes';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -177,6 +178,8 @@ function useCommands(actions: Actions): Item[] {
       cmd('Underline', onText((e) => e.toggleMark('underline')), `${mod}U`),
       cmd('Strikethrough', onText((e) => e.toggleMark('strike'))),
       cmd('Clear formatting', onText((e) => e.clearFormatting())),
+      cmd('Read aloud', onText((e) => startReading(e, state.settings)), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}Space`),
+      cmd('Dictate', onText((e) => toggleDictation(e)), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}D`),
       cmd('Align left', onText((e) => e.setAlign('left'))),
       cmd('Center', onText((e) => e.setAlign('center'))),
       cmd('Align right', onText((e) => e.setAlign('right'))),
