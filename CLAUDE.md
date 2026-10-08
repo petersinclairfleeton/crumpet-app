@@ -95,7 +95,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `[text]{font="Lora" size=14 color=#cc0000}`; paragraph settings go at
     the end of the line `{.center line=2 num=upper-roman border=tb}` (a
     section break before a paragraph is `{sect=page cols=2 orient=landscape}`
-    or `sect=cont`); a
+    or `sect=cont`, a column break `.colbreak`); a
     table's look is a `{table .banded merge=1-0-1-2}` line under it, with
     column alignment in its rule row; `[TOC]` is a table of contents.
   - `diff.ts` and `sync/`: turning remote changes into operations, and
@@ -118,8 +118,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     The formatting bar is one row (`toolbar.tsx`, extras under More) built
     in `editing.tsx` from `fonttools.tsx` (Font group), `paratools.tsx`
     (Paragraph group and window), `listtools.tsx` (bullet and numbering
-    libraries, borders, shading) and `inserttools.tsx` (symbols, date,
-    contents). Page view has `ruler.tsx` and `statusbar.tsx` (page, words,
+    libraries, borders, shading), `inserttools.tsx` (symbols, date,
+    contents) and `layouttools.tsx` (Breaks, Columns, Orientation for the
+    caret's section; the first section's settings sit on the first
+    paragraph). Page view has `ruler.tsx` and `statusbar.tsx` (page, words,
     headings, zoom).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.

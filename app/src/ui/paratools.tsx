@@ -20,7 +20,6 @@ const svg = (d: string) => (
 const ICON_SPACING = svg('M10 6h11M10 12h11M10 18h11M5 4v16M3 6l2-2 2 2M3 18l2 2 2-2');
 const ICON_INDENT = svg('M11 6h10M11 12h10M11 18h10M3 9l3 3-3 3');
 const ICON_OUTDENT = svg('M11 6h10M11 12h10M11 18h10M7 9l-3 3 3 3');
-const ICON_BREAK = svg('M5 3v5h14V3M5 21v-5h14v5M3 12h3M9 12h2M14 12h2M19 12h2');
 
 function SpacingTool({ ed, off, onMore }: { ed: Editor | null; off: boolean; onMore(): void }) {
   const [open, setOpen] = useState(false);
@@ -82,10 +81,9 @@ export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem
   });
   return {
     items: [
-      { key: 'spacing', pri: 2, sep: true, node: <SpacingTool ed={ed} off={off} onMore={() => setOpen(true)} />, menu: undefined },
+      { key: 'spacing', label: 'Line spacing', pri: 2, sep: true, node: <SpacingTool ed={ed} off={off} onMore={() => setOpen(true)} />, menu: undefined },
       simple('outdent', 2, 'Decrease indent', ICON_OUTDENT, () => ed?.stepIndent(-1)),
       simple('indent', 2, 'Increase indent', ICON_INDENT, () => ed?.stepIndent(1)),
-      simple('pagebreak', 1, 'Page break (Ctrl+Enter)', ICON_BREAK, () => ed?.insertPageBreak()),
       simple('paragraph', 1, 'Paragraph settings…', <span className="glyph-para">¶</span>, () => setOpen(true)),
     ],
     dialog: open && ed ? <ParagraphDialog editor={ed} onClose={() => setOpen(false)} /> : null,
@@ -100,6 +98,7 @@ export function useParaKeys(ed: Editor | null): void {
       if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
       let done = true;
       if (e.key === 'Enter' && !e.shiftKey) ed.insertPageBreak();
+      else if (e.key === 'Enter' && e.shiftKey) ed.insertColumnBreak();
       else if (!e.shiftKey && e.code === 'Digit1') ed.setPara({ line: 1 });
       else if (!e.shiftKey && e.code === 'Digit2') ed.setPara({ line: 2 });
       else if (!e.shiftKey && e.code === 'Digit5') ed.setPara({ line: 1.5 });

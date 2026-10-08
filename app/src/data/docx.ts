@@ -120,6 +120,12 @@ class Writer {
   private nextComment = 0;
   private commentNum = new Map<string, { id: number; replies: number[] }>();
   private commentLeft = new Map<string, number>();
+  /** The section being written: its columns, orientation (undefined: the page setup's) and how it starts. */
+  section: SectionProps = { cols: 1, type: 'page' };
+  /** Sections ended so far. */
+  sections = 0;
+  /** A section ends with the next paragraph: its settings go in that paragraph. */
+  private sectNext: string | null = null;
   /** The headings a table of contents lists (written in ahead of Word filling in the page numbers). */
   tocEntries: { level: number; text: string }[] = [];
   /** Each list gets its own numbering (numId = index + 1), with its levels' number or bullet styles. */
@@ -232,7 +238,9 @@ class Writer {
       this.markNext = null;
       mark = `<w:rPr><w:${c.kind} w:id="${this.nextChange++}" w:author="${esc(c.author || 'Someone')}"${c.at ? ` w:date="${new Date(c.at).toISOString().replace(/\.\d+Z$/, 'Z')}"` : ''}/></w:rPr>`;
     }
-    const ppr = (style ? `<w:pStyle w:val="${style}"/>` : '') + extra + mark;
+    const sect = this.sectNext ?? '';
+    this.sectNext = null;
+    const ppr = (style ? `<w:pStyle w:val="${style}"/>` : '') + extra + mark + sect;
     return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${body}</w:p>`;
   }
 
@@ -313,12 +321,30 @@ class Writer {
     return `<w:tbl><w:tblPr><w:tblStyle w:val="${t?.banded ? 'TableGridBanded' : 'TableGrid'}"/>${t?.widths ? `<w:tblW w:w="${Math.round(full)}" w:type="dxa"/>` : '<w:tblW w:w="0" w:type="auto"/>'}${borders}${t?.widths ? '<w:tblLayout w:type="fixed"/>' : ''}${look}</w:tblPr>${grid}${tr}</w:tbl>`;
   }
 
+  /** A section's settings where they go (filled in once the page setup is written; see sectionXml in toDocx). */
+  sectionMark(): string {
+    this.sections++;
+    return `<!--crumpet-sect:${JSON.stringify(this.section)}-->`;
+  }
+
   async blocks(blocks: Block[], first: string): Promise<string> {
     let out = '';
     let num = 0;
     let bul = 0;
     const newList = (bullet: boolean, start?: [number, number]) => this.lists.push({ bullet, levels: [], start });
     for (const [k, b] of blocks.entries()) {
+      // (A table or picture ending a section: an empty paragraph after it carries the settings.)
+      if (this.sectNext) out += this.paragraph(null, '');
+      // A section break before this block (on the document's first block, just the first section's settings).
+      const sb = b.para?.sect;
+      if (sb) {
+        const p = b.para!;
+        this.section = { cols: p.cols ?? this.section.cols, orient: p.orient ?? this.section.orient, type: sb };
+      }
+      // The next block starts a new section: this one's paragraph carries this section's settings.
+      if (blocks[k + 1]?.para?.sect) this.sectNext = this.sectionMark();
+      // A column break: an empty paragraph with the break, then this block at the top of the next column.
+      if (b.para?.colBefore) out += '<w:p><w:r><w:br w:type="column"/></w:r></w:p>';
       const lead = out ? '' : first;
       const after = blocks[k + 1]?.brk;
       this.markNext = after && b.type !== 'table' ? after : null;
@@ -393,6 +419,7 @@ class Writer {
           out += this.paragraph(PARA_STYLES[b.style ?? ''] ?? null, this.runs(b.runs), head + layout + jc);
       }
     }
+    if (this.sectNext) out += this.paragraph(null, '');
     return out || this.paragraph(null, '', first);
   }
 
@@ -413,6 +440,10 @@ class Writer {
     const border = line ? `<w:pBdr><w:${style === 'Header' ? 'bottom' : 'top'} w:val="single" w:sz="4" w:space="4" w:color="auto"/></w:pBdr>` : '';
     return `<w:p><w:pPr><w:pStyle w:val="${style}"/>${border}</w:pPr>${body}</w:p>`;
   }
+}
+
+function isMediaType(t: BlockType): boolean {
+  return t === 'image' || t === 'file';
 }
 
 function isListType(t: BlockType): boolean {
@@ -465,6 +496,12 @@ function stylesXml(font: string, size: number): string {
     `<w:style w:type="table" w:styleId="TableGridBanded"><w:name w:val="Table Grid Banded"/><w:basedOn w:val="TableGrid"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/></w:tblPr><w:tblStylePr w:type="band1Horz"><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/></w:tcPr></w:tblStylePr></w:style>` +
     `</w:styles>`
   );
+}
+
+interface SectionProps {
+  cols: number;
+  orient?: 'portrait' | 'landscape';
+  type: 'page' | 'cont';
 }
 
 interface ListDef {
@@ -555,6 +592,8 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   ]).filter((e) => e.text);
   let body = opts.titleParagraph ? w.paragraph('Title', `<w:r><w:t xml:space="preserve">${esc(opts.titleParagraph)}</w:t></w:r>`) : '';
   for (const [i, part] of parts.entries()) {
+    // A part (chapter) starting with a section break: the section before ends with an empty paragraph.
+    if (i > 0 && part.doc.blocks[0]?.para?.sect) body += `<w:p><w:pPr>${w.sectionMark()}</w:pPr></w:p>`;
     const breakBefore = i > 0 ? '<w:pageBreakBefore/>' : '';
     if (part.heading !== undefined) body += w.paragraph('Heading1', part.heading ? `<w:r><w:t xml:space="preserve">${esc(part.heading)}</w:t></w:r>` : '', breakBefore);
     body += await w.blocks(part.doc.blocks, part.heading === undefined ? breakBefore : '');
@@ -587,7 +626,23 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const pgNum = hf ? `<w:pgNumType${hf.numberFormat !== '1' ? ` w:fmt="${{ i: 'lowerRoman', I: 'upperRoman', a: 'lowerLetter', A: 'upperLetter' }[hf.numberFormat]}"` : ''}${hf.startAt !== 1 ? ` w:start="${hf.startAt}"` : ''}/>` : '';
   const tw = (inches: number) => Math.round(inches * TWIPS);
   const titlePg = refs.includes('<w:titlePg/>');
-  const sect = `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr><w:pgSz w:w="${tw(size.width)}" w:h="${tw(size.height)}"${page?.landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(m.top)}" w:right="${tw(m.right)}" w:bottom="${tw(m.bottom)}" w:left="${tw(m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${pgNum}${titlePg ? '<w:titlePg/>' : ''}</w:sectPr>`;
+  // Each section's settings: the page turned for landscape, its columns and how it starts. The first section has the page numbering and a different first page.
+  const sectionXml = (sp: SectionProps, first: boolean) => {
+    const landscape = sp.orient ? sp.orient === 'landscape' : !!page?.landscape;
+    const long = Math.max(size.width, size.height);
+    const short = Math.min(size.width, size.height);
+    const [pw, ph] = landscape ? [long, short] : [short, long];
+    const type = sp.type === 'cont' && !first ? '<w:type w:val="continuous"/>' : '';
+    const cols = sp.cols > 1 ? `<w:cols w:num="${sp.cols}" w:space="720"/>` : '<w:cols w:space="720"/>';
+    return `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr>${type}<w:pgSz w:w="${tw(pw)}" w:h="${tw(ph)}"${landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(m.top)}" w:right="${tw(m.right)}" w:bottom="${tw(m.bottom)}" w:left="${tw(m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${first ? pgNum : ''}${cols}${titlePg && first ? '<w:titlePg/>' : ''}</w:sectPr>`;
+  };
+  let firstSect = true;
+  body = body.replace(/<!--crumpet-sect:(.*?)-->/g, (_, json: string) => {
+    const xml = sectionXml(JSON.parse(json) as SectionProps, firstSect);
+    firstSect = false;
+    return xml;
+  });
+  const sect = sectionXml(w.section, firstSect);
   const documentXml = `${XML}<w:document ${NS}><w:body>${body}${sect}</w:body></w:document>`;
 
   w.rel(`${REL}/styles`, 'styles.xml');
@@ -949,6 +1004,15 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   let pendingBreak: Change | undefined;
   /** A page break ended the last paragraph: the next one starts a new page. */
   let pageBreakNext = false;
+  let colBreakNext = false;
+  // Section settings, as Word keeps them: at the end of each section (in its last paragraph), the last in the body.
+  const sectEnds: { end: number; props: { cont: boolean; cols: number; landscape: boolean } }[] = [];
+  const readSect = (sp: Element) => {
+    const sz = child(sp, 'pgSz');
+    const w = Number(attr(sz, 'w') ?? 0);
+    const h = Number(attr(sz, 'h') ?? 0);
+    return { cont: attr(child(sp, 'type'), 'val') === 'continuous', cols: Math.max(1, Math.min(4, Number(attr(child(sp, 'cols'), 'num') ?? 1) || 1)), landscape: attr(sz, 'orient') === 'landscape' || (w > 0 && h > 0 && w > h) };
+  };
   /** Whether `el` comes after all the text in paragraph `p`. */
   const isLastThing = (p: Element, el: Element): boolean => {
     const all = Array.from(p.getElementsByTagNameNS(W_NS, '*')).filter((x) => x.localName === 't' || x === el);
@@ -1033,6 +1097,9 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const on2 = (el: Element | null | undefined) => !!el && attr(el, 'val') !== '0' && attr(el, 'val') !== 'false';
     const carried = pageBreakNext;
     pageBreakNext = false;
+    const colCarried = colBreakNext;
+    colBreakNext = false;
+    if (colCarried) para.colBefore = true;
     if (on2(child(ppr, 'pageBreakBefore')) || carried) para.pageBefore = true;
     if (on2(child(ppr, 'keepNext'))) para.keepNext = true;
     if (on2(child(ppr, 'keepLines'))) para.keepLines = true;
@@ -1047,10 +1114,17 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       if (!text.trim() || isLastThing(p, breaks[breaks.length - 1])) pageBreakNext = true;
       else para.pageBefore = true;
     }
+    // A column break, likewise.
+    const colBreaks = Array.from(p.getElementsByTagNameNS(W_NS, 'br')).filter((x) => attr(x, 'type') === 'column');
+    if (colBreaks.length) {
+      if (!text.trim() || isLastThing(p, colBreaks[colBreaks.length - 1])) colBreakNext = true;
+      else para.colBefore = true;
+    }
     const tidy = tidyPara(para);
     if (tidy) b.para = tidy;
-    // A paragraph holding nothing but a page break is just the break.
-    if (breaks.length && !text.trim() && b.type === 'paragraph' && !b.style) return;
+    // A paragraph holding nothing but a page or column break is just the break; an empty one ending a section is just the section's end.
+    if ((breaks.length || colBreaks.length) && !text.trim() && b.type === 'paragraph' && !b.style) return;
+    if (child(ppr, 'sectPr') && !text.trim() && b.type === 'paragraph' && !b.style && !pics.length) return;
     b.runs = normalizeRuns(clean);
     blocks.push(b);
     if (brk && blocks[startAt] && !blocks[startAt].brk) blocks[startAt].brk = brk;
@@ -1128,7 +1202,11 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const body = xml.getElementsByTagNameNS(W_NS, 'body')[0];
   const walk = async (el: Element) => {
     for (const c of kids(el)) {
-      if (c.localName === 'p') await paragraph(c);
+      if (c.localName === 'p') {
+        await paragraph(c);
+        const sp = child(child(c, 'pPr'), 'sectPr');
+        if (sp) sectEnds.push({ end: blocks.length, props: readSect(sp) });
+      }
       else if (c.localName === 'tbl') await table(c);
       else if (c.localName === 'commentRangeStart') openComments.push(attr(c, 'id') ?? '');
       else if (c.localName === 'commentRangeEnd') {
@@ -1146,6 +1224,27 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     }
   };
   if (body) await walk(body);
+  // Sections: each one after the first starts with a section break on its first block.
+  const bodySect = child(body, 'sectPr');
+  const sects = [...sectEnds.map((x) => x.props), bodySect ? readSect(bodySect) : { cont: false, cols: 1, landscape: false }];
+  const startsAt = [0, ...sectEnds.map((x) => x.end)];
+  for (let k = sects.length - 1; k >= 0; k--) {
+    let at = startsAt[k];
+    const sp = sects[k];
+    const prev = sects[k - 1];
+    if (k === 0 && sp.cols === 1 && !sp.landscape) continue;
+    // (The first section's settings go on the first paragraph; a document starting with a picture or table keeps the page setup's.)
+    if (k === 0 && blocks[0] && (isMediaType(blocks[0].type) || blocks[0].type === 'table' || blocks[0].type === 'toc')) continue;
+    if (k > 0 && at >= blocks.length) continue;
+    // A section starting with a picture or table: an empty line before it holds the break.
+    if (blocks[at] && (isMediaType(blocks[at].type) || blocks[at].type === 'table' || blocks[at].type === 'toc')) {
+      blocks.splice(at, 0, makeBlock('paragraph'));
+    }
+    if (!blocks[at]) at = blocks.push(makeBlock('paragraph')) - 1;
+    const b = blocks[at];
+    const orient = sp.landscape ? 'landscape' : prev?.landscape || k === 0 ? 'portrait' : undefined;
+    b.para = tidyPara({ ...b.para, sect: k > 0 && sp.cont ? 'cont' : 'page', cols: k === 0 ? sp.cols : sp.cols !== prev?.cols ? sp.cols : undefined, orient: k === 0 ? (sp.landscape ? 'landscape' : undefined) : orient });
+  }
   // Where Word's numbering differs from what the list shows on its own (carrying on after a paragraph, or starting again), keep Word's.
   const shown: number[] = [];
   for (const b of blocks) {

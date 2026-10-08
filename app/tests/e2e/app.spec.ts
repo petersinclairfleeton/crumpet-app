@@ -2021,3 +2021,49 @@ test('page view lays out sections: two columns that flow and balance, a landscap
   }, id);
   expect(text.slice(from, from + 2)).toBe('XY');
 });
+
+test('layout: columns, a continuous section break, a column break and a landscape section from the bar', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1700, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.page-view')).toBeVisible();
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.type('Title across the page');
+  await page.keyboard.press('Enter');
+  // A continuous section break, then two columns for the new section.
+  await (await toolButton(page, 'Breaks')).click();
+  await page.getByRole('button', { name: 'Continuous' }).click();
+  await page.keyboard.type('Left column text.');
+  await (await toolButton(page, 'Columns')).click();
+  await page.getByRole('menuitemradio', { name: 'Two' }).click();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+Shift+Enter');
+  await page.keyboard.type('Right column text.');
+  const first = page.locator('.note-editor .pg').first();
+  await expect(first.locator('.pg-band')).toHaveCount(2);
+  await expect(first.locator('.pg-band').nth(1).locator('.pg-col')).toHaveCount(2);
+  await expect(first.locator('.pg-band').nth(1).locator('.pg-col').nth(1)).toContainText('Right column text.');
+  // A new page, on its side.
+  await page.keyboard.press('Enter');
+  await (await toolButton(page, 'Breaks')).click();
+  await page.getByRole('button', { name: 'Next page' }).click();
+  await page.keyboard.type('A wide page.');
+  await (await toolButton(page, 'Orientation')).click();
+  await page.getByRole('menuitemradio', { name: 'Landscape' }).click();
+  const pages = page.locator('.note-editor .pg');
+  await expect(pages).toHaveCount(2);
+  const size = await pages.nth(1).evaluate((el) => [(el as HTMLElement).offsetWidth, (el as HTMLElement).offsetHeight]);
+  expect(size[0]).toBeGreaterThan(size[1]);
+  // Saved in the chapter's file.
+  const md = await page.evaluate(async () => {
+    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { chapters: { doc: unknown }[] } } }).crumpet.getState();
+    return toMarkdown(s.chapters[0].doc);
+  });
+  expect(md).toContain('Left column text. {sect=cont cols=2}');
+  expect(md).toContain('Right column text. {.colbreak}');
+  expect(md).toContain('A wide page. {sect=page orient=landscape}');
+});

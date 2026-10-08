@@ -13,6 +13,8 @@ export interface ToolItem {
   node: ReactNode;
   /** As it appears in the More menu (the bar's version, with its name, when not given). */
   menu?: ReactNode;
+  /** Its name, shown beside it in the More menu when it has no `menu` version of its own. */
+  label?: string;
   /** A thin line between groups (goes with the item after it). */
   sep?: boolean;
 }
@@ -77,6 +79,7 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
                 {extra.map((i) => (
                   <div key={i.key} className="more-row">
                     {i.menu ?? i.node}
+                    {!i.menu && i.label && <span className="more-label">{i.label}</span>}
                   </div>
                 ))}
               </div>

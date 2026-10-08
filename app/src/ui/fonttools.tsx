@@ -290,11 +290,11 @@ export function useFontItems(ed: Editor | null, off: boolean, sheet: StyleSheet)
     { key: 'size', pri: 3, node: <SizeBox ed={ed} off={off} base={base.size} /> },
     simple('grow', 1, 'Increase font size (Ctrl+Shift+>)', <span className="glyph-grow">A<sup>▲</sup></span>, () => ed && stepSize(ed, base.size, true)),
     simple('shrink', 1, 'Decrease font size (Ctrl+Shift+<)', <span className="glyph-grow small">A<sup>▼</sup></span>, () => ed && stepSize(ed, base.size, false)),
-    { key: 'color', pri: 2, node: <ColorTool ed={ed} off={off} kind="color" /> },
-    { key: 'highlight', pri: 2, node: <ColorTool ed={ed} off={off} kind="highlight" /> },
+    { key: 'color', pri: 2, label: 'Font colour', node: <ColorTool ed={ed} off={off} kind="color" /> },
+    { key: 'highlight', pri: 2, label: 'Highlight', node: <ColorTool ed={ed} off={off} kind="highlight" /> },
     simple('sup', 1, 'Superscript (Ctrl+Shift+=)', <span>x<sup>2</sup></span>, () => ed?.setLook('va', va === 'super' ? null : 'super'), va === 'super'),
     simple('sub', 1, 'Subscript (Ctrl+=)', <span>x<sub>2</sub></span>, () => ed?.setLook('va', va === 'sub' ? null : 'sub'), va === 'sub'),
-    { key: 'case', pri: 1, node: <CaseTool ed={ed} off={off} /> },
+    { key: 'case', pri: 1, label: 'Change case', node: <CaseTool ed={ed} off={off} /> },
     simple('clear', 1, 'Clear formatting (Ctrl+Space)', <span className="glyph-clear">A<small>✕</small></span>, () => ed?.clearFormatting()),
   ];
 }

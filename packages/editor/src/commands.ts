@@ -50,6 +50,7 @@ import {
   type Change,
   makeChange,
   setChangeOnRuns,
+  sectionStart,
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs, BulletKind, NumFormat } from './model';
@@ -213,7 +214,7 @@ function splitAt(b: Builder, pos: Pos): Pos {
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
   // A new paragraph carries on the spacing and indents of the one before (not a page break, nor after a heading).
-  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, start: undefined, sect: undefined, cols: undefined, orient: undefined });
+  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, sect: undefined, cols: undefined, orient: undefined });
   const newAttrs = atEnd ? { ...nextBlockAttrs(block), para: carried } : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined, para: carried });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
@@ -534,17 +535,56 @@ export function stepIndent(state: EditorState, delta: 1 | -1): Transaction {
 
 /** Word's Page Break (Ctrl+Enter): what follows the caret starts on a new page. */
 export function insertPageBreak(state: EditorState): Transaction {
+  return insertBreak(state, { pageBefore: true });
+}
+
+/** Word's Column Break (Ctrl+Shift+Enter): what follows the caret starts at the top of the next column. */
+export function insertColumnBreak(state: EditorState): Transaction {
+  return insertBreak(state, { colBefore: true });
+}
+
+/** Word's Section Breaks: what follows the caret is a new section, on a new page or carrying on down this one. */
+export function insertSectionBreak(state: EditorState, kind: 'page' | 'cont'): Transaction {
+  return insertBreak(state, { sect: kind });
+}
+
+/** Splits the paragraph at the caret (unless it's at its very start) and sets `para` on what follows. */
+function insertBreak(state: EditorState, patch: Partial<ParaLook>): Transaction {
   const b = new Builder(state.doc);
   const { from, to } = orderedRange(state.doc, state.selection);
   let at = deleteRange(b, from, to);
   const block = getBlock(b.doc, at.block);
-  if (isMedia(block.type)) at = { block: block.id, offset: runsLength(block.runs) };
-  // At the very start of a paragraph it moves to a new page itself; otherwise the rest of it does.
-  if (at.offset > 0 || isMedia(block.type)) at = splitAt(b, at);
+  if (isMedia(block.type) || block.type === 'table' || block.type === 'toc') at = { block: block.id, offset: runsLength(block.runs) };
+  // At the very start of a paragraph it moves on itself; otherwise the rest of it does.
+  if (at.offset > 0 || isMedia(block.type) || block.type === 'table' || block.type === 'toc') at = splitAt(b, at);
   const blk = getBlock(b.doc, at.block);
-  const next = attrsOf({ ...blk, para: tidyPara({ ...blk.para, pageBefore: true }) });
+  const next = attrsOf({ ...blk, para: tidyPara({ ...blk.para, ...patch }) });
   b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to: next });
   return tx(state, b, caret(at));
+}
+
+/**
+ * Word's Columns and Orientation: set on the section the caret is in (on
+ * the paragraph its section break is on; for the first section, on the
+ * very first paragraph).
+ */
+export function setSection(state: EditorState, patch: { cols?: number; orient?: 'portrait' | 'landscape' }): Transaction {
+  const b = new Builder(state.doc);
+  const blocks = state.doc.blocks;
+  let i = sectionStart(blocks, blockIndex(state.doc, orderedRange(state.doc, state.selection).from.block));
+  let blk = blocks[i];
+  if (isMedia(blk.type) || blk.type === 'table' || blk.type === 'toc') {
+    // A section starting with a picture or table: an empty line before it holds the section's settings.
+    const id = newId();
+    b.step({ type: 'split', block: blk.id, offset: 0, newBlock: id, newAttrs: attrsOf(blk) });
+    b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(getBlock(b.doc, blk.id)), to: blockAttrs('paragraph') });
+    blk = getBlock(b.doc, blk.id);
+    i = blockIndex(b.doc, blk.id);
+  }
+  const para = tidyPara({ ...blk.para, sect: blk.para?.sect ?? 'page', ...patch });
+  const to = attrsOf({ ...blk, para });
+  if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  return tx(state, b, state.selection);
 }
 
 /** Selected blocks, first to last. */
