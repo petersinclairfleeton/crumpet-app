@@ -141,7 +141,7 @@ class Book {
           out += `<h${Number(b.type.slice(-1)) + 1}${style(b)}>${runs(b.runs)}</h${Number(b.type.slice(-1)) + 1}>`;
           break;
         case 'quote':
-          out += `<blockquote${b.style === 'intense' ? ' class="intense"' : ''}><p${style(b)}>${runs(b.runs)}</p></blockquote>`;
+          out += `<blockquote${b.style ? ` class="${b.style}"` : ''}><p${style(b)}>${runs(b.runs)}</p></blockquote>`;
           break;
         case 'image': {
           const href = b.src ? await this.image(b.src) : null;
@@ -219,7 +219,7 @@ p.subtitle { font-size: 1.3em; text-align: center; text-indent: 0; font-style: i
 p.epigraph { margin: 1em 0 1em 30%; font-style: italic; text-indent: 0; }
 p.caption, figcaption { font-size: 0.85em; font-style: italic; text-align: center; text-indent: 0; }
 p.scenebreak { text-align: center; text-indent: 0; margin: 1em 0; }
-blockquote { margin: 1em 2em; font-style: italic; } blockquote.intense { font-weight: bold; }
+blockquote { margin: 1em 2em; font-style: italic; } blockquote.intense { font-weight: bold; } blockquote.note, blockquote.tip, blockquote.warning, blockquote.important { margin: 1em 0; padding: 0.4em 1em; font-style: normal; border-left: 4px solid #2f6fd1; background: #e9f0fb; } blockquote.tip { border-color: #2e8b57; background: #e8f4ec; } blockquote.warning { border-color: #d08a00; background: #fbf2df; } blockquote.important { border-color: #c0392b; background: #f9e6e4; } p.toggle { font-weight: bold; }
 blockquote p { text-indent: 0; }
 figure { margin: 1em 0; text-align: center; } img { max-width: 100%; }
 ul, ol { margin: 0.5em 0 0.5em 1.5em; padding: 0; } ul.checklist { list-style: none; margin-left: 0.5em; }

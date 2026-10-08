@@ -371,3 +371,13 @@ describe('Word text boxes and shapes', () => {
     expect(back.doc.blocks.map((b) => b.runs.map((r) => r.text).join('')).filter(Boolean)).toEqual(['Before', 'After']);
   });
 });
+
+describe('Word callouts', () => {
+  it('writes a callout as a Quote with a coloured bar and background', async () => {
+    const blocks = [makeBlock('quote', 'Mind the gap.', [], { style: 'warning' })];
+    const bytes = await toDocx([{ doc: { blocks } }], { title: 'T', page: defaultPage() });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('w:fill="FBF2DF"');
+    expect(xml).toContain('w:color="D08A00"');
+  });
+});

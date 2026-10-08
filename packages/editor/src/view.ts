@@ -6,7 +6,7 @@ import type { Block, Doc, Mark, Pos, Run, Selection } from './model';
 import { isCovered, mergeAt } from './table';
 import { type ShapeLook, tidyShape } from './shape';
 import { fillCell, readCell } from './cells';
-import { BULLETS, isHeading, isList, listLabels, runsLength } from './model';
+import { BULLETS, foldedUnder, isHeading, isList, isToggle, listLabels, runsLength } from './model';
 
 const TAGS: Record<Block['type'], string> = {
   paragraph: 'p',
@@ -113,14 +113,19 @@ export class View {
       cursor.remove();
       cursor = next;
     }
-    // Sections under folded headings are hidden (kept in the text, just not shown).
+    // Sections under folded headings, and folded toggles' content, are hidden (kept in the text, just not shown).
     let hideBelow = 0;
+    const inToggle = new Map<string, boolean>();
+    doc.blocks.forEach((block, i) => {
+      if (isToggle(block)) for (const x of foldedUnder(doc, i)) inToggle.set(x.id, !!block.folded);
+    });
     for (const block of doc.blocks) {
       const el = this.rendered.get(block.id)!.el;
       const level = isHeading(block.type) ? Number(block.type.slice(-1)) : 99;
       if (hideBelow && level <= hideBelow) hideBelow = 0;
-      el.toggleAttribute('data-folded-away', !!hideBelow);
-      if (!hideBelow && block.folded) hideBelow = level;
+      el.toggleAttribute('data-folded-away', !!hideBelow || inToggle.get(block.id) === true);
+      el.toggleAttribute('data-in-toggle', inToggle.has(block.id));
+      if (!hideBelow && block.folded && isHeading(block.type)) hideBelow = level;
     }
     // List numbers, worked out here (not by CSS counters) so they stay right however the page splits the text.
     const labels = listLabels(doc.blocks);
@@ -322,14 +327,14 @@ function buildBlock(block: Block): HTMLElement {
     el.setAttribute('aria-label', 'Table of contents');
     el.appendChild(box);
   }
-  if (isHeading(block.type)) {
-    // The arrow that folds the section away (shown on hover, and always when folded).
+  if (isHeading(block.type) || isToggle(block)) {
+    // The arrow that folds the section away (shown on hover, and always when folded or on a toggle).
     el.toggleAttribute('data-folded', !!block.folded);
     const fold = document.createElement('span');
     fold.className = 'fold';
     fold.contentEditable = 'false';
     fold.setAttribute('role', 'button');
-    fold.setAttribute('aria-label', block.folded ? 'Show this section' : 'Fold this section away');
+    fold.setAttribute('aria-label', isToggle(block) ? (block.folded ? 'Open this toggle' : 'Close this toggle') : block.folded ? 'Show this section' : 'Fold this section away');
     fold.setAttribute('aria-expanded', String(!block.folded));
     el.appendChild(fold);
   }

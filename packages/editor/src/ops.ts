@@ -22,7 +22,6 @@ import {
   type LookKey,
   isList,
   tidyRows,
-  isHeading,
   isMedia,
   type Run,
   blockIndex,
@@ -33,6 +32,7 @@ import {
   runsLength,
   runsText,
   sliceRuns,
+  foldable,
 } from './model';
 
 export type Op =
@@ -78,7 +78,7 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
     a.tbl = tidyTable(b.tbl, a.rows.length, a.rows[0].length);
   }
   if (b.type === 'shape') a.shape = tidyShape(b.shape);
-  if (isHeading(b.type) && b.folded) a.folded = true;
+  if (foldable(b) && b.folded) a.folded = true;
   if (!isMedia(b.type) && b.type !== 'table' && b.type !== 'shape') a.para = tidyPara(b.para);
   // Always present (even when there's none), so a setAttrs built from attrsOf says exactly what the break is.
   a.brk = b.brk || undefined;

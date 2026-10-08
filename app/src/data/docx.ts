@@ -435,7 +435,7 @@ class Writer {
           out += this.paragraph(`Heading${b.type.slice(-1)}`, this.runs(b.runs), head + layout + jc);
           continue;
         case 'quote':
-          out += this.paragraph(b.style === 'intense' ? 'IntenseQuote' : 'Quote', this.runs(b.runs), head + layout + jc);
+          out += this.paragraph(b.style === 'intense' ? 'IntenseQuote' : 'Quote', this.runs(b.runs), (CALLOUTS[b.style ?? ''] ? calloutPr(CALLOUTS[b.style!]) : '') + head + layout + jc);
           continue;
         case 'bullet':
         case 'todo':
@@ -491,6 +491,15 @@ function numberSwitch(hf: HeadersFooters | undefined): string {
 }
 
 const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+/** Callouts (Note, Tip, Warning, Important): a Quote with a coloured bar down the left and a tinted background. */
+const CALLOUTS: Record<string, { bar: string; fill: string }> = {
+  note: { bar: '2F6FD1', fill: 'E9F0FB' },
+  tip: { bar: '2E8B57', fill: 'E8F4EC' },
+  warning: { bar: 'D08A00', fill: 'FBF2DF' },
+  important: { bar: 'C0392B', fill: 'F9E6E4' },
+};
+const calloutPr = (c: { bar: string; fill: string }) => `<w:pBdr><w:left w:val="single" w:sz="24" w:space="8" w:color="${c.bar}"/></w:pBdr><w:shd w:val="clear" w:color="auto" w:fill="${c.fill}"/>`;
+
 const NS = `xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`;
 /** The document also names the drawing parts, for shapes and text boxes. */
 const DOC_NS = `${NS} xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="wps"`;

@@ -2020,11 +2020,13 @@ test('page view lays out sections: two columns that flow and balance, a landscap
   await expect(one.locator('.pg-col')).toHaveCount(1);
   const balanced = one.locator('xpath=preceding-sibling::div[contains(@class, "pg-band")][1]');
   await expect(balanced.locator('.pg-col')).toHaveCount(2);
-  const heights = await balanced.locator('.pg-col').evaluateAll((cols) => cols.map((c) => c.getBoundingClientRect().height));
-  expect(Math.abs(heights[0] - heights[1])).toBeLessThan(60);
+  // (Measured once the layout has settled: fonts arriving can lay the pages out again.)
+  await expect.poll(async () => {
+    const heights = await balanced.locator('.pg-col').evaluateAll((cols) => cols.map((c) => c.getBoundingClientRect().height));
+    return Math.abs(heights[0] - heights[1]);
+  }).toBeLessThan(60);
   // Page 3 is on its side.
-  const size = await pages.nth(2).evaluate((el) => [(el as HTMLElement).offsetWidth, (el as HTMLElement).offsetHeight]);
-  expect(size[0]).toBeGreaterThan(size[1]);
+  await expect.poll(() => pages.nth(2).evaluate((el) => (el as HTMLElement).offsetWidth > (el as HTMLElement).offsetHeight)).toBe(true);
   await expect(page.locator('.sheet').nth(2)).toHaveClass(/landscape/);
   // A paragraph split between columns: typing at the start of the second part goes in the right place.
   const cont = page.locator('.note-editor [data-cont]').first();
@@ -2534,4 +2536,35 @@ test('compare two notes, and make a copy with the differences as tracked changes
   });
   expect(md).toContain('{--dark--}');
   expect(md).toContain('{++bright++}');
+});
+
+test('toggles fold their lines away, and callouts are coloured boxes', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Folds', '');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/toggle');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Spoilers');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The keeper did it.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Twice.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('After the toggle.');
+  const editor = page.locator('.note-editor');
+  await expect(editor.locator('[data-in-toggle]')).toHaveCount(2);
+  await editor.locator('[data-style="toggle"] .fold').click();
+  await expect(editor.getByText('The keeper did it.')).toBeHidden();
+  await expect(editor.getByText('After the toggle.')).toBeVisible();
+  await editor.locator('[data-style="toggle"] .fold').click();
+  await expect(editor.getByText('The keeper did it.')).toBeVisible();
+  // A callout.
+  await editor.getByText('After the toggle.').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/warning');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Mind the stairs.');
+  await expect(editor.locator('.blk-quote[data-style="warning"]')).toHaveText('Mind the stairs.');
 });

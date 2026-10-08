@@ -172,7 +172,7 @@ function applyAttrs(b: Block, classes: string[]): Block {
     }
     if (ALIGNS.has(c)) {
       if (c !== 'left') b.align = c as Align;
-    } else if (c === 'folded' && b.type.startsWith('heading')) b.folded = true;
+    } else if (c === 'folded') b.folded = true;
     else if (styleAllowed(b.type, c)) b.style = c;
   }
   const tidy = tidyPara(para);

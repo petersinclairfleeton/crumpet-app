@@ -79,7 +79,8 @@ export function styleName(key: StyleKey): string {
 export function styleKeyOf(block: Pick<Block, 'type' | 'style'>): StyleKey {
   if (block.type === 'bullet' || block.type === 'numbered' || block.type === 'todo') return 'list';
   if (block.type === 'quote') return block.style === 'intense' ? 'intense' : 'quote';
-  if (block.type === 'paragraph') return (block.style as StyleKey | undefined) ?? 'normal';
+  // A toggle is laid out as Normal text.
+  if (block.type === 'paragraph') return block.style && STYLE_LIST.some((s) => s.key === block.style) ? (block.style as StyleKey) : 'normal';
   return block.type as StyleKey;
 }
 
