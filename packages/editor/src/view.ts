@@ -2,11 +2,11 @@
 // between DOM positions and model positions. Only blocks whose model object
 // changed are rebuilt; the rest of the DOM is left alone.
 
-import type { Block, Doc, Mark, Pos, Run, Selection } from './model';
+import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection } from './model';
 import { isCovered, mergeAt } from './table';
 import { type ShapeLook, tidyShape } from './shape';
 import { fillCell, readCell } from './cells';
-import { BULLETS, foldedUnder, isHeading, isList, isToggle, listLabels, runsLength } from './model';
+import { BULLETS, foldedUnder, isHeading, isList, isToggle, listLabels, runsLength, tidyCode } from './model';
 
 const TAGS: Record<Block['type'], string> = {
   paragraph: 'p',
@@ -23,6 +23,7 @@ const TAGS: Record<Block['type'], string> = {
   table: 'div',
   toc: 'nav',
   shape: 'div',
+  code: 'div',
 };
 
 /**
@@ -80,6 +81,10 @@ export class View {
       // A table being edited keeps its element: only cells that changed are updated, so the caret stays put.
       // A shape being typed in likewise keeps its text box.
       if (old && old.block.type === 'shape' && block.type === 'shape' && patchShape(old.el, block)) {
+        this.rendered.set(block.id, { block, el: old.el });
+        continue;
+      }
+      if (old && old.block.type === 'code' && block.type === 'code' && patchCode(old.el, block)) {
         this.rendered.set(block.id, { block, el: old.el });
         continue;
       }
@@ -319,6 +324,7 @@ function buildBlock(block: Block): HTMLElement {
     el.dataset.wrap = block.shape?.wrap ?? 'inline';
     el.appendChild(buildShape(block));
   }
+  if (block.type === 'code') el.appendChild(buildCode(block));
   if (block.type === 'toc') {
     const box = document.createElement('div');
     box.className = 'toc-box';
@@ -646,6 +652,84 @@ function patchShape(el: HTMLElement, block: Block): boolean {
   markShape(box.parentElement!, s);
   if (block.align) el.dataset.align = block.align;
   else delete el.dataset.align;
+  return true;
+}
+
+// ---------------------------------------------------------------- maths and diagrams
+
+/** Draws maths or a diagram from its source into `out` (set by the app, which has KaTeX and Mermaid). */
+export type CodeRenderer = (lang: CodeLang, text: string, out: HTMLElement) => void;
+let codeRenderer: CodeRenderer | null = null;
+export function setCodeRenderer(f: CodeRenderer | null): void {
+  codeRenderer = f;
+}
+
+const CODE_NAMES: Record<CodeLang, string> = { math: 'Maths', mermaid: 'Diagram' };
+
+function drawCode(preview: HTMLElement, c: CodeLook): void {
+  if (preview.dataset.drawn === `${c.lang}\n${c.text}`) return;
+  preview.dataset.drawn = `${c.lang}\n${c.text}`;
+  preview.textContent = '';
+  if (!c.text.trim()) {
+    preview.textContent = c.lang === 'math' ? 'Type maths (LaTeX), like E = mc^2 or \\frac{a}{b}' : 'Type a diagram (Mermaid), like graph LR; A --> B';
+    preview.classList.add('code-empty');
+    return;
+  }
+  preview.classList.remove('code-empty');
+  if (codeRenderer) codeRenderer(c.lang, c.text, preview);
+  else preview.textContent = c.text;
+}
+
+/** Maths or a diagram: its source in a box of its own (shown while editing), and drawn below. */
+function buildCode(block: Block): HTMLElement {
+  const c = tidyCode(block.code);
+  const wrap = document.createElement('div');
+  wrap.className = 'code-wrap';
+  wrap.contentEditable = 'false';
+  wrap.dataset.widget = 'code';
+  wrap.dataset.lang = c.lang;
+  const head = document.createElement('div');
+  head.className = 'code-head';
+  const kind = document.createElement('select');
+  kind.dataset.codeLang = '';
+  kind.setAttribute('aria-label', 'Kind');
+  for (const k of Object.keys(CODE_NAMES) as CodeLang[]) {
+    const o = document.createElement('option');
+    o.value = k;
+    o.textContent = CODE_NAMES[k];
+    kind.appendChild(o);
+  }
+  kind.value = c.lang;
+  head.appendChild(kind);
+  const src = document.createElement('textarea');
+  src.className = 'code-src';
+  src.dataset.code = '';
+  src.spellcheck = false;
+  src.setAttribute('aria-label', c.lang === 'math' ? 'Maths source (LaTeX)' : 'Diagram source (Mermaid)');
+  src.value = c.text;
+  src.rows = Math.max(2, c.text.split('\n').length + 1);
+  const preview = document.createElement('div');
+  preview.className = 'code-preview';
+  preview.dataset.codePreview = '';
+  preview.title = 'Click to edit';
+  wrap.append(head, src, preview);
+  drawCode(preview, c);
+  return wrap;
+}
+
+/** Updates maths or a diagram in place (keeping its source box, which may be being typed in). */
+function patchCode(el: HTMLElement, block: Block): boolean {
+  const wrap = el.querySelector<HTMLElement>('.code-wrap');
+  const src = wrap?.querySelector<HTMLTextAreaElement>('.code-src');
+  const preview = wrap?.querySelector<HTMLElement>('.code-preview');
+  const kind = wrap?.querySelector<HTMLSelectElement>('select');
+  if (!wrap || !src || !preview || !kind) return false;
+  const c = tidyCode(block.code);
+  wrap.dataset.lang = c.lang;
+  kind.value = c.lang;
+  if (src !== el.ownerDocument.activeElement && src.value !== c.text) src.value = c.text;
+  src.rows = Math.max(2, src.value.split('\n').length + 1);
+  drawCode(preview, c);
   return true;
 }
 

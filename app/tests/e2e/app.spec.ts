@@ -2568,3 +2568,33 @@ test('toggles fold their lines away, and callouts are coloured boxes', async ({ 
   await page.keyboard.type('Mind the stairs.');
   await expect(editor.locator('.blk-quote[data-style="warning"]')).toHaveText('Mind the stairs.');
 });
+
+test('maths and diagrams: typed as text, drawn on the page, and saved as fenced blocks', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Formulas', '');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/math');
+  await page.keyboard.press('Enter');
+  const src = page.getByLabel('Maths source (LaTeX)');
+  await expect(src).toBeFocused();
+  await page.keyboard.type('E = mc^2');
+  await page.keyboard.press('Escape');
+  const editor = page.locator('.note-editor');
+  await expect(editor.locator('.code-preview .katex')).toBeVisible();
+  await expect(src).toBeHidden();
+  // Clicking the drawing opens its source again.
+  await editor.locator('.code-preview').first().click();
+  await expect(src).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.keyboard.type('/diagram');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(editor.locator('.code-wrap[data-lang="mermaid"] .code-preview svg')).toBeVisible({ timeout: 15000 });
+  const md = await page.evaluate(async () => {
+    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+    return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
+  });
+  expect(md).toContain('```math\nE = mc^2\n```');
+  expect(md).toContain('```mermaid\ngraph LR\n  A[Start] --> B[End]\n```');
+});

@@ -33,6 +33,7 @@ import {
   runsText,
   sliceRuns,
   foldable,
+  tidyCode,
 } from './model';
 
 export type Op =
@@ -78,8 +79,9 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
     a.tbl = tidyTable(b.tbl, a.rows.length, a.rows[0].length);
   }
   if (b.type === 'shape') a.shape = tidyShape(b.shape);
+  if (b.type === 'code') a.code = tidyCode(b.code);
   if (foldable(b) && b.folded) a.folded = true;
-  if (!isMedia(b.type) && b.type !== 'table' && b.type !== 'shape') a.para = tidyPara(b.para);
+  if (!isMedia(b.type) && b.type !== 'table' && b.type !== 'shape' && b.type !== 'code') a.para = tidyPara(b.para);
   // Always present (even when there's none), so a setAttrs built from attrsOf says exactly what the break is.
   a.brk = b.brk || undefined;
   return a;
@@ -88,7 +90,7 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
 export function sameAttrs(a: BlockAttrs, b: BlockAttrs): boolean {
   const x = attrsOf(a);
   const y = attrsOf(b);
-  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk) && samePara(x.para, y.para) && sameTable(x.tbl, y.tbl) && sameShape(x.shape, y.shape);
+  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk) && samePara(x.para, y.para) && sameTable(x.tbl, y.tbl) && sameShape(x.shape, y.shape) && JSON.stringify(x.code ?? null) === JSON.stringify(y.code ?? null);
 }
 
 export function applyOp(doc: Doc, op: Op): Doc {
@@ -132,7 +134,7 @@ export function applyOp(doc: Doc, op: Op): Doc {
       // Attributes made from scratch (blockAttrs) leave a tracked paragraph break, and spacing and indents set by hand, as they are.
       if (!('brk' in op.to)) to.brk = b.brk;
       if (!to.brk) delete to.brk;
-      if (!('para' in op.to) && !isMedia(to.type) && to.type !== 'table' && to.type !== 'shape') to.para = tidyPara(b.para);
+      if (!('para' in op.to) && !isMedia(to.type) && to.type !== 'table' && to.type !== 'shape' && to.type !== 'code') to.para = tidyPara(b.para);
       if (!to.para) delete to.para;
       if (to.type === 'table' && !('tbl' in op.to)) to.tbl = tidyTable(b.tbl, to.rows!.length, to.rows![0].length);
       if (!to.tbl) delete to.tbl;

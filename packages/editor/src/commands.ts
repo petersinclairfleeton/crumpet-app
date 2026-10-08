@@ -53,6 +53,9 @@ import {
   sectionStart,
   foldedUnder,
   foldable,
+  isWidget,
+  type CodeLook,
+  tidyCode,
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs, BulletKind, NumFormat } from './model';
@@ -206,7 +209,7 @@ const ENDS_ON_ENTER = new Set(['title', 'subtitle', 'caption', 'scenebreak', 'ep
  * followed by body text.
  */
 function nextBlockAttrs(block: Block) {
-  if (isMedia(block.type) || block.type === 'table' || block.type === 'toc' || block.type === 'shape') return blockAttrs('paragraph');
+  if (isMedia(block.type) || isWidget(block.type)) return blockAttrs('paragraph');
   if (isList(block.type)) return { ...blockAttrs(block.type, false, block.indent), ...(block.align ? { align: block.align } : {}) };
   if (isHeading(block.type) || (block.style && ENDS_ON_ENTER.has(block.style))) return blockAttrs('paragraph');
   return { ...attrsOf(block), checked: undefined, brk: undefined };
@@ -240,7 +243,7 @@ export function splitBlock(state: EditorState): Transaction {
   }
   // Enter on an empty list item moves it out one level, and out of the list at the top level.
   // On an empty quote or heading it turns back into a paragraph instead of adding another.
-  if (block.type !== 'paragraph' && !isMedia(block.type) && block.type !== 'table' && block.type !== 'toc' && block.type !== 'shape' && runsLength(block.runs) === 0) {
+  if (block.type !== 'paragraph' && !isMedia(block.type) && !isWidget(block.type) && runsLength(block.runs) === 0) {
     const to = isList(block.type) && block.indent ? blockAttrs(block.type, false, block.indent - 1) : blockAttrs('paragraph');
     b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to });
     return tx(state, b, caret(at));
@@ -557,9 +560,9 @@ function insertBreak(state: EditorState, patch: Partial<ParaLook>): Transaction 
   const { from, to } = orderedRange(state.doc, state.selection);
   let at = deleteRange(b, from, to);
   const block = getBlock(b.doc, at.block);
-  if (isMedia(block.type) || block.type === 'table' || block.type === 'toc' || block.type === 'shape') at = { block: block.id, offset: runsLength(block.runs) };
+  if (isMedia(block.type) || isWidget(block.type)) at = { block: block.id, offset: runsLength(block.runs) };
   // At the very start of a paragraph it moves on itself; otherwise the rest of it does.
-  if (at.offset > 0 || isMedia(block.type) || block.type === 'table' || block.type === 'toc' || block.type === 'shape') at = splitAt(b, at);
+  if (at.offset > 0 || isMedia(block.type) || isWidget(block.type)) at = splitAt(b, at);
   const blk = getBlock(b.doc, at.block);
   const next = attrsOf({ ...blk, para: tidyPara({ ...blk.para, ...patch }) });
   b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to: next });
@@ -578,7 +581,7 @@ export function setSection(state: EditorState, patch: SectionPatch): Transaction
   const blocks = state.doc.blocks;
   let i = sectionStart(blocks, blockIndex(state.doc, orderedRange(state.doc, state.selection).from.block));
   let blk = blocks[i];
-  if (isMedia(blk.type) || blk.type === 'table' || blk.type === 'toc' || blk.type === 'shape') {
+  if (isMedia(blk.type) || isWidget(blk.type)) {
     // A section starting with a picture or table: an empty line before it holds the section's settings.
     const id = newId();
     b.step({ type: 'split', block: blk.id, offset: 0, newBlock: id, newAttrs: attrsOf(blk) });
@@ -602,7 +605,7 @@ export function setAllSections(state: EditorState, cols: number): Transaction {
   const b = new Builder(state.doc);
   state.doc.blocks.forEach((blk, i) => {
     if (!blk.para?.sect) {
-      if (i > 0 || cols === 1 || isMedia(blk.type) || blk.type === 'table' || blk.type === 'toc' || blk.type === 'shape') return;
+      if (i > 0 || cols === 1 || isMedia(blk.type) || isWidget(blk.type)) return;
     }
     const keep = i === 0 ? { sect: 'page' as const, cols: cols > 1 ? cols : undefined } : { sect: blk.para!.sect, cols: undefined };
     const para = tidyPara({ ...blk.para, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined, ...keep });
@@ -831,6 +834,22 @@ export function setShape(state: EditorState, id: string, patch: Partial<ShapeLoo
   const b = new Builder(state.doc);
   if (blk.type === 'shape') {
     const to = attrsOf({ ...blk, shape: tidyShape({ ...blk.shape, ...patch }) });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** Inserts maths or a diagram where the caret is. */
+export function insertCode(state: EditorState, lang: CodeLook['lang'], text = ''): Transaction {
+  return insertWidget(state, attrsOf({ type: 'code', code: { lang, text } }));
+}
+
+/** Changes the source (or the kind) of maths or a diagram. */
+export function setCode(state: EditorState, id: string, patch: Partial<CodeLook>): Transaction {
+  const blk = getBlock(state.doc, id);
+  const b = new Builder(state.doc);
+  if (blk.type === 'code') {
+    const to = attrsOf({ ...blk, code: tidyCode({ ...blk.code, ...patch }) });
     if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to });
   }
   return tx(state, b, state.selection);

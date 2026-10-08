@@ -36,6 +36,7 @@ import {
   type ParaKey,
   type NumFormat,
   type BulletKind,
+  type CodeLook,
   lookAt,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
@@ -92,6 +93,8 @@ import {
   insertToc,
   insertShape,
   setShape,
+  insertCode,
+  setCode,
   insertColumnBreak,
   insertSectionBreak,
   setSection,
@@ -242,7 +245,19 @@ export class Editor {
     root.addEventListener('keydown', (e) => (inWidget(e.target) ? this.onTableKey(e) : this.onKeyDown(e)), { signal });
     root.addEventListener('compositionstart', (e) => inWidget(e.target) || this.onCompositionStart(), { signal });
     root.addEventListener('compositionend', (e) => inWidget(e.target) || this.onCompositionEnd(), { signal });
-    root.addEventListener('paste', (e) => (inWidget(e.target) ? pastePlain(e) : this.onPaste(e)), { signal });
+    root.addEventListener('paste', (e) => (inWidget(e.target) ? isSource(e.target) || pastePlain(e) : this.onPaste(e)), { signal });
+    // Maths and diagrams: their kind, and their source box shown while it's being edited.
+    root.addEventListener(
+      'change',
+      (e) => {
+        const kind = (e.target as Element).closest?.<HTMLSelectElement>('select[data-code-lang]');
+        const id = kind?.closest<HTMLElement>('[data-block]')?.dataset.block;
+        if (kind && id) this.dispatch(setCode(this.state, id, { lang: kind.value as CodeLook['lang'] }), 'command');
+      },
+      { signal },
+    );
+    root.addEventListener('focusin', (e) => isSource(e.target) && (e.target as HTMLElement).closest('.code-wrap')?.classList.add('editing'), { signal });
+    root.addEventListener('focusout', (e) => isSource(e.target) && (e.target as HTMLElement).closest('.code-wrap')?.classList.remove('editing'), { signal });
     // Ctrl+Shift+V pastes just the text (Word's Keep Text Only).
     root.addEventListener(
       'keydown',
@@ -341,6 +356,12 @@ export class Editor {
     const el = this.view.blockElement(id);
     const blk = this.state.doc.blocks.find((b) => b.id === id);
     if (!el || !blk) return;
+    // Maths or a diagram: its source.
+    if (blk.type === 'code') {
+      const src = el.querySelector<HTMLTextAreaElement>('.code-src');
+      if (src) this.dispatch(setCode(this.state, id, { text: src.value }), 'input', true, true);
+      return;
+    }
     // A text box: its text.
     if (blk.type === 'shape') {
       const box = el.querySelector<HTMLElement>('.shape-text');
@@ -522,6 +543,41 @@ export class Editor {
     if (textBox && text) text.focus();
   }
 
+  /** Inserts maths or a diagram, with its source box ready to type in. */
+  insertCode(lang: CodeLook['lang'], text = ''): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(insertCode(this.state, lang, text), 'command');
+    const blk = this.state.doc.blocks.find((b, i, all) => b.type === 'code' && all[i + 1]?.id === this.state.selection.focus.block);
+    const src = blk && this.view.blockElement(blk.id)?.querySelector<HTMLTextAreaElement>('.code-src');
+    if (src) {
+      src.closest('.code-wrap')?.classList.add('editing');
+      src.focus();
+    }
+  }
+
+  /** Keys in a maths or diagram source box: undo and redo as everywhere; Esc goes back to the text. */
+  private onSourceKey(e: KeyboardEvent, src: HTMLTextAreaElement): void {
+    const id = src.closest<HTMLElement>('[data-block]')?.dataset.block;
+    if (!id || e.isComposing) return;
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (mod && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      this.commitTables();
+      if (e.shiftKey) this.redo();
+      else this.undo();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.commitTable(id);
+      const i = this.state.doc.blocks.findIndex((b) => b.id === id);
+      const next = this.state.doc.blocks[i + 1];
+      if (next) this.focusPos({ block: next.id, offset: 0 });
+      else this.view.root.focus();
+    }
+  }
+
   /** Changes a shape's look (fill, line, wrapping, size). */
   setShapeLook(id: string, patch: Partial<ShapeLook>): void {
     this.commitTable(id);
@@ -554,6 +610,7 @@ export class Editor {
 
   /** Tab and Enter move between cells (adding a row at the end); Esc leaves the table. */
   private onTableKey(e: KeyboardEvent): void {
+    if (isSource(e.target)) return this.onSourceKey(e, e.target as HTMLTextAreaElement);
     const cell = (e.target as HTMLElement).closest<HTMLElement>('.cell');
     const id = cell?.closest<HTMLElement>('[data-block]')?.dataset.block;
     if (!cell || !id || e.isComposing) return;
@@ -1323,6 +1380,15 @@ export class Editor {
       window.open(link.href, '_blank', 'noopener');
       return;
     }
+    // Clicking drawn maths or a diagram opens its source to edit.
+    const drawn = (e.target as Element).closest?.<HTMLElement>('[data-code-preview]');
+    if (drawn && !this.isReadOnly) {
+      e.preventDefault();
+      const src = drawn.parentElement?.querySelector<HTMLTextAreaElement>('.code-src');
+      src?.closest('.code-wrap')?.classList.add('editing');
+      src?.focus();
+      return;
+    }
     const shapeAction = (e.target as Element).closest?.<HTMLElement>('[data-shape-action]');
     if (shapeAction) {
       e.preventDefault();
@@ -1516,6 +1582,11 @@ function inWidget(t: EventTarget | Node | null): boolean {
   const n = t as Node | null;
   const el = n && (n.nodeType === 1 ? (n as Element) : n.parentElement);
   return !!el?.closest('[data-widget]');
+}
+
+/** A maths or diagram source box (an ordinary text area: pasting and new lines work as usual). */
+function isSource(t: EventTarget | null): boolean {
+  return !!t && (t as Element).nodeName === 'TEXTAREA' && !!(t as Element).closest?.('.code-wrap');
 }
 
 /** Paste in a table cell: plain text only, on one line. */

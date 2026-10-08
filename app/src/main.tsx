@@ -8,6 +8,7 @@ import { SyncConnection } from './sync/connection';
 import { mediaUrl, setFileStorage, setRemoteFiles } from './data/files';
 import { setMediaResolver } from '@crumpet/editor/view';
 import { startClipListener } from './data/clip';
+import './ui/coderender';
 import { startPwa } from './data/pwa';
 import './ui/app.css';
 
