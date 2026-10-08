@@ -653,7 +653,22 @@ input, select { font: inherit; color: inherit; }
 .split-pic.stacked { flex-direction: column; }
 .split-pic i { flex: 1; border: 1.5px solid currentColor; border-radius: 2px; }
 .layout-hint { margin: 0; font-size: 12px; line-height: 1.45; color: var(--muted); }
-@media (max-width: 759px) { .layout-menu, .resizer { display: none; } }
+@media (max-width: 759px) { .layout-menu, .resizer, .fold-btn, .show-btn, .peek-edge, .peek-panel { display: none !important; } }
+
+/* Folding the sidebar and list away (« on each), and peeking them back out. */
+.frame, .panes { position: relative; }
+.fold-btn { flex: none; color: var(--muted); }
+.sidebar .fold-btn { color: var(--side-muted); }
+@media (hover: hover) {
+  .fold-btn { opacity: 0; transition: opacity 0.12s; }
+  .sidebar:hover .fold-btn, .list:hover .fold-btn, .fold-btn:focus-visible { opacity: 1; }
+}
+.show-btn { flex: none; color: var(--muted); }
+.peek-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 10px; z-index: 30; }
+.peek-panel { position: absolute; left: 0; top: 8px; bottom: 8px; z-index: 40; display: flex; border-radius: 0 7px 7px 0; overflow: hidden; box-shadow: var(--shadow); animation: peek-in 0.16s ease-out; }
+.peek-panel > .sidebar, .peek-panel > .list { border-right: none; }
+@keyframes peek-in { from { transform: translateX(-24px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .peek-panel { animation: none; } }
 
 /* ---- The floating formatting bar ---- */
 .selection-bar { position: fixed; z-index: 40; padding: 4px; border-radius: 12px; background: var(--text); color: var(--page); box-shadow: var(--shadow); animation: bar-in 0.12s ease-out; }

@@ -7,6 +7,7 @@ import { type SortBy, parseQuery, quoted, sortNotes, withToken, withoutToken } f
 import { allTags } from '../data/selectors';
 import { InlineInput, Popover } from './Sidebar';
 import { IconStarFilled, IconTag, IconTrash } from './icons';
+import { FoldButton } from './fold';
 import { IconCards, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
 
 interface Props {
@@ -70,6 +71,8 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
         <div className="list-title">
           {nb && <NotebookIcon color={nb.color} size={15} cut="var(--list-bg)" />}
           <h1>{title}</h1>
+          <span className="grow" />
+          <FoldButton what="list" />
         </div>
         <div className="list-sub">
           <span>

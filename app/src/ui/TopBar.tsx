@@ -2,6 +2,7 @@ import { useAppState, useAppStore } from './hooks';
 import { viewTitle } from '../data/selectors';
 import { IconMenu, IconPlus, IconSearch } from './icons';
 import { LayoutMenu } from './layout';
+import { ShowButton } from './fold';
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -16,6 +17,8 @@ export function TopBar({ onMenu, onNewNote }: { onMenu(): void; onNewNote(): voi
       <button type="button" className="icon-btn menu-btn" aria-label="Notebooks and tags" onClick={onMenu}>
         <IconMenu size={18} />
       </button>
+      {state.settings.layout?.sidebar === 'hidden' && <ShowButton what="sidebar" />}
+      {listHidden && <ShowButton what="list" />}
       {/* Where you are: a notebook's stack, or the view's name when the list (which has it as its heading) is hidden. */}
       <p className="crumbs">
         {(stack || listHidden) && (

@@ -34,6 +34,7 @@ import { PrintJob } from './print';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
 import { CastList, CastPane, CastSpotting } from './cast';
+import { FoldButton } from './fold';
 import { makeBlock } from '@crumpet/editor/model';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -191,6 +192,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
               </Popover>
             )}
           </div>
+          <FoldButton what="list" />
         </div>
         <div className="list-sub">
           <span>
