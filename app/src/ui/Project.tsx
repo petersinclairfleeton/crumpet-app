@@ -8,6 +8,8 @@ import { type PageFields, PageToggle, PageView } from './pages';
 import { StylesDialog, useSheetClass } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { chapterWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
+import { dayKey, wordsToday } from '../data/stats';
+import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
 import type { PageSetup } from '../data/styles';
 import { EditorHost } from './EditorHost';
@@ -51,7 +53,7 @@ const words = (n: number) => `${n.toLocaleString()} word${n === 1 ? '' : 's'}`;
 export function ProjectOutline({ project, onOpenChapter }: { project: Project; onOpenChapter(id: string): void }) {
   const state = useAppState();
   const store = useAppStore();
-  const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'delete'>(null);
+  const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'deadline' | 'delete'>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const printParts = useMemo(
@@ -101,7 +103,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
             <button type="button" className="icon-btn" aria-label="Project options" aria-expanded={menu === 'menu'} onClick={() => setMenu(menu ? null : 'menu')}>
               <IconMore size={16} />
             </button>
-            {(menu === 'menu' || menu === 'delete' || menu === 'goal') && (
+            {(menu === 'menu' || menu === 'delete' || menu === 'goal' || menu === 'deadline') && (
               <Popover onClose={() => setMenu(null)} label="Project options">
                 {menu === 'menu' && (
                   <>
@@ -110,6 +112,9 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                     </button>
                     <button type="button" className="menu-item" onClick={() => setMenu('goal')}>
                       Word goal…
+                    </button>
+                    <button type="button" className="menu-item" onClick={() => setMenu('deadline')}>
+                      Deadline…
                     </button>
                     <button
                       type="button"
@@ -156,6 +161,16 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                     }}
                   />
                 )}
+                {menu === 'deadline' && (
+                  <DeadlineInput
+                    value={project.deadline?.date ?? null}
+                    hasGoal={!!goal}
+                    onDone={(date) => {
+                      setMenu(null);
+                      if (date !== undefined) store.setProjectDeadline(project.id, date);
+                    }}
+                  />
+                )}
                 {menu === 'delete' && (
                   <div className="menu-confirm">
                     <p>
@@ -189,6 +204,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
           </div>
         </div>
         <Progress value={total} goal={goal} label="Project progress" />
+        {project.deadline && goal ? <DeadlineLine project={project} goal={goal} total={total} onEdit={() => setMenu('deadline')} /> : null}
       </header>
 
       <ol className="outline-items" onDragOver={(e) => dragging && e.preventDefault()} onDrop={drop}>
@@ -357,6 +373,67 @@ function GoalInput({ label, value, onDone }: { label: string; value: number | nu
         Set
       </button>
     </form>
+  );
+}
+
+/** Choosing a finish date. */
+function DeadlineInput({ value, hasGoal, onDone }: { value: string | null; hasGoal: boolean; onDone(date: string | null | undefined): void }) {
+  const [date, setDate] = useState(value ?? '');
+  return (
+    <form
+      className="goal-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onDone(date || null);
+      }}
+    >
+      <label>
+        <span>Finish by</span>
+        <input autoFocus type="date" min={dayKey(Date.now())} value={date} onChange={(e) => setDate(e.target.value)} onKeyDown={(e) => e.key === 'Escape' && onDone(undefined)} />
+      </label>
+      <button type="submit" className="btn primary" disabled={!date}>
+        Set
+      </button>
+      {!hasGoal && <p className="goal-hint">Set a word goal too: Crumpet shares it out over the days left.</p>}
+      {value && (
+        <button type="button" className="link-btn small" onClick={() => onDone(null)}>
+          Remove the deadline
+        </button>
+      )}
+    </form>
+  );
+}
+
+/** Under the project's progress: the deadline, today's target, and whether the writing is keeping pace. */
+function DeadlineLine({ project, goal, total, onEdit }: { project: Project; goal: number; total: number; onEdit(): void }) {
+  const state = useAppState();
+  const now = Date.now();
+  const ids = state.chapters.filter((c) => c.projectId === project.id).map((c) => c.id);
+  const p = pace(project.deadline!, goal, total, wordsToday(state.settings.stats, ids, now), dayKey(now));
+  const due = new Date(`${project.deadline!.date}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: new Date().getFullYear() === Number(project.deadline!.date.slice(0, 4)) ? undefined : 'numeric' });
+  const status =
+    p.state === 'done'
+      ? 'Goal reached'
+      : p.state === 'passed'
+        ? `The date has passed · ${words(goal - total)} to go`
+        : p.state === 'behind'
+          ? `Behind by ${words(p.behindBy)}`
+          : p.writtenToday >= p.todayTarget
+            ? 'Today’s target met'
+            : 'On track';
+  return (
+    <div className="deadline" aria-label="Deadline">
+      <button type="button" className="deadline-due" onClick={onEdit} title="Change the deadline">
+        Finish by {due}
+        {p.daysLeft > 0 && p.state !== 'done' ? ` · ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left` : ''}
+      </button>
+      {p.state !== 'done' && p.state !== 'passed' && (
+        <span className="deadline-today">
+          Today: {p.writtenToday.toLocaleString()} of {words(p.todayTarget)}
+        </span>
+      )}
+      <span className={`deadline-state ${p.state}`}>{status}</span>
+    </div>
   );
 }
 

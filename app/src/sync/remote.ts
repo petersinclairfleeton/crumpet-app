@@ -13,7 +13,7 @@
 //   files are chapters (in the order project.json gives), not notes.
 
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
-import { type CastMember, type ChapterStatus, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
+import { type CastMember, type ChapterStatus, type Deadline, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 import { ATTACHMENTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, RESEARCH, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
 import { type NoteFile, parseNoteFile } from './notefile';
@@ -53,6 +53,7 @@ export interface ProjectJson {
   styles?: StyleSheet;
   page?: PageSetup;
   cast?: CastMember[];
+  deadline?: Deadline;
   created: number;
   updated: number;
 }
@@ -127,8 +128,16 @@ function cleanCast(list: unknown[]): CastMember[] {
   });
 }
 
+/** A deadline from a project.json, if it's well formed. */
+function cleanDeadline(d: unknown): Deadline | undefined {
+  const x = d as Partial<Deadline> | null;
+  const day = /^\d{4}-\d{2}-\d{2}$/;
+  if (!x || typeof x !== 'object' || typeof x.date !== 'string' || !day.test(x.date)) return undefined;
+  return { date: x.date, from: typeof x.from === 'string' && day.test(x.from) ? x.from : x.date, startWords: typeof x.startWords === 'number' && x.startWords >= 0 ? x.startWords : 0 };
+}
+
 export function writeProject(p: ProjectJson): string {
-  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}) }, null, 2)}\n`;
+  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.deadline ? { deadline: p.deadline } : {}) }, null, 2)}\n`;
 }
 
 const STATUSES = new Set<ChapterStatus>(['todo', 'draft', 'revised', 'done']);
@@ -396,6 +405,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       ...(json.styles && typeof json.styles === 'object' && json.styles.styles ? { styles: json.styles } : {}),
       ...(json.page && typeof json.page === 'object' && json.page.margins ? { page: json.page } : {}),
       ...(Array.isArray(json.cast) && json.cast.length ? { cast: cleanCast(json.cast) } : {}),
+      ...(cleanDeadline(json.deadline) ? { deadline: cleanDeadline(json.deadline) } : {}),
     };
     where.projects[id] = dir;
   }

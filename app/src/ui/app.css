@@ -1103,3 +1103,13 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 ::highlight(crumpet-find) { background-color: color-mix(in srgb, var(--accent) 28%, transparent); }
 ::highlight(crumpet-find-now) { background-color: color-mix(in srgb, var(--accent) 70%, transparent); color: var(--text); }
 @media (max-width: 759px) { .find-bar { top: 56px; left: 8px; right: 8px; width: auto; } }
+/* A project's deadline under its progress bar. */
+.deadline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 8px; font-size: 12px; color: var(--text2); }
+.deadline-due { padding: 0; border: none; background: none; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+.deadline-due:hover { color: var(--accent-ink); text-decoration: underline; }
+.deadline-today { color: var(--muted); }
+.deadline-state { padding: 1px 7px; border-radius: 999px; background: var(--field); color: var(--text2); font-weight: 600; }
+.deadline-state.on-track, .deadline-state.done { background: color-mix(in srgb, #3e9a62 14%, transparent); color: color-mix(in srgb, #3e9a62 70%, var(--text)); }
+.deadline-state.behind, .deadline-state.passed { background: color-mix(in srgb, #d9a441 20%, transparent); color: color-mix(in srgb, #b07a1a 70%, var(--text)); }
+.goal-hint { flex-basis: 100%; margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.goal-form { flex-wrap: wrap; }

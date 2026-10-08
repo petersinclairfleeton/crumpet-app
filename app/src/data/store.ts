@@ -13,7 +13,7 @@ import type { Tree } from '../sync/tree';
 import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
 import { attachmentsIn, forgetFiles } from './files';
-import { recordEdit, wordsIn } from './stats';
+import { dayKey, recordEdit, wordsIn, wordsToday } from './stats';
 import { relinkDoc, sameTitle } from './links';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
@@ -627,7 +627,7 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}) };
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.deadline ? { deadline: t.deadline } : {}) };
       if (
         cur &&
         cur.name === next.name &&
@@ -637,7 +637,8 @@ export class AppStore {
         JSON.stringify(cur.outline) === JSON.stringify(next.outline) &&
         JSON.stringify(cur.styles ?? null) === JSON.stringify(next.styles ?? null) &&
         JSON.stringify(cur.page ?? null) === JSON.stringify(next.page ?? null) &&
-        JSON.stringify(cur.cast ?? null) === JSON.stringify(next.cast ?? null)
+        JSON.stringify(cur.cast ?? null) === JSON.stringify(next.cast ?? null) &&
+        JSON.stringify(cur.deadline ?? null) === JSON.stringify(next.deadline ?? null)
       )
         return cur;
       this.save(this.storage.putProject(next));
@@ -876,6 +877,22 @@ export class AppStore {
 
   setProjectGoal(id: string, goal: number | null): void {
     this.updateProject(id, { goal: goal && goal > 0 ? Math.round(goal) : null });
+  }
+
+  /** Sets (YYYY-MM-DD) or clears the date to reach the word goal by. The pace starts from this morning's words. */
+  setProjectDeadline(id: string, date: string | null): void {
+    const project = this.project(id);
+    if (!project) return;
+    if (!date) {
+      this.updateProject(id, { deadline: undefined });
+      return;
+    }
+    const today = dayKey(this.now());
+    const ids = this.state.chapters.filter((c) => c.projectId === id).map((c) => c.id);
+    const total = this.state.chapters.filter((c) => c.projectId === id).reduce((n, c) => n + wordsIn(c.doc), 0);
+    // A new date starts a fresh, steady pace from this morning.
+    const startWords = Math.max(0, total - wordsToday(this.state.settings.stats, ids, this.now()));
+    this.updateProject(id, { deadline: { date, from: today, startWords } });
   }
 
   // ---------- research ----------
