@@ -152,6 +152,8 @@ export function styleAllowed(type: BlockType, style: string): boolean {
 /** Block types that are list items: they can be indented, and Enter continues them. */
 export const LIST_TYPES: readonly BlockType[] = ['todo', 'bullet', 'numbered'];
 export const MAX_INDENT = 6;
+/** Most columns a section can have. */
+export const MAX_COLS = 4;
 
 export function isList(type: BlockType): boolean {
   return LIST_TYPES.includes(type);
@@ -208,9 +210,17 @@ export interface ParaLook {
   border?: string;
   /** Shading behind the paragraph, as #rrggbb. */
   shade?: string;
+  /**
+   * A section break before this paragraph (Word's Breaks > Section Breaks):
+   * the new section starts on a new page, or carries on down the same one.
+   * The section's columns and orientation, when they change here.
+   */
+  sect?: 'page' | 'cont';
+  cols?: number;
+  orient?: 'portrait' | 'landscape';
 }
 export type ParaKey = keyof ParaLook;
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'sect', 'cols', 'orient'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -239,6 +249,11 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
   const border = tidyBorder(p.border);
   if (border) out.border = border;
   if (p.shade && /^#[0-9a-f]{6}$/i.test(p.shade)) out.shade = p.shade.toLowerCase();
+  if (p.sect === 'page' || p.sect === 'cont') {
+    out.sect = p.sect;
+    if (out.cols !== undefined) out.cols = Math.max(1, Math.min(MAX_COLS, Math.round(out.cols)));
+    if (p.orient === 'portrait' || p.orient === 'landscape') out.orient = p.orient;
+  } else delete out.cols;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -596,6 +611,50 @@ export function footnotes(doc: Doc): { block: string; offset: number; text: stri
       if (r.footnote !== undefined) out.push({ block: b.id, offset: pos, text: r.footnote });
       pos += r.text.length;
     }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- list numbers
+
+const DEFAULT_NUMS: NumFormat[] = ['decimal', 'lower-alpha', 'lower-roman'];
+
+function alpha(n: number): string {
+  let s = '';
+  for (let x = n; x > 0; x = Math.floor((x - 1) / 26)) s = String.fromCharCode(97 + ((x - 1) % 26)) + s;
+  return s || '0';
+}
+
+function roman(n: number): string {
+  if (n <= 0 || n >= 4000) return String(n);
+  const parts: [number, string][] = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']];
+  let s = '';
+  for (const [v, r] of parts) for (; n >= v; n -= v) s += r;
+  return s;
+}
+
+/**
+ * The number each numbered list item shows ("3.", "b.", "iv.", "1.2"): a
+ * numbered item counts at its level and starts the levels below it again;
+ * a bulleted item starts its level again, and anything else every level.
+ */
+export function listLabels(blocks: Block[]): Map<string, string> {
+  const out = new Map<string, string>();
+  let counts: number[] = [];
+  for (const b of blocks) {
+    const level = Math.min(MAX_INDENT, b.indent ?? 0);
+    if (b.type === 'numbered') {
+      counts[level] = b.para?.start !== undefined ? b.para.start : (counts[level] ?? 0) + 1;
+      counts = counts.slice(0, level + 1);
+      const n = counts[level];
+      const fmt = b.para?.num ?? DEFAULT_NUMS[level % 3];
+      if (fmt === 'legal') out.set(b.id, Array.from({ length: level + 1 }, (_, i) => counts[i] ?? 0).join('.') + (level === 0 ? '.' : ''));
+      else {
+        const text = fmt === 'decimal' || fmt === 'paren' ? String(n) : fmt === 'upper-alpha' ? alpha(n).toUpperCase() : fmt === 'lower-alpha' ? alpha(n) : fmt === 'upper-roman' ? roman(n).toUpperCase() : roman(n);
+        out.set(b.id, text + (fmt === 'paren' ? ')' : '.'));
+      }
+    } else if (isList(b.type)) counts = counts.slice(0, level);
+    else counts = [];
   }
   return out;
 }

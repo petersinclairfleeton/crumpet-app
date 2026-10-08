@@ -887,7 +887,7 @@ input, select { font: inherit; color: inherit; }
 .clip-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
 /* Page view: footnotes at the foot of their page, under a short line. */
-.page-notes-zone { position: absolute; display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; }
+.page-notes-zone { position: absolute; z-index: 2; display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; }
 .page-notes { position: relative; padding-top: 12px; pointer-events: auto; font-family: var(--note-font, inherit); font-size: var(--note-size, 16px); color: var(--text); }
 .page-notes::before { content: ''; position: absolute; top: 5px; left: 0; width: 34%; border-top: 1px solid currentColor; opacity: 0.35; }
 .page-notes.measure { position: absolute; top: 0; visibility: hidden; pointer-events: none; padding: 0; }
@@ -950,7 +950,17 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .print-root del.trk { display: none; }
 .print-root ins.trk { text-decoration: none; color: inherit; }
 .print-root .brk, .print-root .visually-hidden { display: none; }
+/* Each page copied onto a sheet of its own (print.tsx), landscape ones turned. */
+.print-pages { display: block; }
+.print-page { position: relative; overflow: hidden; contain: strict; break-after: page; page: crumpet-portrait; }
+.print-page.landscape { page: crumpet-landscape; }
+.print-page:last-child { break-after: auto; }
+.print-page .page-view { position: absolute; inset: 0; padding: 0; display: block; }
+.print-page .page-inner { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
+.print-page .page-text { position: absolute; top: 0; left: 0; }
+@media screen { .print-pages { display: none; } }
 @media print {
+  html.printing .print-root > .print-part { display: none !important; }
   html.printing body > *:not(.print-root) { display: none !important; }
   html.printing, html.printing body { background: #fff !important; margin: 0; padding: 0; height: auto; overflow: visible; }
   html.printing .print-root { position: static; left: auto; }

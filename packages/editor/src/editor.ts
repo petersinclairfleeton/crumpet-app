@@ -93,7 +93,7 @@ import { type FindOptions, type Match, findMatches, replaceMatches } from './fin
 import { View, readTable } from './view';
 import { cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
 import { noteLink } from './markdown';
-import { type PageGeometry, Paginator } from './paginate';
+import { type PageBox, type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
 
 export interface ChangeEvent {
@@ -120,14 +120,26 @@ export class Editor {
 
   /** Page view: lays the text out in pages of this size (null: one long page). */
   setPages(geometry: PageGeometry | null): void {
+    const sel = this.keepSelection();
     this.paged = !!geometry;
     this.paginator.set(geometry);
+    sel();
     this.emit(null);
   }
 
   /** How many pages the text fills in page view. */
   get pages(): number {
     return this.paginator.pages;
+  }
+
+  /** Page view: where each page is and how big (unscaled px from the top left of the text). */
+  get pageBoxes(): PageBox[] {
+    return this.paginator.pageBoxes;
+  }
+
+  /** Page view: the page (from 0) a block starts on. */
+  pageOfBlock(id: string): number | undefined {
+    return this.paginator.pageOf.get(id);
   }
 
   /** Page view: the footnotes at the foot of each page (numbers from 0), page by page. */
@@ -144,16 +156,44 @@ export class Editor {
   /** Lays out the pages again, e.g. after fonts load or the styles change. */
   repaginate(): void {
     if (this.paged && !this.isComposing) {
-      const before = `${this.paginator.pages}|${JSON.stringify(this.paginator.pageNotes)}`;
+      const before = this.layoutKey();
+      const sel = this.keepSelection();
       this.paginator.update();
-      if (`${this.paginator.pages}|${JSON.stringify(this.paginator.pageNotes)}` !== before) this.emit(null);
+      sel();
+      if (this.layoutKey() !== before) this.emit(null);
     }
   }
 
-  /** Draws the document, then (in page view) its pages. Never during IME composition, which must not be disturbed. */
+  private layoutKey(): string {
+    return `${this.paginator.pages}|${JSON.stringify(this.paginator.pageNotes)}|${JSON.stringify(this.paginator.pageBoxes)}`;
+  }
+
+  /** Remembers the selection (as places in the text) and returns how to put it back after the page moves things around. */
+  private keepSelection(): () => void {
+    const focused = this.view.root.contains(this.view.root.ownerDocument.activeElement) && !this.activeCell();
+    const sel = focused ? this.view.readSelection() : null;
+    return () => {
+      if (sel) this.view.writeSelection(sel);
+    };
+  }
+
+  /**
+   * Draws the document, then (in page view) its pages. In page view the
+   * pages are taken apart first, so the blocks are one flow again while
+   * they're drawn. Never during IME composition, which must not be
+   * disturbed: it's drawn when that ends.
+   */
   private draw(doc: Doc, force?: Set<string>): void {
+    if (this.paged && this.isComposing) return;
+    if (this.paged) {
+      const sel = this.keepSelection();
+      this.paginator.clear();
+      this.view.render(doc, force);
+      this.paginator.update();
+      sel();
+      return;
+    }
     this.view.render(doc, force);
-    if (this.paged && !this.isComposing) this.paginator.update();
   }
 
   constructor(root: HTMLElement, doc: Doc) {
@@ -941,7 +981,11 @@ export class Editor {
     this.nativeEdit = false;
     if (!comp) return;
     // Some browsers fire the final input event after compositionend; read the DOM once things settle.
-    queueMicrotask(() => this.readBackFromDom(new Set([comp.block])));
+    queueMicrotask(() => {
+      this.readBackFromDom(new Set([comp.block]));
+      // Page view waited for the composition to end: lay the pages out again.
+      if (this.paged) this.draw(this.state.doc);
+    });
   }
 
   /** Gets keys first (e.g. while a menu at the caret is open); returning true means it handled them. */

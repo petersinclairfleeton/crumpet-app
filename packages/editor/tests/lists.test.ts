@@ -50,3 +50,13 @@ describe('list styles, numbering values, borders and shading', () => {
     expect(p).toEqual({ border: 'tblr' });
   });
 });
+
+describe('list numbers', () => {
+  it('count per level, restart after other paragraphs, and follow the chosen style and start', async () => {
+    const { listLabels } = await import('../src/model');
+    const n = (text: string, indent = 0, para?: object) => ({ ...makeBlock('numbered', text), ...(indent ? { indent } : {}), ...(para ? { para } : {}) });
+    const blocks = [n('a'), n('b'), n('b1', 1), n('b2', 1), n('b2i', 2), n('c'), makeBlock('paragraph', 'p'), n('again'), n('roman', 0, { num: 'upper-roman', start: 4 }), n('legal', 1, { num: 'legal' }), n('paren', 0, { num: 'paren' })];
+    const labels = listLabels(blocks);
+    expect(blocks.map((b) => labels.get(b.id) ?? '-')).toEqual(['1.', '2.', 'a.', 'b.', 'i.', '3.', '-', '1.', 'IV.', '4.1', '5)']);
+  });
+});

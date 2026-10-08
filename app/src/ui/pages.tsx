@@ -68,10 +68,14 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   const caret = useSlotCaret(activeSlot);
   const { width, height } = pageSize(page);
   const m = page.margins;
-  const content = height - (m.top + m.bottom) * PX_PER_IN;
-  const between = (m.top + m.bottom) * PX_PER_IN + gap;
   const hf = pageHF(page);
   const settings = useAppState().settings;
+  // Where the editor put each page (pages of a landscape section are wider); before it has, one page.
+  const laid = enabled ? (editor?.pageBoxes ?? []) : [];
+  const boxes = laid.length ? laid : [{ top: 0, left: 0, width, height, landscape: width > height }];
+  const widest = Math.max(...boxes.map((b) => b.width));
+  const last = boxes[boxes.length - 1];
+  const tallest = last.top + last.height;
 
   // Fit the page to the width available (never larger than real size), or the zoom chosen.
   const zoom = settings.zoom;
@@ -82,19 +86,22 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
       setScale(zoom / 100);
       return;
     }
-    const fit = () => setScale(Math.min(1, Math.max(0.3, (el.clientWidth - 24) / width)));
+    const fit = () => setScale(Math.min(1, Math.max(0.3, (el.clientWidth - 24) / widest)));
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [width, enabled, print, zoom]);
+  }, [widest, enabled, print, zoom]);
 
   // Tell the editor how big a page is; lay out again when fonts arrive or the styles change.
+  const px = (n: number) => n * PX_PER_IN;
+  const geometryKey = JSON.stringify([width, height, m, gap, page.cols ?? 1]);
   useEffect(() => {
     if (!editor || !enabled) return;
-    editor.setPages({ content, between, noteGap: NOTE_GAP });
+    editor.setPages({ width, height, margins: { top: px(m.top), right: px(m.right), bottom: px(m.bottom), left: px(m.left) }, gap, noteGap: NOTE_GAP, cols: page.cols ?? 1, colGap: px(0.5) });
     return () => editor.setPages(null);
-  }, [editor, content, between, enabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, geometryKey, enabled]);
 
   // Footnotes sit at the foot of their page: the editor asks how tall each one is.
   const measurer = useRef<HTMLDivElement>(null);
@@ -200,7 +207,6 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
     setEditing({ i, band, slot: SLOTS[third] });
   };
 
-  const pitch = height + gap;
   const pageNotes = enabled ? (editor?.pageNotes ?? []) : [];
   const notes = enabled && editor ? footnotes(editor.state.doc) : [];
   const openNote = (i: number) => {
@@ -208,13 +214,13 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
     const el = f && editor?.footnoteElement(f);
     if (editor && f && el) editor.onFootnoteClick?.({ block: f.block, offset: f.offset }, f.text, el);
   };
-  const textLeft = m.left * PX_PER_IN;
-  const textWidth = width - (m.left + m.right) * PX_PER_IN;
+  const textLeft = px(m.left);
+  const textWidth = width - px(m.left + m.right);
   const editVariant = editing ? variantFor(hf, { index: offset + editing.i, chapterStart: !!place?.chapterStart && editing.i === 0 }) : null;
 
   return (
     <div className={enabled ? `page-view${editing ? ' hf-editing' : ''}` : 'page-off'} ref={outer}>
-      {enabled && !print && editor && settings.ruler && <Ruler editor={editor} width={width} margins={m} scale={scale} sheet={sheet} />}
+      {enabled && !print && editor && settings.ruler && <Ruler editor={editor} width={width} boxes={boxes} margins={m} scale={scale} sheet={sheet} />}
       {editing && editVariant && (
         <HFToolbar
           label={`${variantName(hf, editVariant)} · page ${editing.i + 1 + offset}`}
@@ -229,15 +235,14 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
           host={outer.current?.closest<HTMLElement>('.note-pane') ?? null}
         />
       )}
-      <div className="page-scaler" style={enabled ? { width: width * scale, height: (pages * pitch - gap) * scale } : undefined}>
-        <div className="page-inner" style={enabled ? { width, transform: scale === 1 ? undefined : `scale(${scale})` } : undefined}>
-          {Array.from({ length: pages }, (_, i) => (
-            <div key={i} className="sheet" style={{ top: i * pitch, height }} aria-hidden="true" />
-          ))}
+      <div className="page-scaler" style={enabled ? { width: widest * scale, height: tallest * scale } : undefined}>
+        <div className="page-inner" style={enabled ? { width: widest, transform: scale === 1 ? undefined : `scale(${scale})` } : undefined}>
+          {enabled &&
+            boxes.map((b, i) => <div key={i} className={`sheet${b.landscape ? ' landscape' : ''}`} style={{ top: b.top, left: b.left, width: b.width, height: b.height }} aria-hidden="true" />)}
           {enabled && <div ref={measurer} className="page-notes measure" style={{ left: textLeft, width: textWidth }} aria-hidden="true" />}
           {pageNotes.map((list, i) =>
-            list.length ? (
-              <div key={`n${i}`} className="page-notes-zone" style={{ top: i * pitch + m.top * PX_PER_IN, height: content, left: textLeft, width: textWidth }}>
+            list.length && boxes[i] ? (
+              <div key={`n${i}`} className="page-notes-zone" data-notes-page={i} style={{ top: boxes[i].top + px(m.top), height: boxes[i].height - px(m.top + m.bottom), left: boxes[i].left + textLeft, width: boxes[i].width - px(m.left + m.right) }}>
                 <div className="page-notes" role="list" aria-label={`Footnotes on page ${offset + i + 1}`}>
                   {list.map((n) => (
                     <p key={n} className="page-note" role="listitem" onMouseDown={(e) => e.preventDefault()} onClick={() => openNote(n)}>
@@ -250,12 +255,12 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
           )}
           <div
             className="page-text"
-            style={enabled ? { top: m.top * PX_PER_IN, left: textLeft, width: textWidth } : undefined}
+            style={enabled ? { top: 0, left: 0, width: widest } : undefined}
             onMouseDown={() => editing && setEditing(null)}
           >
             {children}
           </div>
-          {Array.from({ length: pages }, (_, i) => {
+          {(enabled ? boxes : []).map((pb, i) => {
             const index = offset + i;
             const v = variantFor(hf, { index, chapterStart: !!place?.chapterStart && i === 0 });
             const set = hf.sets[v] ?? emptySet();
@@ -265,7 +270,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
             const band = (kind: 'header' | 'footer') => (
               <div
                 className={`hf-zone ${kind}`}
-                style={kind === 'header' ? { top: i * pitch, height: m.top * PX_PER_IN, left: textLeft, width: textWidth } : { top: i * pitch + height - m.bottom * PX_PER_IN, height: m.bottom * PX_PER_IN, left: textLeft, width: textWidth }}
+                style={kind === 'header' ? { top: pb.top, height: px(m.top), left: pb.left + textLeft, width: pb.width - px(m.left + m.right) } : { top: pb.top + pb.height - px(m.bottom), height: px(m.bottom), left: pb.left + textLeft, width: pb.width - px(m.left + m.right) }}
                 onDoubleClick={(e) => !isEditing && startEditing(i, kind, e)}
                 title={onPage && !isEditing ? `Double-click to edit the ${kind}` : undefined}
               >

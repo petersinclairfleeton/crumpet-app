@@ -5,7 +5,7 @@
 import type { Block, Doc, Mark, Pos, Run, Selection } from './model';
 import { isCovered, mergeAt } from './table';
 import { fillCell, readCell } from './cells';
-import { BULLETS, MAX_INDENT, isHeading, isList, runsLength } from './model';
+import { BULLETS, isHeading, isList, listLabels, runsLength } from './model';
 
 const TAGS: Record<Block['type'], string> = {
   paragraph: 'p',
@@ -112,6 +112,14 @@ export class View {
       el.toggleAttribute('data-folded-away', !!hideBelow);
       if (!hideBelow && block.folded) hideBelow = level;
     }
+    // List numbers, worked out here (not by CSS counters) so they stay right however the page splits the text.
+    const labels = listLabels(doc.blocks);
+    for (const block of doc.blocks) {
+      if (block.type !== 'numbered') continue;
+      const el = this.rendered.get(block.id)!.el;
+      const label = labels.get(block.id) ?? '';
+      if (el.dataset.label !== label) el.dataset.label = label;
+    }
     // A table of contents lists the headings as they are now.
     if (doc.blocks.some((b) => b.type === 'toc')) {
       const entries = tocEntries(doc);
@@ -129,61 +137,85 @@ export class View {
     return this.rendered.get(id)?.el ?? null;
   }
 
+  /** A block's element and, in page view, the continuations of it on later columns and pages, in order. */
+  pieces(id: string): HTMLElement[] {
+    const el = this.blockElement(id);
+    if (!el) return [];
+    if (!el.hasAttribute('data-split')) return [el];
+    return [el, ...Array.from(this.root.querySelectorAll<HTMLElement>(`[data-block="${CSS.escape(id)}"][data-cont]`))];
+  }
+
   /** The text the DOM currently shows for a block (may differ from the model during IME composition). */
   blockText(id: string): string | null {
     const el = this.blockElement(id);
     if (!el || !el.isConnected) return null;
-    return textEl(el).textContent ?? '';
+    return this.pieces(id)
+      .map((p) => textEl(p).textContent ?? '')
+      .join('');
   }
 
   /** True if the DOM still has exactly the block elements we rendered, in order. */
   structureIntact(doc: Doc): boolean {
     const kids = Array.from(this.root.children);
+    if (kids.some((k) => k.classList.contains('pg'))) {
+      // Page view: the blocks are in the pages' columns.
+      const heads = Array.from(this.root.querySelectorAll<HTMLElement>(':scope > .pg > .pg-band > .pg-col > [data-block]:not([data-cont])'));
+      return heads.length === doc.blocks.length && doc.blocks.every((b, i) => heads[i] === this.rendered.get(b.id)?.el);
+    }
     return kids.length === doc.blocks.length && doc.blocks.every((b, i) => kids[i] === this.rendered.get(b.id)?.el);
   }
 
   domToPos(node: Node, offset: number): Pos | null {
-    if (node === this.root) {
-      const kids = this.root.children;
-      if (!kids.length) return null;
-      if (offset >= kids.length) {
-        const last = kids[kids.length - 1] as HTMLElement;
-        return { block: last.dataset.block!, offset: (textEl(last).textContent ?? '').length };
-      }
-      return { block: (kids[offset] as HTMLElement).dataset.block!, offset: 0 };
+    if (!(node instanceof Element ? node : node.parentElement)?.closest('[data-block]')) {
+      // The text itself, or a page, band or column around the blocks: the block just after (or before) that point.
+      if (!(node instanceof Element) || !this.root.contains(node)) return null;
+      const kid = node.childNodes[offset] as Node | undefined;
+      const blockIn = (n: Node | undefined, last: boolean): HTMLElement | null => {
+        if (!(n instanceof HTMLElement)) return null;
+        if (n.dataset.block) return n;
+        const all = n.querySelectorAll<HTMLElement>('[data-block]');
+        return all.length ? all[last ? all.length - 1 : 0] : null;
+      };
+      const after = blockIn(kid, false);
+      if (after) return { block: after.dataset.block!, offset: Number(after.dataset.from ?? 0) };
+      const before = blockIn(node.childNodes[offset - 1] ?? node, true);
+      if (!before) return null;
+      return { block: before.dataset.block!, offset: Number(before.dataset.from ?? 0) + (textEl(before).textContent ?? '').length };
     }
-    const el = (node instanceof Element ? node : node.parentElement)?.closest<HTMLElement>('[data-block]');
-    if (!el || !this.root.contains(el)) return null;
+    const el = (node instanceof Element ? node : node.parentElement)!.closest<HTMLElement>('[data-block]')!;
+    if (!this.root.contains(el)) return null;
     const id = el.dataset.block!;
+    const base = Number(el.dataset.from ?? 0);
     const text = textEl(el);
     if (!text.contains(node)) {
       // Selection on the block element itself or its checkbox.
       if (node === el && offset > Array.prototype.indexOf.call(el.childNodes, text)) {
-        return { block: id, offset: (text.textContent ?? '').length };
+        return { block: id, offset: base + (text.textContent ?? '').length };
       }
-      return { block: id, offset: 0 };
+      return { block: id, offset: base };
     }
     const range = document.createRange();
     range.setStart(text, 0);
     range.setEnd(node, offset);
-    return { block: id, offset: range.toString().length };
+    return { block: id, offset: base + range.toString().length };
   }
 
   posToDom(pos: Pos): { node: Node; offset: number } | null {
-    const el = this.blockElement(pos.block);
-    if (!el) return null;
-    const text = textEl(el);
-    const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT);
+    const pieces = this.pieces(pos.block);
+    if (!pieces.length) return null;
     let remaining = pos.offset;
     let last: Text | null = null;
-    for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
-      // Prefer the end of the earlier node at a boundary, so the caret takes the marks of the text before it.
-      if (remaining <= n.data.length) return { node: n, offset: remaining };
-      remaining -= n.data.length;
-      last = n;
+    for (const piece of pieces) {
+      const walker = document.createTreeWalker(textEl(piece), NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode() as Text | null; n; n = walker.nextNode() as Text | null) {
+        // Prefer the end of the earlier node at a boundary, so the caret takes the marks of the text before it.
+        if (remaining <= n.data.length) return { node: n, offset: remaining };
+        remaining -= n.data.length;
+        last = n;
+      }
     }
     if (last) return { node: last, offset: last.data.length };
-    return { node: text, offset: 0 };
+    return { node: textEl(pieces[0]), offset: 0 };
   }
 
   readSelection(): Selection | null {
@@ -233,8 +265,13 @@ function buildBlock(block: Block): HTMLElement {
     if (p.pageBefore) el.dataset.pageBefore = '';
     if (p.keepNext) el.dataset.keepNext = '';
     if (p.keepLines) el.dataset.keepLines = '';
+    if (p.sect) {
+      // A section break before this paragraph: what the section after it is like.
+      el.dataset.sect = p.sect;
+      if (p.cols) el.dataset.cols = String(p.cols);
+      if (p.orient) el.dataset.orient = p.orient;
+    }
     if (block.type === 'numbered' && p.num) el.dataset.num = p.num;
-    if (block.type === 'numbered' && p.start !== undefined) el.style.counterSet = `n${Math.min(MAX_INDENT, block.indent ?? 0)} ${p.start}`;
     if (block.type === 'bullet' && p.bullet) el.dataset.bullet = BULLETS[p.bullet];
     if (p.border) {
       el.dataset.border = p.border;

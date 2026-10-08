@@ -75,16 +75,27 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - `commands.ts`: editing commands as transactions. `editor.ts`: input
     handling, clipboard, tables, hooks the app sets (`onFootnoteClick`,
     `onCommentKey`, `htmlToBlocks`, `tracking`…). `view.ts`: drawing
-    (including the Table menu under tables and the contents list).
-    `paginate.ts`: page view, including room for footnotes, page breaks,
-    keeps, and the contents' page numbers.
+    (including the Table menu under tables and the contents list; list
+    numbers are worked out there, not by CSS counters).
+    `paginate.ts`: page view's layout engine. The text is measured as one
+    flow per section (at its column width), then dealt onto page boxes
+    (`.pg` > `.pg-band` > `.pg-col`) of each section's size and columns; a
+    paragraph running past a column is split into its element plus
+    continuation elements (`data-cont`, `data-from` = offset in the text).
+    Before every redraw the pages are taken apart (`clear()`), so the view
+    always draws one flat flow. Handles footnote room, page breaks, keeps,
+    widows and orphans, balanced columns before a continuous section break,
+    and the contents' page numbers. The app draws sheets, headers, footers
+    and footnotes from `editor.pageBoxes`.
   - `markdown.ts`: the file format. Plain Markdown, plus `{.style}` at the
     end of a line, `[[Note links]]`, footnotes `^[text]`, pipe tables,
     CriticMarkup for comments `{==text==}{>>Name (date): comment<<}` and
     tracked changes `{++added++}` / `{--deleted--}`, tracked paragraph breaks
     as a tracked `¶` at the start of the line. Text looks are spans
     `[text]{font="Lora" size=14 color=#cc0000}`; paragraph settings go at
-    the end of the line `{.center line=2 num=upper-roman border=tb}`; a
+    the end of the line `{.center line=2 num=upper-roman border=tb}` (a
+    section break before a paragraph is `{sect=page cols=2 orient=landscape}`
+    or `sect=cont`); a
     table's look is a `{table .banded merge=1-0-1-2}` line under it, with
     column alignment in its rule row; `[TOC]` is a table of contents.
   - `diff.ts` and `sync/`: turning remote changes into operations, and
@@ -130,9 +141,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
 - Footnotes restart in each chapter of a manuscript.
 - The web clipper doesn't work on sites with strict security settings
   (pasting keeps formatting instead) or in the single-file build.
-- Word features not built: columns, sections (landscape and margins are
-  for the whole document), text boxes and shapes, styles of tables beyond
-  the Table menu. Tables of contents
+- Word features not built: text boxes and shapes, styles of tables beyond
+  the Table menu, margins per section. Printing turns landscape pages only
+  in browsers that support named pages (Chrome, Edge, Firefox). Tables of contents
   list one chapter at a time in a project (Word fills in the whole book's
   when it updates the field).
 - Not built yet: native Mac/iPhone/iPad apps, other storage (local folder,
