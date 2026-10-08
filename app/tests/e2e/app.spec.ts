@@ -203,10 +203,12 @@ test('Favorites: starring a note keeps it there', async ({ page }) => {
 test('settings: dark appearance and a different accent', async ({ page }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Look' }).click();
   await page.getByRole('button', { name: 'Ink', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Blueberry' }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
+  await page.getByRole('tab', { name: 'Account & sync' }).click();
   await page.getByLabel('Your name').fill('Peter Sinclair-Fleeton');
   await expect(sidebar(page).locator('.avatar')).toHaveText('PS');
   await page.reload();
@@ -342,6 +344,7 @@ test('a synced change to the open note arrives without moving the caret', async 
 test('themes: pick one, and accents follow themes that have none of their own', async ({ page }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Look' }).click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await settings.getByRole('button', { name: 'Vapor', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'vapor');
@@ -363,6 +366,7 @@ test('writing font: choose any Google font or one on this device, and a text siz
   await page.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: '' }));
   await open(page);
   await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Writing' }).click();
   const font = page.getByRole('group', { name: 'Writing font' });
   await font.getByRole('button', { name: /Change/ }).click();
   await font.getByLabel('Search fonts').fill('litera');
@@ -1118,6 +1122,7 @@ test('track changes: typing is marked added, deleting strikes through, and chang
 test('web clipper: the bookmark on another site opens Crumpet with the page, to save as a note', async ({ page, context }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Clipper & app' }).click();
   const href = await page.locator('.clip-bookmark').getAttribute('href');
   expect(href).toMatch(/^javascript:/);
   const code = decodeURIComponent(href!.slice('javascript:'.length));

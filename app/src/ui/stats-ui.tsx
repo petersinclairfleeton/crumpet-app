@@ -65,12 +65,15 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
   const max = Math.max(goal, ...last30.map((d) => days[d] ?? 0), 1);
   const chartH = 120;
 
-  // Calendar: weeks as columns, Monday at the top.
-  const start = (() => {
-    const [y, m, d] = today.split('-').map(Number);
-    const dow = (new Date(y, m - 1, d).getDay() + 6) % 7;
-    return addDays(today, -dow - (WEEKS - 1) * 7);
-  })();
+  // Calendar: weeks as columns, Monday at the top; from the first day written (at least 10 weeks, at most WEEKS).
+  const toDate = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const monday = addDays(today, -((toDate(today).getDay() + 6) % 7));
+  const first = Object.keys(days).filter((d) => days[d] > 0).sort()[0] ?? today;
+  const weeks = Math.min(WEEKS, Math.max(10, Math.ceil(Math.round((toDate(monday).getTime() - toDate(first).getTime()) / 86_400_000) / 7) + 1));
+  const start = addDays(monday, -(weeks - 1) * 7);
   const level = (n: number) => {
     if (!n) return 0;
     const ref = goal || Math.max(1, ...Object.values(days));
@@ -188,7 +191,7 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
             <h3>Since {shortDate(start, { month: 'long', day: 'numeric' })}</h3>
           </div>
           <div ref={calendar} className="calendar" role="grid" aria-label="Words written each day">
-            {Array.from({ length: WEEKS }, (_, w) => (
+            {Array.from({ length: weeks }, (_, w) => (
               <div key={w} className="cal-week" role="row">
                 {Array.from({ length: 7 }, (_, i) => {
                   const d = addDays(start, w * 7 + i);

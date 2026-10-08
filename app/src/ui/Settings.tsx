@@ -9,12 +9,22 @@ import { IconClose } from './icons';
 import { SyncSettings } from './SyncSettings';
 import { THEMES, themeInfo } from './themes';
 
-/** Settings, as a window over the app. */
-export function SettingsDialog({ onClose }: { onClose(): void }) {
+const SECTIONS = [
+  { id: 'account', label: 'Account & sync' },
+  { id: 'look', label: 'Look' },
+  { id: 'writing', label: 'Writing' },
+  { id: 'app', label: 'Clipper & app' },
+] as const;
+export type SettingsSection = (typeof SECTIONS)[number]['id'];
+
+/** Settings, as a window over the app, in a few sections. */
+export function SettingsDialog({ onClose, section: first = 'account' }: { onClose(): void; section?: SettingsSection }) {
   const state = useAppState();
   const store = useAppStore();
   const s = state.settings;
   const panel = useRef<HTMLDivElement>(null);
+  const [section, setSection] = useState<SettingsSection>(first);
+  const size = s.noteSize ?? DEFAULT_NOTE_SIZE;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -35,56 +45,76 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
             <IconClose size={16} />
           </button>
         </header>
-        <div className="settings">
-          <label className="field">
-            <span>Your name</span>
-            <input value={s.name} placeholder="Shown at the top of the sidebar" onChange={(e) => store.updateSettings({ name: e.target.value })} />
-          </label>
+        <div className="settings-tabs" role="tablist" aria-label="Sections">
+          {SECTIONS.map((x) => (
+            <button key={x.id} type="button" role="tab" id={`settings-${x.id}`} aria-selected={section === x.id} aria-controls="settings-panel" onClick={() => setSection(x.id)}>
+              {x.label}
+            </button>
+          ))}
+        </div>
+        <div className="settings" role="tabpanel" id="settings-panel" aria-labelledby={`settings-${section}`}>
+          {section === 'account' && (
+            <>
+              <label className="field">
+                <span>Your name</span>
+                <input value={s.name} placeholder="Shown at the top of the sidebar, and on manuscripts" onChange={(e) => store.updateSettings({ name: e.target.value })} />
+              </label>
+              <SyncSettings />
+            </>
+          )}
 
-          <div className="field" role="group" aria-label="Theme">
-            <span>Theme</span>
-            <div className="theme-grid">
-              {THEMES.map((t) => (
-                <button key={t.id} type="button" className="theme-card" aria-pressed={s.theme === t.id} aria-label={t.name} title={t.hint} onClick={() => store.updateSettings({ theme: t.id })}>
-                  <span className={`theme-preview${t.id === 'glass' ? ' glassy' : ''}`} aria-hidden="true">
-                    <i style={{ background: t.preview[0] }} />
-                    <i style={{ background: t.preview[1] }} />
-                    <i style={{ background: t.preview[2] }}>
-                      <b style={{ background: t.accent ?? s.accent }} />
-                    </i>
-                  </span>
-                  <span className="theme-name">{t.name}</span>
-                  <span className="theme-hint">{t.hint}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="field" role="group" aria-label="Accent colour">
-            <span>Accent</span>
-            {ownAccent ? (
-              <p className="sync-hint">This theme has its own colours.</p>
-            ) : (
-              <div className="accents">
-                {ACCENTS.map((a) => (
-                  <button key={a.hex} type="button" className={`swatch big${s.accent === a.hex ? ' on' : ''}`} style={{ background: a.hex }} aria-label={a.name} aria-pressed={s.accent === a.hex} title={a.name} onClick={() => store.updateSettings({ accent: a.hex })} />
-                ))}
+          {section === 'look' && (
+            <>
+              <div className="field" role="group" aria-label="Theme">
+                <span>Theme</span>
+                <div className="theme-grid">
+                  {THEMES.map((t) => (
+                    <button key={t.id} type="button" className="theme-card" aria-pressed={s.theme === t.id} aria-label={t.name} title={t.hint} onClick={() => store.updateSettings({ theme: t.id })}>
+                      <span className={`theme-preview${t.id === 'glass' ? ' glassy' : ''}`} aria-hidden="true">
+                        <i style={{ background: t.preview[0] }} />
+                        <i style={{ background: t.preview[1] }} />
+                        <i style={{ background: t.preview[2] }}>
+                          <b style={{ background: t.accent ?? s.accent }} />
+                        </i>
+                      </span>
+                      <span className="theme-name">{t.name}</span>
+                      <span className="theme-hint">{t.hint}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
-          </div>
 
-          <FontPicker value={s.noteFont ?? DEFAULT_FONT} onChange={(f) => store.updateSettings({ noteFont: f })} />
+              <div className="field" role="group" aria-label="Accent colour">
+                <span>Accent</span>
+                {ownAccent ? (
+                  <p className="sync-hint">This theme has its own colours.</p>
+                ) : (
+                  <div className="accents">
+                    {ACCENTS.map((a) => (
+                      <button key={a.hex} type="button" className={`swatch big${s.accent === a.hex ? ' on' : ''}`} style={{ background: a.hex }} aria-label={a.name} aria-pressed={s.accent === a.hex} title={a.name} onClick={() => store.updateSettings({ accent: a.hex })} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
-          <label className="field">
-            <span>Text size · {s.noteSize ?? DEFAULT_NOTE_SIZE}px</span>
-            <input className="range" type="range" min={13} max={24} step={1} value={s.noteSize ?? DEFAULT_NOTE_SIZE} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
-          </label>
+          {section === 'writing' && (
+            <>
+              <FontPicker value={s.noteFont ?? DEFAULT_FONT} onChange={(f) => store.updateSettings({ noteFont: f })} />
+              <label className="field">
+                <span>Text size · {size}px</span>
+                <input className="range" type="range" min={13} max={24} step={1} value={size} style={{ '--pct': `${((size - 13) / 11) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
+              </label>
+            </>
+          )}
 
-          <InstallSettings />
-
-          <ClipperSettings />
-
-          <SyncSettings />
+          {section === 'app' && (
+            <>
+              <ClipperSettings />
+              <InstallSettings />
+            </>
+          )}
         </div>
       </div>
     </div>,

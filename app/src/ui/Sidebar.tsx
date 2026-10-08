@@ -256,7 +256,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   );
 }
 
-function initials(name: string): string {
+export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '✎';
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
@@ -298,7 +298,7 @@ function SideRow(props: { icon?: React.ReactNode; label: string; count?: number;
       <span className="grow ellipsis">{props.label}</span>
       {props.count !== undefined && (
         <span className="count" title={props.countLabel ? `${props.count.toLocaleString()} ${props.countLabel}` : undefined}>
-          {props.countLabel ? compact(props.count) : props.count}
+          {props.countLabel ? `${compact(props.count)} ${props.countLabel.split(' ')[0]}` : props.count}
         </span>
       )}
     </button>
