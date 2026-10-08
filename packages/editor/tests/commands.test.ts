@@ -26,8 +26,8 @@ import {
   toggleFold,
   foldedUnder,
 } from '../src/commands';
-import { insertFootnote, setFootnote, addComment, setComment, insertText as typeIn, trackedInsertText, trackedDelete, resolveChanges, insertBlocks } from '../src/commands';
-import { comments, makeComment } from '../src/model';
+import { insertFootnote, setFootnote, addComment, setComment, insertText as typeIn, trackedInsertText, trackedDelete, resolveChanges, insertBlocks, trackedSplit, trackedJoin } from '../src/commands';
+import { changes, comments, makeComment } from '../src/model';
 import { footnotes } from '../src/model';
 import { diffDocs } from '../src/diff';
 import { normalizeLink } from '../src/model';
@@ -565,5 +565,52 @@ describe('pasting a heading at the end of a line', () => {
     const s0 = state({ blocks: [p] }, caret({ block: p.id, offset: 5 }));
     const d = applyOps(s0.doc, insertBlocks(s0, [makeBlock('heading2', 'Title'), makeBlock('paragraph', 'Body')])!.ops);
     expect(d.blocks.map((b) => `${b.type}:${runsText(b.runs)}`)).toEqual(['paragraph:Start', 'heading2:Title', 'paragraph:Body']);
+  });
+});
+
+describe('tracked paragraph breaks', () => {
+  const kinds = (d: Doc) => d.blocks.map((b) => `${b.brk ? (b.brk.kind === 'ins' ? '+' : '-') : ''}${runsText(b.runs)}`);
+  it('Enter adds a tracked break; Backspace takes it straight out again', () => {
+    const p = makeBlock('paragraph', 'OneTwo');
+    let s = state({ blocks: [p] }, caret({ block: p.id, offset: 3 }));
+    const go = (t: { ops: Op[]; selectionAfter: Selection } | null) => {
+      s = { ...s, doc: applyOps(s.doc, t!.ops), selection: t!.selectionAfter };
+    };
+    go(trackedSplit(s, 'R'));
+    expect(kinds(s.doc)).toEqual(['One', '+Two']);
+    go(trackedJoin(s, -1, 'R'));
+    expect(kinds(s.doc)).toEqual(['OneTwo']);
+  });
+
+  it('Backspace at the start of a paragraph marks the break deleted; accepting joins, rejecting keeps', () => {
+    const a = makeBlock('paragraph', 'One');
+    const b = makeBlock('paragraph', 'Two');
+    let s = state({ blocks: [a, b] }, caret({ block: b.id, offset: 0 }));
+    const t = trackedJoin(s, -1, 'R')!;
+    s = { ...s, doc: applyOps(s.doc, t.ops), selection: t.selectionAfter };
+    expect(kinds(s.doc)).toEqual(['One', '-Two']);
+    expect(s.selection.focus).toEqual({ block: a.id, offset: 3 });
+    // Pressing it again does nothing more.
+    expect(trackedJoin({ ...s, selection: caret({ block: b.id, offset: 0 }) }, -1, 'R')!.ops).toHaveLength(0);
+    const accepted = applyOps(s.doc, resolveChanges(s, true)!.ops);
+    expect(kinds(accepted)).toEqual(['OneTwo']);
+    const rejected = applyOps(s.doc, resolveChanges(s, false)!.ops);
+    expect(kinds(rejected)).toEqual(['One', 'Two']);
+    // Undo of accepting brings the marked break back.
+    const acc = resolveChanges(s, true)!;
+    expect(kinds(applyOps(accepted, invertOps(acc.ops)))).toEqual(['One', '-Two']);
+    // Just this break.
+    expect(kinds(applyOps(s.doc, resolveChanges(s, true, { block: b.id, from: -1, to: 0 })!.ops))).toEqual(['OneTwo']);
+  });
+
+  it('a selection across paragraphs marks their breaks deleted; typing over keeps types', () => {
+    const a = makeBlock('heading1', 'Head');
+    const b = makeBlock('paragraph', 'Body');
+    const s = state({ blocks: [a, b] }, { anchor: { block: a.id, offset: 2 }, focus: { block: b.id, offset: 2 } });
+    const d = applyOps(s.doc, trackedDelete(s, -1, 'R')!.ops);
+    expect(kinds(d)).toEqual(['Head', '-Body']);
+    expect(d.blocks[0].type).toBe('heading1');
+    // Changing a paragraph's kind keeps its tracked break.
+    expect(changes(d).map((c) => c.from)).toContain(-1);
   });
 });

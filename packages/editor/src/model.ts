@@ -142,6 +142,8 @@ export interface BlockAttrs {
   folded?: boolean;
   /** Tables only: the cells' text, row by row (the first row is the header). */
   rows?: string[][];
+  /** Track changes: the paragraph break before this block was added, or deleted (still there until accepted). */
+  brk?: Change;
   /** Pictures and files: where the file is (a path like "Attachments/abc-photo.jpg", or a web address). */
   src?: string;
 }
@@ -303,10 +305,14 @@ export function setChangeOnRuns(runs: Run[], change: Change | null): Run[] {
   );
 }
 
-/** Every tracked change in the document: each stretch of text with one change on it. */
+/**
+ * Every tracked change in the document: each stretch of text with one change
+ * on it, and each paragraph break added or deleted (from -1 to 0, before its block).
+ */
 export function changes(doc: Doc): { change: Change; block: string; from: number; to: number; text: string }[] {
   const out: { change: Change; block: string; from: number; to: number; text: string }[] = [];
   for (const b of doc.blocks) {
+    if (b.brk) out.push({ change: b.brk, block: b.id, from: -1, to: 0, text: '¶' });
     let pos = 0;
     for (const r of b.runs) {
       const end = pos + r.text.length;
@@ -430,6 +436,7 @@ export function makeBlock(type: BlockType, text = '', marks: Mark[] = [], extra:
   if ((type !== 'image' && type !== 'file') || !block.src) delete block.src;
   if (type !== 'table' || !block.rows) delete block.rows;
   if (!isHeading(type) || !block.folded) delete block.folded;
+  if (!block.brk) delete block.brk;
   return block;
 }
 
@@ -440,7 +447,7 @@ export function docsEqual(a: Doc, b: Doc): boolean {
   return a.blocks.every((x, i) => {
     const y = b.blocks[i];
     if (x === y) return true;
-    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || (x.src ?? '') !== (y.src ?? '') || !!x.folded !== !!y.folded || JSON.stringify(x.rows ?? null) !== JSON.stringify(y.rows ?? null) || x.runs.length !== y.runs.length) return false;
+    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || (x.src ?? '') !== (y.src ?? '') || !!x.folded !== !!y.folded || !sameChange(x.brk, y.brk) || JSON.stringify(x.rows ?? null) !== JSON.stringify(y.rows ?? null) || x.runs.length !== y.runs.length) return false;
     return x.runs.every((r, j) => r.text === y.runs[j].text && sameFormat(r, y.runs[j]));
   });
 }

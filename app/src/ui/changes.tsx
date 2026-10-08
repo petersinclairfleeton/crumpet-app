@@ -107,10 +107,12 @@ export function ChangeCard({ editor }: { editor: Editor | null }) {
     setOpen(null);
   };
   const c = open.change;
+  const what = open.where.from < 0 ? 'paragraph break' : 'text';
   return createPortal(
-    <div ref={card} className="change-card" role="dialog" aria-label={c.kind === 'ins' ? 'Added text' : 'Deleted text'} style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }}>
+    <div ref={card} className="change-card" role="dialog" aria-label={`${c.kind === 'ins' ? 'Added' : 'Deleted'} ${what}`} style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }}>
       <p>
-        <b>{c.kind === 'ins' ? 'Added' : 'Deleted'}</b> by {c.author || 'someone'}
+        <b>{c.kind === 'ins' ? 'Added' : 'Deleted'}</b>
+        {open.where.from < 0 ? ' a paragraph break' : ''} by {c.author || 'someone'}
         {c.at ? <small> · {when(c.at)}</small> : null}
       </p>
       <div className="comment-actions">

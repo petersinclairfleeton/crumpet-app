@@ -235,6 +235,15 @@ function buildBlock(block: Block): HTMLElement {
     fold.setAttribute('aria-expanded', String(!block.folded));
     el.appendChild(fold);
   }
+  if (block.brk) {
+    // Track changes: the paragraph break before this one was added or deleted.
+    el.dataset.brk = block.brk.kind;
+    const mark = document.createElement('span');
+    mark.className = `brk ${block.brk.kind}`;
+    mark.contentEditable = 'false';
+    mark.title = `Paragraph break ${block.brk.kind === 'ins' ? 'added' : 'deleted'} by ${block.brk.author || 'someone'}`;
+    el.appendChild(mark);
+  } else delete el.dataset.brk;
   const text = document.createElement('span');
   text.className = 'text';
   if (!block.runs.length) {

@@ -186,14 +186,14 @@ function nextBlockAttrs(block: Block) {
   if (isMedia(block.type)) return blockAttrs('paragraph');
   if (isList(block.type)) return { ...blockAttrs(block.type, false, block.indent), ...(block.align ? { align: block.align } : {}) };
   if (isHeading(block.type) || (block.style && ENDS_ON_ENTER.has(block.style))) return blockAttrs('paragraph');
-  return { ...attrsOf(block), checked: undefined };
+  return { ...attrsOf(block), checked: undefined, brk: undefined };
 }
 
 function splitAt(b: Builder, pos: Pos): Pos {
   const block = getBlock(b.doc, pos.block);
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
-  const newAttrs = atEnd ? nextBlockAttrs(block) : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false });
+  const newAttrs = atEnd ? nextBlockAttrs(block) : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
   // Enter at the very start of a heading keeps the heading below and leaves an empty paragraph above.
@@ -561,7 +561,7 @@ function insertWidget(state: EditorState, media: BlockAttrs, caption = ''): Tran
     id = block.id;
   } else {
     // Text after the caret moves below the picture.
-    if (at.offset < len) b.step({ type: 'split', block: block.id, offset: at.offset, newBlock: newId(), newAttrs: attrsOf({ ...block, checked: false }) });
+    if (at.offset < len) b.step({ type: 'split', block: block.id, offset: at.offset, newBlock: newId(), newAttrs: attrsOf({ ...block, checked: false, brk: undefined }) });
     id = newId();
     b.step({ type: 'split', block: block.id, offset: at.offset, newBlock: id, newAttrs: media });
   }
@@ -688,6 +688,11 @@ function markDeleted(b: Builder, from: Pos, to: Pos, change: Change): Pos {
       }
     }
     if (i === end) endPos = { block: block.id, offset: z - removed };
+    // The paragraph break before this block is deleted too (one added while tracking just goes).
+    if (i > start && !getBlock(b.doc, block.id).brk) {
+      const cur = getBlock(b.doc, block.id);
+      b.step({ type: 'setAttrs', block: cur.id, from: attrsOf(cur), to: { ...attrsOf(cur), brk: change } });
+    }
   }
   return endPos;
 }
@@ -776,6 +781,18 @@ export function resolveChanges(state: EditorState, accept: boolean, where?: { bl
       else b.step({ type: 'format', block: block.id, offset: p.from, before: runs, after: setChangeOnRuns(runs, null), change: null });
     }
   }
+  // Paragraph breaks, last first (accepting a deletion or rejecting an addition joins two paragraphs).
+  for (const block of [...b.doc.blocks].reverse()) {
+    if (!block.brk || (where && (block.id !== where.block || where.from > -1))) continue;
+    const goes = (block.brk.kind === 'del') === accept;
+    b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: { ...attrsOf(block), brk: undefined } });
+    const i = blockIndex(b.doc, block.id);
+    const prev = b.doc.blocks[i - 1];
+    if (goes && prev && !isMedia(prev.type) && !isMedia(block.type)) {
+      const cur = getBlock(b.doc, block.id);
+      b.step({ type: 'join', block: prev.id, second: cur.id, offset: runsLength(prev.runs), secondAttrs: attrsOf(cur) });
+    }
+  }
   if (!b.ops.length) return null;
   // Keep the caret inside the document.
   const doc = b.doc;
@@ -835,4 +852,42 @@ export function insertBlocks(state: EditorState, blocks: Block[]): Transaction |
     return tx(state, b, caret(end));
   }
   return tx(state, b, caret(isMedia(lastBlock.type) ? { block: tail.block, offset: 0 } : end));
+}
+
+/** Enter with track changes on: a new paragraph, its break marked as added. */
+export function trackedSplit(state: EditorState, author: string): Transaction {
+  const t = splitBlock(state);
+  const made = new Set(t.ops.flatMap((op) => (op.type === 'split' ? [op.newBlock] : [])));
+  const doc = applyOps(state.doc, t.ops);
+  const id = t.selectionAfter.focus.block;
+  // Only when a paragraph was really made (Enter on an empty list item just ends the list).
+  if (!made.has(id)) return t;
+  const blk = getBlock(doc, id);
+  return { ...t, ops: [...t.ops, { type: 'setAttrs', block: id, from: attrsOf(blk), to: { ...attrsOf(blk), brk: makeChange('ins', author) } }] };
+}
+
+/**
+ * Backspace at the start of a paragraph (dir -1) or Delete at its end (1),
+ * with track changes on: the break between the two paragraphs is marked
+ * deleted (one added while tracking just goes). Null where there's nothing to join.
+ */
+export function trackedJoin(state: EditorState, dir: -1 | 1, author: string): Transaction | null {
+  const pos = state.selection.focus;
+  const i = blockIndex(state.doc, pos.block);
+  const second = state.doc.blocks[dir < 0 ? i : i + 1];
+  const first = state.doc.blocks[dir < 0 ? i - 1 : i];
+  if (!first || !second || isMedia(first.type) || isMedia(second.type)) return null;
+  if (second.brk?.kind === 'ins') return joinPlain(state, first, second);
+  const b = new Builder(state.doc);
+  if (!second.brk) b.step({ type: 'setAttrs', block: second.id, from: attrsOf(second), to: { ...attrsOf(second), brk: makeChange('del', author) } });
+  // The caret moves over the break.
+  return tx(state, b, caret(dir < 0 ? { block: first.id, offset: runsLength(first.runs) } : { block: second.id, offset: 0 }));
+}
+
+/** Joins two paragraphs as they are (no list or heading rules). */
+function joinPlain(state: EditorState, first: Block, second: Block): Transaction {
+  const b = new Builder(state.doc);
+  const offset = runsLength(first.runs);
+  b.step({ type: 'join', block: first.id, second: second.id, offset, secondAttrs: attrsOf(second) });
+  return tx(state, b, caret({ block: first.id, offset }));
 }

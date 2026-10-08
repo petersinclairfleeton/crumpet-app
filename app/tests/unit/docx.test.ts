@@ -143,3 +143,17 @@ describe('Word tracked changes', () => {
     expect(back.doc.blocks[0].runs).toEqual(a.runs);
   });
 });
+
+describe('Word tracked paragraph breaks', () => {
+  it('ride on the paragraph mark before them, both ways', async () => {
+    const c = { kind: 'ins' as const, author: 'Robin', at: Date.UTC(2026, 9, 7, 9, 32) };
+    const blocks = [makeBlock('paragraph', 'One'), { ...makeBlock('paragraph', 'Two'), brk: c }, { ...makeBlock('paragraph', 'Three'), brk: { ...c, kind: 'del' as const } }];
+    const bytes = await toDocx([{ doc: { blocks } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toMatch(/One<\/w:t>/);
+    expect(xml).toMatch(/<w:pPr><w:rPr><w:ins w:id="\d+" w:author="Robin"/);
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks.map((b) => [b.runs[0].text, b.brk?.kind])).toEqual([['One', undefined], ['Two', 'ins'], ['Three', 'del']]);
+    expect(back.doc.blocks[1].brk).toEqual(c);
+  });
+});

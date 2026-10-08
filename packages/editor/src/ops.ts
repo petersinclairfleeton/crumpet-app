@@ -9,6 +9,8 @@ import {
   type Mark,
   type Comment,
   type Change,
+  type Block,
+  sameChange,
   MAX_INDENT,
   styleAllowed,
   commonLink,
@@ -57,13 +59,15 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
   if ((b.type === 'image' || b.type === 'file') && b.src) a.src = b.src;
   if (b.type === 'table') a.rows = tidyRows(b.rows);
   if (isHeading(b.type) && b.folded) a.folded = true;
+  // Always present (even when there's none), so a setAttrs built from attrsOf says exactly what the break is.
+  a.brk = b.brk || undefined;
   return a;
 }
 
 export function sameAttrs(a: BlockAttrs, b: BlockAttrs): boolean {
   const x = attrsOf(a);
   const y = attrsOf(b);
-  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null);
+  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk);
 }
 
 export function applyOp(doc: Doc, op: Op): Doc {
@@ -88,7 +92,9 @@ export function applyOp(doc: Doc, op: Op): Doc {
       check(op.offset >= 0 && op.offset <= len, 'split: offset out of range');
       check(!doc.blocks.some((x) => x.id === op.newBlock), 'split: new block id already exists');
       blocks[i] = { ...b, runs: sliceRuns(b.runs, 0, op.offset) };
-      blocks.splice(i + 1, 0, { id: op.newBlock, ...attrsOf(op.newAttrs), runs: sliceRuns(b.runs, op.offset, len) });
+      const added: Block = { id: op.newBlock, ...attrsOf(op.newAttrs), runs: sliceRuns(b.runs, op.offset, len) };
+      if (!added.brk) delete added.brk;
+      blocks.splice(i + 1, 0, added);
       break;
     }
     case 'join': {
@@ -101,7 +107,11 @@ export function applyOp(doc: Doc, op: Op): Doc {
     }
     case 'setAttrs': {
       const { id, runs } = b;
-      blocks[i] = { id, ...attrsOf(op.to), runs };
+      const to = attrsOf(op.to);
+      // Attributes made from scratch (blockAttrs) leave a tracked paragraph break as it is.
+      if (!('brk' in op.to)) to.brk = b.brk;
+      if (!to.brk) delete to.brk;
+      blocks[i] = { id, ...to, runs };
       break;
     }
     case 'format': {

@@ -183,8 +183,17 @@ class Writer {
     return body ? `<w:r>${props}${body}</w:r>` : '';
   }
 
+  /** A tracked change on the next paragraph break: Word keeps it on this paragraph's mark. */
+  markNext: Change | null = null;
+
   paragraph(style: string | null, body: string, extra = ''): string {
-    const ppr = (style ? `<w:pStyle w:val="${style}"/>` : '') + extra;
+    let mark = '';
+    if (this.markNext) {
+      const c = this.markNext;
+      this.markNext = null;
+      mark = `<w:rPr><w:${c.kind} w:id="${this.nextChange++}" w:author="${esc(c.author || 'Someone')}"${c.at ? ` w:date="${new Date(c.at).toISOString().replace(/\.\d+Z$/, 'Z')}"` : ''}/></w:rPr>`;
+    }
+    const ppr = (style ? `<w:pStyle w:val="${style}"/>` : '') + extra + mark;
     return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${body}</w:p>`;
   }
 
@@ -230,8 +239,10 @@ class Writer {
   async blocks(blocks: Block[], first: string): Promise<string> {
     let out = '';
     let num = 0;
-    for (const b of blocks) {
+    for (const [k, b] of blocks.entries()) {
       const lead = out ? '' : first;
+      const after = blocks[k + 1]?.brk;
+      this.markNext = after && b.type !== 'table' ? after : null;
       // A numbered list starts again at 1 after anything that isn't a list item.
       if (b.type === 'numbered') {
         if (!num) num = ++this.numbered + 1;
@@ -680,8 +691,15 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     }
   };
 
+  /** A tracked change on the last paragraph's mark: the break before the next paragraph. */
+  let pendingBreak: Change | undefined;
   const paragraph = async (p: Element) => {
     const ppr = child(p, 'pPr');
+    const brk = pendingBreak;
+    const markRpr = child(ppr, 'rPr');
+    const markChange = markRpr && kids(markRpr).find((x) => x.localName === 'ins' || x.localName === 'del');
+    pendingBreak = markChange ? { kind: markChange.localName as 'ins' | 'del', author: (attr(markChange, 'author') ?? '').replace(/\s+/g, ' ').trim(), at: Number.isNaN(Date.parse(attr(markChange, 'date') ?? '')) ? 0 : Math.floor(Date.parse(attr(markChange, 'date') ?? '') / 60000) * 60000 } : undefined;
+    const startAt = blocks.length;
     const styleId = attr(child(ppr, 'pStyle'), 'val') ?? '';
     const name = styleName.get(styleId) ?? styleId.toLowerCase();
     const runs: Run[] = [];
@@ -727,6 +745,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     if (align && !b.align) b.align = align;
     b.runs = normalizeRuns(clean);
     blocks.push(b);
+    if (brk && blocks[startAt] && !blocks[startAt].brk) blocks[startAt].brk = brk;
   };
 
   const table = (t: Element) => {
