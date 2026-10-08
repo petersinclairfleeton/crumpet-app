@@ -96,7 +96,7 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
     ed.onFiles = (files) => void insertFiles(ed, files);
     // Text copied from a web page, Word or Google Docs keeps its headings, lists and formatting.
     ed.htmlToBlocks = (html) => {
-      const { blocks } = htmlToDoc(html, location.href);
+      const { blocks } = htmlToDoc(html, location.href, { looks: true });
       return blocks.length === 1 && !blocks[0].runs.length && blocks[0].type === 'paragraph' ? null : blocks;
     };
     // Links to other notes open them (a plain click: they're part of Crumpet, not the web).
