@@ -290,6 +290,8 @@ export interface PageSetup {
   hf?: HeadersFooters;
   /** Turned on its side (Word's Orientation: Landscape). */
   landscape?: boolean;
+  /** Columns of text (Word's Layout > Columns), for the document's first section. */
+  cols?: number;
 }
 
 /** A page setup's headers and footers. */

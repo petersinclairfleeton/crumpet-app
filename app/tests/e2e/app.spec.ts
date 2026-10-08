@@ -518,10 +518,10 @@ test('page view: text flows onto pages, splitting paragraphs, and typing across 
     s.updateSettings({ noteSize: 30 });
   });
   await expect.poll(() => page.locator('.sheet').count()).toBeGreaterThan(1);
-  const breaks = page.locator('.note-editor .page-break');
+  // A paragraph broken across two pages: its text goes on in a continuation at the top of the next.
+  const breaks = page.locator('.note-editor [data-cont]');
   await expect(breaks.first()).toBeAttached();
-  // A paragraph broken across two pages: text on both sides of the break.
-  const split = await breaks.evaluateAll((els) => els.some((b) => !!b.previousSibling?.textContent && !!b.nextSibling?.textContent));
+  const split = await breaks.evaluateAll((els) => els.some((c) => !!c.textContent && !!c.ownerDocument.querySelector(`[data-block="${(c as HTMLElement).dataset.block}"][data-split]`)?.textContent));
   expect(split).toBe(true);
   // Type at the very end (on the last page), and at the start of the first paragraph.
   const editor = page.locator('.note-pane [contenteditable]');
@@ -552,7 +552,8 @@ test('page view: typing and deleting right at a page break', async ({ page }) =>
   await page.keyboard.insertText(Array.from({ length: 14 }, (_, i) => `Line ${i + 1} is a paragraph that is long enough to wrap onto a second line of the page here.`).join('\n'));
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ noteSize: 28 }));
   await page.getByRole('button', { name: 'Page view' }).click();
-  const brk = page.locator('.note-editor .page-break').first();
+  // The first text on the second page (a paragraph moved there whole, or the rest of one split there).
+  const brk = page.locator('.note-editor .pg + .pg [data-block]').first();
   await expect(brk).toBeAttached();
   const doc = () =>
     page.evaluate(() => {
@@ -561,13 +562,13 @@ test('page view: typing and deleting right at a page break', async ({ page }) =>
       return st.notes.find((n) => n.id === st.selectedId)!.doc.blocks.map((b) => b.runs.map((r) => r.text).join('')).join('\n');
     });
   const before = await doc();
-  // Put the caret just after the break, then type and delete.
+  // Put the caret at the start of the page (just after the break), then type and delete.
   await brk.evaluate((b) => {
-    const after = b.nextSibling!;
+    const walker = document.createTreeWalker(b, NodeFilter.SHOW_TEXT);
+    const first = walker.nextNode()!;
     const sel = getSelection()!;
     const r = document.createRange();
-    if (after.nodeType === Node.TEXT_NODE) r.setStart(after, 0);
-    else r.setStartAfter(b);
+    r.setStart(first, 0);
     r.collapse(true);
     sel.removeAllRanges();
     sel.addRange(r);
@@ -1377,7 +1378,7 @@ test('print or save as PDF: the pages as page view shows them, and e-books downl
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('button', { name: 'Print or save as PDF' }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
-  const sheets = await page.locator('.print-root .sheet').count();
+  const sheets = await page.locator('.print-root .print-page').count();
   expect(sheets).toBeGreaterThan(1);
   await expect(page.locator('.print-root .page-notes-zone').first()).toContainText('A note at the foot.');
   const pdf = await page.pdf({ preferCSSPageSize: true });
@@ -1793,7 +1794,7 @@ test('list styles from the libraries, a numbering value, and paragraph borders a
   await page.getByRole('button', { name: 'Capital Roman numerals' }).click();
   const first = page.locator('.note-editor .blk').first();
   await expect(first).toHaveAttribute('data-num', 'upper-roman');
-  expect(await first.evaluate((el) => getComputedStyle(el, '::before').content)).toContain('upper-roman');
+  await expect(first).toHaveAttribute('data-label', 'I.');
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('Method');
@@ -1802,7 +1803,7 @@ test('list styles from the libraries, a numbering value, and paragraph borders a
   await (await toolButton(page, 'Numbering styles')).click();
   await page.getByLabel('Numbering value').fill('7');
   await page.getByRole('button', { name: 'Set', exact: true }).click();
-  await expect(second).toHaveCSS('counter-set', 'n0 7');
+  await expect(second).toHaveAttribute('data-label', 'VII.');
   // A boxed, shaded paragraph after the list.
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
@@ -1970,4 +1971,53 @@ test('pasting keeps fonts and colours; Ctrl+Shift+V pastes just the text', async
   await paste('<span style="color:#1155cc">plain blue</span>', 'plain blue');
   await expect(body).toContainText('red Lora plain blue');
   await expect(body.locator('.lk')).toHaveCount(1);
+});
+
+test('page view lays out sections: two columns that flow and balance, a landscape page, and typing across a column break', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void; updateSettings(p: object): void; getState(): { settings: { pageView?: object } } } }).crumpet;
+    const para = (i: number) => `Paragraph ${i}. The lamp had not been lit for eleven years, and still the boats steered by it. Mara climbed the hundred and twelve steps.`;
+    const doc = `Intro.\n\nTwo columns. {sect=cont cols=2}\n\n${Array.from({ length: 16 }, (_, i) => para(i + 1)).join('\n\n')}\n\nOne column again. {sect=cont cols=1}\n\nWide. {sect=page orient=landscape}\n\nPortrait. {sect=page orient=portrait}`;
+    const n = s.createNote({ title: 'Sections', doc: md.fromMarkdown(doc) });
+    s.select(n.id);
+    s.updateSettings({ pageView: { ...(s.getState().settings.pageView ?? {}), notes: true } });
+  });
+  const pages = page.locator('.note-editor .pg');
+  await expect(pages).toHaveCount(4);
+  // Page 1: the intro across the page, then two columns.
+  await expect(pages.nth(0).locator('.pg-band')).toHaveCount(2);
+  await expect(pages.nth(0).locator('.pg-band').nth(1).locator('.pg-col')).toHaveCount(2);
+  // Page 2: the rest of the columns, balanced, then one column again.
+  const bands = pages.nth(1).locator('.pg-band');
+  await expect(bands).toHaveCount(2);
+  const heights = await bands.nth(0).locator('.pg-col').evaluateAll((cols) => cols.map((c) => c.getBoundingClientRect().height));
+  expect(Math.abs(heights[0] - heights[1])).toBeLessThan(60);
+  await expect(bands.nth(1)).toContainText('One column again.');
+  // Page 3 is on its side.
+  const size = await pages.nth(2).evaluate((el) => [(el as HTMLElement).offsetWidth, (el as HTMLElement).offsetHeight]);
+  expect(size[0]).toBeGreaterThan(size[1]);
+  await expect(page.locator('.sheet').nth(2)).toHaveClass(/landscape/);
+  // A paragraph split between columns: typing at the start of the second part goes in the right place.
+  const cont = page.locator('.note-editor [data-cont]').first();
+  await expect(cont).toBeAttached();
+  const id = await cont.getAttribute('data-block');
+  const from = Number(await cont.getAttribute('data-from'));
+  await cont.evaluate((c) => {
+    const first = document.createTreeWalker(c, NodeFilter.SHOW_TEXT).nextNode()!;
+    const r = document.createRange();
+    r.setStart(first, 0);
+    r.collapse(true);
+    getSelection()!.removeAllRanges();
+    getSelection()!.addRange(r);
+    (c.closest('[contenteditable=true]') as HTMLElement).focus();
+  });
+  await page.keyboard.type('XY');
+  const text = await page.evaluate((id) => {
+    const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { id: string; runs: { text: string }[] }[] } }[] } } }).crumpet.getState();
+    return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.find((b) => b.id === id)!.runs.map((r) => r.text).join('');
+  }, id);
+  expect(text.slice(from, from + 2)).toBe('XY');
 });

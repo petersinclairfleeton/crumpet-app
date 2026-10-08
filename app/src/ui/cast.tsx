@@ -284,7 +284,8 @@ function publish(): void {
 function scan(root: HTMLElement, matcher: CastMatcher | null): { range: Range; id: string }[] {
   const out: { range: Range; id: string }[] = [];
   if (!matcher) return out;
-  for (const block of Array.from(root.children) as HTMLElement[]) {
+  // Each block, or (in page view) each part of one on its page and column.
+  for (const block of Array.from(root.querySelectorAll<HTMLElement>(':scope > [data-block], :scope > .pg > .pg-band > .pg-col > [data-block]'))) {
     const text = block.querySelector<HTMLElement>(':scope > .text');
     if (!text) continue;
     const nodes: Text[] = [];
