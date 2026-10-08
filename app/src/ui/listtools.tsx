@@ -174,15 +174,15 @@ function ShadingTool({ ed, off }: { ed: Editor | null; off: boolean }) {
 /** Bullets and Numbering (with their libraries), as toolbar items. */
 export function listItems(ed: Editor | null, off: boolean): ToolItem[] {
   return [
-    { key: 'bullet', pri: 2, sep: true, node: <ListTool ed={ed} off={off} kind="bullet" /> },
-    { key: 'numbered', pri: 2, node: <ListTool ed={ed} off={off} kind="numbered" /> },
+    { key: 'bullet', label: 'Bullets', pri: 2, sep: true, node: <ListTool ed={ed} off={off} kind="bullet" /> },
+    { key: 'numbered', label: 'Numbering', pri: 2, node: <ListTool ed={ed} off={off} kind="numbered" /> },
   ];
 }
 
 /** Borders and Shading, as toolbar items. */
 export function borderItems(ed: Editor | null, off: boolean): ToolItem[] {
   return [
-    { key: 'borders', pri: 1, node: <BorderTool ed={ed} off={off} /> },
-    { key: 'shading', pri: 1, node: <ShadingTool ed={ed} off={off} /> },
+    { key: 'borders', label: 'Borders', pri: 1, node: <BorderTool ed={ed} off={off} /> },
+    { key: 'shading', label: 'Shading', pri: 1, node: <ShadingTool ed={ed} off={off} /> },
   ];
 }

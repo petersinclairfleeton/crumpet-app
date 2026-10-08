@@ -198,6 +198,8 @@ export interface ParaLook {
   first?: number;
   /** Starts on a new page. */
   pageBefore?: boolean;
+  /** Starts at the top of the next column (Word's column break). */
+  colBefore?: boolean;
   /** Kept on the same page as the next paragraph; its lines kept together. */
   keepNext?: boolean;
   keepLines?: boolean;
@@ -220,7 +222,7 @@ export interface ParaLook {
   orient?: 'portrait' | 'landscape';
 }
 export type ParaKey = keyof ParaLook;
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'sect', 'cols', 'orient'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'sect', 'cols', 'orient'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -657,4 +659,24 @@ export function listLabels(blocks: Block[]): Map<string, string> {
     else counts = [];
   }
   return out;
+}
+
+/** The index of the block that starts the section block `i` is in (0 for the first section). */
+export function sectionStart(blocks: Block[], i: number): number {
+  for (let k = Math.min(i, blocks.length - 1); k > 0; k--) if (blocks[k].para?.sect) return k;
+  return 0;
+}
+
+/** A section's columns and orientation, as they come out after every break before it (undefined orientation: the page setup's). */
+export function sectionLook(blocks: Block[], i: number): { cols: number; orient?: 'portrait' | 'landscape' } {
+  let cols = 1;
+  let orient: 'portrait' | 'landscape' | undefined;
+  const start = sectionStart(blocks, i);
+  for (let k = 0; k <= start; k++) {
+    const p = blocks[k].para;
+    if (!p?.sect) continue;
+    if (p.cols) cols = p.cols;
+    if (p.orient) orient = p.orient;
+  }
+  return { cols, orient };
 }

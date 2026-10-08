@@ -60,6 +60,7 @@ interface Measured {
   /** From the top of a line's box to the top of its letters (worked out when it's needed). */
   lead?: number;
   pageBefore: boolean;
+  colBefore: boolean;
   keepNext: boolean;
   keepLines: boolean;
   heading: boolean;
@@ -180,10 +181,9 @@ export class Paginator {
     blocks.forEach((el, i) => {
       const sect = el.dataset.sect;
       if (i > 0 && !sect) return;
-      if (i > 0) {
-        if (el.dataset.cols) cols = Math.max(1, Number(el.dataset.cols) || 1);
-        if (el.dataset.orient) landscape = el.dataset.orient === 'landscape';
-      }
+      // (On the very first paragraph, a section break just holds the first section's settings.)
+      if (el.dataset.cols) cols = Math.max(1, Number(el.dataset.cols) || 1);
+      if (el.dataset.orient) landscape = el.dataset.orient === 'landscape';
       const width = landscape ? long : short;
       const height = landscape ? short : long;
       const content = width - m.left - m.right;
@@ -217,6 +217,7 @@ export class Paginator {
           top: y(box.top),
           bottom: y(box.bottom),
           pageBefore: el.dataset.pageBefore !== undefined,
+          colBefore: el.dataset.colBefore !== undefined,
           keepNext: el.dataset.keepNext !== undefined,
           keepLines: el.dataset.keepLines !== undefined,
           heading: /^H[1-6]$/.test(el.tagName),
@@ -296,6 +297,11 @@ export class Paginator {
         // A page break before this paragraph (unless it's at the top of a page already).
         if (b.pageBefore && k === 0 && !(top === 0 && c === 0 && !col.length)) {
           pageBreak = true;
+          break;
+        }
+        // A column break: on to the next column (from the last, the next page).
+        if (b.colBefore && k === 0 && col.length) {
+          if (nextColumn()) continue;
           break;
         }
         const limit = colBottom() - reserve(notesSoFar());

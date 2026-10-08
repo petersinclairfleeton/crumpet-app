@@ -265,6 +265,7 @@ function buildBlock(block: Block): HTMLElement {
     if (p.pageBefore) el.dataset.pageBefore = '';
     if (p.keepNext) el.dataset.keepNext = '';
     if (p.keepLines) el.dataset.keepLines = '';
+    if (p.colBefore) el.dataset.colBefore = '';
     if (p.sect) {
       // A section break before this paragraph: what the section after it is like.
       el.dataset.sect = p.sect;

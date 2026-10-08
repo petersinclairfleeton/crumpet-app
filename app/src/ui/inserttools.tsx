@@ -107,8 +107,8 @@ export function insertItems(ed: Editor | null, off: boolean): ToolItem[] {
     ed?.insertToc();
   };
   return [
-    { key: 'symbol', pri: 1, sep: true, node: <SymbolTool ed={ed} off={off} /> },
-    { key: 'date', pri: 1, node: <DateTool ed={ed} off={off} /> },
+    { key: 'symbol', label: 'Symbol', pri: 1, sep: true, node: <SymbolTool ed={ed} off={off} /> },
+    { key: 'date', label: 'Date and time', pri: 1, node: <DateTool ed={ed} off={off} /> },
     {
       key: 'toc',
       pri: 1,

@@ -19,6 +19,7 @@ import {
   orderedRange,
   runsLength,
   tidyRows,
+  sectionLook,
   runsText,
   sliceRuns,
   footnotes,
@@ -87,6 +88,9 @@ import {
   setListStyle,
   setListStart,
   insertToc,
+  insertColumnBreak,
+  insertSectionBreak,
+  setSection,
 } from './commands';
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
@@ -630,6 +634,29 @@ export class Editor {
   }
 
   /** Increase (1) or decrease (-1) indent. */
+  /** Word's Column Break (Ctrl+Shift+Enter). */
+  insertColumnBreak(): void {
+    this.syncSelectionFromDom();
+    this.dispatch(insertColumnBreak(this.state), 'command');
+  }
+
+  /** Word's Section Breaks: Next Page, or Continuous. */
+  insertSectionBreak(kind: 'page' | 'cont'): void {
+    this.syncSelectionFromDom();
+    this.dispatch(insertSectionBreak(this.state, kind), 'command');
+  }
+
+  /** Columns and orientation for the section the caret is in. */
+  setSection(patch: { cols?: number; orient?: 'portrait' | 'landscape' }): void {
+    this.syncSelectionFromDom();
+    this.dispatch(setSection(this.state, patch), 'command');
+  }
+
+  /** The columns and orientation of the section the caret is in (no orientation: the page setup's). */
+  sectionLook(): { cols: number; orient?: 'portrait' | 'landscape' } {
+    return sectionLook(this.state.doc.blocks, this.state.doc.blocks.findIndex((b) => b.id === this.state.selection.focus.block));
+  }
+
   /** Word's bullet and numbering libraries (see setListStyle). */
   setListStyle(style: { num: NumFormat } | { bullet: BulletKind }): void {
     this.syncSelectionFromDom();

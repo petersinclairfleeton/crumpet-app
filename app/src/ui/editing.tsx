@@ -14,6 +14,7 @@ import { OverflowRow, type ToolItem } from './toolbar';
 import { useFontItems } from './fonttools';
 import { useParaItems } from './paratools';
 import { borderItems, listItems } from './listtools';
+import { layoutItems } from './layouttools';
 import { insertItems } from './inserttools';
 import { addFile } from '../data/files';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
@@ -217,6 +218,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     ...listItems(ed, off),
     tool('todo', 1, 'Checklist', 'Checklist', '☐', () => ed?.setBlockType('todo'), { active: type === 'todo' }),
     ...borderItems(ed, off),
+    ...layoutItems(ed, off),
   ];
   items.push(...insertItems(ed, off));
   if (attach)

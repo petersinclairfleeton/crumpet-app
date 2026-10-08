@@ -174,3 +174,7 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
 .editor:not(.paged) .blk[data-sect] { border-top: 1px dashed var(--line2, #ccc); padding-top: 14px; position: relative; }
 .editor:not(.paged) .blk[data-sect]::after { content: 'Section break (next page)'; position: absolute; top: -0.75em; left: 50%; transform: translateX(-50%); padding: 0 8px; background: var(--page, #fff); color: var(--muted, #888); font: 11px/1.5 var(--ui-font, system-ui, sans-serif); white-space: nowrap; pointer-events: none; }
 .editor:not(.paged) .blk[data-sect='cont']::after { content: 'Section break (continuous)'; }
+.editor:not(.paged) .blk[data-col-before] { border-top: 1px dotted var(--line2, #ccc); padding-top: 12px; position: relative; }
+.editor:not(.paged) .blk[data-col-before]::after { content: 'Column break'; position: absolute; top: -0.75em; left: 50%; transform: translateX(-50%); padding: 0 8px; background: var(--page, #fff); color: var(--muted, #888); font: 11px/1.5 var(--ui-font, system-ui, sans-serif); white-space: nowrap; pointer-events: none; }
+.editor:not(.paged) .blk:first-child[data-sect] { border-top: none; padding-top: 0; }
+.editor:not(.paged) .blk:first-child[data-sect]::after { content: none; }

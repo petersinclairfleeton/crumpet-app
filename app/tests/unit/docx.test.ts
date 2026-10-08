@@ -331,3 +331,25 @@ describe('Word tables: formatting in cells and column widths', () => {
     expect(back.doc.blocks[0].tbl).toEqual(tbl);
   });
 });
+
+describe('Word sections, columns and column breaks', () => {
+  it('writes each section’s settings where Word keeps them, and reads them back', async () => {
+    const blocks = [
+      makeBlock('paragraph', 'Intro'),
+      { ...makeBlock('paragraph', 'Two columns'), para: { sect: 'cont' as const, cols: 2 } },
+      makeBlock('paragraph', 'Left'),
+      { ...makeBlock('paragraph', 'Right'), para: { colBefore: true } },
+      { ...makeBlock('paragraph', 'Wide'), para: { sect: 'page' as const, cols: 1, orient: 'landscape' as const } },
+      { ...makeBlock('paragraph', 'Tall again'), para: { sect: 'page' as const, orient: 'portrait' as const } },
+    ];
+    const bytes = await toDocx([{ doc: { blocks } }], { title: 'T', page: defaultPage() });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect((xml.match(/<w:sectPr>/g) ?? []).length).toBe(4);
+    expect(xml).toContain('<w:type w:val="continuous"/>');
+    expect(xml).toContain('<w:cols w:num="2" w:space="720"/>');
+    expect(xml).toContain('w:orient="landscape"');
+    expect(xml).toContain('<w:br w:type="column"/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks.map((b) => [b.runs.map((r) => r.text).join(''), b.para])).toEqual(blocks.map((b) => [b.runs.map((r) => r.text).join(''), b.para]));
+  });
+});
