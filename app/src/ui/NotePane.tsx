@@ -12,7 +12,7 @@ import { Tour } from './Tour';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
-import { IconBack, IconFocus, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconBack, IconFocus, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
 interface PaneProps {
@@ -358,6 +358,7 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
   return (
     <div className="welcome">
       {touring && <Tour onDone={() => setTouring(false)} />}
+      <Logo size={72} />
       <h2>Welcome to Crumpet</h2>
       <p className="lede">A quiet place for notes and long writing. Your words stay in files you own.</p>
       <ol>

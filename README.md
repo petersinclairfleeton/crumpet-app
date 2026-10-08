@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source srcset="app/public/brand/wordmark-dark.png" media="(prefers-color-scheme: dark)">
+    <img src="app/public/brand/wordmark.png" alt="Crumpet" width="220">
+  </picture>
+</p>
+
 # Crumpet
 
 A calm, organised note-taking app that grows into a full document editor, for Mac, iPad, iPhone and the web.
