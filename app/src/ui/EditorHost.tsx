@@ -126,7 +126,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           <PageView enabled={paged} editor={ed} page={page ?? defaultPage()} sheetClass={styles} onPage={onPage} fields={pageFields} place={pagePlace} chapters={chapters} onPages={onPages}>
             <div ref={host} className="note-editor" aria-label={label} />
           </PageView>
-          <FootnoteList doc={doc} editor={readOnly || reading ? null : ed} />
+          {!paged && <FootnoteList doc={doc} editor={readOnly || reading ? null : ed} />}
           {!reading && <CommentList doc={doc} editor={readOnly ? null : ed} />}
           {footer}
         </article>

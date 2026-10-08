@@ -15,6 +15,8 @@ export interface PageGeometry {
   content: number;
   /** Distance from the bottom of one page's text area to the top of the next (margins plus the gap between pages), in px. */
   between: number;
+  /** Space above a page's footnotes (for the short line over them), in px. */
+  noteGap?: number;
 }
 
 const SPACER = 'page-break';
@@ -22,6 +24,10 @@ const SPACER = 'page-break';
 export class Paginator {
   private geometry: PageGeometry | null = null;
   pages = 1;
+  /** Footnotes at the foot of each page: their numbers (from 0, in order through the text), page by page. */
+  pageNotes: number[][] = [];
+  /** How tall footnote `index` is at the foot of a page, in px; without it footnotes take no room. */
+  noteHeight: ((index: number) => number) | null = null;
 
   constructor(private root: HTMLElement) {}
 
@@ -45,7 +51,23 @@ export class Paginator {
   update(): number {
     this.clear();
     const g = this.geometry;
+    this.pageNotes = [];
     if (!g || g.content <= 0) return (this.pages = 1);
+    // Footnote markers, in order, and the room each one's footnote takes.
+    const markers = Array.from(this.root.querySelectorAll<HTMLElement>('sup.fn'));
+    const noteIndex = new Map(markers.map((m, i) => [m, i]));
+    const heights = new Map<number, number>();
+    const heightOf = (i: number) => {
+      if (!heights.has(i)) heights.set(i, this.noteHeight?.(i) ?? 0);
+      return heights.get(i)!;
+    };
+    const notesOn = (p: number) => (this.pageNotes[p] ??= []);
+    /** Room the footnotes already on page `p` (plus any extra ones) take. */
+    const reserve = (p: number, extra: number[] = []) => {
+      const all = [...notesOn(p), ...extra];
+      if (!all.length || !this.noteHeight) return 0;
+      return (g.noteGap ?? 0) + all.reduce((h, i) => h + heightOf(i), 0);
+    };
     const pitch = g.content + g.between;
     // Measurements come back scaled if the page view is zoomed.
     const rootBox = this.root.getBoundingClientRect();
@@ -62,26 +84,55 @@ export class Paginator {
         const top = y(box.top);
         const bottom = y(box.bottom);
         const pageTop = page * pitch;
-        const pageBottom = pageTop + g.content;
         if (top >= pageTop + pitch) {
           // Pushed further down already: catch up.
           page = Math.floor(top / pitch);
           continue;
         }
-        if (bottom <= pageBottom + 0.5) break; // fits
+        const fns = this.noteHeight ? Array.from(el.querySelectorAll<HTMLElement>('sup.fn')) : [];
+        if (!fns.length && bottom <= pageTop + g.content - reserve(page) + 0.5) break; // fits
         const lines = lineStarts(el, y);
-        let k = lines.findIndex((l) => l.bottom > pageBottom + 0.5);
-        if (k < 0) break; // only margins overflow
+        // Footnotes whose numbers are on each line: the page's text area shrinks to make room for them.
+        const lineNotes = lines.map(() => [] as number[]);
+        for (const f of fns) {
+          const r = f.getBoundingClientRect();
+          const fy = y(r.top + r.height / 2);
+          let j = lines.length - 1;
+          while (j > 0 && lines[j].top > fy) j--;
+          lineNotes[j].push(noteIndex.get(f)!);
+        }
+        // Lines before this page were laid out (and their footnotes placed) already.
+        const firstHere = lines.findIndex((l) => l.top >= pageTop - 0.5);
+        if (firstHere < 0) break;
+        let k = -1;
+        const adding: number[] = [];
+        for (let j = firstHere; j < lines.length; j++) {
+          const limit = pageTop + g.content - reserve(page, [...adding, ...lineNotes[j]]);
+          // A footnote too long for any page stays with its first line rather than pushing it on for ever.
+          const alone = lines[j].top <= pageTop + 2 && !notesOn(page).length && lines[j].bottom <= pageTop + g.content + 0.5;
+          if (lines[j].bottom > limit + 0.5 && !alone) {
+            k = j;
+            break;
+          }
+          adding.push(...lineNotes[j]);
+        }
+        if (k < 0) {
+          notesOn(page).push(...adding);
+          break; // fits
+        }
         // No lone first line at the bottom of a page (orphan)…
-        if (k === 1 && lines.length > 1) k = 0;
+        if (k === 1 && firstHere === 0 && lines.length > 1) k = 0;
         // …and no lone last line at the top of the next (widow).
-        if (k > 0 && k === lines.length - 1 && k >= 2) k -= 1;
+        if (k > firstHere && k === lines.length - 1 && k - firstHere >= 2) k -= 1;
         if (k === 0) {
           // The whole block moves. A heading just above it goes too, to stay with its text.
           const prev = blocks[i - 1];
           if (prev && /^H[1-6]$/.test(prev.tagName) && !prev.querySelector(`.${SPACER}`)) {
             const pTop = y(prev.getBoundingClientRect().top);
-            if (pTop >= pageTop && pTop < pageBottom) {
+            if (pTop >= pageTop && pTop < pageTop + g.content) {
+              // Its footnotes go with it.
+              const moving = new Set(Array.from(prev.querySelectorAll<HTMLElement>('sup.fn')).map((f) => noteIndex.get(f)!));
+              this.pageNotes[page] = notesOn(page).filter((n) => !moving.has(n));
               insertSpacer(prev, 0, (page + 1) * pitch - y(firstLineTop(prev)));
               page += 1;
               i -= 1; // look at this block again, now below its heading
@@ -90,6 +141,8 @@ export class Paginator {
           }
         }
         const at = lines[k];
+        // The footnotes of the lines that stay on this page are this page's.
+        for (let j = Math.max(0, firstHere); j < k; j++) notesOn(page).push(...lineNotes[j]);
         insertSpacer(el, at.offset, (page + 1) * pitch - at.top);
         page += 1;
       }
