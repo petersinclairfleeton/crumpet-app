@@ -108,12 +108,23 @@ export class Editor {
     return this.paginator.pages;
   }
 
+  /** Page view: the footnotes at the foot of each page (numbers from 0), page by page. */
+  get pageNotes(): number[][] {
+    return this.paginator.pageNotes;
+  }
+
+  /** Page view: how tall footnote `index` is at the foot of a page; null leaves footnotes out of the pages. */
+  setNoteHeights(fn: ((index: number) => number) | null): void {
+    this.paginator.noteHeight = fn;
+    this.repaginate();
+  }
+
   /** Lays out the pages again, e.g. after fonts load or the styles change. */
   repaginate(): void {
     if (this.paged && !this.isComposing) {
-      const before = this.paginator.pages;
+      const before = `${this.paginator.pages}|${JSON.stringify(this.paginator.pageNotes)}`;
       this.paginator.update();
-      if (this.paginator.pages !== before) this.emit(null);
+      if (`${this.paginator.pages}|${JSON.stringify(this.paginator.pageNotes)}` !== before) this.emit(null);
     }
   }
 

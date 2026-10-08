@@ -1201,3 +1201,51 @@ test('track changes: new and removed paragraph breaks are tracked too', async ({
   await expect(body.locator('.blk')).toHaveCount(1);
   await expect(body.locator('.blk')).toHaveText('First line. Second line.Third.');
 });
+
+test('page view: footnotes sit at the foot of the page their number is on', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Footed', 'Opening line');
+  await page.keyboard.press('Control+Alt+f');
+  await page.getByRole('dialog', { name: 'Footnote 1' }).getByRole('textbox').fill('A note on page one.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  // A lot of text, then a second footnote, far down.
+  await page.keyboard.insertText(Array.from({ length: 40 }, (_, i) => `Line ${i + 1} of filler text that goes on for a while to fill the page.`).join('\n'));
+  await page.keyboard.type(' End');
+  await page.keyboard.press('Control+Alt+f');
+  await page.getByRole('dialog', { name: 'Footnote 2' }).getByRole('textbox').fill('A note much later.');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('region', { name: 'Footnotes' })).toBeVisible();
+  await page.getByRole('button', { name: 'Page view' }).click();
+  // In page view, no list under the note: each footnote is on its page.
+  await expect(page.getByRole('region', { name: 'Footnotes' })).toHaveCount(0);
+  const first = page.getByRole('list', { name: 'Footnotes on page 1' });
+  await expect(first).toContainText('A note on page one.');
+  await expect(first).not.toContainText('A note much later.');
+  const lastSup = page.locator('.note-editor sup.fn').nth(1);
+  const sheets = page.locator('.sheet');
+  expect(await sheets.count()).toBeGreaterThan(1);
+  // The second is on the same page as its number, below all the text there.
+  const pageOf = async (y: number) => {
+    const tops = await sheets.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
+    return tops.filter((t) => t <= y).length;
+  };
+  const supY = (await lastSup.boundingBox())!.y;
+  const n = await pageOf(supY);
+  const later = page.getByRole('list', { name: `Footnotes on page ${n}` });
+  await expect(later).toContainText('A note much later.');
+  const noteBox = (await later.boundingBox())!;
+  expect(noteBox.y).toBeGreaterThan(supY);
+  // No text runs under the footnotes.
+  // (Every line of text on that page ends above the footnotes.)
+  const textBottom = await page.locator('.note-editor').evaluate((root, [top, bottom]) => {
+    const r = document.createRange();
+    r.selectNodeContents(root);
+    const lines = Array.from(r.getClientRects()).filter((x) => x.height > 0 && x.height < 60 && x.top < bottom && x.bottom > top - 1200);
+    return Math.max(...lines.filter((x) => x.top < bottom && x.bottom > top - 1100 && x.top < top + 1).map((x) => x.bottom));
+  }, [noteBox.y, noteBox.y + noteBox.height]);
+  expect(textBottom).toBeLessThanOrEqual(noteBox.y + 1);
+  // Clicking a footnote opens it.
+  await later.getByText('A note much later.').click();
+  await expect(page.getByRole('dialog', { name: 'Footnote 2' })).toBeVisible();
+});

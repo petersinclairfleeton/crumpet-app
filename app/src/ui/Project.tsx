@@ -679,7 +679,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
       >
         <div ref={host} className="note-editor" aria-label={`Text of chapter ${number}`} />
       </PageView>
-      <FootnoteList doc={chapter.doc} editor={editor} />
+      {!page && <FootnoteList doc={chapter.doc} editor={editor} />}
       <CommentList doc={chapter.doc} editor={editor} />
     </section>
   );

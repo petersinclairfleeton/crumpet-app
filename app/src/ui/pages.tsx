@@ -10,6 +10,7 @@ import { PAGE_GAP, PAGE_SIZES, PX_PER_IN, type PageSetup, pageHF, pageSize } fro
 import { Band, HFOptions, HFToolbar, insertRun, useSlotCaret } from './headers';
 import { useAppState } from './hooks';
 import { DEFAULT_NOTE_SIZE } from '../data/types';
+import { footnotes } from '@crumpet/editor/model';
 
 /** What the header and footer fields show. */
 export interface PageFields {
@@ -80,9 +81,28 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   // Tell the editor how big a page is; lay out again when fonts arrive or the styles change.
   useEffect(() => {
     if (!editor || !enabled) return;
-    editor.setPages({ content, between });
+    editor.setPages({ content, between, noteGap: NOTE_GAP });
     return () => editor.setPages(null);
   }, [editor, content, between, enabled]);
+
+  // Footnotes sit at the foot of their page: the editor asks how tall each one is.
+  const measurer = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!editor || !enabled) return;
+    editor.setNoteHeights((i) => {
+      const box = measurer.current;
+      const note = footnotes(editor.state.doc)[i];
+      if (!box || !note) return 0;
+      const p = document.createElement('p');
+      p.className = 'page-note';
+      p.textContent = `${i + 1} ${note.text || ' '}`;
+      box.appendChild(p);
+      const h = p.getBoundingClientRect().height / (box.getBoundingClientRect().width / box.offsetWidth || 1);
+      p.remove();
+      return h;
+    });
+    return () => editor.setNoteHeights(null);
+  }, [editor, enabled, sheetClass]);
   // The writing font and text size from Settings change the layout too.
   const { noteFont, noteSize } = settings;
   const fontKey = `${noteFont?.family ?? ''}|${noteSize ?? DEFAULT_NOTE_SIZE}`;
@@ -170,6 +190,13 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   };
 
   const pitch = height + PAGE_GAP;
+  const pageNotes = enabled ? (editor?.pageNotes ?? []) : [];
+  const notes = enabled && editor ? footnotes(editor.state.doc) : [];
+  const openNote = (i: number) => {
+    const f = notes[i];
+    const el = f && editor?.footnoteElement(f);
+    if (editor && f && el) editor.onFootnoteClick?.({ block: f.block, offset: f.offset }, f.text, el);
+  };
   const textLeft = m.left * PX_PER_IN;
   const textWidth = width - (m.left + m.right) * PX_PER_IN;
   const editVariant = editing ? variantFor(hf, { index: offset + editing.i, chapterStart: !!place?.chapterStart && editing.i === 0 }) : null;
@@ -195,6 +222,20 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
           {Array.from({ length: pages }, (_, i) => (
             <div key={i} className="sheet" style={{ top: i * pitch, height }} aria-hidden="true" />
           ))}
+          {enabled && <div ref={measurer} className="page-notes measure" style={{ left: textLeft, width: textWidth }} aria-hidden="true" />}
+          {pageNotes.map((list, i) =>
+            list.length ? (
+              <div key={`n${i}`} className="page-notes-zone" style={{ top: i * pitch + m.top * PX_PER_IN, height: content, left: textLeft, width: textWidth }}>
+                <div className="page-notes" role="list" aria-label={`Footnotes on page ${offset + i + 1}`}>
+                  {list.map((n) => (
+                    <p key={n} className="page-note" role="listitem" onMouseDown={(e) => e.preventDefault()} onClick={() => openNote(n)}>
+                      <sup>{n + 1}</sup> {notes[n]?.text || <em>Empty footnote</em>}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ) : null,
+          )}
           <div
             className="page-text"
             style={enabled ? { top: m.top * PX_PER_IN, left: textLeft, width: textWidth } : undefined}
@@ -264,6 +305,9 @@ export function PageToggle({ on, onChange }: { on: boolean; onChange(on: boolean
     </button>
   );
 }
+
+/** Room for the short line above a page's footnotes, px. */
+const NOTE_GAP = 18;
 
 const metric = typeof navigator !== 'undefined' && !/^en-(US|CA)|^es-(US|MX)/.test(navigator.language || 'en-US');
 
