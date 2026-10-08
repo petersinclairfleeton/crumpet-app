@@ -23,6 +23,7 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, projectDocx, projec
 import { PrintJob } from './print';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
+import { CastList, CastPane, CastSpotting } from './cast';
 import { makeBlock } from '@crumpet/editor/model';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -320,6 +321,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
           <IconPlus size={13} /> Part
         </button>
       </div>
+      <CastList project={project} />
       <ResearchList project={project} />
     </section>
   );
@@ -354,8 +356,9 @@ export function ProjectPane({ project, narrow, onBack }: { project: Project; nar
   const state = useAppState();
   const store = useAppStore();
   const research = state.notes.find((n) => n.id === state.researchId && n.projectId === project.id && n.trashedAt === null);
-  if (!research) return <ProjectWriting project={project} narrow={narrow} onBack={onBack} />;
-  const pane = <ResearchPane key={research.id} note={research} onClose={() => store.openResearch(null)} />;
+  const member = project.cast?.find((m) => m.id === state.castId);
+  if (!research && !member) return <ProjectWriting project={project} narrow={narrow} onBack={onBack} />;
+  const pane = member ? <CastPane key={member.id} project={project} member={member} onClose={() => store.openCast(null)} /> : <ResearchPane key={research!.id} note={research!} onClose={() => store.openResearch(null)} />;
   // Research opens beside the writing (on a phone, instead of it).
   if (narrow) return pane;
   return (
@@ -396,6 +399,7 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const state = useAppState();
   const store = useAppStore();
   const editorRef = useRef<Editor | null>(null);
+  const [chapterEditor, setChapterEditor] = useState<Editor | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
@@ -540,8 +544,10 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
         footer={footer}
         onEditor={(ed) => {
           editorRef.current = ed;
+          setChapterEditor(ed);
         }}
       />
+      <CastSpotting editor={chapterEditor} project={project} />
     </section>
   );
 }
@@ -705,6 +711,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
   const store = useAppStore();
   const reportPages = useCallback((n: number) => onPages(chapter.id, n), [onPages, chapter.id]);
   const nav = useNav();
+  const owner = useAppState().projects.find((p) => p.id === chapter.projectId);
   const { host, editor } = useDocEditor({
     docId: chapter.id,
     doc: chapter.doc,
@@ -718,6 +725,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
   return (
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
       <SlashMenu editor={editor} host={host} notes={store.getState().notes} />
+      {owner && <CastSpotting editor={editor} project={owner} />}
       <FootnoteCard editor={editor} />
       <CommentCard editor={editor} />
       <ChangeCard editor={editor} />

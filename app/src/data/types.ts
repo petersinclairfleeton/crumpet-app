@@ -55,8 +55,24 @@ export interface Project {
   styles?: StyleSheet;
   /** Page size and margins for page view and printing. */
   page?: PageSetup;
+  /** The book's characters and places. */
+  cast?: CastMember[];
   createdAt: number;
   updatedAt: number;
+}
+
+/** A character or place in a book: spotted by name in its chapters. */
+export interface CastMember {
+  id: string;
+  kind: 'character' | 'place';
+  name: string;
+  /** Other names it goes by ("Tam", "the keeper"). */
+  aliases: string[];
+  /** A picture (an attachment's path), if any. */
+  picture?: string;
+  /** A line or two, shown when hovering over the name. */
+  description: string;
+  notes: string;
 }
 
 export interface Chapter {

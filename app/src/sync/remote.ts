@@ -13,7 +13,7 @@
 //   files are chapters (in the order project.json gives), not notes.
 
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
-import { type ChapterStatus, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
+import { type CastMember, type ChapterStatus, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 import { ATTACHMENTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, RESEARCH, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
 import { type NoteFile, parseNoteFile } from './notefile';
@@ -52,6 +52,7 @@ export interface ProjectJson {
   outline: OutlineItem[];
   styles?: StyleSheet;
   page?: PageSetup;
+  cast?: CastMember[];
   created: number;
   updated: number;
 }
@@ -115,8 +116,19 @@ export function parseProject(text: string): Partial<ProjectJson> | null {
   }
 }
 
+/** Characters and places from a project.json, tidied (edited by hand, perhaps). */
+function cleanCast(list: unknown[]): CastMember[] {
+  return list.flatMap((x) => {
+    const m = x as Partial<CastMember>;
+    if (!m || typeof m.id !== 'string' || typeof m.name !== 'string') return [];
+    const out: CastMember = { id: m.id, kind: m.kind === 'place' ? 'place' : 'character', name: m.name, aliases: Array.isArray(m.aliases) ? m.aliases.filter((a) => typeof a === 'string') : [], description: typeof m.description === 'string' ? m.description : '', notes: typeof m.notes === 'string' ? m.notes : '' };
+    if (typeof m.picture === 'string' && m.picture) out.picture = m.picture;
+    return [out];
+  });
+}
+
 export function writeProject(p: ProjectJson): string {
-  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}) }, null, 2)}\n`;
+  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}) }, null, 2)}\n`;
 }
 
 const STATUSES = new Set<ChapterStatus>(['todo', 'draft', 'revised', 'done']);
@@ -383,6 +395,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       updated: typeof json.updated === 'number' ? json.updated : (was?.updated ?? modified),
       ...(json.styles && typeof json.styles === 'object' && json.styles.styles ? { styles: json.styles } : {}),
       ...(json.page && typeof json.page === 'object' && json.page.margins ? { page: json.page } : {}),
+      ...(Array.isArray(json.cast) && json.cast.length ? { cast: cleanCast(json.cast) } : {}),
     };
     where.projects[id] = dir;
   }
