@@ -15,6 +15,7 @@ import type { PageSetup } from '../data/styles';
 import { EditorHost } from './EditorHost';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, isMac, useDocEditor } from './editing';
 import { FindBar, useFindKey } from './find';
+import { useTypewriter } from './typewriter';
 import { useAppState, useAppStore, useNav } from './hooks';
 import { IconBack, IconFocus, IconMore, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
@@ -863,6 +864,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
     onNoteLink: (title) => nav.openTitle(title),
   });
   useTracking(editor);
+  useTypewriter(editor);
   useEffect(() => {
     if (!editor) return;
     onEditor(chapter.id, editor);

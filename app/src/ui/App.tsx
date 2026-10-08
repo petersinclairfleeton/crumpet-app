@@ -199,9 +199,22 @@ export function App() {
     <NavContext.Provider value={nav}>
     <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
       {state.focusMode && (
-        <button type="button" className="btn quiet exit-focus" onClick={() => store.setFocusMode(false)}>
-          Exit focus <kbd>Esc</kbd>
-        </button>
+        <div className="focus-bar">
+          <button
+            type="button"
+            className="btn quiet"
+            aria-pressed={!!state.settings.typewriter?.scroll}
+            onClick={() => {
+              const on = !state.settings.typewriter?.scroll;
+              store.updateSettings({ typewriter: { ...state.settings.typewriter, scroll: on, fade: on } });
+            }}
+          >
+            Typewriter
+          </button>
+          <button type="button" className="btn quiet exit-focus" onClick={() => store.setFocusMode(false)}>
+            Exit focus <kbd>Esc</kbd>
+          </button>
+        </div>
       )}
       <ClipDialog onSaved={() => setPane('note')} />
       {state.temporary && (
