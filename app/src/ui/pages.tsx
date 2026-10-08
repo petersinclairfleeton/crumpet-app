@@ -72,7 +72,8 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   const settings = useAppState().settings;
   // Where the editor put each page (pages of a landscape section are wider); before it has, one page.
   const laid = enabled ? (editor?.pageBoxes ?? []) : [];
-  const boxes = laid.length ? laid : [{ top: 0, left: 0, width, height, landscape: width > height }];
+  const baseMargins = { top: m.top * PX_PER_IN, right: m.right * PX_PER_IN, bottom: m.bottom * PX_PER_IN, left: m.left * PX_PER_IN };
+  const boxes = laid.length ? laid : [{ top: 0, left: 0, width, height, landscape: width > height, margins: baseMargins }];
   const widest = Math.max(...boxes.map((b) => b.width));
   const last = boxes[boxes.length - 1];
   const tallest = last.top + last.height;
@@ -242,7 +243,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
           {enabled && <div ref={measurer} className="page-notes measure" style={{ left: textLeft, width: textWidth }} aria-hidden="true" />}
           {pageNotes.map((list, i) =>
             list.length && boxes[i] ? (
-              <div key={`n${i}`} className="page-notes-zone" data-notes-page={i} style={{ top: boxes[i].top + px(m.top), height: boxes[i].height - px(m.top + m.bottom), left: boxes[i].left + textLeft, width: boxes[i].width - px(m.left + m.right) }}>
+              <div key={`n${i}`} className="page-notes-zone" data-notes-page={i} style={{ top: boxes[i].top + boxes[i].margins.top, height: boxes[i].height - boxes[i].margins.top - boxes[i].margins.bottom, left: boxes[i].left + boxes[i].margins.left, width: boxes[i].width - boxes[i].margins.left - boxes[i].margins.right }}>
                 <div className="page-notes" role="list" aria-label={`Footnotes on page ${offset + i + 1}`}>
                   {list.map((n) => (
                     <p key={n} className="page-note" role="listitem" onMouseDown={(e) => e.preventDefault()} onClick={() => openNote(n)}>
@@ -270,7 +271,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
             const band = (kind: 'header' | 'footer') => (
               <div
                 className={`hf-zone ${kind}`}
-                style={kind === 'header' ? { top: pb.top, height: px(m.top), left: pb.left + textLeft, width: pb.width - px(m.left + m.right) } : { top: pb.top + pb.height - px(m.bottom), height: px(m.bottom), left: pb.left + textLeft, width: pb.width - px(m.left + m.right) }}
+                style={kind === 'header' ? { top: pb.top, height: pb.margins.top, left: pb.left + pb.margins.left, width: pb.width - pb.margins.left - pb.margins.right } : { top: pb.top + pb.height - pb.margins.bottom, height: pb.margins.bottom, left: pb.left + pb.margins.left, width: pb.width - pb.margins.left - pb.margins.right }}
                 onDoubleClick={(e) => !isEditing && startEditing(i, kind, e)}
                 title={onPage && !isEditing ? `Double-click to edit the ${kind}` : undefined}
               >

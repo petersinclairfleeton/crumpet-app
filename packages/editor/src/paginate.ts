@@ -38,13 +38,18 @@ export interface PageBox {
   width: number;
   height: number;
   landscape: boolean;
+  /** Its margins, px. */
+  margins: Margins;
 }
+
+type Margins = { top: number; right: number; bottom: number; left: number };
 
 /** A section: blocks from `start` to `end` (indexes), how its pages are, and how many columns. */
 interface Section {
   start: number;
   end: number;
   cont: boolean;
+  margins: Margins;
   width: number;
   height: number;
   landscape: boolean;
@@ -96,6 +101,7 @@ interface Page {
   width: number;
   height: number;
   landscape: boolean;
+  margins: Margins;
   bands: Band[];
   notes: number[];
 }
@@ -178,18 +184,22 @@ export class Paginator {
     const sections: Section[] = [];
     let cols = Math.max(1, g.cols ?? 1);
     let landscape = baseLandscape;
+    let margins: Margins = { ...m };
     blocks.forEach((el, i) => {
       const sect = el.dataset.sect;
       if (i > 0 && !sect) return;
       // (On the very first paragraph, a section break just holds the first section's settings.)
       if (el.dataset.cols) cols = Math.max(1, Number(el.dataset.cols) || 1);
       if (el.dataset.orient) landscape = el.dataset.orient === 'landscape';
+      // The section's own margins (inches), otherwise the page setup's.
+      const inch = (v: string | undefined, base: number) => (v !== undefined && v !== '' && Number.isFinite(Number(v)) ? Number(v) * 96 : base);
+      margins = { top: inch(el.dataset.mt, margins.top), bottom: inch(el.dataset.mb, margins.bottom), left: inch(el.dataset.ml, margins.left), right: inch(el.dataset.mr, margins.right) };
       const width = landscape ? long : short;
       const height = landscape ? short : long;
-      const content = width - m.left - m.right;
+      const content = width - margins.left - margins.right;
       const prev = sections[sections.length - 1];
       if (prev) prev.end = i - 1;
-      sections.push({ start: i, end: blocks.length - 1, cont: i > 0 && sect === 'cont', width, height, landscape, cols, colWidth: Math.max(40, (content - (cols - 1) * colGap) / cols) });
+      sections.push({ start: i, end: blocks.length - 1, cont: i > 0 && sect === 'cont', margins, width, height, landscape, cols, colWidth: Math.max(40, (content - (cols - 1) * colGap) / cols) });
     });
 
     // Measure everything in one long column per section, at the column's width.
@@ -261,11 +271,11 @@ export class Paginator {
 
     const pages: Page[] = [];
     const newPage = (s: Section): Page => {
-      const p: Page = { width: s.width, height: s.height, landscape: s.landscape, bands: [], notes: [] };
+      const p: Page = { width: s.width, height: s.height, landscape: s.landscape, margins: s.margins, bands: [], notes: [] };
       pages.push(p);
       return p;
     };
-    const contentHeight = (p: Page) => p.height - m.top - m.bottom;
+    const contentHeight = (p: Page) => p.height - p.margins.top - p.margins.bottom;
 
     /**
      * Fills a band of `s`'s columns on page `p`, `top` px down its text area,
@@ -384,7 +394,7 @@ export class Paginator {
     sections.forEach((s, si) => {
       const next = sections[si + 1];
       // A new page, unless this section carries on down the page (and the page is the same shape).
-      if (!page || !s.cont || page.landscape !== s.landscape || page.width !== s.width) {
+      if (!page || !s.cont || page.landscape !== s.landscape || page.width !== s.width || page.margins.left !== s.margins.left || page.margins.right !== s.margins.right) {
         page = newPage(s);
         y = 0;
       }
@@ -433,7 +443,6 @@ export class Paginator {
   /** Puts the blocks (split where they run on) into page, band and column boxes. */
   private build(pages: Page[], blocks: HTMLElement[], colGap: number, g: PageGeometry): void {
     const root = this.root;
-    const m = g.margins;
     const widest = Math.max(...pages.map((p) => p.width));
     // The part of each block not yet placed: its element, and where in the text that element starts.
     const rest = new Map<number, { el: HTMLElement; from: number }>();
@@ -446,7 +455,8 @@ export class Paginator {
       if (p.landscape) box.dataset.orient = 'landscape';
       box.style.width = `${p.width}px`;
       box.style.height = `${p.height}px`;
-      box.style.padding = `${m.top}px ${m.right}px ${m.bottom}px ${m.left}px`;
+      const pm = p.margins;
+      box.style.padding = `${pm.top}px ${pm.right}px ${pm.bottom}px ${pm.left}px`;
       box.style.marginBottom = `${g.gap}px`;
       for (const band of p.bands) {
         const row = document.createElement('div');
@@ -474,7 +484,7 @@ export class Paginator {
       }
       root.appendChild(box);
       this.pageNotes[n] = p.notes;
-      this.pageBoxes.push({ top, left: (widest - p.width) / 2, width: p.width, height: p.height, landscape: p.landscape });
+      this.pageBoxes.push({ top, left: (widest - p.width) / 2, width: p.width, height: p.height, landscape: p.landscape, margins: p.margins });
       top += p.height + g.gap;
     });
     // Anything not placed (it shouldn't happen) goes on the last page rather than vanish.

@@ -755,7 +755,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               <IconBack size={18} />
             </button>
           )}
-          {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />}
+          {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
           <TrackToggle />
@@ -778,12 +778,12 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
         </div>
         {narrow && active && (
           <KeyboardBar host={scroll}>
-            <FormatTools compact editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />
+            <FormatTools compact editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
           </KeyboardBar>
         )}
         {floating && active && (
           <SelectionBar host={scroll}>
-            <FormatTools compact attach={false} editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />
+            <FormatTools compact attach={false} editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
           </SelectionBar>
         )}
         {linkOpen && active && <LinkBar editor={active} onClose={() => setLinkOpen(false)} />}

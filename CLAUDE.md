@@ -94,7 +94,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     as a tracked `¶` at the start of the line. Text looks are spans
     `[text]{font="Lora" size=14 color=#cc0000}`; paragraph settings go at
     the end of the line `{.center line=2 num=upper-roman border=tb}` (a
-    section break before a paragraph is `{sect=page cols=2 orient=landscape}`
+    section break before a paragraph is `{sect=page cols=2 orient=landscape mt=1.5}`
     or `sect=cont`, a column break `.colbreak`); a
     table's look is a `{table .banded merge=1-0-1-2}` line under it, with
     column alignment in its rule row; `[TOC]` is a table of contents.
@@ -119,9 +119,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     in `editing.tsx` from `fonttools.tsx` (Font group), `paratools.tsx`
     (Paragraph group and window), `listtools.tsx` (bullet and numbering
     libraries, borders, shading), `inserttools.tsx` (symbols, date,
-    contents) and `layouttools.tsx` (Breaks, Columns, Orientation for the
-    caret's section; the first section's settings sit on the first
-    paragraph). Page view has `ruler.tsx` and `statusbar.tsx` (page, words,
+    contents) and `layouttools.tsx` (Breaks, Columns, Orientation, and
+    `pagesetup.tsx`'s Page Setup window, for the caret's section, the whole
+    document or from the caret on; the first section's settings sit on the
+    first paragraph). Page view has `ruler.tsx` and `statusbar.tsx` (page, words,
     headings, zoom).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
@@ -144,7 +145,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
 - The web clipper doesn't work on sites with strict security settings
   (pasting keeps formatting instead) or in the single-file build.
 - Word features not built: text boxes and shapes, styles of tables beyond
-  the Table menu, margins per section. Printing turns landscape pages only
+  the Table menu, paper size per section. Printing turns landscape pages only
   in browsers that support named pages (Chrome, Edge, Firefox). Tables of contents
   list one chapter at a time in a project (Word fills in the whole book's
   when it updates the field).

@@ -220,9 +220,14 @@ export interface ParaLook {
   sect?: 'page' | 'cont';
   cols?: number;
   orient?: 'portrait' | 'landscape';
+  /** The section's margins, in inches, when they differ from the page setup's (top, bottom, left, right). */
+  mt?: number;
+  mb?: number;
+  ml?: number;
+  mr?: number;
 }
 export type ParaKey = keyof ParaLook;
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'sect', 'cols', 'orient'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -255,7 +260,14 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
     out.sect = p.sect;
     if (out.cols !== undefined) out.cols = Math.max(1, Math.min(MAX_COLS, Math.round(out.cols)));
     if (p.orient === 'portrait' || p.orient === 'landscape') out.orient = p.orient;
-  } else delete out.cols;
+    for (const k of ['mt', 'mb', 'ml', 'mr'] as const) if (out[k] !== undefined) out[k] = Math.max(0, Math.min(5, out[k]!));
+  } else {
+    delete out.cols;
+    delete out.mt;
+    delete out.mb;
+    delete out.ml;
+    delete out.mr;
+  }
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -668,15 +680,31 @@ export function sectionStart(blocks: Block[], i: number): number {
 }
 
 /** A section's columns and orientation, as they come out after every break before it (undefined orientation: the page setup's). */
-export function sectionLook(blocks: Block[], i: number): { cols: number; orient?: 'portrait' | 'landscape' } {
+export interface SectionLook {
+  cols: number;
+  orient?: 'portrait' | 'landscape';
+  /** Margins in inches (unset: the page setup's). */
+  margins: { top?: number; bottom?: number; left?: number; right?: number };
+  /** How the section starts (the first section: 'page'). */
+  start: 'page' | 'cont';
+  /** It's the document's first section. */
+  first: boolean;
+}
+
+export function sectionLook(blocks: Block[], i: number): SectionLook {
   let cols = 1;
   let orient: 'portrait' | 'landscape' | undefined;
+  const margins: SectionLook['margins'] = {};
   const start = sectionStart(blocks, i);
   for (let k = 0; k <= start; k++) {
     const p = blocks[k].para;
     if (!p?.sect) continue;
     if (p.cols) cols = p.cols;
     if (p.orient) orient = p.orient;
+    if (p.mt !== undefined) margins.top = p.mt;
+    if (p.mb !== undefined) margins.bottom = p.mb;
+    if (p.ml !== undefined) margins.left = p.ml;
+    if (p.mr !== undefined) margins.right = p.mr;
   }
-  return { cols, orient };
+  return { cols, orient, margins, start: start > 0 && blocks[start].para?.sect === 'cont' ? 'cont' : 'page', first: start === 0 };
 }

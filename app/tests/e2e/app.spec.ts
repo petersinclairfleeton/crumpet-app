@@ -2067,3 +2067,37 @@ test('layout: columns, a continuous section break, a column break and a landscap
   expect(md).toContain('Right column text. {.colbreak}');
   expect(md).toContain('A wide page. {sect=page orient=landscape}');
 });
+
+test('page setup: margins for one section from the caret on, and for the whole document', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1700, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.type('First page.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('From here on, wide margins.');
+  // This point forward: a new section with its own margins, on its side.
+  await (await toolButton(page, 'Page setup')).click();
+  const dialog = page.getByRole('dialog', { name: 'Page setup' });
+  await dialog.getByLabel('Left margin').fill('2');
+  await dialog.getByRole('button', { name: 'Landscape' }).click();
+  await dialog.getByLabel('Apply to').selectOption('forward');
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  const pages = page.locator('.note-editor .pg');
+  await expect(pages).toHaveCount(2);
+  const pad = (i: number) => pages.nth(i).evaluate((el) => [(el as HTMLElement).style.paddingLeft, (el as HTMLElement).offsetWidth > (el as HTMLElement).offsetHeight]);
+  expect(await pad(0)).toEqual(['96px', false]);
+  const second = await pad(1);
+  expect(Math.abs(parseFloat(second[0] as string) - (/^en-(US|CA)/.test(await page.evaluate(() => navigator.language)) ? 192 : 75.6))).toBeLessThan(1);
+  expect(second[1]).toBe(true);
+  // Whole document: every page takes the same margins again.
+  await (await toolButton(page, 'Page setup')).click();
+  await dialog.getByLabel('Apply to').selectOption('all');
+  await dialog.getByRole('button', { name: 'Portrait' }).click();
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  await expect.poll(async () => (await pad(1))[1]).toBe(false);
+  expect((await pad(0))[0]).toBe((await pad(1))[0]);
+});

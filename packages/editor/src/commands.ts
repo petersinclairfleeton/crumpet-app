@@ -214,7 +214,7 @@ function splitAt(b: Builder, pos: Pos): Pos {
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
   // A new paragraph carries on the spacing and indents of the one before (not a page break, nor after a heading).
-  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, sect: undefined, cols: undefined, orient: undefined });
+  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined });
   const newAttrs = atEnd ? { ...nextBlockAttrs(block), para: carried } : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined, para: carried });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
@@ -568,7 +568,9 @@ function insertBreak(state: EditorState, patch: Partial<ParaLook>): Transaction 
  * the paragraph its section break is on; for the first section, on the
  * very first paragraph).
  */
-export function setSection(state: EditorState, patch: { cols?: number; orient?: 'portrait' | 'landscape' }): Transaction {
+export type SectionPatch = Partial<Pick<ParaLook, 'cols' | 'orient' | 'mt' | 'mb' | 'ml' | 'mr' | 'sect'>>;
+
+export function setSection(state: EditorState, patch: SectionPatch): Transaction {
   const b = new Builder(state.doc);
   const blocks = state.doc.blocks;
   let i = sectionStart(blocks, blockIndex(state.doc, orderedRange(state.doc, state.selection).from.block));
@@ -581,9 +583,31 @@ export function setSection(state: EditorState, patch: { cols?: number; orient?: 
     blk = getBlock(b.doc, blk.id);
     i = blockIndex(b.doc, blk.id);
   }
-  const para = tidyPara({ ...blk.para, sect: blk.para?.sect ?? 'page', ...patch });
+  // (The first section's start can't change: it starts the document.)
+  const para = tidyPara({ ...blk.para, ...patch, sect: i === 0 ? 'page' : (patch.sect ?? blk.para?.sect ?? 'page') });
   const to = attrsOf({ ...blk, para });
   if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  return tx(state, b, state.selection);
+}
+
+/**
+ * Page Setup's "Apply to: Whole document": every section takes the page
+ * setup's margins and orientation again (no section's own), and `cols`
+ * columns (set on the first section; the others follow it).
+ */
+export function setAllSections(state: EditorState, cols: number): Transaction {
+  const b = new Builder(state.doc);
+  state.doc.blocks.forEach((blk, i) => {
+    if (!blk.para?.sect) {
+      if (i > 0 || cols === 1 || isMedia(blk.type) || blk.type === 'table' || blk.type === 'toc') return;
+    }
+    const keep = i === 0 ? { sect: 'page' as const, cols: cols > 1 ? cols : undefined } : { sect: blk.para!.sect, cols: undefined };
+    const para = tidyPara({ ...blk.para, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined, ...keep });
+    // A first paragraph whose section break only held settings that are gone now: no break at all.
+    const tidy = i === 0 && para && para.sect && Object.keys(para).length === 1 ? tidyPara({ ...para, sect: undefined }) : para;
+    const to = attrsOf({ ...blk, para: tidy });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  });
   return tx(state, b, state.selection);
 }
 

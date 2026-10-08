@@ -97,7 +97,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
     <div className={`note-pane ${styles}${reading ? ' reading' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
-        {!floating && !narrow && <FormatTools fit editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />}
+        {!floating && !narrow && <FormatTools fit editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}
         <span className="grow" />
         {!readOnly && !reading && <TrackToggle />}
         {!narrow && !readOnly && !reading && (
@@ -116,13 +116,13 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
       </div>
       {narrow && ed && !readOnly && !reading && (
         <KeyboardBar host={host}>
-          <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
+          <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />
         </KeyboardBar>
       )}
       {!readOnly && !reading && <SlashMenu editor={ed} host={host} notes={state.notes} />}
       {floating && ed && (
         <SelectionBar host={host}>
-          <FormatTools compact attach={false} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} />
+          <FormatTools compact attach={false} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />
         </SelectionBar>
       )}
       {!readOnly && !reading && <FootnoteCard editor={ed} />}

@@ -339,7 +339,8 @@ class Writer {
       const sb = b.para?.sect;
       if (sb) {
         const p = b.para!;
-        this.section = { cols: p.cols ?? this.section.cols, orient: p.orient ?? this.section.orient, type: sb };
+        const was = this.section;
+        this.section = { cols: p.cols ?? was.cols, orient: p.orient ?? was.orient, type: sb, mt: p.mt ?? was.mt, mb: p.mb ?? was.mb, ml: p.ml ?? was.ml, mr: p.mr ?? was.mr };
       }
       // The next block starts a new section: this one's paragraph carries this section's settings.
       if (blocks[k + 1]?.para?.sect) this.sectNext = this.sectionMark();
@@ -502,6 +503,11 @@ interface SectionProps {
   cols: number;
   orient?: 'portrait' | 'landscape';
   type: 'page' | 'cont';
+  /** Margins in inches, when the section has its own. */
+  mt?: number;
+  mb?: number;
+  ml?: number;
+  mr?: number;
 }
 
 interface ListDef {
@@ -634,7 +640,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     const [pw, ph] = landscape ? [long, short] : [short, long];
     const type = sp.type === 'cont' && !first ? '<w:type w:val="continuous"/>' : '';
     const cols = sp.cols > 1 ? `<w:cols w:num="${sp.cols}" w:space="720"/>` : '<w:cols w:space="720"/>';
-    return `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr>${type}<w:pgSz w:w="${tw(pw)}" w:h="${tw(ph)}"${landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(m.top)}" w:right="${tw(m.right)}" w:bottom="${tw(m.bottom)}" w:left="${tw(m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${first ? pgNum : ''}${cols}${titlePg && first ? '<w:titlePg/>' : ''}</w:sectPr>`;
+    return `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr>${type}<w:pgSz w:w="${tw(pw)}" w:h="${tw(ph)}"${landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(sp.mt ?? m.top)}" w:right="${tw(sp.mr ?? m.right)}" w:bottom="${tw(sp.mb ?? m.bottom)}" w:left="${tw(sp.ml ?? m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${first ? pgNum : ''}${cols}${titlePg && first ? '<w:titlePg/>' : ''}</w:sectPr>`;
   };
   let firstSect = true;
   body = body.replace(/<!--crumpet-sect:(.*?)-->/g, (_, json: string) => {
@@ -1006,12 +1012,18 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   let pageBreakNext = false;
   let colBreakNext = false;
   // Section settings, as Word keeps them: at the end of each section (in its last paragraph), the last in the body.
-  const sectEnds: { end: number; props: { cont: boolean; cols: number; landscape: boolean } }[] = [];
-  const readSect = (sp: Element) => {
+  type SectRead = { margins: { mt?: number; mb?: number; ml?: number; mr?: number }; cont: boolean; cols: number; landscape: boolean };
+  const sectEnds: { end: number; props: SectRead }[] = [];
+  const readSect = (sp: Element): SectRead => {
     const sz = child(sp, 'pgSz');
     const w = Number(attr(sz, 'w') ?? 0);
     const h = Number(attr(sz, 'h') ?? 0);
-    return { cont: attr(child(sp, 'type'), 'val') === 'continuous', cols: Math.max(1, Math.min(4, Number(attr(child(sp, 'cols'), 'num') ?? 1) || 1)), landscape: attr(sz, 'orient') === 'landscape' || (w > 0 && h > 0 && w > h) };
+    const mar = child(sp, 'pgMar');
+    const inch = (k: string) => {
+      const v = attr(mar, k);
+      return v !== null && Number.isFinite(Number(v)) ? Math.round((Number(v) / TWIPS) * 1000) / 1000 : undefined;
+    };
+    return { margins: { mt: inch('top'), mb: inch('bottom'), ml: inch('left'), mr: inch('right') }, cont: attr(child(sp, 'type'), 'val') === 'continuous', cols: Math.max(1, Math.min(4, Number(attr(child(sp, 'cols'), 'num') ?? 1) || 1)), landscape: attr(sz, 'orient') === 'landscape' || (w > 0 && h > 0 && w > h) };
   };
   /** Whether `el` comes after all the text in paragraph `p`. */
   const isLastThing = (p: Element, el: Element): boolean => {
@@ -1226,7 +1238,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   if (body) await walk(body);
   // Sections: each one after the first starts with a section break on its first block.
   const bodySect = child(body, 'sectPr');
-  const sects = [...sectEnds.map((x) => x.props), bodySect ? readSect(bodySect) : { cont: false, cols: 1, landscape: false }];
+  const sects = [...sectEnds.map((x) => x.props), bodySect ? readSect(bodySect) : ({ margins: {}, cont: false, cols: 1, landscape: false } as SectRead)];
   const startsAt = [0, ...sectEnds.map((x) => x.end)];
   for (let k = sects.length - 1; k >= 0; k--) {
     let at = startsAt[k];
@@ -1243,7 +1255,9 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     if (!blocks[at]) at = blocks.push(makeBlock('paragraph')) - 1;
     const b = blocks[at];
     const orient = sp.landscape ? 'landscape' : prev?.landscape || k === 0 ? 'portrait' : undefined;
-    b.para = tidyPara({ ...b.para, sect: k > 0 && sp.cont ? 'cont' : 'page', cols: k === 0 ? sp.cols : sp.cols !== prev?.cols ? sp.cols : undefined, orient: k === 0 ? (sp.landscape ? 'landscape' : undefined) : orient });
+    // A section's own margins: where they differ from the section before.
+    const own = (key: 'mt' | 'mb' | 'ml' | 'mr') => (k > 0 && prev && sp.margins[key] !== undefined && sp.margins[key] !== prev.margins[key] ? sp.margins[key] : undefined);
+    b.para = tidyPara({ ...b.para, sect: k > 0 && sp.cont ? 'cont' : 'page', cols: k === 0 ? sp.cols : sp.cols !== prev?.cols ? sp.cols : undefined, orient: k === 0 ? (sp.landscape ? 'landscape' : undefined) : orient, mt: own('mt'), mb: own('mb'), ml: own('ml'), mr: own('mr') });
   }
   // Where Word's numbering differs from what the list shows on its own (carrying on after a paragraph, or starting again), keep Word's.
   const shown: number[] = [];

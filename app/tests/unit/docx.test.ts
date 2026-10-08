@@ -339,8 +339,8 @@ describe('Word sections, columns and column breaks', () => {
       { ...makeBlock('paragraph', 'Two columns'), para: { sect: 'cont' as const, cols: 2 } },
       makeBlock('paragraph', 'Left'),
       { ...makeBlock('paragraph', 'Right'), para: { colBefore: true } },
-      { ...makeBlock('paragraph', 'Wide'), para: { sect: 'page' as const, cols: 1, orient: 'landscape' as const } },
-      { ...makeBlock('paragraph', 'Tall again'), para: { sect: 'page' as const, orient: 'portrait' as const } },
+      { ...makeBlock('paragraph', 'Wide'), para: { sect: 'page' as const, cols: 1, orient: 'landscape' as const, mt: 0.5, ml: 0.75 } },
+      { ...makeBlock('paragraph', 'Tall again'), para: { sect: 'page' as const, orient: 'portrait' as const, mt: 1, ml: 1 } },
     ];
     const bytes = await toDocx([{ doc: { blocks } }], { title: 'T', page: defaultPage() });
     const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
