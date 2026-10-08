@@ -147,6 +147,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     new tab or beside. `bookmarks.tsx` (+ `data/bookmarks.ts`): sidebar
     shortcuts to notes, chapters, projects and headings. `fold.tsx`: the « buttons that
     fold the sidebar and list away, and the peek.
+    `speech.tsx`: read aloud (speechSynthesis, each word lit with the CSS
+    highlight `crumpet-speak`) and dictation (SpeechRecognition), with the
+    floating `SpeechBar`.
     `EditorHost.tsx` wraps the editor for notes;
     `Project.tsx` holds the outline, chapter, manuscript and side panes;
     `pages.tsx` is page view, headers and footers, and printing.

@@ -1443,3 +1443,14 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .rev-swatch { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; vertical-align: 0; }
 .rev-remove { display: block; margin-top: 8px; font-size: 12.5px; }
 .revision-chip { padding: 3px 9px; border: 1px solid var(--rev); border-radius: 12px; background: color-mix(in srgb, var(--rev) 12%, transparent); color: var(--rev); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+
+/* Read aloud and dictation. */
+.speech-bar { position: fixed; left: 50%; bottom: 20px; translate: -50% 0; z-index: 60; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px); padding: 8px 12px; border: 1px solid var(--line); border-radius: 22px; background: var(--page); color: var(--text); box-shadow: var(--shadow); font-size: 13px; }
+.speech-heard { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.speech-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.speech-dot.reading { background: var(--accent); }
+.speech-dot.listening { background: #d93025; animation: speech-pulse 1.2s ease-in-out infinite; }
+@keyframes speech-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .speech-dot.listening { animation: none; } }
+.speech-pick select { padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; font-size: 12.5px; max-width: 160px; }
+::highlight(crumpet-speak) { background-color: color-mix(in srgb, var(--accent) 40%, transparent); color: var(--text); }
