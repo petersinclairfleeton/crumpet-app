@@ -300,7 +300,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
 /** The page view switch for a toolbar. */
 export function PageToggle({ on, onChange }: { on: boolean; onChange(on: boolean): void }) {
   return (
-    <button type="button" className={`icon-btn${on ? ' on' : ''}`} aria-pressed={on} aria-label="Page view" title={on ? 'Page view: on' : 'Page view'} onClick={() => onChange(!on)}>
+    <button type="button" className={`icon-btn${on ? ' on' : ''}`} aria-pressed={on} aria-label="Page view" data-tip={on ? 'Page view: on' : 'Page view'} onClick={() => onChange(!on)}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M6 3h9l4 4v14H6z" />
         <path d="M9 9h6M9 13h6M9 17h4" />

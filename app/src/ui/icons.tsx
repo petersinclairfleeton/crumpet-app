@@ -80,6 +80,11 @@ export const IconSidebar = icon(<path d="M4 4h16v16H4zM9 4v16" />);
 export const IconLayout = icon(<path d="M4 4h16v16H4zM12 4v16" />);
 export const IconFocus = icon(<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />);
 export const IconList = icon(<path d="M4 6h16M4 12h16M4 18h16" />);
+export const IconPage = icon(<path d="M6 3h9l4 4v14H6zM9 9h6M9 13h6M9 17h4" />);
+export const IconPicture = icon(<path d="M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15.5 9.5h.01" />);
+export const IconCopy = icon(<path d="M8 8h12v12H8zM4 16V4h12" />);
+export const IconDownload = icon(<path d="M12 4v11M7 10l5 5 5-5M5 20h14" />);
+export const IconPrint = icon(<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z" />);
 export const IconCards = icon(<path d="M4 4h16v7H4zM4 15h16v5H4z" />);
 
 /** The crumpet logo: a crumpet with a page curling off it. */
