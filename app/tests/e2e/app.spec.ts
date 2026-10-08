@@ -1729,3 +1729,56 @@ test('paragraph settings: line spacing, indent, the Paragraph window, and a page
   await page.keyboard.type('On a new page.');
   await expect(page.locator('.note-editor .blk').nth(1)).toHaveAttribute('data-page-before', '');
 });
+
+test('page view status bar: page and word count, zoom, ruler indents, headings to jump to, and symbols and dates', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.page-view')).toBeVisible();
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.type('Mara climbs the stairs');
+  const bar = page.getByRole('group', { name: 'Page details' });
+  await expect(bar.getByLabel('Page')).toHaveText('Page 1 of 1');
+  await expect(bar.getByLabel('Word count')).toHaveText('4 words');
+  await page.keyboard.press('Shift+Home');
+  await expect(bar.getByLabel('Word count')).toHaveText('4 of 4 words');
+  await page.keyboard.press('End');
+  // Zoom: in from Fit, then back to Fit.
+  await bar.getByRole('button', { name: 'Zoom in' }).click();
+  await expect(bar.getByRole('button', { name: '110%' })).toBeVisible();
+  await bar.getByRole('button', { name: '110%' }).click();
+  await expect(bar.getByRole('button', { name: 'Fit' })).toHaveAttribute('aria-pressed', 'true');
+  // The ruler: drag the left indent half an inch in.
+  await bar.getByRole('button', { name: 'Ruler' }).click();
+  const left = page.getByRole('button', { name: 'Left indent' });
+  await expect(left).toBeVisible();
+  const box = (await left.boundingBox())!;
+  const ppi = await page.locator('.ruler').evaluate((el) => {
+    const inch = el.querySelectorAll<HTMLElement>('.tick.inch');
+    return inch[2].getBoundingClientRect().left - inch[1].getBoundingClientRect().left;
+  });
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + ppi / 2, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator('.note-editor .blk').first()).toHaveCSS('margin-left', '48px');
+  // A heading to jump to.
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The lamp');
+  await page.keyboard.press('Control+Alt+1');
+  await bar.getByRole('button', { name: 'Headings' }).click();
+  await expect(page.locator('.headings-list').getByRole('button', { name: 'The lamp' })).toBeVisible();
+  await page.locator('.headings-list').getByRole('button', { name: 'The lamp' }).click();
+  // Insert a symbol and the date.
+  await page.keyboard.press('End');
+  await (await toolButton(page, 'Insert symbol')).click();
+  await page.getByRole('button', { name: 'Em dash' }).click();
+  await expect(page.locator('.note-editor .blk').nth(1)).toContainText('The lamp—');
+  await (await toolButton(page, 'Insert date and time')).click();
+  const iso = new Date().toISOString().slice(0, 10);
+  await page.getByRole('button', { name: iso }).click();
+  await expect(page.locator('.note-editor .blk').nth(1)).toContainText(iso);
+});

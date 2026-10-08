@@ -6,7 +6,8 @@
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import { type HFBand, type HFContext, type HFRun, type HFSlotName, type HFVariant, type HeadersFooters, SLOTS, emptySet, fieldValue, setFor, variantFor, variantName } from '../data/headers';
-import { PAGE_GAP, PAGE_SIZES, PX_PER_IN, type PageSetup, pageHF, pageSize } from '../data/styles';
+import { PAGE_GAP, PAGE_SIZES, PX_PER_IN, type PageSetup, type StyleSheet, pageHF, pageSize } from '../data/styles';
+import { Ruler } from './ruler';
 import { Band, HFOptions, HFToolbar, insertRun, useSlotCaret } from './headers';
 import { useAppState } from './hooks';
 import { DEFAULT_NOTE_SIZE } from '../data/types';
@@ -49,6 +50,8 @@ interface Props {
   onPages?(n: number): void;
   /** Printing: no space between pages, and real size. */
   print?: boolean;
+  /** The styles, for the ruler's indent markers. */
+  sheet?: StyleSheet;
 }
 
 /**
@@ -56,7 +59,7 @@ interface Props {
  * same elements are drawn whether page view is on or off, so switching never
  * recreates the editor's element.
  */
-export function PageView({ enabled, editor, page, sheetClass, children, onPage, fields, place, chapters = false, onPages, print = false }: Props) {
+export function PageView({ enabled, editor, page, sheetClass, children, onPage, fields, place, chapters = false, onPages, print = false, sheet }: Props) {
   const gap = print ? 0 : PAGE_GAP;
   const outer = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -70,16 +73,21 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   const hf = pageHF(page);
   const settings = useAppState().settings;
 
-  // Fit the page to the width available (never larger than real size).
+  // Fit the page to the width available (never larger than real size), or the zoom chosen.
+  const zoom = settings.zoom;
   useLayoutEffect(() => {
     const el = outer.current;
     if (!el || !enabled || print) return;
+    if (zoom) {
+      setScale(zoom / 100);
+      return;
+    }
     const fit = () => setScale(Math.min(1, Math.max(0.3, (el.clientWidth - 24) / width)));
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [width, enabled, print]);
+  }, [width, enabled, print, zoom]);
 
   // Tell the editor how big a page is; lay out again when fonts arrive or the styles change.
   useEffect(() => {
@@ -206,6 +214,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
 
   return (
     <div className={enabled ? `page-view${editing ? ' hf-editing' : ''}` : 'page-off'} ref={outer}>
+      {enabled && !print && editor && settings.ruler && <Ruler editor={editor} width={width} margins={m} scale={scale} sheet={sheet} />}
       {editing && editVariant && (
         <HFToolbar
           label={`${variantName(hf, editVariant)} · page ${editing.i + 1 + offset}`}

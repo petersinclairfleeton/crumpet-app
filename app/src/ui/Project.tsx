@@ -18,6 +18,7 @@ import { FindBar, useFindKey } from './find';
 import { useTypewriter } from './typewriter';
 import { useDocFontsLoaded, useFontKeys } from './fonttools';
 import { useParaKeys } from './paratools';
+import { StatusBar } from './statusbar';
 import { useAppState, useAppStore, useNav } from './hooks';
 import { IconBack, IconFocus, IconMore, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
@@ -687,6 +688,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   }, []);
   const [finding, setFinding] = useState(false);
   const onFindKey = useFindKey(() => setFinding(true));
+  const msEditors = useMemo(() => Object.values(editors), [editors]);
   const [linkOpen, setLinkOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
@@ -829,6 +831,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
             </button>
           </article>
         </div>
+        {paged && msEditors.length > 0 && <StatusBar editors={msEditors} scroller={scroll} />}
       </div>
     </section>
   );
@@ -889,6 +892,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
       <PageView
         enabled={!!page}
         editor={editor}
+        sheet={msSheet}
         page={page ?? manuscriptPage()}
         sheetClass={sheetClass}
         onPage={onPage}

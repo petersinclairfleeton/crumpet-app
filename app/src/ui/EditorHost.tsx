@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { noteLinkTitle } from '@crumpet/editor/markdown';
 import type { Editor } from '@crumpet/editor/editor';
 import type { Doc } from '@crumpet/editor/model';
@@ -15,6 +15,7 @@ import { ChangeCard, ChangesBar, TrackToggle, useTracking } from './changes';
 import { useTypewriter } from './typewriter';
 import { useDocFontsLoaded, useFontKeys } from './fonttools';
 import { useParaKeys } from './paratools';
+import { StatusBar } from './statusbar';
 
 interface Props {
   /** The document shown (a note or a chapter) and where its edits go. */
@@ -76,6 +77,8 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
   useFontKeys(readOnly || reading ? null : ed, sheet);
   useDocFontsLoaded(ed);
   useParaKeys(readOnly || reading ? null : ed);
+  const scrollBox = useRef<HTMLDivElement>(null);
+  const statusEditors = useMemo(() => (ed ? [ed] : []), [ed]);
   useTypewriter(readOnly || reading ? null : ed);
 
   // Links to notes that don't exist (yet) look different; clicking one makes the note.
@@ -127,10 +130,10 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
       {!readOnly && !reading && <ChangeCard editor={ed} />}
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
       {!readOnly && !reading && <ChangesBar doc={doc} editor={ed} />}
-      <div className="note-scroll">
+      <div className="note-scroll" ref={scrollBox}>
         <article className={`note-body${paged ? ' paged' : ''}`}>
           {header}
-          <PageView enabled={paged} editor={ed} page={page ?? defaultPage()} sheetClass={styles} onPage={onPage} fields={pageFields} place={pagePlace} chapters={chapters} onPages={onPages}>
+          <PageView enabled={paged} editor={ed} page={page ?? defaultPage()} sheetClass={styles} onPage={onPage} fields={pageFields} place={pagePlace} chapters={chapters} onPages={onPages} sheet={sheet}>
             <div ref={host} className="note-editor" aria-label={label} />
           </PageView>
           {!paged && <FootnoteList doc={doc} editor={readOnly || reading ? null : ed} />}
@@ -138,6 +141,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           {footer}
         </article>
       </div>
+      {paged && ed && !reading && <StatusBar editors={statusEditors} scroller={scrollBox} pageOffset={pagePlace?.offset ?? 0} pageTotal={pagePlace?.total} />}
     </div>
   );
 }

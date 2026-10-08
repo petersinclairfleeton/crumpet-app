@@ -13,6 +13,7 @@ import { AlignTools, StylePicker } from './styles-ui';
 import { OverflowRow, type ToolItem } from './toolbar';
 import { useFontItems } from './fonttools';
 import { useParaItems } from './paratools';
+import { insertItems } from './inserttools';
 import { addFile } from '../data/files';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
 
@@ -220,6 +221,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     ...para.items,
     ...BLOCKS.map((b, i) => tool(b.type, b.type === 'todo' ? 1 : 2, b.label, b.label, b.glyph, () => ed?.setBlockType(b.type), { active: type === b.type, sep: i === 0 })),
   ];
+  items.push(...insertItems(ed, off));
   if (attach)
     items.push(
       tool(
