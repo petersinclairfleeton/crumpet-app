@@ -2506,3 +2506,32 @@ test('format painter copies formatting to the next selection; the thesaurus swap
   await tab.getByRole('button', { name: 'gloomy' }).click();
   await expect(page.locator('.note-editor')).toHaveText('Bold gloomy words');
 });
+
+test('compare two notes, and make a copy with the differences as tracked changes', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1400, height: 860 });
+  await newNote(page, 'Draft one', 'The lamp was dark.');
+  await newNote(page, 'Draft two', 'The lamp was bright.');
+  await page.keyboard.press('Control+p');
+  await page.keyboard.type('compare with');
+  await page.keyboard.press('Enter');
+  const pick = page.getByRole('dialog', { name: 'Compare with' });
+  await expect(pick).toBeVisible();
+  await page.keyboard.type('draft one');
+  await page.keyboard.press('Enter');
+  const compare = page.getByRole('dialog', { name: 'Compare documents' });
+  await expect(compare).toContainText('From “Draft two” to “Draft one”');
+  await expect(compare.locator('ins')).toContainText('dark');
+  await expect(compare.locator('del')).toContainText('bright');
+  await compare.getByRole('button', { name: 'Swap' }).click();
+  await expect(compare.locator('ins')).toContainText('bright');
+  await compare.getByRole('button', { name: 'Make a copy with tracked changes' }).click();
+  await expect(page.getByRole('region', { name: 'Pane' }).getByLabel('Title')).toHaveValue('Draft one → Draft two (compared)');
+  const md = await page.evaluate(async () => {
+    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { notes: { title: string; doc: unknown }[] } } }).crumpet.getState();
+    return toMarkdown(s.notes.find((n) => n.title.endsWith('(compared)'))!.doc) as string;
+  });
+  expect(md).toContain('{--dark--}');
+  expect(md).toContain('{++bright++}');
+});

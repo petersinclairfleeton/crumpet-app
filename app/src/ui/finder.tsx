@@ -86,6 +86,10 @@ export interface Actions {
   newProject(): void;
   openToday(): void;
   openSettings(): void;
+  /** Picks another note or chapter to compare `docId` with. */
+  compareFrom(docId: string): void;
+  /** Compares two notes or chapters. */
+  compare(a: string, b: string): void;
 }
 
 /** The current thing as a bookmark (and the heading the caret is under, if any). */
@@ -155,6 +159,7 @@ function useCommands(actions: Actions): Item[] {
     list.push(cmd(on ? `Remove bookmark: ${here.doc.kind === 'note' ? 'this note' : 'this chapter'}` : `Bookmark ${here.doc.kind === 'note' ? 'this note' : 'this chapter'}`, () => store.updateSettings({ bookmarks: toggleBookmark(marks, here.doc!) })));
   }
   if (here.doc) {
+    list.push(cmd('Compare with another note or chapter…', () => actions.compareFrom(here.doc!.id)));
     list.push(cmd('Take a snapshot', () => {
       store.takeSnapshot(here.doc!.id);
       set({ right: true, rightTab: 'snapshots' });
@@ -238,7 +243,7 @@ function Highlight({ text, match }: { text: string; match: Match }) {
   );
 }
 
-export function Finder({ mode, actions, onClose }: { mode: 'switch' | 'commands'; actions: Actions; onClose(): void }) {
+export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch' | 'commands' | 'compare'; actions: Actions; onClose(): void; compareFrom?: string }) {
   const store = useAppStore();
   const opener = useOpener();
   const [text, setText] = useState(mode === 'commands' ? '>' : '');
@@ -247,19 +252,26 @@ export function Finder({ mode, actions, onClose }: { mode: 'switch' | 'commands'
   const listRef = useRef<HTMLUListElement>(null);
   const commands = useCommands(actions);
   const targets = useTargets();
-  const commanding = text.startsWith('>');
+  const comparing = mode === 'compare';
+  const commanding = !comparing && text.startsWith('>');
   const query = commanding ? text.slice(1) : text;
   const results = useMemo(() => {
-    const found = rank(query, commanding ? commands : targets, (i) => i.label).slice(0, 60);
+    // Comparing: only notes and chapters (not the one being compared), and choosing one compares them.
+    const pool = comparing
+      ? targets.filter((t) => (t.key.startsWith('note:') || t.key.startsWith('chapter:')) && t.key.split(':')[1] !== compareFrom).map((t) => ({ ...t, run: () => actions.compare(compareFrom!, t.key.split(':')[1]) }))
+      : commanding
+        ? commands
+        : targets;
+    const found = rank(query, pool, (i) => i.label).slice(0, 60);
     // Nothing to open: offer to make a note with that title.
-    if (!commanding && query.trim() && !found.some((r) => r.item.label.toLowerCase() === query.trim().toLowerCase())) {
+    if (!commanding && !comparing && query.trim() && !found.some((r) => r.item.label.toLowerCase() === query.trim().toLowerCase())) {
       found.push({ item: { key: 'create', label: `Create note “${query.trim()}”`, glyph: '+', run: (how) => {
         const n = store.createNote({ title: query.trim() });
         opener.note(n.id, how);
       } }, match: { score: 0, hits: [] } });
     }
     return found;
-  }, [query, commanding, commands, targets]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [query, commanding, comparing, commands, targets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => input.current?.focus(), []);
   useEffect(() => setAt(0), [text]);
@@ -277,7 +289,7 @@ export function Finder({ mode, actions, onClose }: { mode: 'switch' | 'commands'
 
   return (
     <div className="dialog-backdrop finder-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog finder" role="dialog" aria-modal="true" aria-label={commanding ? 'Command palette' : 'Quick switcher'}>
+      <div className="dialog finder" role="dialog" aria-modal="true" aria-label={comparing ? 'Compare with' : commanding ? 'Command palette' : 'Quick switcher'}>
         <input
           ref={input}
           className="finder-input"
@@ -287,7 +299,7 @@ export function Finder({ mode, actions, onClose }: { mode: 'switch' | 'commands'
           aria-controls="finder-list"
           aria-activedescendant={results[at] ? `finder-${at}` : undefined}
           aria-label={commanding ? 'Command' : 'Find a note, chapter or project'}
-          placeholder={commanding ? 'Type a command…' : 'Find a note, chapter, project or card… (type > for commands)'}
+          placeholder={comparing ? 'Compare with which note or chapter?' : commanding ? 'Type a command…' : 'Find a note, chapter, project or card… (type > for commands)'}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
@@ -322,7 +334,9 @@ export function Finder({ mode, actions, onClose }: { mode: 'switch' | 'commands'
           ))}
         </ul>
         <footer className="finder-foot">
-          {commanding ? (
+          {comparing ? (
+            <span>↵ compare · Esc close</span>
+          ) : commanding ? (
             <span>↵ run · Esc close</span>
           ) : (
             <span>

@@ -84,31 +84,43 @@ export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Edito
           </li>
         ))}
       </ul>
-      {comparing && <CompareDialog snap={comparing} now={editor.state.doc} onClose={() => setComparing(null)} />}
+      {comparing && (
+        <CompareDialog
+          label="Compare with snapshot"
+          title={
+            <>
+              Since “{comparing.name || 'Snapshot'}” <small>{when(comparing.at)}</small>
+            </>
+          }
+          before={docText(fromMarkdown(comparing.md))}
+          after={docText(editor.state.doc)}
+          onClose={() => setComparing(null)}
+        />
+      )}
     </div>
   );
 }
 
-/** The snapshot against the text now: what's been taken out, and what's been added since. */
-function CompareDialog({ snap, now, onClose }: { snap: Snapshot; now: Doc; onClose(): void }) {
-  const parts = useMemo(() => compareTexts(docText(fromMarkdown(snap.md)), docText(now)), [snap, now]);
+/** Two texts compared: what's been taken out, and what's been added. */
+export function CompareDialog({ label, title, before, after, onClose, actions }: { label: string; title: React.ReactNode; before: string; after: string; onClose(): void; actions?: React.ReactNode }) {
+  const parts = useMemo(() => compareTexts(before, after), [before, after]);
   const added = parts.filter((p) => p.kind === 'add').reduce((n, p) => n + p.text.split(/\s+/).filter(Boolean).length, 0);
   const removed = parts.filter((p) => p.kind === 'del').reduce((n, p) => n + p.text.split(/\s+/).filter(Boolean).length, 0);
   return (
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
-      <div className="dialog compare-dialog" role="dialog" aria-modal="true" aria-label="Compare with snapshot">
+      <div className="dialog compare-dialog" role="dialog" aria-modal="true" aria-label={label}>
         <header className="dialog-head">
-          <h2>
-            Since “{snap.name || 'Snapshot'}” <small>{when(snap.at)}</small>
-          </h2>
+          <h2>{title}</h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={onClose} autoFocus>
             <IconClose />
           </button>
         </header>
         <p className="compare-key">
           <span className="key-add">{plural(added)} added</span> <span className="key-del">{plural(removed)} taken out</span>
+          {actions}
         </p>
         <div className="compare-text">
+          {parts.length === 0 || parts.every((p) => p.kind === 'same') ? <span className="compare-same">No differences.</span> : null}
           {parts.map((p, i) => (p.kind === 'add' ? <ins key={i}>{p.text}</ins> : p.kind === 'del' ? <del key={i}>{p.text}</del> : <span key={i}>{p.text}</span>))}
         </div>
       </div>

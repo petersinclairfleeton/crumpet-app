@@ -1470,3 +1470,6 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .sense-example { color: var(--muted); font-style: italic; }
 .thesaurus-credit { margin-top: 14px; font-size: 11px; color: var(--muted); }
 .painting, .painting * { cursor: copy !important; }
+.compare-actions { margin-left: auto; display: flex; gap: 6px; }
+.compare-same { color: var(--muted); font-style: italic; }
+.compare-text del + ins { margin-left: 3px; }
