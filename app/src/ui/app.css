@@ -892,3 +892,4 @@ input, select { font: inherit; color: inherit; }
 .page-note { margin: 0; padding: 1px 0; font-size: 0.78em; line-height: 1.4; cursor: pointer; }
 .page-note sup { font-size: 0.75em; margin-right: 2px; }
 .page-note:hover { background: color-mix(in srgb, var(--accent, #4a7) 8%, transparent); }
+.install-btn { align-self: flex-start; }

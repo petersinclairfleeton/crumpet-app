@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ClipperSettings } from './clipper';
+import { InstallSettings } from './install';
 import { ACCENTS, DEFAULT_NOTE_SIZE, type NoteFont } from '../data/types';
 import { DEFAULT_FONT, type FontChoice, canListAllSystemFonts, fontStack, googleFonts, loadGoogleFont, systemFonts } from './fonts';
 import { useAppState, useAppStore } from './hooks';
@@ -78,6 +79,8 @@ export function SettingsDialog({ onClose }: { onClose(): void }) {
             <span>Text size · {s.noteSize ?? DEFAULT_NOTE_SIZE}px</span>
             <input className="range" type="range" min={13} max={24} step={1} value={s.noteSize ?? DEFAULT_NOTE_SIZE} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
           </label>
+
+          <InstallSettings />
 
           <ClipperSettings />
 

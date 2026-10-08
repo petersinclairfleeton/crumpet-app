@@ -8,10 +8,13 @@ import { SyncConnection } from './sync/connection';
 import { mediaUrl, setFileStorage, setRemoteFiles } from './data/files';
 import { setMediaResolver } from '@crumpet/editor/view';
 import { startClipListener } from './data/clip';
+import { startPwa } from './data/pwa';
 import './ui/app.css';
 
 // Opened by the web clipper: start listening before anything else, so its page isn't missed.
 startClipListener();
+// Installable, and working without the internet once it's been opened.
+startPwa();
 
 async function start() {
   const storage = await openStorage();
