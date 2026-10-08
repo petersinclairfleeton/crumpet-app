@@ -1583,3 +1583,29 @@ test('a deadline: words a day to finish on time, and whether the writing keeps p
   await expect(line).toContainText('Today’s target met');
   await expect(line).toContainText('Today: 120 of 100 words');
 });
+
+test('suggest a name: pick a region and era, click a name to add it to the book', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await outline.getByRole('button', { name: 'Add a character or place' }).click();
+  await page.getByRole('button', { name: 'Suggest a name…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Suggest a name' });
+  await dialog.getByLabel('Region').selectOption('german');
+  await dialog.getByLabel('Era').selectOption('medieval');
+  await expect(dialog.locator('.names-item').first()).toContainText(' von ');
+  const name = (await dialog.locator('.names-item').first().textContent())!;
+  await dialog.locator('.names-item').first().click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Character card' }).getByLabel('Name')).toHaveValue(name);
+  await expect(outline.locator('.research-item')).toContainText([name]);
+  // Places too.
+  await outline.getByRole('button', { name: 'Add a character or place' }).click();
+  await page.getByRole('button', { name: 'Suggest a name…' }).click();
+  await dialog.getByRole('button', { name: 'Place' }).click();
+  await expect(dialog.getByLabel('Era')).toHaveCount(0);
+  await dialog.locator('.names-item').first().click();
+  await expect(page.getByRole('region', { name: 'Place card' })).toBeVisible();
+});
