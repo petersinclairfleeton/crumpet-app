@@ -12,6 +12,7 @@ import type { CastMember, Project } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
 import { NameGenerator } from './names';
 import { IconBack, IconChevron, IconClose, IconPlus, IconTrash } from './icons';
+import { tabDrag } from './tabdrag';
 import { Popover } from './Sidebar';
 
 const KIND: Record<CastMember['kind'], string> = { character: 'Character', place: 'Place' };
@@ -54,7 +55,7 @@ export function CastList({ project }: { project: Project }) {
   const group = (kind: CastMember['kind']) => cast.filter((m) => m.kind === kind).sort((a, b) => a.name.localeCompare(b.name));
   const row = (m: CastMember) => (
     <li key={m.id}>
-      <button type="button" className={`research-item${state.castId === m.id ? ' selected' : ''}`} aria-current={state.castId === m.id ? 'true' : undefined} onClick={() => store.openCast(state.castId === m.id ? null : m.id)}>
+      <button type="button" className={`research-item${state.castId === m.id ? ' selected' : ''}`} aria-current={state.castId === m.id ? 'true' : undefined} onClick={() => store.openCast(state.castId === m.id ? null : m.id)} {...tabDrag({ kind: 'cast', project: project.id, id: m.id })}>
         <Avatar member={m} size={20} />
         <span className="grow ellipsis">{m.name || `Unnamed ${KIND[m.kind].toLowerCase()}`}</span>
       </button>

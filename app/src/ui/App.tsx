@@ -10,6 +10,7 @@ import { ProjectOutline, ProjectPane } from './Project';
 import { TopBar } from './TopBar';
 import { LIST, Resizer, SIDEBAR, SidebarRail, TabBar } from './layout';
 import { type Peek, PeekContext } from './fold';
+import { PaneArea, PanesContext, usePanesState } from './panes';
 import { applyTheme } from './theme';
 import type { View } from '../data/types';
 
@@ -25,6 +26,7 @@ export function App() {
   const store = useAppStore();
   const [pane, setPane] = useState<Pane>('list');
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
+  const panes = usePanesState();
 
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
@@ -52,21 +54,21 @@ export function App() {
 
   const openNote = useCallback(
     (id: string) => {
-      const s = store.getState();
-      // With two notes open, a note opens on the side last worked in.
-      if (!window.matchMedia(NARROW).matches && (s.settings.layout?.split ?? 'one') !== 'one' && s.activeSide === 'second') store.openSecond(id);
-      else store.select(id);
+      // Where you're working (the pane last clicked in), even if it's already the selected note.
+      panes.open({ kind: 'note', id });
       setPane('note');
     },
-    [store],
+    [store, panes],
   );
 
   const openChapter = useCallback(
     (id: string) => {
       store.selectChapter(id);
+      const p = store.chapter(id)?.projectId;
+      if (p) panes.open({ kind: 'project', id: p });
       setPane('note');
     },
-    [store],
+    [store, panes],
   );
 
   /** From a link: the note with this title, or a new one with it. */
@@ -212,17 +214,16 @@ export function App() {
   const layout = narrow ? {} : (state.settings.layout ?? {});
   const sidebarMode = layout.sidebar ?? (!narrow && window.matchMedia(MEDIUM).matches ? 'icons' : 'full');
   const showList = layout.list !== false;
-  const split = project ? 'one' : (layout.split ?? 'one');
   const sideW = layout.sidebarWidth ?? SIDEBAR.normal;
   const listW = layout.listWidth ?? LIST.normal;
-  const ratio = layout.splitRatio ?? 0.5;
-  const sizes = narrow ? undefined : ({ '--side-w': layout.sidebarWidth ? `${sideW}px` : undefined, '--list-w': layout.listWidth ? `${listW}px` : undefined, '--split': ratio } as React.CSSProperties);
+  const sizes = narrow ? undefined : ({ '--side-w': layout.sidebarWidth ? `${sideW}px` : undefined, '--list-w': layout.listWidth ? `${listW}px` : undefined} as React.CSSProperties);
   const target = () => appRef.current;
   const peekable = !narrow && !state.focusMode;
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
 
   return (
     <NavContext.Provider value={nav}>
+    <PanesContext.Provider value={panes}>
     <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
       {state.focusMode && (
         <div className="focus-bar">
@@ -277,33 +278,18 @@ export function App() {
               <>
                 {showList && <ProjectOutline project={project} onOpenChapter={openChapter} />}
                 {showList && !narrow && <Resizer label="Outline width" value={listW} {...LIST} cssVar="--list-w" target={target} onChange={(v) => store.updateLayout({ listWidth: Math.round(v) })} />}
-                <ProjectPane project={project} narrow={narrow} onBack={() => setPane('list')} />
               </>
             ) : (
               <>
                 {showList && <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />}
                 {showList && !narrow && <Resizer label="Note list width" value={listW} {...LIST} cssVar="--list-w" target={target} onChange={(v) => store.updateLayout({ listWidth: Math.round(v) })} />}
-                {split === 'one' ? (
-                  <NotePane onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={newProject} />
-                ) : (
-                  <div className={`notes-split ${split}`}>
-                    <NotePane side="first" noteId={state.selectedId} onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={newProject} />
-                    <Resizer
-                      label={split === 'side' ? 'Width of the two notes' : 'Height of the two notes'}
-                      vertical={split === 'stacked'}
-                      value={ratio}
-                      min={0.2}
-                      max={0.8}
-                      normal={0.5}
-                      scale={split === 'side' ? (appRef.current?.querySelector('.notes-split')?.clientWidth ?? 1000) : (appRef.current?.querySelector('.notes-split')?.clientHeight ?? 700)}
-                      cssVar="--split"
-                      target={target}
-                      onChange={(v) => store.updateLayout({ splitRatio: Math.round(v * 100) / 100 })}
-                    />
-                    <NotePane side="second" noteId={state.secondId} onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={newProject} onCloseSide={() => store.updateLayout({ split: 'one' })} />
-                  </div>
-                )}
               </>
+            )}
+            {/* Phones show one thing at a time; bigger screens, panes of tabs. */}
+            {narrow ? (
+              project ? <ProjectPane project={project} narrow={narrow} onBack={() => setPane('list')} /> : <NotePane onBack={() => setPane('list')} narrow={narrow} onNewNote={newNote} onNewProject={newProject} />
+            ) : (
+              <PaneArea narrow={narrow} onBack={() => setPane('list')} onNewNote={newNote} onNewProject={newProject} />
             )}
           </div>
         </div>
@@ -311,6 +297,7 @@ export function App() {
       </PeekContext.Provider>
       {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
     </div>
+    </PanesContext.Provider>
     </NavContext.Provider>
   );
 }

@@ -30,9 +30,6 @@ export interface AppState {
   settings: Settings;
   view: View;
   selectedId: string | null;
-  /** With two notes open: the other note, and which side is being worked in. */
-  secondId: string | null;
-  activeSide: 'first' | 'second';
   /** Focus mode: only the page being written on. */
   focusMode: boolean;
   /** The chapter open in the project being viewed. */
@@ -77,8 +74,6 @@ export class AppStore {
     settings: DEFAULT_SETTINGS,
     view: { kind: 'all' },
     selectedId: null,
-    secondId: null,
-    activeSide: 'first',
     focusMode: false,
     chapterId: null,
     researchId: null,
@@ -237,21 +232,11 @@ export class AppStore {
 
   select(id: string | null): void {
     this.flush();
-    this.set({ selectedId: id, activeSide: 'first' });
-  }
-
-  /** Opens a note on the other side, with two notes open. */
-  openSecond(id: string | null): void {
-    this.flush();
-    this.set({ secondId: id, activeSide: 'second' });
+    this.set({ selectedId: id });
   }
 
   setFocusMode(on: boolean): void {
     if (this.state.focusMode !== on) this.set({ focusMode: on });
-  }
-
-  setActiveSide(side: 'first' | 'second'): void {
-    if (this.state.activeSide !== side) this.set({ activeSide: side });
   }
 
   /** Changes part of the window layout. */
@@ -317,7 +302,7 @@ export class AppStore {
     const nb = this.notebookNamed(DAILY_NOTEBOOK);
     const existing = this.state.notes.find((n) => n.notebookId === nb.id && n.trashedAt === null && n.title === title);
     if (existing) {
-      this.set({ view: { kind: 'notebook', id: nb.id }, query: '', selectedId: existing.id, activeSide: 'first' });
+      this.set({ view: { kind: 'notebook', id: nb.id }, query: '', selectedId: existing.id });
       return existing;
     }
     const tpl = this.state.notes.find((n) => n.trashedAt === null && n.title.toLowerCase() === DAILY_TEMPLATE.toLowerCase() && this.notebook(n.notebookId)?.name.toLowerCase() === TEMPLATES_NOTEBOOK.toLowerCase());

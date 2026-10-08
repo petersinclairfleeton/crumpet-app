@@ -35,6 +35,7 @@ import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
 import { CastList, CastPane, CastSpotting } from './cast';
 import { FoldButton } from './fold';
+import { startTabDrag } from './tabdrag';
 import { makeBlock } from '@crumpet/editor/model';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -225,6 +226,8 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
               e.dataTransfer.effectAllowed = 'move';
               e.dataTransfer.setData('text/plain', item.id);
               setDragging(item.id);
+              // A chapter can also be dragged into a pane of its own.
+              if (item.type === 'chapter') startTabDrag(e, { kind: 'chapter', id: item.id });
             },
             onDragEnd: () => {
               setDragging(null);
@@ -496,7 +499,7 @@ function AutoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) 
   return <textarea ref={ref} rows={1} {...props} />;
 }
 
-function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; chapter: Chapter; narrow: boolean; onBack(): void }) {
+export function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; chapter: Chapter; narrow: boolean; onBack(): void }) {
   const state = useAppState();
   const store = useAppStore();
   const editorRef = useRef<Editor | null>(null);

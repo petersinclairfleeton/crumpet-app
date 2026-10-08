@@ -10,6 +10,7 @@ import { displayTitle } from '../data/selectors';
 import { useAppState, useAppStore } from './hooks';
 import { EditorHost } from './EditorHost';
 import { IconChevron, IconClose, IconMore, IconNote, IconPlus } from './icons';
+import { tabDrag } from './tabdrag';
 import { Popover } from './Sidebar';
 
 type Kind = 'note' | 'picture' | 'pdf' | 'file' | 'clipping';
@@ -103,7 +104,7 @@ export function ResearchList({ project }: { project: Project }) {
             const kind = researchKind(n);
             return (
               <li key={n.id}>
-                <button type="button" className={`research-item${state.researchId === n.id ? ' selected' : ''}`} aria-current={state.researchId === n.id ? 'true' : undefined} onClick={() => store.openResearch(state.researchId === n.id ? null : n.id)}>
+                <button type="button" className={`research-item${state.researchId === n.id ? ' selected' : ''}`} aria-current={state.researchId === n.id ? 'true' : undefined} onClick={() => store.openResearch(state.researchId === n.id ? null : n.id)} {...tabDrag({ kind: 'research', id: n.id })}>
                   <span className={`research-glyph ${kind}`} aria-label={KIND_LABEL[kind]}>
                     {KIND_GLYPH[kind]}
                   </span>

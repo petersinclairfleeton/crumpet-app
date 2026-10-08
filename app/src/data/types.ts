@@ -168,10 +168,8 @@ export interface LayoutPrefs {
   /** Widths in px, from dragging the edges. */
   sidebarWidth?: number;
   listWidth?: number;
-  /** One note, or two side by side or one above the other. */
-  split?: 'one' | 'side' | 'stacked';
-  /** The first note's share of the space when two are open (0.2 to 0.8). */
-  splitRatio?: number;
+  /** The writing area's panes and their tabs (a `Workspace` from `panes.ts`, checked when read). */
+  panes?: unknown;
 }
 
 /** What the note list is showing. */
