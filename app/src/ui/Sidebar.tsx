@@ -14,7 +14,8 @@ import { FoldButton } from './fold';
 import { tabDrag } from './tabdrag';
 import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
-import { IconBook, IconChart, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { usePanes } from './panes';
+import { IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenView(view: View): void;
@@ -38,6 +39,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const { state: sync } = useSync();
   const [statsOpen, setStatsOpen] = useState(false);
   const todayWords = useTodayWords();
+  const panes = usePanes();
   useEffect(() => {
     const onHash = () => location.hash === '#connect' && setSettingsOpen(true);
     window.addEventListener('hashchange', onHash);
@@ -103,6 +105,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null && !n.projectId).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
         <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
         <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
+        <SideRow icon={<IconGraph size={13} />} label="Graph" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
         <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
 
         {(state.settings.savedSearches ?? []).length > 0 && (

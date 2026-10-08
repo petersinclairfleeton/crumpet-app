@@ -2650,3 +2650,34 @@ test('search finds words inside attached PDFs and pictures', async ({ page }) =>
   await search.fill('lantern');
   await expect(list(page).locator('.card')).toHaveText([/Attachments/]);
 });
+
+test('graph view: notes and their links, all of them or just near the open note', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1400, height: 860 });
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
+    s.createNote({ title: 'Lamp', doc: md.fromMarkdown('See [[Keeper]].') });
+    s.createNote({ title: 'Keeper', doc: md.fromMarkdown('Father of [[Mara]].') });
+    s.createNote({ title: 'Mara', doc: md.fromMarkdown('Daughter.') });
+    const lone = s.createNote({ title: 'Lone', doc: md.fromMarkdown('Nothing linked.') });
+    s.createNote({ title: 'Far', doc: md.fromMarkdown('Nothing.') });
+    s.select(lone.id);
+  });
+  await page.keyboard.press('Control+g');
+  const graph = page.getByRole('region', { name: 'Graph' });
+  await expect(graph).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Graph' })).toHaveAttribute('aria-selected', 'true');
+  await expect(graph.locator('.graph-count')).toHaveText('5 notes · 2 links');
+  await graph.getByLabel('Notes without links').uncheck();
+  await expect(graph.locator('.graph-count')).toHaveText('3 notes · 2 links');
+  // Near the open note: open Keeper, then show what's linked to it.
+  await list(page).locator('.card').filter({ has: page.locator('.card-title', { hasText: /^Keeper$/ }) }).click({ button: 'middle' });
+  await page.getByRole('tab', { name: 'Keeper' }).click();
+  await page.getByRole('tab', { name: 'Graph' }).click();
+  await graph.getByLabel('Which notes').selectOption('1');
+  await expect(graph.locator('.graph-count')).toHaveText('3 notes · 2 links');
+  await graph.getByLabel('Which notes').selectOption('0');
+  await graph.getByLabel('Notes without links').check();
+  await expect(graph.locator('.graph-count')).toHaveText('5 notes · 2 links');
+});

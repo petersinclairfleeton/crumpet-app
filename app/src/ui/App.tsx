@@ -36,6 +36,8 @@ export function App() {
   const [pane, setPane] = useState<Pane>('list');
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const panes = usePanesState();
+  const panesRef = useRef(panes);
+  panesRef.current = panes;
   useFileIndex();
 
   useEffect(() => {
@@ -164,6 +166,11 @@ export function App() {
         else store.updateLayout({ sidebar: (layout?.sidebar ?? 'full') === 'hidden' ? 'full' : 'hidden' });
       }
       if (e.key === 'Escape') setPeek(null);
+      // Ctrl+G (⌘G): the graph view, as in Obsidian.
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        panesRef.current.open({ kind: 'graph', id: 'graph' }, 'tab');
+      }
       // Shift+F7: the thesaurus, as in Word.
       if (e.shiftKey && e.key === 'F7') {
         e.preventDefault();
