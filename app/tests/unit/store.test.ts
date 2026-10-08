@@ -439,3 +439,18 @@ describe('nested tags', () => {
     expect(store.note(c.id)!.tags).toEqual(['bookish']);
   });
 });
+
+describe('project views', () => {
+  it('closes a character card when the view changes, not when it stays the same', async () => {
+    const store = new AppStore(new MemoryStorage());
+    await store.load();
+    const p = store.createProject('Book');
+    const m = store.addCastMember(p.id, 'character', 'Tam')!;
+    store.openCast(m.id);
+    store.setProjectMode('chapter');
+    expect(store.getState().castId).toBe(m.id);
+    store.setProjectMode('corkboard');
+    expect(store.getState().castId).toBeNull();
+  });
+});
+

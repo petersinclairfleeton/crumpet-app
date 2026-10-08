@@ -321,6 +321,15 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
           <IconPlus size={13} /> Part
         </button>
       </div>
+      {chapters.size > 1 && (
+        <ul className="status-key" aria-label="What the dots mean">
+          {STATUSES.map((s) => (
+            <li key={s.id}>
+              <span className={`status-dot ${s.id}`} aria-hidden="true" /> {s.label}
+            </li>
+          ))}
+        </ul>
+      )}
       <CastList project={project} />
       <ResearchList project={project} />
     </section>
@@ -358,7 +367,12 @@ export function ProjectPane({ project, narrow, onBack }: { project: Project; nar
   const research = state.notes.find((n) => n.id === state.researchId && n.projectId === project.id && n.trashedAt === null);
   const member = project.cast?.find((m) => m.id === state.castId);
   if (!research && !member) return <ProjectWriting project={project} narrow={narrow} onBack={onBack} />;
-  const pane = member ? <CastPane key={member.id} project={project} member={member} onClose={() => store.openCast(null)} /> : <ResearchPane key={research!.id} note={research!} onClose={() => store.openResearch(null)} />;
+  // On a phone, closing a card or research note goes back to the book's outline.
+  const close = (clear: () => void) => () => {
+    clear();
+    if (narrow) onBack();
+  };
+  const pane = member ? <CastPane key={member.id} project={project} member={member} narrow={narrow} onClose={close(() => store.openCast(null))} /> : <ResearchPane key={research!.id} note={research!} onClose={close(() => store.openResearch(null))} />;
   // Research opens beside the writing (on a phone, instead of it).
   if (narrow) return pane;
   return (

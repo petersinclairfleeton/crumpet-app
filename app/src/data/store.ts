@@ -850,7 +850,8 @@ export class AppStore {
 
   setProjectMode(mode: 'chapter' | 'manuscript' | 'corkboard'): void {
     this.flush();
-    this.set({ projectMode: mode });
+    // A character or place card closes when the view changes, giving the writing its room back.
+    this.set(mode === this.state.projectMode ? { projectMode: mode } : { projectMode: mode, castId: null });
   }
 
   private updateProject(id: string, patch: Partial<Project>): void {

@@ -1066,3 +1066,12 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 }
 @keyframes tip-in { from { opacity: 0; } to { opacity: 1; } }
 .menu-item { white-space: nowrap; }
+/* Books: the outline's status key, the character card on a phone, its delete at the foot. */
+.status-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 4px 16px 10px; list-style: none; font-size: 11.5px; color: var(--muted); }
+.status-key li { display: inline-flex; align-items: center; gap: 5px; }
+.panes > .research-pane { flex: 1 1 auto; min-width: 0; }
+.back-link { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 45%; height: 32px; padding: 0 8px 0 2px; border: none; background: none; color: var(--accent-ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.cast-foot { padding-top: 8px; border-top: 1px solid var(--line); }
+.cast-foot .btn { display: inline-flex; align-items: center; gap: 6px; }
+.corkboard { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+@media (max-width: 759px) { .app[data-pane='list'] .panes > .research-pane { display: none; } }

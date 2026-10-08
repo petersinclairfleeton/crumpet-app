@@ -10,7 +10,7 @@ import { addFile, mediaUrl } from '../data/files';
 import { projectChapters } from '../data/selectors';
 import type { CastMember, Project } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
-import { IconChevron, IconClose, IconPlus } from './icons';
+import { IconBack, IconChevron, IconClose, IconPlus, IconTrash } from './icons';
 import { Popover } from './Sidebar';
 
 const KIND: Record<CastMember['kind'], string> = { character: 'Character', place: 'Place' };
@@ -103,7 +103,7 @@ export function CastList({ project }: { project: Project }) {
 }
 
 /** A character's or place's card, open beside the writing. */
-export function CastPane({ project, member, onClose }: { project: Project; member: CastMember; onClose(): void }) {
+export function CastPane({ project, member, narrow = false, onClose }: { project: Project; member: CastMember; narrow?: boolean; onClose(): void }) {
   const state = useAppState();
   const store = useAppStore();
   const name = useRef<HTMLInputElement>(null);
@@ -116,7 +116,16 @@ export function CastPane({ project, member, onClose }: { project: Project; membe
 
   useEffect(() => {
     setAliases(member.aliases.join(', '));
-    if (!member.name) name.current?.focus();
+    // On a phone the card comes on screen a moment after it opens: try again until it can take focus.
+    if (member.name) return;
+    let tries = 0;
+    let frame = 0;
+    const focus = () => {
+      name.current?.focus();
+      if (document.activeElement !== name.current && ++tries < 20) frame = requestAnimationFrame(focus);
+    };
+    focus();
+    return () => cancelAnimationFrame(frame);
   }, [member.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choosePicture = () => {
@@ -138,6 +147,11 @@ export function CastPane({ project, member, onClose }: { project: Project; membe
   return (
     <section className="research-pane cast-pane" aria-label={`${KIND[member.kind]} card`}>
       <div className="note-toolbar" role="toolbar" aria-label="Card">
+        {narrow && (
+          <button type="button" className="back-link" onClick={onClose}>
+            <IconBack size={16} /> <span className="ellipsis">{project.name}</span>
+          </button>
+        )}
         <div className="segmented small" role="group" aria-label="Kind">
           {(['character', 'place'] as const).map((k) => (
             <button key={k} type="button" aria-pressed={member.kind === k} onClick={() => update({ kind: k })}>
@@ -146,18 +160,11 @@ export function CastPane({ project, member, onClose }: { project: Project; membe
           ))}
         </div>
         <span className="grow" />
-        <button
-          type="button"
-          className="btn quiet danger-text"
-          onClick={() => {
-            if (confirm(`Delete ${member.name || 'this card'}? Your chapters stay as they are.`)) store.deleteCastMember(project.id, member.id);
-          }}
-        >
-          Delete
-        </button>
-        <button type="button" className="icon-btn" aria-label="Close card" title="Close" onClick={onClose}>
-          <IconClose size={15} />
-        </button>
+        {!narrow && (
+          <button type="button" className="icon-btn" aria-label="Close card" data-tip="Close" onClick={onClose}>
+            <IconClose size={15} />
+          </button>
+        )}
       </div>
       <div className="note-scroll">
         <div className="cast-card">
@@ -219,6 +226,17 @@ export function CastPane({ project, member, onClose }: { project: Project; membe
             ) : (
               <p className="research-empty">{member.name ? 'Not mentioned in any chapter yet.' : 'Give a name to find where they appear.'}</p>
             )}
+          </div>
+          <div className="cast-foot">
+            <button
+              type="button"
+              className="btn quiet danger-text"
+              onClick={() => {
+                if (confirm(`Delete ${member.name || 'this card'}? Your chapters stay as they are.`)) store.deleteCastMember(project.id, member.id);
+              }}
+            >
+              <IconTrash size={13} /> Delete this card
+            </button>
           </div>
         </div>
       </div>

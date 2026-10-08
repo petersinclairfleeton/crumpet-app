@@ -290,6 +290,22 @@ test.describe('on a phone', () => {
     await page.getByRole('button', { name: 'Back to editing' }).click();
     await expect(page.locator('.note-pane.reading')).toHaveCount(0);
   });
+
+  test('a character card fills the screen, with a way back to the book', async ({ page }) => {
+    await open(page);
+    await page.evaluate(() => (window as unknown as { crumpet: { createProject(name: string): unknown } }).crumpet.createProject('The Lighthouse'));
+    const outline = page.getByRole('region', { name: 'Outline' });
+    await outline.getByRole('button', { name: 'Add a character or place' }).click();
+    await page.getByRole('button', { name: 'New character' }).click();
+    const card = page.getByRole('region', { name: 'Character card' });
+    await expect(outline).toBeHidden();
+    expect((await card.boundingBox())!.width).toBeGreaterThan(380);
+    await page.keyboard.type('Tam');
+    await card.getByRole('button', { name: 'The Lighthouse' }).click();
+    await expect(card).toHaveCount(0);
+    await expect(outline).toBeVisible();
+    await expect(outline.locator('.research-item')).toHaveText(['TTam']);
+  });
 });
 
 test('settings: notes start on this device, with Google Drive one click away', async ({ page }) => {
