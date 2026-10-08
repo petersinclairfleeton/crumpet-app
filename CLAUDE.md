@@ -62,7 +62,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     alignment, tables (`rows`, `tbl`), pictures (`src`), folding, tracked
     paragraph breaks (`brk`) and `para` (Word's paragraph settings: spacing,
     indents, page breaks, keeps, list number/bullet style and start,
-    borders, shading). A `toc` block is a table of contents.
+    borders, shading). A `toc` block is a table of contents. A paragraph
+    styled `toggle` folds the lines after it (up to a blank line or heading)
+    like a heading folds its section (`foldedUnder`); quotes styled `note`,
+    `tip`, `warning` or `important` are callouts.
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines) and keeping it in step as rows and
     columns change. `cells.ts`: a cell's text is a line of inline

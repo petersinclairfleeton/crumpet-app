@@ -141,8 +141,9 @@ export type Align = 'left' | 'center' | 'right' | 'justify';
  * be Intense. How each looks is set by the app's style sheet.
  */
 export const BLOCK_STYLES: Partial<Record<BlockType, readonly string[]>> = {
-  paragraph: ['nospacing', 'title', 'subtitle', 'epigraph', 'caption', 'scenebreak'],
-  quote: ['intense'],
+  paragraph: ['nospacing', 'title', 'subtitle', 'epigraph', 'caption', 'scenebreak', 'toggle'],
+  // Callouts (Notion's and Obsidian's): a quote in a coloured box with an icon.
+  quote: ['intense', 'note', 'tip', 'warning', 'important'],
 };
 
 export function styleAllowed(type: BlockType, style: string): boolean {
@@ -154,6 +155,38 @@ export const LIST_TYPES: readonly BlockType[] = ['todo', 'bullet', 'numbered'];
 export const MAX_INDENT = 6;
 /** Most columns a section can have. */
 export const MAX_COLS = 4;
+
+/** A toggle: a line whose content (the lines after it, up to a blank line or a heading) folds away under it. */
+export function isToggle(b: Pick<Block, 'type' | 'style'>): boolean {
+  return b.type === 'paragraph' && b.style === 'toggle';
+}
+
+/** Headings fold their sections; toggles fold their content. */
+export function foldable(b: Pick<Block, 'type' | 'style'>): boolean {
+  return isHeading(b.type) || isToggle(b);
+}
+
+/**
+ * The blocks a heading or toggle folds away: a heading's section (up to the
+ * next heading of the same level or higher), or a toggle's content (up to a
+ * blank line, a heading or another toggle).
+ */
+export function foldedUnder(doc: { blocks: Block[] }, i: number): Block[] {
+  const blk = doc.blocks[i];
+  const out: Block[] = [];
+  if (isToggle(blk)) {
+    for (let j = i + 1; j < doc.blocks.length; j++) {
+      const x = doc.blocks[j];
+      if (isHeading(x.type) || isToggle(x) || (x.type === 'paragraph' && !x.runs.some((r) => r.text.trim()))) break;
+      out.push(x);
+    }
+    return out;
+  }
+  const level = (t: BlockType) => (isHeading(t) ? Number(t.slice(-1)) : 99);
+  const own = level(blk.type);
+  for (let j = i + 1; j < doc.blocks.length && level(doc.blocks[j].type) > own; j++) out.push(doc.blocks[j]);
+  return out;
+}
 
 export function isList(type: BlockType): boolean {
   return LIST_TYPES.includes(type);
@@ -596,7 +629,7 @@ export function makeBlock(type: BlockType, text = '', marks: Mark[] = [], extra:
   if (type !== 'table' || !block.rows) delete block.rows;
   if (type !== 'table' || !block.tbl) delete block.tbl;
   if (type !== 'shape' || !block.shape) delete block.shape;
-  if (!isHeading(type) || !block.folded) delete block.folded;
+  if (!foldable(block) || !block.folded) delete block.folded;
   if (!block.brk) delete block.brk;
   return block;
 }

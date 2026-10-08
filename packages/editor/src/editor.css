@@ -195,3 +195,20 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
 .shape-tools { justify-content: flex-start; }
 .shape-wrap:hover .shape-tools { visibility: visible; opacity: 1; }
 @media print { .shape-grip, .shape-tools { display: none !important; } }
+
+/* Toggles: a line whose content folds away under it (the arrow is always shown). */
+.blk[data-style='toggle'] { position: relative; font-weight: 600; }
+.blk[data-style='toggle'] > .fold { opacity: 1; }
+.blk[data-in-toggle] { margin-left: 22px; padding-left: 12px; border-left: 2px solid var(--line, rgba(0, 0, 0, 0.12)); }
+/* Callouts: a quote in a coloured box with an icon. */
+.blk-quote[data-style='note'], .blk-quote[data-style='tip'], .blk-quote[data-style='warning'], .blk-quote[data-style='important'] { position: relative; padding-left: 42px; border-left: 3px solid var(--callout); border-radius: 0 7px 7px 0; background: color-mix(in srgb, var(--callout) 11%, transparent); font-style: normal; }
+.blk-quote[data-style='note'] { --callout: #2f6fd1; }
+.blk-quote[data-style='tip'] { --callout: #2e8b57; }
+.blk-quote[data-style='warning'] { --callout: #d08a00; }
+.blk-quote[data-style='important'] { --callout: #c0392b; }
+.blk-quote[data-style='note']::before, .blk-quote[data-style='tip']::before, .blk-quote[data-style='warning']::before, .blk-quote[data-style='important']::before { position: absolute; left: 13px; top: 11px; width: 18px; height: 18px; border-radius: 50%; background: var(--callout); color: #fff; font: 700 12px/18px system-ui, sans-serif; text-align: center; }
+.blk-quote[data-style='note']::before { content: 'i'; font-family: Georgia, serif; font-style: italic; }
+.blk-quote[data-style='tip']::before { content: '✓'; }
+.blk-quote[data-style='warning']::before { content: '!'; border-radius: 3px; }
+.blk-quote[data-style='important']::before { content: '★'; font-size: 10px; }
+@media print { .blk[data-in-toggle] { border-left: none; } }

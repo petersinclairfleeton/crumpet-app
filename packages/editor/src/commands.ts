@@ -51,6 +51,8 @@ import {
   makeChange,
   setChangeOnRuns,
   sectionStart,
+  foldedUnder,
+  foldable,
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs, BulletKind, NumFormat } from './model';
@@ -196,7 +198,7 @@ export function markdownShortcut(state: EditorState): Transaction | null {
 }
 
 /** Styles whose next paragraph (after Enter at the end) is plain body text, as in Word. */
-const ENDS_ON_ENTER = new Set(['title', 'subtitle', 'caption', 'scenebreak', 'epigraph']);
+const ENDS_ON_ENTER = new Set(['title', 'subtitle', 'caption', 'scenebreak', 'epigraph', 'toggle']);
 
 /**
  * What Enter at the end of a block creates: lists, quotes and body text carry
@@ -763,11 +765,11 @@ export function toggleTodo(state: EditorState, id: string): Transaction {
   return tx(state, b, state.selection);
 }
 
-/** Folds the section under a heading away, or opens it again. */
+/** Folds the section under a heading (or a toggle's content) away, or opens it again. */
 export function toggleFold(state: EditorState, id: string): Transaction {
   const blk = getBlock(state.doc, id);
   const b = new Builder(state.doc);
-  if (!isHeading(blk.type)) return tx(state, b, state.selection);
+  if (!foldable(blk)) return tx(state, b, state.selection);
   b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to: attrsOf({ ...blk, folded: !blk.folded }) });
   // A caret inside the folded part moves to the heading.
   const i = blockIndex(state.doc, id);
@@ -776,14 +778,7 @@ export function toggleFold(state: EditorState, id: string): Transaction {
   return tx(state, b, sel);
 }
 
-/** The blocks a heading's section holds: up to the next heading of the same level or higher. */
-export function foldedUnder(doc: Doc, i: number): Block[] {
-  const level = (t: BlockType) => (isHeading(t) ? Number(t.slice(-1)) : 99);
-  const own = level(doc.blocks[i].type);
-  const out: Block[] = [];
-  for (let j = i + 1; j < doc.blocks.length && level(doc.blocks[j].type) > own; j++) out.push(doc.blocks[j]);
-  return out;
-}
+export { foldedUnder };
 
 /** Replaces a block's text with what the DOM now shows (after IME or other native edits), as a minimal remove + insert. */
 export function syncBlockText(state: EditorState, id: string, domText: string, selectionAfter: Selection): Transaction | null {

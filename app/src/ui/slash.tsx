@@ -37,6 +37,11 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'numbered', label: 'Numbered list', hint: '1, 2, 3', words: 'ol ordered list', glyph: '1.', run: (ed) => ed.setBlockType('numbered') },
   { id: 'todo', label: 'Checklist', hint: 'Things to tick off', words: 'todo task checkbox to-do', glyph: '☐', run: (ed) => ed.setBlockType('todo') },
   { id: 'quote', label: 'Quote', hint: 'Set apart', words: 'blockquote callout', glyph: '❝', run: (ed) => ed.setBlockStyle('quote') },
+  { id: 'toggle', label: 'Toggle', hint: 'Lines that fold away under this one', words: 'toggle collapse fold details spoiler hide', glyph: '▸', run: (ed) => ed.setBlockStyle('paragraph', 'toggle') },
+  { id: 'note', label: 'Callout: Note', hint: 'A blue box', words: 'callout note info aside box', glyph: 'ⓘ', run: (ed) => ed.setBlockStyle('quote', 'note') },
+  { id: 'tip', label: 'Callout: Tip', hint: 'A green box', words: 'callout tip hint idea box', glyph: '✓', run: (ed) => ed.setBlockStyle('quote', 'tip') },
+  { id: 'warning', label: 'Callout: Warning', hint: 'An amber box', words: 'callout warning caution box', glyph: '!', run: (ed) => ed.setBlockStyle('quote', 'warning') },
+  { id: 'important', label: 'Callout: Important', hint: 'A red box', words: 'callout important key box', glyph: '★', run: (ed) => ed.setBlockStyle('quote', 'important') },
   { id: 'title', label: 'Title', hint: 'The document’s title style', words: 'title', glyph: 'T', run: (ed) => ed.setBlockStyle('paragraph', 'title') },
   { id: 'scene', label: 'Scene break', hint: '* * *', words: 'divider separator line rule section break', glyph: '⁂', run: (ed) => ed.setBlockStyle('paragraph', 'scenebreak') },
   { id: 'table', label: 'Table', hint: 'Rows and columns', words: 'grid columns rows spreadsheet', glyph: '▦', run: (ed) => ed.insertTable() },
@@ -52,8 +57,10 @@ export const SLASH_ITEMS: SlashItem[] = [
 export function matchSlash(query: string, items: SlashItem[] = SLASH_ITEMS): SlashItem[] {
   const q = query.toLowerCase().trim();
   if (!q) return items;
-  const starts = items.filter((i) => i.label.toLowerCase().startsWith(q));
-  const inside = items.filter((i) => !starts.includes(i) && (i.label.toLowerCase().includes(q) || i.words.split(' ').some((w) => w.startsWith(q))));
+  // Punctuation in names doesn't count ("callout warn" finds "Callout: Warning").
+  const plain = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, '');
+  const starts = items.filter((i) => i.label.toLowerCase().startsWith(q) || plain(i.label).startsWith(q));
+  const inside = items.filter((i) => !starts.includes(i) && (i.label.toLowerCase().includes(q) || plain(i.label).includes(q) || i.words.split(' ').some((w) => w.startsWith(q))));
   return [...starts, ...inside];
 }
 

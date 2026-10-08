@@ -197,7 +197,7 @@ function useCommands(actions: Actions): Item[] {
         // As if Ctrl+H were pressed in the text: its pane opens find and replace.
         (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'h', ctrlKey: true, bubbles: true }));
       }, 'Ctrl+H'),
-      ...SLASH_ITEMS.map((i) => cmd(`${/^h\d$|^text$|^bullet$|^numbered$|^todo$|^quote$|^title$/.test(i.id) ? 'Turn into' : 'Insert'}: ${i.label}`, onText((e) => i.run(e)), undefined, i.glyph)),
+      ...SLASH_ITEMS.map((i) => cmd(`${/^h\d$|^text$|^bullet$|^numbered$|^todo$|^quote$|^title$|^toggle$|^note$|^tip$|^warning$|^important$/.test(i.id) ? 'Turn into' : 'Insert'}: ${i.label}`, onText((e) => i.run(e)), undefined, i.glyph)),
     );
   }
   return list;
