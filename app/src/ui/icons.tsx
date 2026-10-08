@@ -1,3 +1,4 @@
+import markUrl from './assets/mark.png';
 // Line icons, drawn at 24×24 and coloured by currentColor.
 
 import type { ReactElement } from 'react';
@@ -81,17 +82,9 @@ export const IconFocus = icon(<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /
 export const IconList = icon(<path d="M4 6h16M4 12h16M4 18h16" />);
 export const IconCards = icon(<path d="M4 4h16v7H4zM4 15h16v5H4z" />);
 
-/** The crumpet logo: an accent circle with a few holes. */
-export function Logo({ size = 20, hole = 'var(--side-bg)' }: { size?: number; hole?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 88 88" aria-hidden="true">
-      <circle cx="44" cy="44" r="40" fill="var(--accent)" />
-      <circle cx="30" cy="34" r="7" fill={hole} />
-      <circle cx="54" cy="30" r="6" fill={hole} />
-      <circle cx="56" cy="54" r="8" fill={hole} />
-      <circle cx="34" cy="58" r="6" fill={hole} />
-    </svg>
-  );
+/** The crumpet logo: a crumpet with a page curling off it. */
+export function Logo({ size = 20 }: { size?: number }) {
+  return <img className="logo" src={markUrl} width={size} height={size} alt="" aria-hidden="true" draggable={false} />;
 }
 
 /** A notebook icon filled with the notebook's colour. */

@@ -7,7 +7,7 @@ import { type SortBy, parseQuery, quoted, sortNotes, withToken, withoutToken } f
 import { allTags } from '../data/selectors';
 import { InlineInput, Popover } from './Sidebar';
 import { IconStarFilled, IconTag, IconTrash } from './icons';
-import { IconCards, IconList, IconPlus, IconStar, NotebookIcon } from './icons';
+import { IconCards, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenNote(id: string): void;
@@ -251,13 +251,9 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
   else text = 'No notes here yet.';
   return (
     <div className="empty">
-      <svg width="56" height="56" viewBox="0 0 88 88" aria-hidden="true">
-        <circle cx="44" cy="44" r="40" fill="var(--field)" />
-        <circle cx="30" cy="34" r="7" fill="var(--list-bg)" />
-        <circle cx="54" cy="30" r="6" fill="var(--list-bg)" />
-        <circle cx="56" cy="54" r="8" fill="var(--list-bg)" />
-        <circle cx="34" cy="58" r="6" fill="var(--list-bg)" />
-      </svg>
+      <span className="empty-logo">
+        <Logo size={56} />
+      </span>
       <p>{text}</p>
       {action && (
         <button type="button" className="btn primary" onClick={onNewNote}>
