@@ -119,6 +119,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     chapter file's `tags`; `ui/keywords.tsx` draws chips and the outline's
     filter (`keywordFilter` in the store, applied to outline, cards and
     manuscript by `shownOutline`).
+  - `src/data/textstats.ts`: text statistics, words used most, and the
+    linguistic focus finders (dialogue, -ly adverbs, filler, likely passive);
+    the right sidebar's Writing tab (`ui/writingtab.tsx`) highlights them with
+    the CSS highlight `crumpet-focus` and keeps the session target.
   - `src/data/snapshots.ts`: snapshots of notes and chapters (Scrivener's):
     kept in the store (`takeSnapshot`, `restoreSnapshot`), compared with
     diff-match-patch; the right sidebar's Snapshots tab is `ui/snapshots.tsx`.
