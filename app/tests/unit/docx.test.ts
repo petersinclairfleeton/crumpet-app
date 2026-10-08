@@ -314,3 +314,20 @@ describe('Word table of contents and orientation', () => {
     expect(back.doc.blocks.map((b) => b.type)).toEqual(['toc', 'heading1', 'paragraph', 'heading2']);
   });
 });
+
+describe('Word tables: formatting in cells and column widths', () => {
+  it('keeps bold, colour and size in cells, and the column widths', async () => {
+    const rows = [
+      ['Name', 'Notes'],
+      ['**Mara**', 'Keeps the [lamp]{size=14 color=#cc0000}'],
+    ];
+    const tbl = { widths: [30, 70] };
+    const bytes = await toDocx([{ doc: { blocks: [makeBlock('table', '', [], { rows, tbl })] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:tblLayout w:type="fixed"/>');
+    expect(xml).toContain('<w:color w:val="CC0000"/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks[0].rows).toEqual(rows);
+    expect(back.doc.blocks[0].tbl).toEqual(tbl);
+  });
+});

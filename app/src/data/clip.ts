@@ -8,6 +8,7 @@
 // between windows.
 
 import { type Block, type BlockType, type Doc, type Mark, type Run, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { cellText, domRuns } from '@crumpet/editor/cells';
 
 export interface Clip {
   title: string;
@@ -269,7 +270,7 @@ export function htmlToDoc(html: string, base: string): Doc {
       }
       case 'table': {
         flush();
-        const rows = Array.from((el as HTMLTableElement).rows ?? []).map((r) => Array.from(r.cells).map((c) => (c.textContent ?? '').replace(/\s+/g, ' ').trim()));
+        const rows = Array.from((el as HTMLTableElement).rows ?? []).map((r) => Array.from(r.cells).map((c) => cellText(domRuns(c as HTMLElement)).replace(/\s+/g, ' ').trim()));
         if (rows.length) blocks.push(makeBlock('table', '', [], { rows: tidyRows(rows) }));
         start('paragraph');
         return;

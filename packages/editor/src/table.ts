@@ -18,6 +18,8 @@ export interface TableLook {
   shades?: Record<string, string>;
   /** Each column's alignment (unset: left). */
   aligns?: (CellAlign | null)[];
+  /** Each column's share of the table's width, in percent (unset: shared out by the browser). */
+  widths?: number[];
 }
 
 const BORDERS: TableBorders[] = ['outside', 'rows', 'none'];
@@ -55,6 +57,11 @@ export function tidyTable(t: TableLook | undefined, rows: number, cols: number):
   if (aligns.some(Boolean)) {
     while (aligns.length && !aligns[aligns.length - 1]) aligns.pop();
     out.aligns = aligns;
+  }
+  const w = t.widths;
+  if (w && w.length === cols && w.every((x) => typeof x === 'number' && Number.isFinite(x) && x > 0)) {
+    const sum = w.reduce((a, b) => a + b, 0);
+    out.widths = w.map((x) => Math.round((x / sum) * 1000) / 10);
   }
   return Object.keys(out).length ? out : undefined;
 }
@@ -123,6 +130,15 @@ export function addCol({ rows, tbl }: TableShape, at: number): TableShape {
   const next = rows.map((row) => [...row.slice(0, at), '', ...row.slice(at)]);
   const t = remap(tbl, (r) => r, (c) => (c >= at ? c + 1 : c), { col: at });
   if (t?.aligns) t.aligns[at] = t.aligns[at - 1] ?? null;
+  if (t?.widths) {
+    // The new column takes half of the one beside it.
+    const w = [...t.widths];
+    const from = Math.max(0, Math.min(at - 1, w.length - 1));
+    const half = w[from] / 2;
+    w[from] = half;
+    w.splice(at, 0, half);
+    t.widths = w;
+  }
   return { rows: next, tbl: tidyTable(t, next.length, next[0].length) };
 }
 
@@ -135,7 +151,9 @@ export function deleteRow({ rows, tbl }: TableShape, at: number): TableShape {
 export function deleteCol({ rows, tbl }: TableShape, at: number): TableShape {
   if ((rows[0]?.length ?? 1) <= 1) return { rows, tbl };
   const next = rows.map((row) => row.filter((_, i) => i !== at));
-  return { rows: next, tbl: tidyTable(remap(tbl, (r) => r, (c) => (c === at ? null : c > at ? c - 1 : c)), next.length, next[0].length) };
+  const t = remap(tbl, (r) => r, (c) => (c === at ? null : c > at ? c - 1 : c));
+  if (t?.widths) t.widths = t.widths.filter((_, i) => i !== at);
+  return { rows: next, tbl: tidyTable(t, next.length, next[0].length) };
 }
 
 /**
@@ -183,6 +201,11 @@ export function alignCol({ rows, tbl }: TableShape, c: number, align: CellAlign 
   return { rows, tbl: tidyTable({ ...tbl, aligns: Array.from(aligns, (a) => a ?? null) }, rows.length, rows[0].length) };
 }
 
+/** Sets each column's share of the width (percent); undefined lets the columns share it out again. */
+export function setWidths({ rows, tbl }: TableShape, widths: number[] | undefined): TableShape {
+  return { rows, tbl: tidyTable({ ...tbl, widths }, rows.length, rows[0].length) };
+}
+
 /** Sets the heading row, banded rows or lines. */
 export function setTableLook({ rows, tbl }: TableShape, patch: Pick<TableLook, 'noHeader' | 'banded' | 'borders'>): TableShape {
   return { rows, tbl: tidyTable({ ...tbl, ...patch }, rows.length, rows[0].length) };
@@ -203,11 +226,12 @@ export function tableAttrs(t: TableLook | undefined): string {
     t.borders ? `borders=${t.borders}` : '',
     ...(t.merges ?? []).map((m) => `merge=${m.join('-')}`),
     ...Object.entries(t.shades ?? {}).map(([k, v]) => `shade=${k.replace(',', '-')}-${v}`),
+    t.widths ? `widths=${t.widths.join('-')}` : '',
   ].filter(Boolean);
   return parts.length ? `{table ${parts.join(' ')}}` : '';
 }
 
-export const TABLE_ATTRS = /^[ \t]*\{table((?:[ \t]+(?:\.noheader|\.banded|borders=[a-z]+|merge=\d+-\d+-\d+-\d+|shade=\d+-\d+-#[0-9a-fA-F]{6}))*)[ \t]*\}[ \t]*$/;
+export const TABLE_ATTRS = /^[ \t]*\{table((?:[ \t]+(?:\.noheader|\.banded|borders=[a-z]+|merge=\d+-\d+-\d+-\d+|shade=\d+-\d+-#[0-9a-fA-F]{6}|widths=[\d.]+(?:-[\d.]+)*))*)[ \t]*\}[ \t]*$/;
 
 /** Reads the line written by tableAttrs (aligns come from the rule row). */
 export function readTableAttrs(line: string): TableLook | null {
@@ -219,6 +243,7 @@ export function readTableAttrs(line: string): TableLook | null {
     else if (tok === '.banded') t.banded = true;
     else if (tok.startsWith('borders=')) t.borders = tok.slice(8) as TableBorders;
     else if (tok.startsWith('merge=')) (t.merges ??= []).push(tok.slice(6).split('-').map(Number) as [number, number, number, number]);
+    else if (tok.startsWith('widths=')) t.widths = tok.slice(7).split('-').map(Number);
     else if (tok.startsWith('shade=')) {
       const [r, c, hex] = tok.slice(6).split('-');
       (t.shades ??= {})[`${r},${c}`] = hex;

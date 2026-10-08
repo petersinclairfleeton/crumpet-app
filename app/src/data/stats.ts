@@ -7,6 +7,7 @@
 // not notes arriving from other devices.
 
 import type { Doc } from '@crumpet/editor/model';
+import { cellPlain } from '@crumpet/editor/cells';
 
 export interface WritingStats {
   /** The day being counted (local date, YYYY-MM-DD). */
@@ -25,7 +26,7 @@ export function wordsIn(doc: Doc): number {
   let n = 0;
   for (const b of doc.blocks) {
     if (b.type === 'table') {
-      for (const row of b.rows ?? []) for (const cell of row) n += (cell.match(WORD) ?? []).length;
+      for (const row of b.rows ?? []) for (const cell of row) n += (cellPlain(cell).match(WORD) ?? []).length;
       continue;
     }
     const text = b.runs.filter((r) => r.footnote === undefined && r.change?.kind !== 'del').map((r) => r.text).join('');
