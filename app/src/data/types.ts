@@ -44,6 +44,15 @@ export type ChapterStatus = 'todo' | 'draft' | 'revised' | 'done';
 /** A project's order of parts and chapters. A chapter belongs to the part above it. */
 export type OutlineItem = { type: 'part'; id: string; title: string } | { type: 'chapter'; id: string };
 
+/** A date to reach a project's word goal by, and where the writing stood when it was set (for keeping pace). */
+export interface Deadline {
+  /** The day to finish by (YYYY-MM-DD, inclusive). */
+  date: string;
+  /** The day it was set, and the project's words then. */
+  from: string;
+  startWords: number;
+}
+
 /** A piece of writing made of chapters, optionally grouped into parts: a book, an essay, a thesis. */
 export interface Project {
   id: string;
@@ -57,6 +66,8 @@ export interface Project {
   page?: PageSetup;
   /** The book's characters and places. */
   cast?: CastMember[];
+  /** A finish date for the word goal. */
+  deadline?: Deadline;
   createdAt: number;
   updatedAt: number;
 }

@@ -1553,3 +1553,33 @@ test('find and replace: in a note with Ctrl+F, and across a whole book', async (
   await outline.locator('.outline-open', { hasText: 'Two' }).click();
   await expect(page.locator('.note-editor')).toContainText('grey skies, grey roofs.');
 });
+
+test('a deadline: words a day to finish on time, and whether the writing keeps pace', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await outline.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: 'Word goal…' }).click();
+  await page.getByLabel('Word goal for the project').fill('1000');
+  await page.keyboard.press('Enter');
+  await outline.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: 'Deadline…' }).click();
+  // Ten days, today included: 100 words a day.
+  const due = await page.evaluate(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 9);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  await page.getByLabel('Finish by').fill(due);
+  await page.getByRole('button', { name: 'Set', exact: true }).click();
+  const line = outline.getByLabel('Deadline');
+  await expect(line).toContainText('10 days left');
+  await expect(line).toContainText('Today: 0 of 100 words');
+  await expect(line).toContainText('On track');
+  await page.getByLabel('Chapter text').click();
+  await page.keyboard.insertText(Array.from({ length: 120 }, () => 'word').join(' '));
+  await expect(line).toContainText('Today’s target met');
+  await expect(line).toContainText('Today: 120 of 100 words');
+});

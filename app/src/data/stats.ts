@@ -99,3 +99,20 @@ export function streaks(days: Record<string, number>, goal: number, now: number)
   }
   return { current, best: Math.max(best, current) };
 }
+
+/** Words written today (on this device) in some notes or chapters, such as a project's. */
+export function wordsToday(s: WritingStats | undefined, ids: string[], now: number): number {
+  if (!s || s.day !== dayKey(now)) return 0;
+  let n = 0;
+  for (const id of ids) if (id in s.now) n += Math.max(0, s.now[id] - (s.base[id] ?? s.now[id]));
+  return n;
+}
+
+/** Days from one day to another (YYYY-MM-DD), negative if it's earlier. */
+export function daysBetween(from: string, to: string): number {
+  const t = (d: string) => {
+    const [y, m, day] = d.split('-').map(Number);
+    return Date.UTC(y, m - 1, day);
+  };
+  return Math.round((t(to) - t(from)) / 86_400_000);
+}
