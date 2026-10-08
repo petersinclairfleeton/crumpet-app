@@ -6,10 +6,11 @@ import { comments, footnotes, runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
 import type { Doc } from '@crumpet/editor/model';
 import type { Chapter, Note, Notebook, OutlineItem, Project, Stack, View } from './types';
+import { cellPlain } from '@crumpet/editor/cells';
 
 /** A block's plain text; a table's cells are its text. */
 export function blockText(b: Doc['blocks'][number]): string {
-  if (b.type === 'table') return (b.rows ?? []).map((r) => r.join(' ')).join('\n');
+  if (b.type === 'table') return (b.rows ?? []).map((r) => r.map(cellPlain).join(' ')).join('\n');
   // Footnote markers and deleted text (tracked changes) aren't part of the text.
   return b.runs.some((r) => r.footnote !== undefined || r.change?.kind === 'del') ? runsText(b.runs.filter((r) => r.footnote === undefined && r.change?.kind !== 'del')) : runsText(b.runs);
 }
@@ -24,7 +25,7 @@ export function noteText(note: Note): string {
 export function preview(note: Note, max = 160): string {
   // Join blocks into one line; list items and other lines without their own punctuation get a separator.
   // A table reads row by row, its cells joined by dashes.
-  const line = (b: Doc['blocks'][number]) => (b.type === 'table' ? (b.rows ?? []).map((r) => r.map((c) => c.trim()).filter(Boolean).join(' – ')).filter(Boolean).join(' · ') : blockText(b));
+  const line = (b: Doc['blocks'][number]) => (b.type === 'table' ? (b.rows ?? []).map((r) => r.map((c) => cellPlain(c).trim()).filter(Boolean).join(' – ')).filter(Boolean).join(' · ') : blockText(b));
   const parts = note.doc.blocks.map((b) => line(b).replace(/\s+/g, ' ').trim()).filter(Boolean);
   const text = parts.reduce((acc, p) => (!acc ? p : /[.!?:;…,]$/.test(acc) ? `${acc} ${p}` : `${acc} · ${p}`), '');
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;

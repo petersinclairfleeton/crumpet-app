@@ -1896,3 +1896,47 @@ test('table of contents: from the / menu, lists the headings with their pages, a
   });
   await expect.poll(() => page.locator('.sheet').first().evaluate((el) => (el as HTMLElement).offsetWidth > (el as HTMLElement).offsetHeight)).toBe(true);
 });
+
+test('formatting inside table cells, from the bar and with Ctrl+B, and dragging a column wider', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Cast', 'Who:');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+  for (const text of ['Name', 'Notes', 'Age', 'Mara', 'Keeps the lamp']) {
+    await page.keyboard.type(text);
+    await page.keyboard.press('Tab');
+  }
+  const table = page.locator('.note-editor .blk-table table');
+  // Ctrl+B on the word at the caret.
+  await table.locator('.cell[data-r="1"][data-c="0"]').click();
+  await page.keyboard.press('Control+b');
+  await expect(table.locator('.cell[data-r="1"][data-c="0"] strong')).toHaveText('Mara');
+  // A size from the bar, on the selected word.
+  const notes = table.locator('.cell[data-r="1"][data-c="1"]');
+  await notes.click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+Control+ArrowLeft');
+  await page.getByLabel('Font size', { exact: true }).fill('18');
+  await page.keyboard.press('Enter');
+  await expect(notes.locator('.lk')).toHaveText('lamp');
+  await expect(notes.locator('.lk')).toHaveCSS('font-size', '24px');
+  // Drag the first column's edge to the right.
+  const before = await table.locator('th').first().evaluate((el) => el.getBoundingClientRect().width);
+  const grip = table.locator('.col-grip').first();
+  const box = (await grip.boundingBox())!;
+  await page.mouse.move(box.x + 4, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 104, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(() => table.locator('th').first().evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(before + 60);
+  const md = await page.evaluate(async () => {
+    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+    return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+  });
+  expect(md).toContain('| **Mara** | Keeps the [lamp]{size=18} |');
+  expect(md).toMatch(/\{table widths=[\d.]+-[\d.]+-[\d.]+\}/);
+});

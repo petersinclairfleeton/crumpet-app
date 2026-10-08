@@ -202,6 +202,11 @@ const HTML: Style = {
 };
 
 /** Writes runs as inline Markdown, preferring tidy delimiters and falling back to HTML tags. */
+/** Runs as one line of inline Markdown (what a table cell holds). */
+export function inlineMarkdown(runs: Run[]): string {
+  return inline(runs);
+}
+
 function inline(runs: Run[]): string {
   if (!runs.length) return '';
   const tidy = spacesOutside(runs);

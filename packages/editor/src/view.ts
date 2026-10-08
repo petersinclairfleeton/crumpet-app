@@ -2,8 +2,9 @@
 // between DOM positions and model positions. Only blocks whose model object
 // changed are rebuilt; the rest of the DOM is left alone.
 
-import type { Block, Doc, Mark, Pos, Selection } from './model';
+import type { Block, Doc, Mark, Pos, Run, Selection } from './model';
 import { isCovered, mergeAt } from './table';
+import { fillCell, readCell } from './cells';
 import { BULLETS, MAX_INDENT, isHeading, isList, runsLength } from './model';
 
 const TAGS: Record<Block['type'], string> = {
@@ -289,68 +290,71 @@ function buildBlock(block: Block): HTMLElement {
   if (!block.runs.length) {
     text.appendChild(document.createElement('br'));
   }
-  for (const run of block.runs) {
-    let node: Node = document.createTextNode(run.text);
-    for (const mark of [...run.marks].reverse()) {
-      const wrap = document.createElement(MARK_TAGS[mark]);
-      wrap.appendChild(node);
-      node = wrap;
-    }
-    if (run.look) {
-      // Font, size, colour and highlight, as chosen for this text.
-      const span = document.createElement('span');
-      span.className = 'lk';
-      const l = run.look;
-      if (l.font) span.style.fontFamily = `"${l.font.replace(/"/g, '')}", var(--note-font, serif)`;
-      if (l.size) span.style.fontSize = `${l.size}pt`;
-      if (l.color) span.style.color = l.color;
-      if (l.highlight) span.style.backgroundColor = l.highlight;
-      if (l.va) {
-        span.style.verticalAlign = l.va;
-        span.style.fontSize = l.size ? `${l.size * 0.65}pt` : '0.65em';
-        span.style.lineHeight = '0';
-      }
-      span.appendChild(node);
-      node = span;
-    }
-    if (run.footnote !== undefined) {
-      // The marker: an invisible character in the text, with its number drawn beside it.
-      const sup = document.createElement('sup');
-      sup.className = 'fn';
-      sup.title = run.footnote || 'Footnote';
-      sup.appendChild(node);
-      node = sup;
-    }
-    if (run.change) {
-      // Track changes: added text underlined, deleted text struck through.
-      const el = document.createElement(run.change.kind);
-      el.className = 'trk';
-      const who = run.change.author || 'Someone';
-      el.title = `${run.change.kind === 'ins' ? 'Added' : 'Deleted'} by ${who}${run.change.at ? `, ${new Date(run.change.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}` : ''}`;
-      el.appendChild(node);
-      node = el;
-    }
-    if (run.comment) {
-      // Commented text is highlighted; the comment itself is shown by the app.
-      const mark = document.createElement('mark');
-      mark.className = 'cmt';
-      mark.dataset.comment = run.comment.id;
-      mark.appendChild(node);
-      node = mark;
-    }
-    if (run.link) {
-      const a = document.createElement('a');
-      a.href = run.link;
-      a.title = `${run.link} (${isMac ? '⌘' : 'Ctrl'}-click to open)`;
-      a.rel = 'noopener noreferrer';
-      a.target = '_blank';
-      a.appendChild(node);
-      node = a;
-    }
-    text.appendChild(node);
-  }
+  for (const run of block.runs) text.appendChild(runNode(run));
   el.appendChild(text);
   return el;
+}
+
+/** A run of text as the page shows it: its marks, look, footnote, change, comment and link around it. */
+export function runNode(run: Run): Node {
+  let node: Node = document.createTextNode(run.text);
+  for (const mark of [...run.marks].reverse()) {
+    const wrap = document.createElement(MARK_TAGS[mark]);
+    wrap.appendChild(node);
+    node = wrap;
+  }
+  if (run.look) {
+    // Font, size, colour and highlight, as chosen for this text.
+    const span = document.createElement('span');
+    span.className = 'lk';
+    const l = run.look;
+    if (l.font) span.style.fontFamily = `"${l.font.replace(/"/g, '')}", var(--note-font, serif)`;
+    if (l.size) span.style.fontSize = `${l.size}pt`;
+    if (l.color) span.style.color = l.color;
+    if (l.highlight) span.style.backgroundColor = l.highlight;
+    if (l.va) {
+      span.style.verticalAlign = l.va;
+      span.style.fontSize = l.size ? `${l.size * 0.65}pt` : '0.65em';
+      span.style.lineHeight = '0';
+    }
+    span.appendChild(node);
+    node = span;
+  }
+  if (run.footnote !== undefined) {
+    // The marker: an invisible character in the text, with its number drawn beside it.
+    const sup = document.createElement('sup');
+    sup.className = 'fn';
+    sup.title = run.footnote || 'Footnote';
+    sup.appendChild(node);
+    node = sup;
+  }
+  if (run.change) {
+    // Track changes: added text underlined, deleted text struck through.
+    const el = document.createElement(run.change.kind);
+    el.className = 'trk';
+    const who = run.change.author || 'Someone';
+    el.title = `${run.change.kind === 'ins' ? 'Added' : 'Deleted'} by ${who}${run.change.at ? `, ${new Date(run.change.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}` : ''}`;
+    el.appendChild(node);
+    node = el;
+  }
+  if (run.comment) {
+    // Commented text is highlighted; the comment itself is shown by the app.
+    const mark = document.createElement('mark');
+    mark.className = 'cmt';
+    mark.dataset.comment = run.comment.id;
+    mark.appendChild(node);
+    node = mark;
+  }
+  if (run.link) {
+    const a = document.createElement('a');
+    a.href = run.link;
+    a.title = `${run.link} (${isMac ? '⌘' : 'Ctrl'}-click to open)`;
+    a.rel = 'noopener noreferrer';
+    a.target = '_blank';
+    a.appendChild(node);
+    node = a;
+  }
+  return node;
 }
 
 /** The picture, or the attached file's chip, above a media block's caption. */
@@ -521,6 +525,17 @@ function fillTable(table: HTMLTableElement, block: Block): void {
   else delete table.dataset.borders;
   table.classList.toggle('banded', !!t?.banded);
   table.classList.toggle('no-header', !!t?.noHeader);
+  // Column widths set by dragging; otherwise the browser shares the width out.
+  if (t?.widths) {
+    table.style.tableLayout = 'fixed';
+    const group = document.createElement('colgroup');
+    for (const w of t.widths) {
+      const col = document.createElement('col');
+      col.style.width = `${w}%`;
+      group.appendChild(col);
+    }
+    table.appendChild(group);
+  } else table.style.tableLayout = '';
   const wrap = table.closest('.table-wrap');
   const check = (sel: string, on: boolean) => wrap?.querySelectorAll(sel).forEach((b) => b.setAttribute('aria-checked', String(on)));
   check('[data-table-action="header"]', !t?.noHeader);
@@ -548,8 +563,18 @@ function fillTable(table: HTMLTableElement, block: Block): void {
       box.dataset.c = String(c);
       box.setAttribute('role', 'textbox');
       box.setAttribute('aria-label', head ? `Heading ${c + 1}` : `Row ${t?.noHeader ? r + 1 : r}, column ${c + 1}`);
-      box.textContent = text;
+      fillCell(box, text);
       cell.appendChild(box);
+      // Along the top row, a handle on each column's right edge to drag it wider or narrower.
+      const right = c + (m?.[3] ?? 1) - 1;
+      if (r === 0 && right < row.length - 1) {
+        const grip = document.createElement('span');
+        grip.className = 'col-grip';
+        grip.contentEditable = 'false';
+        grip.dataset.col = String(right);
+        grip.title = 'Drag to change the column’s width (double-click to even them out)';
+        cell.appendChild(grip);
+      }
       tr.appendChild(cell);
     });
   });
@@ -574,7 +599,7 @@ function patchTable(el: HTMLElement, block: Block): boolean {
   }
   for (const box of table.querySelectorAll<HTMLElement>('.cell')) {
     const text = rows[Number(box.dataset.r)][Number(box.dataset.c)];
-    if (box.textContent !== text && box !== el.ownerDocument.activeElement) box.textContent = text;
+    if (box !== el.ownerDocument.activeElement && readCell(box) !== text) fillCell(box, text);
   }
   return true;
 }
@@ -585,7 +610,7 @@ export function readTable(el: HTMLElement, block: Block): string[][] {
   for (const box of el.querySelectorAll<HTMLElement>('table .cell')) {
     const r = Number(box.dataset.r);
     const c = Number(box.dataset.c);
-    if (rows[r]?.[c] !== undefined) rows[r][c] = (box.textContent ?? '').replace(/[\r\n]+/g, ' ');
+    if (rows[r]?.[c] !== undefined) rows[r][c] = readCell(box);
   }
   return rows;
 }

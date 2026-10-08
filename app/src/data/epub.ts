@@ -5,6 +5,7 @@
 
 import { type Block, type Doc, type Run, BULLETS, isList, tidyRows } from '@crumpet/editor/model';
 import { isCovered, mergeAt } from '@crumpet/editor/table';
+import { cellRuns } from '@crumpet/editor/cells';
 import { NOTE_LINK } from '@crumpet/editor/markdown';
 import { type ZipEntry, utf8, writeZip } from './zip';
 
@@ -164,11 +165,11 @@ class Book {
             if (isCovered(t, r, c)) return '';
             const m = mergeAt(t, r, c);
             const css = [t?.shades?.[`${r},${c}`] ? `background-color: ${t.shades[`${r},${c}`]}` : t?.banded && (head ? r % 2 === 0 && r > 0 : r % 2 === 1) ? 'background-color: #f2f2f2' : '', t?.aligns?.[c] ? `text-align: ${t.aligns[c]}` : '', t?.borders === 'none' || t?.borders === 'outside' ? 'border: none' : t?.borders === 'rows' ? 'border-left: none; border-right: none' : ''].filter(Boolean);
-            return `<${tag}${m && m[2] > 1 ? ` rowspan="${m[2]}"` : ''}${m && m[3] > 1 ? ` colspan="${m[3]}"` : ''}${css.length ? ` style="${css.join('; ')}"` : ''}>${esc(rows[r][c])}</${tag}>`;
+            return `<${tag}${m && m[2] > 1 ? ` rowspan="${m[2]}"` : ''}${m && m[3] > 1 ? ` colspan="${m[3]}"` : ''}${css.length ? ` style="${css.join('; ')}"` : ''}>${runs(cellRuns(rows[r][c]))}</${tag}>`;
           };
           const row = (r: number, tag: string) => `<tr>${rows[r].map((_, c) => cell(r, c, tag)).join('')}</tr>`;
           const body = rows.map((_, r) => r).filter((r) => !head || r > 0);
-          out += `<table${t?.borders === 'outside' ? ' style="border: 1px solid #999"' : ''}>${head ? `<thead>${row(0, 'th')}</thead>` : ''}<tbody>${body.map((r) => row(r, 'td')).join('')}</tbody></table>`;
+          out += `<table${t?.borders === 'outside' || t?.widths ? ` style="${[t?.borders === 'outside' ? 'border: 1px solid #999' : '', t?.widths ? 'table-layout: fixed' : ''].filter(Boolean).join('; ')}"` : ''}>${t?.widths ? `<colgroup>${t.widths.map((w) => `<col style="width: ${w}%"/>`).join('')}</colgroup>` : ''}${head ? `<thead>${row(0, 'th')}</thead>` : ''}<tbody>${body.map((r) => row(r, 'td')).join('')}</tbody></table>`;
           break;
         }
         default:

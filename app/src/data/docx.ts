@@ -5,6 +5,7 @@
 
 import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { type TableLook, mergeAt, tidyTable } from '@crumpet/editor/table';
+import { cellRuns, cellText } from '@crumpet/editor/cells';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { type PageSetup, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -275,8 +276,11 @@ class Writer {
     const cols = rows[0].length;
     const t = b.tbl;
     const head = !t?.noHeader;
-    const w = Math.floor((this.contentWidth / 96) * TWIPS / cols);
-    const grid = `<w:tblGrid>${Array.from({ length: cols }, () => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
+    const full = (this.contentWidth / 96) * TWIPS;
+    // Each column's width: as dragged, or shared out evenly.
+    const ws = Array.from({ length: cols }, (_, c) => Math.floor(t?.widths ? (full * t.widths[c]) / 100 : full / cols));
+    const grid = `<w:tblGrid>${ws.map((x) => `<w:gridCol w:w="${x}"/>`).join('')}</w:tblGrid>`;
+    const spanW = (c: number, n: number) => ws.slice(c, c + n).reduce((a, b) => a + b, 0);
     const tr = rows
       .map((row, r) => {
         const cells = row
@@ -285,15 +289,16 @@ class Writer {
             // Inside a merged cell: nothing, or (in a row below its top) a cell carrying the merge down.
             if (m && c !== m[1]) return '';
             const span = m && m[3] > 1 ? `<w:gridSpan w:val="${m[3]}"/>` : '';
-            const width = `<w:tcW w:w="${w * (m?.[3] ?? 1)}" w:type="dxa"/>`;
+            const width = `<w:tcW w:w="${spanW(c, m?.[3] ?? 1)}" w:type="dxa"/>`;
             if (m && r !== m[0]) return `<w:tc><w:tcPr>${width}${span}<w:vMerge/></w:tcPr><w:p/></w:tc>`;
             const vMerge = m && m[2] > 1 ? '<w:vMerge w:val="restart"/>' : '';
             const shade = t?.shades?.[`${r},${c}`];
             const shd = shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${shade.slice(1).toUpperCase()}"/>` : '';
             const align = t?.aligns?.[c];
             const jc = align ? `<w:jc w:val="${align}"/>` : '';
-            const bold = r === 0 && head ? '<w:rPr><w:b/></w:rPr>' : '';
-            return `<w:tc><w:tcPr>${width}${span}${vMerge}${shd}</w:tcPr>${this.paragraph('TableText', text ? `<w:r>${bold}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>` : '', jc)}</w:tc>`;
+            // The heading row is bold; a cell's own formatting is kept.
+            const cell = cellRuns(text).map((x) => (r === 0 && head ? { ...x, marks: sortMarks([...new Set<Mark>([...x.marks, 'bold'])]) } : x));
+            return `<w:tc><w:tcPr>${width}${span}${vMerge}${shd}</w:tcPr>${this.paragraph('TableText', this.runs(cell), jc)}</w:tc>`;
           })
           .join('');
         return `<w:tr>${r === 0 && head ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}${cells}</w:tr>`;
@@ -305,7 +310,7 @@ class Writer {
     const on = t?.borders ? ON[t.borders] : null;
     const borders = on === null ? '' : `<w:tblBorders>${(['t:top', 'l:left', 'b:bottom', 'r:right', 'h:insideH', 'v:insideV'] as const).map((x) => line(x.slice(2), on.includes(x[0]))).join('')}</w:tblBorders>`;
     const look = `<w:tblLook w:val="${head ? '04A0' : '0480'}" w:firstRow="${head ? 1 : 0}" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="${t?.banded ? 0 : 1}" w:noVBand="1"/>`;
-    return `<w:tbl><w:tblPr><w:tblStyle w:val="${t?.banded ? 'TableGridBanded' : 'TableGrid'}"/><w:tblW w:w="0" w:type="auto"/>${borders}${look}</w:tblPr>${grid}${tr}</w:tbl>`;
+    return `<w:tbl><w:tblPr><w:tblStyle w:val="${t?.banded ? 'TableGridBanded' : 'TableGrid'}"/>${t?.widths ? `<w:tblW w:w="${Math.round(full)}" w:type="dxa"/>` : '<w:tblW w:w="0" w:type="auto"/>'}${borders}${t?.widths ? '<w:tblLayout w:type="fixed"/>' : ''}${look}</w:tblPr>${grid}${tr}</w:tbl>`;
   }
 
   async blocks(blocks: Block[], first: string): Promise<string> {
@@ -1051,7 +1056,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     if (brk && blocks[startAt] && !blocks[startAt].brk) blocks[startAt].brk = brk;
   };
 
-  const table = (t: Element) => {
+  const table = async (t: Element) => {
     // Cells by grid position: a cell spanning columns (gridSpan) or carrying a merge down (vMerge) becomes a merged cell.
     const rows: string[][] = [];
     const merges: [number, number, number, number][] = [];
@@ -1065,6 +1070,13 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       for (let i = 0; i < c; i++) row.push(''), jc.push(null);
       for (const tc of kids(tr).filter((x) => x.localName === 'tc')) {
         const pr = child(tc, 'tcPr');
+        // The cell's text with its formatting (bold, fonts, colours…); its paragraphs run together on one line.
+        const cellRunsRead: Run[] = [];
+        for (const [k, cp] of kids(tc).filter((x) => x.localName === 'p').entries()) {
+          if (k > 0) cellRunsRead.push({ text: ' ', marks: [] });
+          await readRuns(cp, cellRunsRead, []);
+        }
+        const cellMd = cellText(cellRunsRead.filter((x) => !x.footnote && !x.comment).map((x) => ({ text: x.text, marks: x.marks, ...(x.look ? { look: x.look } : {}), ...(x.link ? { link: x.link } : {}) })));
         const span = Math.max(1, Number(attr(child(pr, 'gridSpan'), 'val') ?? 1) || 1);
         const vm = child(pr, 'vMerge');
         const above = vm && attr(vm, 'val') !== 'restart' ? merges.find((m) => m[1] === c && m[0] + m[2] === r) : undefined;
@@ -1076,7 +1088,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
         }
         const align = attr(child(child(child(tc, 'p'), 'pPr'), 'jc'), 'val');
         for (let i = 0; i < span; i++) {
-          row.push(i === 0 && !above ? textOf(tc) : '');
+          row.push(i === 0 && !above ? cellMd : '');
           jc.push(i === 0 && !above && textOf(tc).trim() ? (align === 'center' ? 'center' : align === 'right' || align === 'end' ? 'right' : 'left') : null);
         }
         c += span;
@@ -1094,6 +1106,8 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const pr = child(t, 'tblPr');
     const lookEl = child(pr, 'tblLook');
     const first = attr(lookEl, 'firstRow') ?? (attr(lookEl, 'val') ? String((parseInt(attr(lookEl, 'val')!, 16) & 0x20) >> 5) : '1');
+    // A heading row is bold anyway: its own bold isn't kept.
+    if (first !== '0') tidy[0] = tidy[0].map((cell) => cellText(cellRuns(cell).map((x) => ({ ...x, marks: x.marks.filter((m) => m !== 'bold') }))));
     const bdr = child(pr, 'tblBorders');
     const drawn = (side: string) => {
       const v = attr(child(bdr, side), 'val');
@@ -1104,7 +1118,10 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       const sides = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].filter(drawn).join();
       borders = sides === 'top,left,bottom,right' ? 'outside' : sides === 'top,bottom,insideH' || sides === 'insideH' ? 'rows' : sides === '' ? 'none' : undefined;
     }
-    const tbl = tidyTable({ noHeader: first === '0', banded: attr(child(pr, 'tblStyle'), 'val') === 'TableGridBanded', borders, merges, shades, aligns }, tidy.length, tidy[0].length);
+    // Column widths, when they aren't all the same.
+    const grid = kids(child(t, 'tblGrid') ?? t).filter((x) => x.localName === 'gridCol').map((g) => Number(attr(g, 'w') ?? 0));
+    const even = grid.length !== tidy[0].length || grid.some((x) => !(x > 0)) || Math.max(...grid) - Math.min(...grid) <= Math.max(...grid) * 0.02;
+    const tbl = tidyTable({ widths: even ? undefined : grid, noHeader: first === '0', banded: attr(child(pr, 'tblStyle'), 'val') === 'TableGridBanded', borders, merges, shades, aligns }, tidy.length, tidy[0].length);
     blocks.push(makeBlock('table', '', [], { rows: tidy, ...(tbl ? { tbl } : {}) }));
   };
 
@@ -1112,7 +1129,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const walk = async (el: Element) => {
     for (const c of kids(el)) {
       if (c.localName === 'p') await paragraph(c);
-      else if (c.localName === 'tbl') table(c);
+      else if (c.localName === 'tbl') await table(c);
       else if (c.localName === 'commentRangeStart') openComments.push(attr(c, 'id') ?? '');
       else if (c.localName === 'commentRangeEnd') {
         const k = openComments.lastIndexOf(attr(c, 'id') ?? '');

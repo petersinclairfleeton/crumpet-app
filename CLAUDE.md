@@ -63,9 +63,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     paragraph breaks (`brk`) and `para` (Word's paragraph settings: spacing,
     indents, page breaks, keeps, list number/bullet style and start,
     borders, shading). A `toc` block is a table of contents.
-  - `table.ts`: table formatting (merged cells, shading, column alignment,
-    heading row, banding, lines) and keeping it in step as rows and
-    columns change.
+  - `table.ts`: table formatting (merged cells, shading, column alignment
+    and widths, heading row, banding, lines) and keeping it in step as rows and
+    columns change. `cells.ts`: a cell's text is a line of inline
+    Markdown (bold, fonts, colours), drawn into and read from its box, and
+    formatting applied there (the toolbar goes to the cell being typed in).
   - `ops.ts`: small invertible operations (insert, remove, split, join,
     setAttrs, format). Everything is built from these, so undo and sync just
     work. `attrsOf` always includes `brk`; a `setAttrs` whose `to` has no
@@ -130,8 +132,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   (pasting keeps formatting instead) or in the single-file build.
 - Word features not built: columns, sections (landscape and margins are
   for the whole document), text boxes and shapes, styles of tables beyond
-  the Table menu, column widths, formatting inside table cells, and
-  pasting keeps bold/italic but not fonts and colours. Tables of contents
+  the Table menu, and pasting keeps bold/italic but not fonts and colours. Tables of contents
   list one chapter at a time in a project (Word fills in the whole book's
   when it updates the field).
 - Not built yet: native Mac/iPhone/iPad apps, other storage (local folder,

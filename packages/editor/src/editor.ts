@@ -36,7 +36,7 @@ import {
   type BulletKind,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
-import { type CellAlign, type TableBorders, type TableShape, addCol, addRow, alignCol, deleteCol, deleteRow, mergeAt, mergeCells, setTableLook, shadeCell, splitCell } from './table';
+import { type CellAlign, type TableBorders, type TableShape, addCol, addRow, alignCol, deleteCol, deleteRow, mergeAt, mergeCells, setTableLook, setWidths, shadeCell, splitCell } from './table';
 import {
   type EditorState,
   type Transaction,
@@ -91,6 +91,7 @@ import {
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { View, readTable } from './view';
+import { cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
 import { noteLink } from './markdown';
 import { type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
@@ -178,7 +179,7 @@ export class Editor {
       if (e.dataTransfer?.types.includes('Files') && this.onFiles) e.preventDefault();
     }, { signal });
     root.addEventListener('mousedown', (e) => this.onMouseDown(e), { signal });
-    root.ownerDocument.addEventListener('selectionchange', () => this.onSelectionChange(), { signal });
+    root.ownerDocument.addEventListener('selectionchange', () => (this.trackCell(), this.onSelectionChange()), { signal });
   }
 
   private listening = new AbortController();
@@ -303,13 +304,91 @@ export class Editor {
     else if (action === 'delete' || (action === 'del-col' && width === 1)) {
       // The table goes; an empty line takes its place.
       this.dispatch({ ops: [{ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('paragraph') }], selectionBefore: this.state.selection, selectionAfter: caret({ block: id, offset: 0 }) }, 'command');
-      this.focus();
+      this.focusText();
       return;
     }
     if (!next) return;
     this.dispatch(setTableRows(this.state, id, next.rows, next.tbl), 'command', true, true);
     const m = mergeAt(next.tbl, at.r, at.c);
     this.focusCell(id, m ? m[0] : at.r, m ? m[1] : at.c);
+  }
+
+  /** Each column's width in the table now, in px (from the cells' edges; a column inside merged cells shares its span). */
+  private columnWidths(table: HTMLTableElement, cols: number): number[] {
+    const left = table.getBoundingClientRect().left;
+    const edges: (number | undefined)[] = Array(cols).fill(undefined);
+    for (const box of table.querySelectorAll<HTMLElement>('.cell')) {
+      const cell = box.parentElement as HTMLTableCellElement;
+      const c = Number(box.dataset.c) + cell.colSpan - 1;
+      if (edges[c] === undefined) edges[c] = cell.getBoundingClientRect().right - left;
+    }
+    edges[cols - 1] = table.getBoundingClientRect().width;
+    // Edges no cell ends at are shared out evenly between the ones around them.
+    const out: number[] = [];
+    let prev = 0;
+    for (let c = 0; c < cols; c++) {
+      if (edges[c] === undefined) continue;
+      let k = out.length;
+      const n = c - k + 1;
+      for (; k <= c; k++) out.push((edges[c]! - prev) / n);
+      prev = edges[c]!;
+    }
+    return out;
+  }
+
+  /** Drags the edge between column `grip.dataset.col` and the next, as in Word. */
+  private dragColumn(grip: HTMLElement, startX: number): void {
+    const id = grip.closest<HTMLElement>('[data-block]')?.dataset.block;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    const table = grip.closest('table');
+    if (!id || !blk || !table || this.isReadOnly) return;
+    this.commitTable(id);
+    const cols = tidyRows(blk.rows)[0].length;
+    const k = Number(grip.dataset.col);
+    const start = this.columnWidths(table, cols);
+    const total = start.reduce((a, b) => a + b, 0) || 1;
+    const min = Math.max(24, total * 0.04);
+    let widths = start;
+    // Live while dragging: fixed layout with the widths so far.
+    const show = () => {
+      table.style.tableLayout = 'fixed';
+      let group = table.querySelector('colgroup');
+      if (!group) {
+        group = document.createElement('colgroup');
+        for (let i = 0; i < cols; i++) group.appendChild(document.createElement('col'));
+        table.prepend(group);
+      }
+      Array.from(group.children).forEach((col, i) => ((col as HTMLElement).style.width = `${(widths[i] / total) * 100}%`));
+    };
+    grip.classList.add('dragging');
+    const move = (ev: PointerEvent) => {
+      const scale = table.getBoundingClientRect().width / (table.offsetWidth || 1) || 1;
+      const dx = (ev.clientX - startX) / scale;
+      const d = Math.max(min - start[k], Math.min(start[k + 1] - min, dx));
+      widths = start.map((w, i) => (i === k ? w + d : i === k + 1 ? w - d : w));
+      show();
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      grip.classList.remove('dragging');
+      if (widths === start) return;
+      const fresh = this.state.doc.blocks.find((b) => b.id === id);
+      if (!fresh) return;
+      const next = setWidths({ rows: tidyRows(fresh.rows), tbl: fresh.tbl }, widths.map((w) => (w / total) * 100));
+      this.dispatch(setTableRows(this.state, id, next.rows, next.tbl), 'command', true, true);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Double-clicking a column's edge evens out all the columns again. */
+  private evenColumns(grip: HTMLElement): void {
+    const id = grip.closest<HTMLElement>('[data-block]')?.dataset.block;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!id || !blk || this.isReadOnly || !blk.tbl?.widths) return;
+    const next = setWidths({ rows: tidyRows(blk.rows), tbl: blk.tbl }, undefined);
+    this.dispatch(setTableRows(this.state, id, next.rows, next.tbl), 'command', true, true);
   }
 
   /** Tab and Enter move between cells (adding a row at the end); Esc leaves the table. */
@@ -323,6 +402,14 @@ export class Editor {
     const blk = this.state.doc.blocks.find((b) => b.id === id);
     const rows = blk?.rows?.length ?? 1;
     const mod = isMac ? e.metaKey : e.ctrlKey;
+    // Bold, italic and underline work in a cell as anywhere else.
+    const keyMark: Record<string, Mark> = { b: 'bold', i: 'italic', u: 'underline' };
+    if (mod && !e.altKey && !e.shiftKey && keyMark[e.key.toLowerCase()]) {
+      e.preventDefault();
+      toggleCellMark(cell, keyMark[e.key.toLowerCase()]);
+      this.emit(null);
+      return;
+    }
     if (mod && e.key.toLowerCase() === 'z') {
       e.preventDefault();
       this.commitTables();
@@ -354,7 +441,7 @@ export class Editor {
       const to = this.state.doc.blocks[e.key === 'ArrowUp' ? i - 1 : i + 1];
       if (to) {
         this.state = { ...this.state, selection: caret({ block: to.id, offset: e.key === 'ArrowUp' ? runsLength(to.runs) : 0 }) };
-        this.focus();
+        this.focusText();
         this.view.writeSelection(this.state.selection);
         this.emit(null);
       }
@@ -423,7 +510,29 @@ export class Editor {
     this.applyHistory(this.history.redo(this.state.doc), 'redo');
   }
 
+  /** The table cell being typed in, if any: formatting then goes to it. */
+  activeCell(): HTMLElement | null {
+    const el = this.view.root.ownerDocument.activeElement as HTMLElement | null;
+    if (el?.classList.contains('cell') && this.view.root.contains(el)) return el;
+    // The font or size box has the focus for a moment: the cell typed in last.
+    const last = this.lastCell;
+    return last && last.isConnected && !this.view.root.contains(el) ? last : null;
+  }
+
+  /** The cell last typed in, until the caret goes back into the text. */
+  private lastCell: HTMLElement | null = null;
+
+  private trackCell(): void {
+    const el = this.view.root.ownerDocument.activeElement as HTMLElement | null;
+    if (el?.classList.contains('cell') && this.view.root.contains(el)) {
+      this.lastCell = el;
+      rememberCellSelection(el);
+    } else if (el && this.view.root.contains(el)) this.lastCell = null;
+  }
+
   toggleMark(mark: Mark): void {
+    const cell = this.activeCell();
+    if (cell) return void toggleCellMark(cell, mark);
     this.syncSelectionFromDom();
     this.dispatch(toggleMark(this.state, mark), 'command');
   }
@@ -446,12 +555,16 @@ export class Editor {
 
   /** Sets a font, size, colour, highlight or raised/lowered on the selection (or for what's typed next). */
   setLook(key: LookKey, value: string | number | null): void {
+    const cell = this.activeCell();
+    if (cell) return void setCellLook(cell, key, value);
     this.syncSelectionFromDom();
     this.dispatch(setLook(this.state, key, value), 'command');
   }
 
   /** One part of the look at the caret or across the selection; undefined when mixed or unset. */
   lookValue<K extends LookKey>(key: K): Look[K] | undefined {
+    const cell = this.activeCell();
+    if (cell) return cellLookValue(cell, key);
     return lookValue(this.state, key);
   }
 
@@ -489,6 +602,8 @@ export class Editor {
   }
 
   clearFormatting(): void {
+    const cell = this.activeCell();
+    if (cell) return void clearCellFormat(cell);
     this.syncSelectionFromDom();
     this.dispatch(clearFormatting(this.state), 'command');
   }
@@ -499,6 +614,8 @@ export class Editor {
   }
 
   isMarkActive(mark: Mark): boolean {
+    const cell = this.activeCell();
+    if (cell) return cellMarkActive(cell, mark);
     return markActive(this.state, mark);
   }
 
@@ -515,11 +632,20 @@ export class Editor {
   /** Puts the caret at `pos` and the focus in the text. */
   focusPos(pos: Pos): void {
     this.state = { ...this.state, selection: caret(pos) };
-    this.focus();
+    this.focusText();
     this.emit(null);
   }
 
   focus(): void {
+    // Back to the cell being formatted, if that's where the caret was.
+    const cell = this.activeCell();
+    if (cell) return refocusCell(cell);
+    this.focusText();
+  }
+
+  /** The focus in the text itself (out of any table cell). */
+  private focusText(): void {
+    this.lastCell = null;
     this.view.root.focus();
     this.view.writeSelection(this.state.selection);
   }
@@ -982,6 +1108,13 @@ export class Editor {
       // ⌘/Ctrl-click opens a link; a plain click just places the caret, so links stay editable.
       e.preventDefault();
       window.open(link.href, '_blank', 'noopener');
+      return;
+    }
+    const grip = (e.target as Element).closest?.<HTMLElement>('.col-grip');
+    if (grip) {
+      e.preventDefault();
+      if (e.detail >= 2) this.evenColumns(grip);
+      else this.dragColumn(grip, e.clientX);
       return;
     }
     const entry = (e.target as Element).closest?.<HTMLElement>('[data-toc-target]');
