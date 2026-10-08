@@ -47,6 +47,8 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'table', label: 'Table', hint: 'Rows and columns', words: 'grid columns rows spreadsheet', glyph: '▦', run: (ed) => ed.insertTable() },
   { id: 'textbox', label: 'Text box', hint: 'A box of text on the page', words: 'textbox box callout sidebar', glyph: '▭', run: (ed) => ed.insertShape('rect', true) },
   { id: 'shape', label: 'Shape', hint: 'A rectangle, oval, line or arrow', words: 'shape rectangle oval circle arrow line drawing', glyph: '◯', run: (ed) => ed.insertShape('ellipse') },
+  { id: 'math', label: 'Maths', hint: 'An equation, written in LaTeX', words: 'math maths equation formula latex katex', glyph: '∑', run: (ed) => ed.insertCode('math') },
+  { id: 'diagram', label: 'Diagram', hint: 'A flowchart or timeline, written as text (Mermaid)', words: 'diagram flowchart chart mermaid graph timeline sequence', glyph: '⇄', run: (ed) => ed.insertCode('mermaid', 'graph LR\n  A[Start] --> B[End]') },
   { id: 'toc', label: 'Table of contents', hint: 'The headings, with page numbers', words: 'contents toc index outline headings', glyph: '☰', run: (ed) => ed.insertToc() },
   { id: 'footnote', label: 'Footnote', hint: 'A numbered note at the bottom', words: 'footnote endnote note reference citation', glyph: '¹', run: addFootnoteHere },
   { id: 'picture', label: 'Picture or file', hint: 'From this device', words: 'image photo attachment upload pdf', glyph: '▣', run: (ed) => chooseFiles(ed) },

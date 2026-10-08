@@ -22,7 +22,7 @@
 
 import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { readShapeLine, shapeLine, tidyShape } from './shape';
-import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia } from './model';
+import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -55,6 +55,14 @@ export function toMarkdown(doc: Doc): string {
 function blockLine(b: Block, number: number): string {
   // A table of contents is [TOC] on a line of its own, as in several Markdown tools.
   if (b.type === 'toc') return '[TOC]';
+  // Maths and diagrams: a fenced block, ```math or ```mermaid (as GitHub and Obsidian write them).
+  if (b.type === 'code') {
+    const c = tidyCode(b.code);
+    // A longer fence when the source itself has a line of backticks.
+    const longest = Math.max(2, ...(c.text.match(/^ {0,3}`{3,}/gm) ?? []).map((m) => m.trim().length));
+    const fence = '`'.repeat(longest + 1);
+    return `${fence}${c.lang}\n${c.text}${c.text && !c.text.endsWith('\n') ? '\n' : ''}${fence}`;
+  }
   // A text box or shape: its look in braces, then its text.
   if (b.type === 'shape') return shapeLine(b.shape ?? tidyShape(undefined), b.align && b.align !== 'left' ? b.align : undefined);
   // Tables are GitHub-style pipe tables; the first row is the header.
@@ -466,6 +474,7 @@ export function fromMarkdown(md: string): Doc {
   /** Indent widths of the open list levels, so 2- and 4-space nesting both work. */
   let listIndents: number[] = [];
   let fence: { char: string; length: number } | null = null;
+  let code: { char: string; length: number; lang: CodeLang; lines: string[] } | null = null;
   let lastWasQuote = false;
 
   let paraClasses: string[] = [];
@@ -477,6 +486,22 @@ export function fromMarkdown(md: string): Doc {
 
   for (let li = 0; li < lines.length; li++) {
     const raw = lines[li];
+    // Maths or a diagram: everything up to the closing fence is its source.
+    if (code) {
+      const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(raw);
+      if (close && close[1][0] === code.char && close[1].length >= code.length) {
+        blocks.push(makeBlock('code', '', [], { code: tidyCode({ lang: code.lang, text: code.lines.join('\n') }) }));
+        code = null;
+      } else code.lines.push(raw);
+      continue;
+    }
+    const codeOpen = !fence && !para.length ? /^ {0,3}(`{3,}|~{3,})[ \t]*(math|latex|tex|mermaid)[ \t]*$/i.exec(raw) : null;
+    if (codeOpen) {
+      flushPara();
+      listIndents = [];
+      code = { char: codeOpen[1][0], length: codeOpen[1].length, lang: /mermaid/i.test(codeOpen[2]) ? 'mermaid' : 'math', lines: [] };
+      continue;
+    }
     if (fence) {
       const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(raw);
       if (close && close[1][0] === fence.char && close[1].length >= fence.length) fence = null;
@@ -599,6 +624,8 @@ export function fromMarkdown(md: string): Doc {
       b.runs = normalizeRuns([{ ...first, text: first.text.slice(1) }, ...b.runs.slice(1)]);
     }
   }
+  // A fence never closed: the rest of the file was its source.
+  if (code) blocks.push(makeBlock('code', '', [], { code: tidyCode({ lang: code.lang, text: code.lines.join('\n') }) }));
   return { blocks: blocks.length ? blocks : [makeBlock('paragraph')] };
 }
 

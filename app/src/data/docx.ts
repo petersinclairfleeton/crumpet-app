@@ -428,6 +428,13 @@ class Writer {
         case 'shape':
           out += this.shape(b, lead);
           continue;
+        case 'code': {
+          // Maths and diagrams go to Word as their source, in a typewriter font.
+          const lines = (b.code?.text ?? '').split('\n');
+          const mono = '<w:rPr><w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:cs="Consolas"/><w:sz w:val="20"/></w:rPr>';
+          out += this.paragraph(null, lines.map((l, i) => `${i ? `<w:r>${mono}<w:br/></w:r>` : ''}<w:r>${mono}<w:t xml:space="preserve">${esc(l)}</w:t></w:r>`).join(''), lead);
+          continue;
+        }
         case 'heading1':
         case 'heading2':
         case 'heading3':

@@ -212,3 +212,18 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
 .blk-quote[data-style='warning']::before { content: '!'; border-radius: 3px; }
 .blk-quote[data-style='important']::before { content: '★'; font-size: 10px; }
 @media print { .blk[data-in-toggle] { border-left: none; } }
+
+/* Maths and diagrams: the source (shown while editing, or when empty) above the drawing. */
+.code-wrap { position: relative; margin: 8px 0 14px; padding: 6px 0; border-radius: 7px; }
+.code-wrap:hover, .code-wrap.editing { background: color-mix(in srgb, var(--accent, #d4a257) 7%, transparent); }
+.code-head { position: absolute; right: 6px; top: 4px; opacity: 0; transition: opacity 0.12s; }
+.code-wrap:hover .code-head, .code-wrap.editing .code-head { opacity: 1; }
+.code-head select { font: inherit; font-size: 11.5px; padding: 1px 4px; border: 1px solid var(--line, #ddd); border-radius: 4px; background: var(--page, #fff); color: var(--muted, #777); }
+.code-src { display: none; box-sizing: border-box; width: 100%; margin: 0 0 6px; padding: 8px 10px; border: 1px solid var(--line, #ddd); border-radius: 6px; background: var(--field, rgba(0, 0, 0, 0.03)); color: var(--text, inherit); font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+.code-wrap.editing .code-src, .code-wrap:has(.code-empty) .code-src { display: block; }
+.code-preview { min-height: 1.6em; padding: 4px 10px; text-align: center; cursor: text; overflow-x: auto; }
+.code-wrap[data-lang='math'] .code-preview { font-size: 1.15em; }
+.code-preview.code-empty { color: var(--muted, #888); font-size: 13px; font-style: italic; }
+.code-preview svg { max-width: 100%; height: auto; }
+.code-error { color: var(--danger, #c0392b); font: 12.5px ui-monospace, monospace; white-space: pre-wrap; text-align: left; }
+@media print { .code-src, .code-head { display: none !important; } .code-wrap { background: none !important; } }

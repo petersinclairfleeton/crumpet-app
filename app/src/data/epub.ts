@@ -156,6 +156,16 @@ class Book {
         case 'toc':
           // E-book readers show their own contents (the book's is written for them).
           break;
+        case 'code': {
+          const c = b.code;
+          if (!c) break;
+          if (c.lang === 'math') {
+            // Maths as MathML, which e-book readers draw.
+            const k = await import('katex');
+            out += `<div class="math">${k.default.renderToString(c.text, { displayMode: true, output: 'mathml', throwOnError: false })}</div>`;
+          } else out += `<pre class="diagram">${esc(c.text)}</pre>`;
+          break;
+        }
         case 'shape': {
           const sh = b.shape;
           if (!sh) break;

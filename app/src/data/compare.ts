@@ -8,7 +8,7 @@ import { compareTexts } from './snapshots';
 /** The text of a document, one paragraph per line (tables row by row). */
 export function plainText(doc: Doc): string {
   return doc.blocks
-    .flatMap((b) => (b.type === 'table' ? (b.rows ?? []).map((r) => r.join(' | ')) : b.type === 'image' || b.type === 'file' || b.type === 'toc' || b.type === 'shape' ? [] : [runsText(b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote))]))
+    .flatMap((b) => (b.type === 'table' ? (b.rows ?? []).map((r) => r.join(' | ')) : b.type === 'code' ? (b.code?.text ?? '').split('\n') : b.type === 'image' || b.type === 'file' || b.type === 'toc' || b.type === 'shape' ? [] : [runsText(b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote))]))
     .join('\n');
 }
 

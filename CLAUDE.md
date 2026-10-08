@@ -65,7 +65,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     borders, shading). A `toc` block is a table of contents. A paragraph
     styled `toggle` folds the lines after it (up to a blank line or heading)
     like a heading folds its section (`foldedUnder`); quotes styled `note`,
-    `tip`, `warning` or `important` are callouts.
+    `tip`, `warning` or `important` are callouts. A `code` block is maths (LaTeX)
+    or a diagram (Mermaid): its source in a text area, drawn by the app's
+    renderer (`setCodeRenderer`, `app/src/ui/coderender.ts`, KaTeX and
+    Mermaid loaded when first needed); saved as ```` ```math ```` /
+    ```` ```mermaid ```` fences.
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines) and keeping it in step as rows and
     columns change. `cells.ts`: a cell's text is a line of inline
