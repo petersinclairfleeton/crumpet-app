@@ -141,6 +141,8 @@ export interface Settings {
   toolbar?: 'always' | 'selection';
   /** How the window is arranged (computers and tablets). */
   layout?: LayoutPrefs;
+  /** Typewriter mode: keep the typing line mid-screen, fade other paragraphs, typing sounds. */
+  typewriter?: { scroll?: boolean; fade?: boolean; sound?: boolean };
   /** Show notes and projects as pages. */
   pageView?: { notes?: boolean; projects?: boolean };
   /** Version of one-off data clean-ups already applied to this device's notes. */

@@ -106,6 +106,21 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
                 <span>Text size · {size}px</span>
                 <input className="range" type="range" min={13} max={24} step={1} value={size} style={{ '--pct': `${((size - 13) / 11) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
               </label>
+              <div className="field" role="group" aria-label="Typewriter">
+                <span>Typewriter</span>
+                {(
+                  [
+                    ['scroll', 'Keep the line you’re typing in the middle of the screen'],
+                    ['fade', 'Fade the other paragraphs'],
+                    ['sound', 'Typing sounds'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="check-row">
+                    <input type="checkbox" checked={!!s.typewriter?.[key]} onChange={(e) => store.updateSettings({ typewriter: { ...s.typewriter, [key]: e.target.checked } })} />
+                    {label}
+                  </label>
+                ))}
+              </div>
             </>
           )}
 

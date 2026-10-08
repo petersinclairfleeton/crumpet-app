@@ -1609,3 +1609,30 @@ test('suggest a name: pick a region and era, click a name to add it to the book'
   await dialog.locator('.names-item').first().click();
   await expect(page.getByRole('region', { name: 'Place card' })).toBeVisible();
 });
+
+test('typewriter mode: the typing line stays mid-screen, other paragraphs fade, and keys can click', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Tide', 'First line.');
+  await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Writing' }).click();
+  const tw = page.getByRole('group', { name: 'Typewriter' });
+  await tw.getByLabel('Keep the line you’re typing in the middle of the screen').check();
+  await tw.getByLabel('Fade the other paragraphs').check();
+  await tw.getByLabel('Typing sounds').check();
+  await page.keyboard.press('Escape');
+  await page.locator('.note-editor').first().click();
+  await page.keyboard.press('Control+End');
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.press('Enter');
+    await page.keyboard.type(`Line ${i + 1} of the tide.`);
+  }
+  const where = await page.evaluate(() => {
+    const caret = getSelection()!.getRangeAt(0).getClientRects()[0];
+    const view = document.querySelector('.note-scroll')!.getBoundingClientRect();
+    return (caret.top - view.top) / view.height;
+  });
+  expect(where).toBeGreaterThan(0.3);
+  expect(where).toBeLessThan(0.6);
+  await expect(page.locator('.note-editor .blk.tw-current')).toHaveText('Line 30 of the tide.');
+  expect(await page.locator('.note-editor .blk').first().evaluate((el) => getComputedStyle(el).opacity)).toBe('0.3');
+});
