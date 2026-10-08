@@ -150,6 +150,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `speech.tsx`: read aloud (speechSynthesis, each word lit with the CSS
     highlight `crumpet-speak`) and dictation (SpeechRecognition), with the
     floating `SpeechBar`.
+    `thesaurus.tsx` (+ `data/thesaurus.ts`): the right sidebar's Thesaurus
+    tab (Datamuse and the Free Dictionary API; Shift+F7). `painter.ts`:
+    Word's format painter.
     `EditorHost.tsx` wraps the editor for notes;
     `Project.tsx` holds the outline, chapter, manuscript and side panes;
     `pages.tsx` is page view, headers and footers, and printing.

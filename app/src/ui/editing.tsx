@@ -19,7 +19,8 @@ import { useLayoutItems } from './layouttools';
 import type { PageSetup } from '../data/styles';
 import { insertItems } from './inserttools';
 import { addFile } from '../data/files';
-import { MicGlyph, SpeakerGlyph } from './speechglyphs';
+import { BrushGlyph, MicGlyph, SpeakerGlyph } from './speechglyphs';
+import { painterClick, usePainter } from './painter';
 import { canDictate, canRead, startReading, toggleDictation, useSpeech } from './speech';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
 
@@ -180,20 +181,21 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   const settings = useAppState().settings;
   const layoutNow = settings.layout;
   const speech = useSpeech();
+  const painter = usePainter();
   // The Styles pane is a tab of the right sidebar.
   const stylesPane = !!layoutNow?.right && (layoutNow.rightTab ?? 'outline') === 'styles';
   /** A button for the bar, and the same as a named line in the More menu. */
-  const tool = (key: string, pri: number, label: string, title: string, glyph: ReactNode, onClick: () => void, opts: { active?: boolean; disabled?: boolean; sep?: boolean; extra?: Record<string, string> } = {}): ToolItem => ({
+  const tool = (key: string, pri: number, label: string, title: string, glyph: ReactNode, onClick: () => void, opts: { active?: boolean; disabled?: boolean; sep?: boolean; extra?: Record<string, string>; onEvent?: (e: React.MouseEvent) => void } = {}): ToolItem => ({
     key,
     pri,
     sep: opts.sep,
     node: (
-      <button type="button" className={opts.active ? 'active' : ''} aria-label={label} aria-pressed={opts.active === undefined ? undefined : opts.active} title={title} disabled={off || opts.disabled} onClick={onClick} {...opts.extra}>
+      <button type="button" className={opts.active ? 'active' : ''} aria-label={label} aria-pressed={opts.active === undefined ? undefined : opts.active} title={title} disabled={off || opts.disabled} onClick={opts.onEvent ?? onClick} {...opts.extra}>
         {glyph}
       </button>
     ),
     menu: (
-      <button type="button" className={`menu-item${opts.active ? ' on' : ''}`} disabled={off || opts.disabled} onClick={onClick}>
+      <button type="button" className={`menu-item${opts.active ? ' on' : ''}`} disabled={off || opts.disabled} onClick={opts.onEvent ?? onClick}>
         <span className="menu-glyph">{glyph}</span> {label}
       </button>
     ),
@@ -230,6 +232,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     tool('todo', 1, 'Checklist', 'Checklist', '☐', () => ed?.setBlockType('todo'), { active: type === 'todo' }),
     ...borderItems(ed, off),
     ...layout.items,
+    tool('painter', 2, painter.on ? 'Stop format painting' : 'Format painter', 'Format painter: copy this formatting, then select text to give it the same (double-click to keep painting)', <BrushGlyph />, () => {}, { active: painter.on, extra: { 'data-painter': '' }, onEvent: (e) => painterClick(ed, e) }),
     tool('readaloud', 1, speech.kind === 'reading' ? 'Stop reading aloud' : 'Read aloud', `Read aloud from the caret, or the selected text (${mod}${isMac ? '⌥' : 'Alt+'}Space)`, <SpeakerGlyph />, () => ed && startReading(ed, settings), { active: speech.kind === 'reading', disabled: !canRead }),
     tool('dictate', 1, speech.kind === 'dictating' ? 'Stop dictating' : 'Dictate', `Dictate: type by speaking (${mod}${isMac ? '⌥' : 'Alt+'}D)`, <MicGlyph />, () => ed && toggleDictation(ed), { active: speech.kind === 'dictating', disabled: !canDictate }),
     tool('stylespane', 1, 'Styles pane', 'Styles pane: every style, with how often it’s used', <span className="glyph-styles">A¶</span>, () => store.updateLayout(stylesPane ? { right: false } : { right: true, rightTab: 'styles' }), { active: stylesPane }),

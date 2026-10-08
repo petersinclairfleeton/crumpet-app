@@ -2476,3 +2476,33 @@ test('read aloud lights up each word, and dictation types what is said', async (
   await page.getByRole('status', { name: 'Dictation' }).getByRole('button', { name: 'Stop' }).click();
   await expect(page.getByRole('status', { name: 'Dictation' })).toHaveCount(0);
 });
+
+test('format painter copies formatting to the next selection; the thesaurus swaps in a synonym', async ({ page }) => {
+  await page.route('https://api.datamuse.com/**', (r) => r.fulfill({ json: new URL(r.request().url()).searchParams.get('rel_syn') ? [{ word: 'dim' }, { word: 'gloomy' }] : [] }));
+  await page.route('https://api.dictionaryapi.dev/**', (r) => r.fulfill({ json: [{ meanings: [{ partOfSpeech: 'adjective', definitions: [{ definition: 'Having very little light.' }] }] }] }));
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 880 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Paint', 'Bold plain words');
+  // Make "Bold" bold, then paint its formatting onto "words".
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Shift+Control+ArrowRight');
+  await page.keyboard.press('Control+b');
+  await page.locator('.note-editor').getByText('Bold').click();
+  await (await toolButton(page, 'Format painter')).click();
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+Control+ArrowLeft');
+  await expect(page.locator('.note-editor strong')).toHaveText(['Bold', 'words']);
+  await expect(page.locator('.note-editor.painting')).toHaveCount(0);
+  // The thesaurus follows the caret.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'thesaurus' }));
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('Home');
+  for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowRight');
+  const tab = page.getByRole('tabpanel', { name: 'Thesaurus' });
+  await expect(tab.getByLabel('Look up a word')).toHaveValue('plain');
+  await expect(tab.locator('.senses')).toContainText('Having very little light.');
+  await tab.getByRole('button', { name: 'gloomy' }).click();
+  await expect(page.locator('.note-editor')).toHaveText('Bold gloomy words');
+});
