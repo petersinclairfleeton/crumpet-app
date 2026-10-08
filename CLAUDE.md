@@ -103,7 +103,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   deadline counts today's words on this device only.
 - Track changes: deletions made through some phone keyboards' word
   suggestions aren't tracked (typing is).
-- Names of characters and places are matched case-sensitively.
+- Names of characters and places match in any case, except a one-word name
+  written all in small letters (so Rose isn't found in "rose").
 - Comments in Word files: replies become extra lines inside the comment.
 - Footnotes restart in each chapter of a manuscript.
 - The web clipper doesn't work on sites with strict security settings

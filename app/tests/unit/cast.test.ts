@@ -18,9 +18,24 @@ describe('spotting characters and places', () => {
       ['Old Tam', 'tam'],
       ['Gull Rock', 'rock'],
       ['Mara', 'mara'],
+      ['The keeper', 'tam'],
       ['the keeper', 'tam'],
     ]);
     expect(castMatcher([])).toBeNull();
+  });
+
+  it('matches in any case, but not a one-word name in small letters', () => {
+    const m = castMatcher([
+      { id: 'rose', kind: 'character', name: 'Rose', aliases: [], description: '', notes: '' },
+      { id: 'hollow', kind: 'place', name: 'The Hollow', aliases: [], description: '', notes: '' },
+    ]);
+    const text = 'Rose rose early and walked to the hollow. ROSE! THE HOLLOW was quiet.';
+    expect(findMentions(text, m).map((x) => [text.slice(x.from, x.to), x.id])).toEqual([
+      ['Rose', 'rose'],
+      ['the hollow', 'hollow'],
+      ['ROSE', 'rose'],
+      ['THE HOLLOW', 'hollow'],
+    ]);
   });
 
   it('counts mentions per chapter', () => {
