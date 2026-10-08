@@ -2246,3 +2246,31 @@ test('the sidebar and note list fold away with «, peek out at the edge, and com
   await page.getByRole('button', { name: 'Show the sidebar' }).click();
   await expect(page.locator('.frame > .sidebar')).toBeVisible();
 });
+
+test('the right sidebar: the outline of headings, styles, and links to and from the note', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 880 });
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    (window as unknown as { crumpet: { createNote(n: object): void } }).crumpet.createNote({ title: 'Harbour', doc: md.fromMarkdown('See [[Lamp room]] for more.') });
+  });
+  await newNote(page, 'Lamp room', 'Intro');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('## Upstairs');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The lens.');
+  await page.getByRole('button', { name: 'Show the right sidebar' }).click();
+  const right = page.getByRole('complementary', { name: 'Right sidebar' });
+  await expect(right.getByRole('tab', { name: 'Outline' })).toHaveAttribute('aria-selected', 'true');
+  await expect(right.locator('.right-outline button')).toHaveText(['Upstairs']);
+  await right.getByRole('tab', { name: 'Links' }).click();
+  await expect(right.locator('.right-links')).toContainText('Harbour');
+  await right.getByRole('button', { name: 'Harbour' }).click();
+  await expect(page.getByRole('region', { name: 'Pane' }).getByLabel('Title')).toHaveValue('Harbour');
+  await expect(right.locator('.right-links li')).toHaveText(['Lamp room']);
+  // The Styles pane button opens its tab; Ctrl+Alt+\ folds the sidebar away.
+  await right.getByRole('tab', { name: 'Styles' }).click();
+  await expect(right.getByRole('complementary', { name: 'Styles' })).toBeVisible();
+  await page.keyboard.press('Control+Alt+Backslash');
+  await expect(right).toHaveCount(0);
+});

@@ -80,6 +80,7 @@ export const IconSidebar = icon(<path d="M4 4h16v16H4zM9 4v16" />);
 export const IconFoldLeft = icon(<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" />);
 export const IconFoldRight = icon(<path d="M13 17l5-5-5-5M6 17l5-5-5-5" />);
 export const IconListPanel = icon(<path d="M4 4h16v16H4zM9 4v16M12 9h5M12 13h5" />);
+export const IconRightPanel = icon(<path d="M4 4h16v16H4zM15 4v16" />);
 export const IconLayout = icon(<path d="M4 4h16v16H4zM12 4v16" />);
 export const IconFocus = icon(<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />);
 export const IconList = icon(<path d="M4 6h16M4 12h16M4 18h16" />);

@@ -8,9 +8,10 @@ import { NoteList } from './NoteList';
 import { NotePane } from './NotePane';
 import { ProjectOutline, ProjectPane } from './Project';
 import { TopBar } from './TopBar';
-import { LIST, Resizer, SIDEBAR, SidebarRail, TabBar } from './layout';
+import { LIST, RIGHT, Resizer, SIDEBAR, SidebarRail, TabBar } from './layout';
 import { type Peek, PeekContext } from './fold';
 import { PaneArea, PanesContext, usePanesState } from './panes';
+import { RightSidebar } from './rightside';
 import { applyTheme } from './theme';
 import type { View } from '../data/types';
 
@@ -149,7 +150,8 @@ export function App() {
         e.preventDefault();
         setPeek(null);
         const layout = store.getState().settings.layout;
-        if (e.shiftKey) store.updateLayout({ list: layout?.list === false });
+        if (e.altKey) store.updateLayout({ right: !layout?.right });
+        else if (e.shiftKey) store.updateLayout({ list: layout?.list === false });
         else store.updateLayout({ sidebar: (layout?.sidebar ?? 'full') === 'hidden' ? 'full' : 'hidden' });
       }
       if (e.key === 'Escape') setPeek(null);
@@ -214,9 +216,11 @@ export function App() {
   const layout = narrow ? {} : (state.settings.layout ?? {});
   const sidebarMode = layout.sidebar ?? (!narrow && window.matchMedia(MEDIUM).matches ? 'icons' : 'full');
   const showList = layout.list !== false;
+  const showRight = !!layout.right && !state.focusMode;
+  const rightW = layout.rightWidth ?? RIGHT.normal;
   const sideW = layout.sidebarWidth ?? SIDEBAR.normal;
   const listW = layout.listWidth ?? LIST.normal;
-  const sizes = narrow ? undefined : ({ '--side-w': layout.sidebarWidth ? `${sideW}px` : undefined, '--list-w': layout.listWidth ? `${listW}px` : undefined} as React.CSSProperties);
+  const sizes = narrow ? undefined : ({ '--side-w': layout.sidebarWidth ? `${sideW}px` : undefined, '--list-w': layout.listWidth ? `${listW}px` : undefined, '--right-w': layout.rightWidth ? `${rightW}px` : undefined} as React.CSSProperties);
   const target = () => appRef.current;
   const peekable = !narrow && !state.focusMode;
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
@@ -293,6 +297,14 @@ export function App() {
             )}
           </div>
         </div>
+        {!narrow && showRight && <Resizer label="Right sidebar width" reverse value={rightW} {...RIGHT} cssVar="--right-w" target={target} onChange={(v) => store.updateLayout({ rightWidth: Math.round(v) })} />}
+        {!narrow && showRight && <RightSidebar />}
+        {peekable && !showRight && <div className="peek-edge right" aria-hidden="true" onMouseEnter={() => peekCtl.open('right')} onMouseLeave={peekCtl.leave} />}
+        {peekable && !showRight && peek === 'right' && (
+          <div className="peek-panel right-peek" onMouseEnter={peekCtl.stay} onMouseLeave={peekCtl.leave}>
+            <RightSidebar />
+          </div>
+        )}
       </div>
       </PeekContext.Provider>
       {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}

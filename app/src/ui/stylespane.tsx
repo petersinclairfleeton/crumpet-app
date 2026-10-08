@@ -1,4 +1,5 @@
-// Word's Styles pane: every style, as it looks, with how often it's used.
+// Word's Styles pane: every style, as it looks, with how often it's used
+// (a tab of the right sidebar).
 // Click one to apply it; its menu updates it to match the selection,
 // modifies it, or finds the next paragraph in it.
 
@@ -36,7 +37,7 @@ export async function matchSelection(editor: Editor, def: StyleDef): Promise<Sty
   };
 }
 
-export function StylesPane({ editor, sheet, onSheet, onEditStyles, onClose }: { editor: Editor | null; sheet: StyleSheet; onSheet?(s: StyleSheet): void; onEditStyles?(key?: StyleKey): void; onClose(): void }) {
+export function StylesPane({ editor, sheet, onSheet, onEditStyles, onClose, embedded = false }: { editor: Editor | null; sheet: StyleSheet; onSheet?(s: StyleSheet): void; onEditStyles?(key?: StyleKey): void; onClose(): void; embedded?: boolean }) {
   const [, setTick] = useState(0);
   const [preview, setPreview] = useState(true);
   const [menu, setMenu] = useState<StyleKey | null>(null);
@@ -79,13 +80,13 @@ export function StylesPane({ editor, sheet, onSheet, onEditStyles, onClose }: { 
   };
 
   return (
-    <aside className="styles-pane" aria-label="Styles">
-      <header className="styles-pane-head">
+    <aside className={`styles-pane${embedded ? ' embedded' : ''}`} aria-label="Styles">
+      {!embedded && <header className="styles-pane-head">
         <h2>Styles</h2>
         <button type="button" className="icon-btn" aria-label="Close styles pane" onClick={onClose}>
           <IconClose size={14} />
         </button>
-      </header>
+      </header>}
       <div className="styles-pane-list" role="list">
         {shown.map((s) => {
           const n = counts.get(s.key) ?? 0;

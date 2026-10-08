@@ -175,7 +175,9 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   const para = useParaItems(ed, off);
   const layout = useLayoutItems(ed, off, { page, onPage, chapters });
   const store = useAppStore();
-  const stylesPane = !!useAppState().settings.stylesPane;
+  const layoutNow = useAppState().settings.layout;
+  // The Styles pane is a tab of the right sidebar.
+  const stylesPane = !!layoutNow?.right && (layoutNow.rightTab ?? 'outline') === 'styles';
   /** A button for the bar, and the same as a named line in the More menu. */
   const tool = (key: string, pri: number, label: string, title: string, glyph: ReactNode, onClick: () => void, opts: { active?: boolean; disabled?: boolean; sep?: boolean; extra?: Record<string, string> } = {}): ToolItem => ({
     key,
@@ -224,7 +226,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     tool('todo', 1, 'Checklist', 'Checklist', '☐', () => ed?.setBlockType('todo'), { active: type === 'todo' }),
     ...borderItems(ed, off),
     ...layout.items,
-    tool('stylespane', 1, 'Styles pane', 'Styles pane: every style, with how often it’s used', <span className="glyph-styles">A¶</span>, () => store.updateSettings({ stylesPane: !stylesPane }), { active: stylesPane }),
+    tool('stylespane', 1, 'Styles pane', 'Styles pane: every style, with how often it’s used', <span className="glyph-styles">A¶</span>, () => store.updateLayout(stylesPane ? { right: false } : { right: true, rightTab: 'styles' }), { active: stylesPane }),
   ];
   items.push(...insertItems(ed, off));
   if (attach)
