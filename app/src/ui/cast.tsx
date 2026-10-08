@@ -10,6 +10,7 @@ import { addFile, mediaUrl } from '../data/files';
 import { projectChapters } from '../data/selectors';
 import type { CastMember, Project } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
+import { NameGenerator } from './names';
 import { IconBack, IconChevron, IconClose, IconPlus, IconTrash } from './icons';
 import { Popover } from './Sidebar';
 
@@ -48,6 +49,7 @@ export function CastList({ project }: { project: Project }) {
   const store = useAppStore();
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [naming, setNaming] = useState(false);
   const cast = project.cast ?? [];
   const group = (kind: CastMember['kind']) => cast.filter((m) => m.kind === kind).sort((a, b) => a.name.localeCompare(b.name));
   const row = (m: CastMember) => (
@@ -86,7 +88,28 @@ export function CastList({ project }: { project: Project }) {
                   New {KIND[k].toLowerCase()}
                 </button>
               ))}
+              <hr className="menu-sep" />
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => {
+                  setAdding(false);
+                  setNaming(true);
+                }}
+              >
+                Suggest a name…
+              </button>
             </Popover>
+          )}
+          {naming && (
+            <NameGenerator
+              taken={cast.map((m) => m.name)}
+              onPick={(kind, name) => {
+                setNaming(false);
+                store.addCastMember(project.id, kind, name);
+              }}
+              onClose={() => setNaming(false)}
+            />
           )}
         </span>
       </div>
