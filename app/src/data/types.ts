@@ -153,8 +153,6 @@ export interface Settings {
   zoom?: number;
   /** Show the ruler above the pages. */
   ruler?: boolean;
-  /** Word's Styles pane, open beside the text. */
-  stylesPane?: boolean;
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
 }
@@ -168,6 +166,10 @@ export interface LayoutPrefs {
   /** Widths in px, from dragging the edges. */
   sidebarWidth?: number;
   listWidth?: number;
+  /** The right sidebar (outline, styles, comments, links): shown, which tab, and its width. */
+  right?: boolean;
+  rightTab?: 'outline' | 'styles' | 'comments' | 'links';
+  rightWidth?: number;
   /** The writing area's panes and their tabs (a `Workspace` from `panes.ts`, checked when read). */
   panes?: unknown;
 }

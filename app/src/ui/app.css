@@ -701,6 +701,38 @@ body.pane-resizing iframe { pointer-events: none; }
 .peek-panel { position: absolute; left: 0; top: 8px; bottom: 8px; z-index: 40; display: flex; border-radius: 0 7px 7px 0; overflow: hidden; box-shadow: var(--shadow); animation: peek-in 0.16s ease-out; }
 .peek-panel > .sidebar, .peek-panel > .list { border-right: none; }
 @keyframes peek-in { from { transform: translateX(-24px); opacity: 0; } }
+.peek-edge.right { left: auto; right: 0; }
+.peek-panel.right-peek { left: auto; right: 0; border-radius: 7px 0 0 7px; animation-name: peek-in-right; }
+@keyframes peek-in-right { from { transform: translateX(24px); opacity: 0; } }
+.right-side:hover .fold-btn { opacity: 1; }
+
+/* The right sidebar: helpers in tabs. */
+.right-side { flex: 0 0 var(--right-w, 280px); width: var(--right-w, 280px); min-width: 0; display: flex; flex-direction: column; background: var(--list-bg); border-left: 1px solid var(--line); }
+.right-head { flex: none; display: flex; align-items: center; gap: 4px; padding: 8px 8px 6px 10px; border-bottom: 1px solid var(--line); }
+.right-tabs { flex: 1; min-width: 0; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.right-tabs button { flex: none; padding: 4px 8px; border: none; border-radius: 5px; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+.right-tabs button:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
+.right-tabs button.on { color: var(--text); background: var(--page); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
+.right-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.right-empty { margin: 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.right-outline { list-style: none; margin: 0; padding: 8px 6px; }
+.right-outline button { display: block; width: 100%; padding: 5px 8px; border: none; border-radius: 5px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.right-outline button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.right-outline button.here { background: var(--accent-soft); color: var(--accent-ink); }
+.right-outline .level-1 { font-weight: 700; }
+.right-outline .level-2 { padding-left: 20px; }
+.right-outline .level-3 { padding-left: 32px; color: var(--muted); }
+.right-outline .level-4 { padding-left: 44px; color: var(--muted); font-size: 12.5px; }
+.right-links { padding: 4px 14px 14px; }
+.right-links h3 { margin: 12px 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.right-links ul { list-style: none; margin: 0; padding: 0; }
+.right-links button { display: block; width: 100%; padding: 5px 8px; margin: 0 -8px; border: none; border-radius: 5px; background: transparent; color: var(--accent-ink); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.right-links button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+.right-links button.missing { color: var(--muted); font-style: italic; }
+.right-links .right-empty { margin: 0 0 4px; }
+.right-body .comment-list { margin: 0; padding: 10px 14px; border: none; }
+.right-body .comment-list h2 { display: none; }
+.styles-pane.embedded { flex: 1; border-left: none; background: transparent; }
 @media (prefers-reduced-motion: reduce) { .peek-panel { animation: none; } }
 
 /* ---- The floating formatting bar ---- */
@@ -715,7 +747,7 @@ body.pane-resizing iframe { pointer-events: none; }
 .pin-tools { font-family: var(--title-font, inherit); font-size: 15px; font-weight: 600; width: auto; padding: 0 8px; }
 
 /* ---- Focus mode: only the page ---- */
-.focus-mode .sidebar, .focus-mode .rail, .focus-mode .topbar, .focus-mode .list, .focus-mode .resizer, .focus-mode .note-toolbar, .focus-mode .banner { display: none !important; }
+.focus-mode .sidebar, .focus-mode .right-side, .focus-mode .rail, .focus-mode .topbar, .focus-mode .list, .focus-mode .resizer, .focus-mode .note-toolbar, .focus-mode .banner { display: none !important; }
 .focus-mode .pane, .focus-mode .pane-empty { margin: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
 .focus-mode .note-body { padding-top: 72px; }
 .focus-bar { position: fixed; top: 14px; right: 18px; z-index: 30; display: flex; gap: 6px; opacity: 0.55; transition: opacity 0.2s; }
@@ -1261,7 +1293,7 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .headings-list .heading-2 { padding-left: 22px; } .headings-list .heading-3 { padding-left: 34px; } .headings-list .heading-4 { padding-left: 46px; }
 @media (max-width: 759px) { .zoom input[type='range'] { display: none; } .status-bar { gap: 6px; } }
 /* A narrow pane: the zoom slider goes (the − and + stay). */
-.status-bar { container-type: inline-size; overflow: hidden; }
+.status-bar { container-type: inline-size; }
 @container (max-width: 520px) { .zoom input[type='range'] { display: none; } }
 .symbol-grid { display: grid; grid-template-columns: repeat(7, 30px); gap: 3px; padding: 4px; }
 .symbol-btn { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font-size: 15px; cursor: pointer; padding: 0; }

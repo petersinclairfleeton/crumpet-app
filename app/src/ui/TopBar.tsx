@@ -53,6 +53,7 @@ export function TopBar({ onMenu, onNewNote }: { onMenu(): void; onNewNote(): voi
         <kbd>{isMac ? '⌘K' : 'Ctrl K'}</kbd>
       </label>
       <LayoutMenu />
+      {!state.settings.layout?.right && <ShowButton what="right" />}
       <button type="button" className="icon-btn new-btn" aria-label="New note" onClick={onNewNote}>
         <IconPlus size={18} />
       </button>

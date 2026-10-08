@@ -13,13 +13,16 @@ import { useActiveTab, usePanes } from './panes';
 
 export const SIDEBAR = { min: 180, max: 420, normal: 236 };
 export const LIST = { min: 240, max: 560, normal: 360 };
+export const RIGHT = { min: 220, max: 480, normal: 280 };
 
 /**
  * A draggable edge between two panes (also moved with the arrow keys). While
  * dragging, the size is shown straight away through a CSS variable on `target`;
  * it's saved when the drag ends.
  */
-export function Resizer({ label, value, min, max, normal, vertical = false, cssVar, target, onChange, scale = 1 }: { label: string; value: number; min: number; max: number; normal: number; vertical?: boolean; cssVar: string; target(): HTMLElement | null; onChange(v: number): void; scale?: number }) {
+export function Resizer({ label, value, min, max, normal, vertical = false, reverse = false, cssVar, target, onChange, scale = 1 }: { label: string; value: number; min: number; max: number; normal: number; vertical?: boolean; reverse?: boolean; cssVar: string; target(): HTMLElement | null; onChange(v: number): void; scale?: number }) {
+  // `reverse`: a panel on the right, which grows as its edge moves left.
+  const sign = reverse ? -1 : 1;
   const [dragging, setDragging] = useState(false);
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
   const show = (v: number) => target()?.style.setProperty(cssVar, String(scale === 1 ? `${Math.round(v)}px` : v));
@@ -43,7 +46,7 @@ export function Resizer({ label, value, min, max, normal, vertical = false, cssV
         setDragging(true);
         const move = (ev: PointerEvent) => {
           const delta = (vertical ? ev.clientY : ev.clientX) - start;
-          last = clamp(startValue + delta / scale);
+          last = clamp(startValue + (sign * delta) / scale);
           show(last);
         };
         const up = () => {
@@ -68,7 +71,7 @@ export function Resizer({ label, value, min, max, normal, vertical = false, cssV
         const forward = vertical ? 'ArrowDown' : 'ArrowRight';
         if (e.key === back || e.key === forward) {
           e.preventDefault();
-          const next = clamp(value + (e.key === forward ? step : -step));
+          const next = clamp(value + sign * (e.key === forward ? step : -step));
           show(next);
           onChange(next);
         }

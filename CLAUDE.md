@@ -137,8 +137,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     contents) and `layouttools.tsx` (Breaks, Columns, Orientation, and
     `pagesetup.tsx`'s Page Setup window, for the caret's section, the whole
     document or from the caret on; the first section's settings sit on the
-    first paragraph). `stylespane.tsx` is Word's Styles pane, docked beside
-    the text (`.note-main`). `booktoc.ts`: in a project, a table of contents
+    first paragraph). `rightside.tsx` is the right sidebar: tabs for the
+    headings outline, Word's Styles pane (`stylespane.tsx`), comments and
+    links, working on the editor last clicked in (`helpers.ts`: editors offer
+    themselves with `useOfferHelped`). `booktoc.ts`: in a project, a table of contents
     lists the whole book (chapters with their start pages, and their
     headings), given to each chapter's editor (`setTocEntries`,
     `setPageOffset`). Page view has `ruler.tsx` and `statusbar.tsx` (page,

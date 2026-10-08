@@ -1,4 +1,4 @@
-import { StylesPane } from './stylespane';
+import { useOfferHelped } from './helpers';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { noteLinkTitle } from '@crumpet/editor/markdown';
 import type { Editor } from '@crumpet/editor/editor';
@@ -76,6 +76,16 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
     onNoteLink: (title) => nav.openTitle(title),
   });
 
+  // The right sidebar's helpers work on this editor once it's clicked or typed in.
+  const paneRef = useRef<HTMLDivElement>(null);
+  const callbacks = useRef({ onSheet, onEditStyles });
+  callbacks.current = { onSheet, onEditStyles };
+  const helped = useMemo(
+    () => (ed && !readOnly && !reading ? { editor: ed, docId, sheet, onSheet: onSheet && ((s: StyleSheet) => callbacks.current.onSheet?.(s)), onEditStyles: onEditStyles && ((k?: StyleKey) => callbacks.current.onEditStyles?.(k)) } : null),
+    [ed, docId, sheet, readOnly, reading, !!onSheet, !!onEditStyles], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  useOfferHelped(helped, paneRef);
+
   useTracking(readOnly || reading ? null : ed);
   useFontKeys(readOnly || reading ? null : ed, sheet);
   useDocFontsLoaded(ed);
@@ -97,7 +107,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
   });
 
   return (
-    <div className={`note-pane ${styles}${reading ? ' reading' : ''}`}>
+    <div ref={paneRef} className={`note-pane ${styles}${reading ? ' reading' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
         {!floating && !narrow && <FormatTools fit editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}
@@ -145,7 +155,6 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           {footer}
         </article>
       </div>
-      {state.settings.stylesPane && !narrow && !readOnly && !reading && <StylesPane editor={ed} sheet={sheet} onSheet={onSheet} onEditStyles={onEditStyles} onClose={() => store.updateSettings({ stylesPane: false })} />}
       </div>
       {paged && ed && !reading && <StatusBar editors={statusEditors} scroller={scrollBox} pageOffset={pagePlace?.offset ?? 0} pageTotal={pagePlace?.total} />}
     </div>

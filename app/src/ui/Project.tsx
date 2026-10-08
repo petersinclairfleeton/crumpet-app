@@ -11,8 +11,8 @@ import { chapterWords, projectChapters, projectGoal, projectWords } from '../dat
 import { dayKey, wordsToday } from '../data/stats';
 import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
-import type { PageSetup, StyleKey } from '../data/styles';
-import { StylesPane } from './stylespane';
+import type { PageSetup, StyleKey, StyleSheet } from '../data/styles';
+import { useOfferHelped } from './helpers';
 import { bookEntries, goToLater, useBookToc } from './booktoc';
 import type { TocEntry } from '@crumpet/editor/view';
 import { EditorHost } from './EditorHost';
@@ -710,6 +710,11 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const [finding, setFinding] = useState(false);
   const onFindKey = useFindKey(() => setFinding(true));
   const msEditors = useMemo(() => Object.values(editors), [editors]);
+  // The right sidebar's helpers work on the chapter being written in.
+  const msRef = useRef<HTMLElement>(null);
+  const activeId = Object.keys(editors).find((id) => editors[id] === active) ?? project.id;
+  const helped = useMemo(() => (active ? { editor: active, docId: activeId, sheet: fullSheet(project.styles, 'manuscript'), onSheet: (styles: StyleSheet) => store.setProjectStyles(project.id, styles), onEditStyles: (key?: StyleKey) => setStylesOpen(key ?? true) } : null), [active, activeId, project.id, project.styles, store]);
+  useOfferHelped(helped, msRef);
   const [linkOpen, setLinkOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState<StyleKey | boolean>(false);
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
@@ -760,7 +765,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   let offset = 0;
   let part: string | undefined;
   return (
-    <section className="pane find-host" aria-label="Manuscript" onKeyDown={onFindKey}>
+    <section ref={msRef} className="pane find-host" aria-label="Manuscript" onKeyDown={onFindKey}>
       {finding && (
         <FindBar
           targets={order.map((c) => ({ id: c.id, doc: c.doc, editor: editors[c.id] ?? null }))}
@@ -867,7 +872,6 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
             </button>
           </article>
         </div>
-        {state.settings.stylesPane && !narrow && <StylesPane editor={active} sheet={sheet} onSheet={(styles) => store.setProjectStyles(project.id, styles)} onEditStyles={(key) => setStylesOpen(key ?? true)} onClose={() => store.updateSettings({ stylesPane: false })} />}
         </div>
         {paged && msEditors.length > 0 && <StatusBar editors={msEditors} scroller={scroll} />}
       </div>
