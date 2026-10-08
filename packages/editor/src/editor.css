@@ -121,3 +121,10 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
   del.trk { color: #f08a7e; text-decoration-color: #f08a7e; }
 }
 .hide-deleted del.trk { display: none; }
+/* A tracked paragraph break: a small ¶ at the start of the paragraph after it. */
+.brk { display: inline-block; margin-right: 4px; font-size: 0.8em; font-weight: 700; cursor: pointer; user-select: none; vertical-align: 0.1em; }
+.brk::before { content: '¶'; }
+.brk.ins { color: #2e8b57; }
+.brk.del { color: #c0392b; text-decoration: line-through; }
+@media (prefers-color-scheme: dark) { .brk.ins { color: #6fd29a; } .brk.del { color: #f08a7e; } }
+.brk:hover { text-decoration: underline; }

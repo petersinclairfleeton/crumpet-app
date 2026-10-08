@@ -463,3 +463,15 @@ describe('CriticMarkup at the end of a line', () => {
     expect(toMarkdown({ blocks: [makeBlock('paragraph', 'Looks like {.title}')] })).toBe('Looks like \\{.title}\n');
   });
 });
+
+describe('tracked paragraph breaks in files', () => {
+  it('are a tracked ¶ at the start of the line', () => {
+    const c = { kind: 'ins' as const, author: 'R', at: Date.UTC(2026, 9, 7, 9, 32) };
+    const doc: Doc = { blocks: [makeBlock('paragraph', 'One'), { ...makeBlock('heading2', 'Two'), brk: c }, { ...makeBlock('paragraph', ''), brk: { ...c, kind: 'del' } }] };
+    const md = toMarkdown(doc);
+    expect(md).toBe('One\n\n## {++¶++}{>>R (2026-10-07 09:32Z)<<}Two\n\n{--¶--}{>>R (2026-10-07 09:32Z)<<}\n');
+    const back = fromMarkdown(md);
+    expect(back.blocks.map((b) => [b.type, b.brk?.kind, b.runs.map((r) => r.text).join('')])).toEqual([['paragraph', undefined, 'One'], ['heading2', 'ins', 'Two'], ['paragraph', 'del', '']]);
+    expect(toMarkdown(back)).toBe(md);
+  });
+});

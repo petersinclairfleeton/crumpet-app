@@ -64,6 +64,8 @@ import {
   trackedDelete,
   resolveChanges,
   insertBlocks,
+  trackedSplit,
+  trackedJoin,
   setTableRows,
 } from './commands';
 import { History } from './history';
@@ -572,11 +574,10 @@ export class Editor {
       }
       case 'insertParagraph':
       case 'insertLineBreak':
-        // A selection is marked deleted first; the new paragraph itself isn't tracked.
-        if (isCollapsed(s.selection)) return false;
+        // A selection is marked deleted first; the new paragraph's break is marked as added.
         e.preventDefault();
-        this.dispatch(trackedDelete(s, 1, author));
-        this.dispatch(splitBlock(this.state));
+        if (!isCollapsed(s.selection)) this.dispatch(trackedDelete(s, 1, author));
+        this.dispatch(trackedSplit(this.state, author));
         return true;
       case 'deleteContentBackward':
       case 'deleteContentForward':
@@ -591,8 +592,8 @@ export class Editor {
       case 'deleteContent': {
         const backward = !e.inputType.includes('Forward');
         const range = isCollapsed(s.selection) && !e.inputType.startsWith('deleteContent') ? this.targetRange(e) : null;
-        const t = trackedDelete(s, backward ? -1 : 1, author, range ?? undefined);
-        // At the edge of a paragraph: join as usual.
+        // At the edge of a paragraph: the break between the two paragraphs is marked deleted.
+        const t = trackedDelete(s, backward ? -1 : 1, author, range ?? undefined) ?? (isCollapsed(s.selection) ? trackedJoin(s, backward ? -1 : 1, author) : null);
         if (!t) return false;
         e.preventDefault();
         this.dispatch(t);
@@ -797,6 +798,16 @@ export class Editor {
   onLinkClick: ((href: string, e: MouseEvent) => boolean) | null = null;
 
   private onMouseDown(e: MouseEvent): void {
+    const brk = (e.target as Element).closest?.<HTMLElement>('.brk');
+    if (brk && this.onChangeClick) {
+      const id = brk.closest<HTMLElement>('[data-block]')?.dataset.block;
+      const hit = changes(this.state.doc).find((c) => c.block === id && c.from === -1);
+      if (hit) {
+        e.preventDefault();
+        setTimeout(() => this.onChangeClick?.(hit, brk), 0);
+        return;
+      }
+    }
     const trk = (e.target as Element).closest?.<HTMLElement>('ins.trk, del.trk');
     if (trk && this.onChangeClick) {
       const blockEl = trk.closest<HTMLElement>('[data-block]');
@@ -901,7 +912,7 @@ export class Editor {
       if (blocks?.length) {
         if (this.tracking) {
           const change = makeChange('ins', this.tracking.author);
-          blocks = blocks.map((b) => ({ ...b, runs: b.runs.map((r) => ({ ...r, change })) }));
+          blocks = blocks.map((b, i) => ({ ...b, runs: b.runs.map((r) => ({ ...r, change })), ...(i > 0 ? { brk: change } : {}) }));
           // Pasting over a selection marks it deleted first.
           if (!isCollapsed(this.state.selection)) this.dispatch(trackedDelete(this.state, 1, this.tracking.author));
         }

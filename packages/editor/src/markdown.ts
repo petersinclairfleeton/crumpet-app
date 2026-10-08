@@ -65,7 +65,8 @@ function blockLine(b: Block, number: number): string {
   }
   // A scene break is Markdown's own section break.
   if (b.style === 'scenebreak' && !b.runs.length && !b.align) return '* * *';
-  const text = protectBraces(inline(b.runs));
+  // A tracked paragraph break is a ¶ added or deleted at the start of the line.
+  const text = (b.brk ? changeMarkup('¶', b.brk) : '') + protectBraces(inline(b.runs));
   const body = escapeLineStart(text);
   const pad = INDENT.repeat(b.indent ?? 0);
   const line = (() => {
@@ -247,15 +248,16 @@ function writeChanges(runs: Run[], style: Style): string {
     let j = i + 1;
     while (j < runs.length && sameChange(runs[j].change, c)) j++;
     const part = writeFormatted(runs.slice(i, j), style);
-    if (!c) out += part;
-    else {
-      const mark = c.kind === 'ins' ? '++' : '--';
-      const who = c.author.replace(/[()]/g, '') || (c.at ? 'Someone' : '');
-      out += `{${mark}${part}${mark}}${who ? `{>>${who} (${c.at ? commentTime(c.at) : 'undated'})<<}` : ''}`;
-    }
+    out += c ? changeMarkup(part, c) : part;
     i = j;
   }
   return out;
+}
+
+function changeMarkup(inner: string, c: Change): string {
+  const mark = c.kind === 'ins' ? '++' : '--';
+  const who = c.author.replace(/[()]/g, '') || (c.at ? 'Someone' : '');
+  return `{${mark}${inner}${mark}}${who ? `{>>${who} (${c.at ? commentTime(c.at) : 'undated'})<<}` : ''}`;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -494,6 +496,14 @@ export function fromMarkdown(md: string): Doc {
     if (classes.length) paraClasses = classes;
   }
   flushPara();
+  // A line starting with a tracked ¶ marks a tracked paragraph break.
+  for (const b of blocks) {
+    const first = b.runs[0];
+    if (first?.change && first.text.startsWith('¶')) {
+      b.brk = first.change;
+      b.runs = normalizeRuns([{ ...first, text: first.text.slice(1) }, ...b.runs.slice(1)]);
+    }
+  }
   return { blocks: blocks.length ? blocks : [makeBlock('paragraph')] };
 }
 

@@ -1165,3 +1165,39 @@ test('pasting from a web page or Word keeps headings, lists and formatting', asy
   await paste('<span style="font-weight:700">Bold bit</span>', 'Bold bit');
   await expect(body.locator('ins.trk strong')).toHaveText('Bold bit');
 });
+
+test('track changes: new and removed paragraph breaks are tracked too', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Breaks', 'First line. Second line.');
+  await page.getByRole('button', { name: 'Track changes' }).click();
+  const body = page.locator('.note-editor');
+  await body.locator('.blk').first().click();
+  await page.keyboard.press('End');
+  for (let i = 0; i < 'Second line.'.length; i++) await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Enter');
+  await expect(body.locator('.blk')).toHaveCount(2);
+  await expect(body.locator('.brk.ins')).toHaveCount(1);
+  const bar = page.getByRole('region', { name: 'Tracked changes' });
+  await expect(bar).toContainText('1 tracked change');
+  // Typing goes on in the new paragraph; Backspace at its start takes the new break away again.
+  await page.keyboard.press('Backspace');
+  await expect(body.locator('.blk')).toHaveCount(1);
+  await expect(bar).toHaveCount(0);
+  // Now a break that was there before: Backspace marks it deleted.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.getByRole('button', { name: 'Tracking changes' }).click();
+  await body.locator('.blk').last().click();
+  await page.keyboard.type('Third.');
+  await bar.getByRole('button', { name: 'Accept all' }).click();
+  await page.getByRole('button', { name: 'Track changes' }).click();
+  await body.locator('.blk').last().click();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Backspace');
+  await expect(body.locator('.brk.del')).toHaveCount(1);
+  await expect(body.locator('.blk')).toHaveCount(2);
+  await body.locator('.brk.del').click();
+  await page.getByRole('dialog', { name: 'Deleted paragraph break' }).getByRole('button', { name: 'Accept' }).click();
+  await expect(body.locator('.blk')).toHaveCount(1);
+  await expect(body.locator('.blk')).toHaveText('First line. Second line.Third.');
+});
