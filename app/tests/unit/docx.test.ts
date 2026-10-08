@@ -200,3 +200,35 @@ describe('Word fonts, sizes and colours', () => {
     expect(back.doc.blocks[0].runs).toEqual(a.runs);
   });
 });
+
+describe('Word paragraph settings', () => {
+  it('spacing, indents, keeps and page breaks are written and read back', async () => {
+    const a = { ...makeBlock('paragraph', 'Spaced'), para: { line: 2, before: 12, after: 6, left: 0.5, right: 0.25, first: 0.5, keepNext: true } };
+    const b = { ...makeBlock('paragraph', 'Hanging'), para: { left: 0.5, first: -0.5 } };
+    const c = { ...makeBlock('paragraph', 'New page'), para: { pageBefore: true } };
+    const bytes = await toDocx([{ doc: { blocks: [a, b, c] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:spacing w:before="240" w:after="120" w:line="480" w:lineRule="auto"/>');
+    expect(xml).toContain('<w:ind w:left="720" w:right="360" w:firstLine="720"/>');
+    expect(xml).toContain('w:hanging="720"');
+    expect(xml).toContain('<w:pageBreakBefore/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks.map((x) => x.para)).toEqual([a.para, b.para, c.para]);
+  });
+
+  it('a page break typed in Word starts the next paragraph on a new page', async () => {
+    const p = (inner: string) => `<w:p>${inner}</w:p>`;
+    const body = p('<w:r><w:t>Before</w:t></w:r>') + p('<w:r><w:br w:type="page"/></w:r>') + p('<w:r><w:t>After</w:t></w:r>') + p('<w:r><w:t>End</w:t></w:r><w:r><w:br w:type="page"/></w:r>') + p('<w:r><w:t>Last</w:t></w:r>');
+    const files = await readZip(await toDocx([{ doc: { blocks: [makeBlock('paragraph', 'x')] } }], { title: 'T' }));
+    const doc = new TextDecoder().decode(files.get('word/document.xml')).replace(/<w:body>.*<w:sectPr>/s, `<w:body>${body}<w:sectPr>`);
+    files.set('word/document.xml', new TextEncoder().encode(doc));
+    const { writeZip } = await import('../../src/data/zip');
+    const back = await fromDocx(await writeZip([...files].map(([name, data]) => ({ name, data }))));
+    expect(back.doc.blocks.map((x) => [x.runs.map((r) => r.text).join(''), !!x.para?.pageBefore])).toEqual([
+      ['Before', false],
+      ['After', true],
+      ['End', false],
+      ['Last', true],
+    ]);
+  });
+});

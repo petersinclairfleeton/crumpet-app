@@ -11,6 +11,8 @@ import {
   type Change,
   type Block,
   sameChange,
+  tidyPara,
+  samePara,
   MAX_INDENT,
   styleAllowed,
   commonLink,
@@ -19,6 +21,7 @@ import {
   isList,
   tidyRows,
   isHeading,
+  isMedia,
   type Run,
   blockIndex,
   insertRuns,
@@ -69,6 +72,7 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
   if ((b.type === 'image' || b.type === 'file') && b.src) a.src = b.src;
   if (b.type === 'table') a.rows = tidyRows(b.rows);
   if (isHeading(b.type) && b.folded) a.folded = true;
+  if (!isMedia(b.type) && b.type !== 'table') a.para = tidyPara(b.para);
   // Always present (even when there's none), so a setAttrs built from attrsOf says exactly what the break is.
   a.brk = b.brk || undefined;
   return a;
@@ -77,7 +81,7 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
 export function sameAttrs(a: BlockAttrs, b: BlockAttrs): boolean {
   const x = attrsOf(a);
   const y = attrsOf(b);
-  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk);
+  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk) && samePara(x.para, y.para);
 }
 
 export function applyOp(doc: Doc, op: Op): Doc {
@@ -118,9 +122,11 @@ export function applyOp(doc: Doc, op: Op): Doc {
     case 'setAttrs': {
       const { id, runs } = b;
       const to = attrsOf(op.to);
-      // Attributes made from scratch (blockAttrs) leave a tracked paragraph break as it is.
+      // Attributes made from scratch (blockAttrs) leave a tracked paragraph break, and spacing and indents set by hand, as they are.
       if (!('brk' in op.to)) to.brk = b.brk;
       if (!to.brk) delete to.brk;
+      if (!('para' in op.to) && !isMedia(to.type) && to.type !== 'table') to.para = tidyPara(b.para);
+      if (!to.para) delete to.para;
       blocks[i] = { id, ...to, runs };
       break;
     }

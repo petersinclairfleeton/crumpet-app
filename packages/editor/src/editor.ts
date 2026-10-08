@@ -29,6 +29,8 @@ import {
   makeChange,
   type Look,
   type LookKey,
+  type ParaLook,
+  type ParaKey,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import {
@@ -74,6 +76,10 @@ import {
   clearFormatting,
   changeCase,
   type CaseChange,
+  setPara,
+  paraValue,
+  stepIndent,
+  insertPageBreak,
 } from './commands';
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
@@ -415,6 +421,28 @@ export class Editor {
   /** One part of the look at the caret or across the selection; undefined when mixed or unset. */
   lookValue<K extends LookKey>(key: K): Look[K] | undefined {
     return lookValue(this.state, key);
+  }
+
+  /** Paragraph settings (Word's Paragraph group) on the selected paragraphs; null clears them. */
+  setPara(patch: Partial<ParaLook> | null): void {
+    this.syncSelectionFromDom();
+    this.dispatch(setPara(this.state, patch), 'command');
+  }
+
+  paraValue<K extends ParaKey>(key: K): ParaLook[K] | undefined {
+    return paraValue(this.state, key);
+  }
+
+  /** Increase (1) or decrease (-1) indent. */
+  stepIndent(delta: 1 | -1): void {
+    this.syncSelectionFromDom();
+    this.dispatch(stepIndent(this.state, delta), 'command');
+  }
+
+  insertPageBreak(): void {
+    this.syncSelectionFromDom();
+    this.dispatch(insertPageBreak(this.state), 'command');
+    this.view.writeSelection(this.state.selection);
   }
 
   clearFormatting(): void {

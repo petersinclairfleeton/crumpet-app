@@ -1165,3 +1165,16 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .glyph-grow { font-weight: 700; } .glyph-grow sup { font-size: 7px; } .glyph-grow.small { font-size: 12px; }
 .glyph-clear small { font-size: 9px; color: var(--danger, #b33); margin-left: 1px; }
 .tools sup, .tools sub { font-size: 9px; }
+/* The Paragraph window. */
+.para-dialog { width: min(560px, 100%); }
+.para-dialog fieldset { border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.para-dialog legend { padding: 0 0 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.para-row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.para-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text2); }
+.para-input { display: inline-flex; align-items: center; gap: 4px; }
+.para-input input { width: 70px; height: 30px; padding: 0 6px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; font-weight: 400; }
+.para-input small { color: var(--muted); font-weight: 400; }
+.para-field select { height: 30px; padding: 0 6px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; font-weight: 400; }
+.para-foot { display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line); }
+.glyph-para { font-weight: 700; font-size: 15px; }
+.tools .caret { font-size: 9px; margin-left: 1px; }

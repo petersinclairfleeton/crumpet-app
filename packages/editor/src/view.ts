@@ -212,6 +212,20 @@ function buildBlock(block: Block): HTMLElement {
     el.dataset.indent = String(block.indent ?? 0);
     el.style.setProperty('--indent', String(block.indent ?? 0));
   }
+  // Spacing and indents set on this paragraph by hand win over its style's.
+  const p = block.para;
+  if (p) {
+    if (p.before !== undefined) el.style.marginTop = `${p.before}pt`;
+    if (p.after !== undefined) el.style.marginBottom = `${p.after}pt`;
+    if (p.line !== undefined) el.style.lineHeight = String(p.line * 1.15);
+    if (p.left !== undefined) el.style.marginLeft = isList(block.type) ? `calc(${p.left}in + var(--indent, 0) * 24px)` : `${p.left}in`;
+    if (p.right !== undefined) el.style.marginRight = `${p.right}in`;
+    if (p.first !== undefined) el.style.textIndent = `${p.first}in`;
+    if (p.first !== undefined && p.first < 0 && p.left === undefined) el.style.marginLeft = `${-p.first}in`;
+    if (p.pageBefore) el.dataset.pageBefore = '';
+    if (p.keepNext) el.dataset.keepNext = '';
+    if (p.keepLines) el.dataset.keepLines = '';
+  }
   if (block.type === 'todo') {
     el.classList.toggle('checked', !!block.checked);
     const box = document.createElement('span');

@@ -20,7 +20,7 @@
 // lines, fenced code and autolinks. Things Crumpet can't show yet (images,
 // tables, other HTML) are kept as their literal text.
 
-import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook } from './model';
+import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -90,9 +90,12 @@ function blockLine(b: Block, number: number): string {
         return text ? body : '&nbsp;';
     }
   })();
-  // Styles and alignment Markdown has no syntax for go at the end of the line, as {.title .center}.
-  const classes = [b.style, b.align, b.folded ? 'folded' : undefined].filter(Boolean);
-  return classes.length ? `${line} {${classes.map((c) => `.${c}`).join(' ')}}` : line;
+  // Styles, alignment and paragraph settings Markdown has no syntax for go at the end of the line, as {.title .center line=2}.
+  const p = b.para;
+  const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined].filter(Boolean);
+  const values = p ? (['line', 'before', 'after', 'left', 'right', 'first'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
+  const attrs = [...classes.map((c) => `.${c}`), ...values];
+  return attrs.length ? `${line} {${attrs.join(' ')}}` : line;
 }
 
 /** Links to other notes: `note:` and the note's title, written [[Title]] in Markdown. */
@@ -123,30 +126,45 @@ function runsPlain(runs: Run[]): string {
 
 const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
 const KNOWN_STYLES = new Set<string>([...Object.values(BLOCK_STYLES).flat(), 'folded']);
-const ATTRS = /^(.*?)[ \t]*(?<!\\)\{[ \t]*((?:\.[A-Za-z][\w-]*[ \t]*)+)\}[ \t]*$/;
+const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=-?[\d.]+)[ \t]*)+)\}[ \t]*$/;
+const PARA_FLAGS: Record<string, 'pageBefore' | 'keepNext' | 'keepLines'> = { pagebreak: 'pageBefore', keepnext: 'keepNext', keeplines: 'keepLines' };
+const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first']);
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */
 function protectBraces(text: string): string {
   // Only braces that would be read as {.attributes}; a comment or change ending the line ({>>…<<}) stays as it is.
-  return /\{[ \t]*\.[^{}]*\}\s*$/.test(text) ? text.replace(/\{([^{}]*\}\s*)$/, '\\{$1') : text;
+  return /(?<!\])\{[ \t]*(?:\.|[a-z]+=)[^{}]*\}\s*$/.test(text) ? text.replace(/\{([^{}]*\}\s*)$/, '\\{$1') : text;
 }
 
 /** A line's trailing {.style .align}, if every class is one Crumpet knows. */
 function splitAttrs(line: string): { line: string; classes: string[] } {
   const m = ATTRS.exec(line);
   if (!m) return { line, classes: [] };
-  const classes = m[2].trim().split(/\s+/).map((c) => c.slice(1));
-  if (!classes.every((c) => ALIGNS.has(c) || KNOWN_STYLES.has(c))) return { line, classes: [] };
-  return { line: m[1], classes };
+  const tokens = m[2].trim().split(/\s+/);
+  const ok = tokens.every((t) => (t.startsWith('.') ? ALIGNS.has(t.slice(1)) || KNOWN_STYLES.has(t.slice(1)) || t.slice(1) in PARA_FLAGS : PARA_VALUES.has(t.split('=')[0])));
+  if (!ok) return { line, classes: [] };
+  return { line: m[1], classes: tokens.map((t) => (t.startsWith('.') ? t.slice(1) : t)) };
 }
 
 function applyAttrs(b: Block, classes: string[]): Block {
+  const para: ParaLook = {};
   for (const c of classes) {
+    if (c.includes('=')) {
+      const [k, v] = c.split('=');
+      if (PARA_VALUES.has(k) && Number.isFinite(+v)) (para as Record<string, number>)[k] = +v;
+      continue;
+    }
+    if (c in PARA_FLAGS) {
+      para[PARA_FLAGS[c]] = true;
+      continue;
+    }
     if (ALIGNS.has(c)) {
       if (c !== 'left') b.align = c as Align;
     } else if (c === 'folded' && b.type.startsWith('heading')) b.folded = true;
     else if (styleAllowed(b.type, c)) b.style = c;
   }
+  const tidy = tidyPara(para);
+  if (tidy && !isMedia(b.type)) b.para = tidy;
   return b;
 }
 

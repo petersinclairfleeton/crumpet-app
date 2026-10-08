@@ -3,7 +3,7 @@
 // needs (styles, lists, footnotes, pictures, headers and footers) and read
 // back what Crumpet can show.
 
-import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type Run, FOOTNOTE, tidyLook, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { PAGE_SIZES, type PageSetup } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -283,6 +283,15 @@ class Writer {
         if (!num) num = ++this.numbered + 1;
       } else if (!isListType(b.type)) num = 0;
       const jc = b.align && JC[b.align] ? `<w:jc w:val="${JC[b.align]}"/>` : '';
+      // Paragraph settings set by hand, each where Word expects it: keep and page break first, then spacing and indents.
+      const p = b.para;
+      const keep = (p?.keepNext ? '<w:keepNext/>' : '') + (p?.keepLines ? '<w:keepLines/>' : '');
+      const head = keep + lead + (p?.pageBefore && !lead.includes('pageBreakBefore') ? '<w:pageBreakBefore/>' : '');
+      const tw = (inches: number) => Math.round(inches * TWIPS);
+      const spacing = p && (p.before !== undefined || p.after !== undefined || p.line !== undefined) ? `<w:spacing${p.before !== undefined ? ` w:before="${Math.round(p.before * 20)}"` : ''}${p.after !== undefined ? ` w:after="${Math.round(p.after * 20)}"` : ''}${p.line !== undefined ? ` w:line="${Math.round(p.line * 240)}" w:lineRule="auto"` : ''}/>` : '';
+      const left = p?.left ?? (p?.first !== undefined && p.first < 0 ? -p.first : undefined);
+      const ind = p && (left !== undefined || p.right !== undefined || p.first !== undefined) ? `<w:ind${left !== undefined ? ` w:left="${tw(left)}"` : ''}${p.right !== undefined ? ` w:right="${tw(p.right)}"` : ''}${p.first !== undefined ? (p.first < 0 ? ` w:hanging="${tw(-p.first)}"` : ` w:firstLine="${tw(p.first)}"`) : ''}/>` : '';
+      const layout = spacing + ind;
       switch (b.type) {
         case 'image': {
           const pic = await this.picture(b);
@@ -303,26 +312,27 @@ class Writer {
         case 'heading2':
         case 'heading3':
         case 'heading4':
-          out += this.paragraph(`Heading${b.type.slice(-1)}`, this.runs(b.runs), lead + jc);
+          out += this.paragraph(`Heading${b.type.slice(-1)}`, this.runs(b.runs), head + layout + jc);
           continue;
         case 'quote':
-          out += this.paragraph(b.style === 'intense' ? 'IntenseQuote' : 'Quote', this.runs(b.runs), lead + jc);
+          out += this.paragraph(b.style === 'intense' ? 'IntenseQuote' : 'Quote', this.runs(b.runs), head + layout + jc);
           continue;
         case 'bullet':
         case 'todo':
         case 'numbered': {
           const id = b.type === 'numbered' ? num : 1;
           const box = b.type === 'todo' ? [{ text: b.checked ? '☒ ' : '☐ ', marks: [] as Mark[] }] : [];
-          const numPr = b.type === 'todo' ? `<w:ind w:left="${360 + (b.indent ?? 0) * 360}"/>` : `<w:numPr><w:ilvl w:val="${Math.min(8, b.indent ?? 0)}"/><w:numId w:val="${id}"/></w:numPr>`;
-          out += this.paragraph('ListParagraph', this.runs([...box, ...b.runs]), lead + numPr + jc);
+          const numPr = b.type === 'todo' ? '' : `<w:numPr><w:ilvl w:val="${Math.min(8, b.indent ?? 0)}"/><w:numId w:val="${id}"/></w:numPr>`;
+          const todoInd = b.type === 'todo' && !ind ? `<w:ind w:left="${360 + (b.indent ?? 0) * 360}"/>` : '';
+          out += this.paragraph('ListParagraph', this.runs([...box, ...b.runs]), head + numPr + layout + todoInd + jc);
           continue;
         }
         default:
           if (b.style === 'scenebreak' && !b.runs.length) {
-            out += this.paragraph('SceneBreak', '<w:r><w:t>*   *   *</w:t></w:r>', lead);
+            out += this.paragraph('SceneBreak', '<w:r><w:t>*   *   *</w:t></w:r>', head + layout);
             continue;
           }
-          out += this.paragraph(PARA_STYLES[b.style ?? ''] ?? null, this.runs(b.runs), lead + jc);
+          out += this.paragraph(PARA_STYLES[b.style ?? ''] ?? null, this.runs(b.runs), head + layout + jc);
       }
     }
     return out || this.paragraph(null, '', first);
@@ -805,6 +815,13 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
 
   /** A tracked change on the last paragraph's mark: the break before the next paragraph. */
   let pendingBreak: Change | undefined;
+  /** A page break ended the last paragraph: the next one starts a new page. */
+  let pageBreakNext = false;
+  /** Whether `el` comes after all the text in paragraph `p`. */
+  const isLastThing = (p: Element, el: Element): boolean => {
+    const all = Array.from(p.getElementsByTagNameNS(W_NS, '*')).filter((x) => x.localName === 't' || x === el);
+    return all[all.length - 1] === el;
+  };
   const paragraph = async (p: Element) => {
     const ppr = child(p, 'pPr');
     const brk = pendingBreak;
@@ -855,6 +872,40 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       return;
     }
     if (align && !b.align) b.align = align;
+    // Spacing, indents and page breaks set on the paragraph itself (not by its style); list items keep their own indents.
+    const para: ParaLook = {};
+    const sp = child(ppr, 'spacing');
+    const twPt = (v: string | null) => (v !== null && Number.isFinite(+v) ? +v / 20 : undefined);
+    if (sp) {
+      para.before = twPt(attr(sp, 'before'));
+      para.after = twPt(attr(sp, 'after'));
+      const line = attr(sp, 'line');
+      if (line && (attr(sp, 'lineRule') ?? 'auto') === 'auto') para.line = Math.round((+line / 240) * 100) / 100;
+    }
+    const ind = child(ppr, 'ind');
+    if (ind && !isListType(b.type)) {
+      const inch = (v: string | null) => (v !== null && Number.isFinite(+v) ? Math.round((+v / TWIPS) * 1000) / 1000 : undefined);
+      para.left = inch(attr(ind, 'left') ?? attr(ind, 'start'));
+      para.right = inch(attr(ind, 'right') ?? attr(ind, 'end'));
+      const hanging = inch(attr(ind, 'hanging'));
+      para.first = hanging !== undefined ? -hanging : inch(attr(ind, 'firstLine'));
+    }
+    const on2 = (el: Element | null | undefined) => !!el && attr(el, 'val') !== '0' && attr(el, 'val') !== 'false';
+    const carried = pageBreakNext;
+    pageBreakNext = false;
+    if (on2(child(ppr, 'pageBreakBefore')) || carried) para.pageBefore = true;
+    if (on2(child(ppr, 'keepNext'))) para.keepNext = true;
+    if (on2(child(ppr, 'keepLines'))) para.keepLines = true;
+    // A page break (Ctrl+Enter in Word): on its own or after the text, the next paragraph starts a new page; before the text, this one does.
+    const breaks = Array.from(p.getElementsByTagNameNS(W_NS, 'br')).filter((x) => attr(x, 'type') === 'page');
+    if (breaks.length) {
+      if (!text.trim() || isLastThing(p, breaks[breaks.length - 1])) pageBreakNext = true;
+      else para.pageBefore = true;
+    }
+    const tidy = tidyPara(para);
+    if (tidy) b.para = tidy;
+    // A paragraph holding nothing but a page break is just the break.
+    if (breaks.length && !text.trim() && b.type === 'paragraph' && !b.style) return;
     b.runs = normalizeRuns(clean);
     blocks.push(b);
     if (brk && blocks[startAt] && !blocks[startAt].brk) blocks[startAt].brk = brk;

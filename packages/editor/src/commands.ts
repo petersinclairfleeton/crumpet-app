@@ -27,6 +27,10 @@ import {
   commonLook,
   setLookOnRuns,
   tidyLook,
+  tidyPara,
+  MAX_INDENT,
+  type ParaLook,
+  type ParaKey,
   sameFormat,
   LOOK_KEYS,
   MARK_ORDER,
@@ -207,7 +211,9 @@ function splitAt(b: Builder, pos: Pos): Pos {
   const block = getBlock(b.doc, pos.block);
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
-  const newAttrs = atEnd ? nextBlockAttrs(block) : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined });
+  // A new paragraph carries on the spacing and indents of the one before (not a page break, nor after a heading).
+  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined });
+  const newAttrs = atEnd ? { ...nextBlockAttrs(block), para: carried } : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined, para: carried });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
   // Enter at the very start of a heading keeps the heading below and leaves an empty paragraph above.
@@ -452,6 +458,55 @@ export function changeCase(state: EditorState, how: CaseChange): Transaction {
   return tx(state, b, { anchor: from, focus: focusEnd });
 }
 
+/** One paragraph setting shared by all the selected paragraphs (undefined when they differ or it's unset). */
+export function paraValue<K extends ParaKey>(state: EditorState, key: K): ParaLook[K] | undefined {
+  const blocks = selectedBlocks(state).filter((b) => !isMedia(b.type));
+  const v = blocks[0]?.para?.[key];
+  return blocks.every((b) => b.para?.[key] === v) ? v : undefined;
+}
+
+/** Word's Paragraph settings on the selected paragraphs: a value sets one, undefined takes it off; null clears them all. */
+export function setPara(state: EditorState, patch: Partial<ParaLook> | null): Transaction {
+  const b = new Builder(state.doc);
+  for (const blk of selectedBlocks(state)) {
+    if (isMedia(blk.type)) continue;
+    const to = attrsOf({ ...blk, para: patch === null ? undefined : tidyPara({ ...blk.para, ...patch }) });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** Word's Increase / Decrease Indent: list items nest; other paragraphs move half an inch. */
+export function stepIndent(state: EditorState, delta: 1 | -1): Transaction {
+  const b = new Builder(state.doc);
+  for (const blk of selectedBlocks(state)) {
+    if (isMedia(blk.type)) continue;
+    let to;
+    if (isList(blk.type)) to = attrsOf({ ...blk, indent: Math.max(0, Math.min(MAX_INDENT, (blk.indent ?? 0) + delta)) });
+    else {
+      const left = Math.max(0, Math.round(((blk.para?.left ?? 0) + delta * 0.5) * 2) / 2);
+      to = attrsOf({ ...blk, para: tidyPara({ ...blk.para, left: left || undefined }) });
+    }
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** Word's Page Break (Ctrl+Enter): what follows the caret starts on a new page. */
+export function insertPageBreak(state: EditorState): Transaction {
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  let at = deleteRange(b, from, to);
+  const block = getBlock(b.doc, at.block);
+  if (isMedia(block.type)) at = { block: block.id, offset: runsLength(block.runs) };
+  // At the very start of a paragraph it moves to a new page itself; otherwise the rest of it does.
+  if (at.offset > 0 || isMedia(block.type)) at = splitAt(b, at);
+  const blk = getBlock(b.doc, at.block);
+  const next = attrsOf({ ...blk, para: tidyPara({ ...blk.para, pageBefore: true }) });
+  b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to: next });
+  return tx(state, b, caret(at));
+}
+
 /** Selected blocks, first to last. */
 function selectedBlocks(state: EditorState): Block[] {
   const { from, to } = orderedRange(state.doc, state.selection);
@@ -466,7 +521,7 @@ export function setBlockStyle(state: EditorState, type: BlockType, style?: strin
   const b = new Builder(state.doc);
   for (const blk of selectedBlocks(state)) {
     if (isMedia(blk.type)) continue;
-    const to = attrsOf({ type, checked: false, indent: isList(type) && isList(blk.type) ? blk.indent : 0, ...(style ? { style } : {}), ...(blk.align ? { align: blk.align } : {}) });
+    const to = attrsOf({ type, checked: false, indent: isList(type) && isList(blk.type) ? blk.indent : 0, ...(style ? { style } : {}), ...(blk.align ? { align: blk.align } : {}), para: blk.para });
     if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
   }
   return tx(state, b, state.selection);

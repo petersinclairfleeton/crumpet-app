@@ -89,6 +89,12 @@ export class Paginator {
           page = Math.floor(top / pitch);
           continue;
         }
+        // A paragraph set to start a new page (Word's page break) does, unless it's at the top of one already.
+        if (el.dataset.pageBefore !== undefined && i > 0 && top > pageTop + 2 && !el.querySelector(`.${SPACER}`)) {
+          insertSpacer(el, 0, (page + 1) * pitch - y(firstLineTop(el)));
+          page += 1;
+          continue;
+        }
         const fns = this.noteHeight ? Array.from(el.querySelectorAll<HTMLElement>('sup.fn')) : [];
         if (!fns.length && bottom <= pageTop + g.content - reserve(page) + 0.5) break; // fits
         const lines = lineStarts(el, y);
@@ -120,6 +126,8 @@ export class Paginator {
           notesOn(page).push(...adding);
           break; // fits
         }
+        // Lines kept together: the whole paragraph moves if it can.
+        if (el.dataset.keepLines !== undefined && firstHere === 0 && k > 0) k = 0;
         // No lone first line at the bottom of a page (orphan)…
         if (k === 1 && firstHere === 0 && lines.length > 1) k = 0;
         // …and no lone last line at the top of the next (widow).
@@ -127,7 +135,7 @@ export class Paginator {
         if (k === 0) {
           // The whole block moves. A heading just above it goes too, to stay with its text.
           const prev = blocks[i - 1];
-          if (prev && /^H[1-6]$/.test(prev.tagName) && !prev.querySelector(`.${SPACER}`)) {
+          if (prev && (/^H[1-6]$/.test(prev.tagName) || prev.dataset.keepNext !== undefined) && !prev.querySelector(`.${SPACER}`)) {
             const pTop = y(prev.getBoundingClientRect().top);
             if (pTop >= pageTop && pTop < pageTop + g.content) {
               // Its footnotes go with it.
