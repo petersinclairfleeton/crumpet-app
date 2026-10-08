@@ -27,6 +27,8 @@ import {
   type Change,
   changes,
   makeChange,
+  type Look,
+  type LookKey,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import {
@@ -67,6 +69,11 @@ import {
   trackedSplit,
   trackedJoin,
   setTableRows,
+  setLook,
+  lookValue,
+  clearFormatting,
+  changeCase,
+  type CaseChange,
 } from './commands';
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
@@ -188,6 +195,7 @@ export class Editor {
       doc,
       selection: t.selectionAfter,
       storedMarks: t.storedMarks !== undefined ? t.storedMarks : t.ops.length ? null : this.state.storedMarks,
+      storedLook: t.storedLook !== undefined ? t.storedLook : t.ops.length ? null : this.state.storedLook,
     };
     if (record) this.history.record(t, doc);
     this.draw(doc);
@@ -396,6 +404,27 @@ export class Editor {
   setBlockType(type: BlockType): void {
     this.syncSelectionFromDom();
     this.dispatch(setBlockType(this.state, type), 'command');
+  }
+
+  /** Sets a font, size, colour, highlight or raised/lowered on the selection (or for what's typed next). */
+  setLook(key: LookKey, value: string | number | null): void {
+    this.syncSelectionFromDom();
+    this.dispatch(setLook(this.state, key, value), 'command');
+  }
+
+  /** One part of the look at the caret or across the selection; undefined when mixed or unset. */
+  lookValue<K extends LookKey>(key: K): Look[K] | undefined {
+    return lookValue(this.state, key);
+  }
+
+  clearFormatting(): void {
+    this.syncSelectionFromDom();
+    this.dispatch(clearFormatting(this.state), 'command');
+  }
+
+  changeCase(how: CaseChange): void {
+    this.syncSelectionFromDom();
+    this.dispatch(changeCase(this.state, how), 'command');
   }
 
   isMarkActive(mark: Mark): boolean {

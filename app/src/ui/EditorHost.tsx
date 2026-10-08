@@ -13,6 +13,7 @@ import { FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
 import { ChangeCard, ChangesBar, TrackToggle, useTracking } from './changes';
 import { useTypewriter } from './typewriter';
+import { useDocFontsLoaded, useFontKeys } from './fonttools';
 
 interface Props {
   /** The document shown (a note or a chapter) and where its edits go. */
@@ -71,6 +72,8 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
   });
 
   useTracking(readOnly || reading ? null : ed);
+  useFontKeys(readOnly || reading ? null : ed, sheet);
+  useDocFontsLoaded(ed);
   useTypewriter(readOnly || reading ? null : ed);
 
   // Links to notes that don't exist (yet) look different; clicking one makes the note.

@@ -256,6 +256,23 @@ function buildBlock(block: Block): HTMLElement {
       wrap.appendChild(node);
       node = wrap;
     }
+    if (run.look) {
+      // Font, size, colour and highlight, as chosen for this text.
+      const span = document.createElement('span');
+      span.className = 'lk';
+      const l = run.look;
+      if (l.font) span.style.fontFamily = `"${l.font.replace(/"/g, '')}", var(--note-font, serif)`;
+      if (l.size) span.style.fontSize = `${l.size}pt`;
+      if (l.color) span.style.color = l.color;
+      if (l.highlight) span.style.backgroundColor = l.highlight;
+      if (l.va) {
+        span.style.verticalAlign = l.va;
+        span.style.fontSize = l.size ? `${l.size * 0.65}pt` : '0.65em';
+        span.style.lineHeight = '0';
+      }
+      span.appendChild(node);
+      node = span;
+    }
     if (run.footnote !== undefined) {
       // The marker: an invisible character in the text, with its number drawn beside it.
       const sup = document.createElement('sup');

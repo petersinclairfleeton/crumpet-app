@@ -23,6 +23,15 @@ import {
   normalizeLink,
   setLinkOnRuns,
   marksAt,
+  lookAt,
+  commonLook,
+  setLookOnRuns,
+  tidyLook,
+  sameFormat,
+  LOOK_KEYS,
+  MARK_ORDER,
+  type Look,
+  type LookKey,
   newId,
   orderedRange,
   runsLength,
@@ -46,6 +55,8 @@ export interface EditorState {
   selection: Selection;
   /** Marks toggled with a collapsed selection, applied to the next typed text. */
   storedMarks: Mark[] | null;
+  /** Likewise a font, size or colour chosen with nothing selected. */
+  storedLook?: Look | null;
 }
 
 export interface Transaction {
@@ -53,6 +64,7 @@ export interface Transaction {
   selectionBefore: Selection;
   selectionAfter: Selection;
   storedMarks?: Mark[] | null;
+  storedLook?: Look | null;
   /** Lets history merge consecutive typing into one undo step. */
   kind?: 'typing' | 'delete' | 'other';
 }
@@ -139,6 +151,7 @@ export function insertText(state: EditorState, text: string): Transaction {
   const at = deleteRange(b, from, to);
   const block = getBlock(b.doc, at.block);
   const marks = state.storedMarks ?? marksAt(block.runs, at.offset);
+  const look = state.storedLook !== undefined && state.storedLook !== null ? state.storedLook : lookAt(block.runs, at.offset);
   // Typing inside a link keeps it linked; typing at its edge does not extend it.
   const link = linkAt(block.runs, at.offset);
   const comment = commentAt(block.runs, at.offset);
@@ -149,11 +162,12 @@ export function insertText(state: EditorState, text: string): Transaction {
     if (line) {
       const run: Run = link && n === 0 ? { text: line, marks: sortMarks(marks), link } : { text: line, marks: sortMarks(marks) };
       if (comment && n === 0) run.comment = comment;
+      if (look) run.look = look;
       b.step({ type: 'insert', block: pos.block, offset: pos.offset, runs: [run] });
       pos = { block: pos.block, offset: pos.offset + line.length };
     }
   });
-  return tx(state, b, caret(pos), { kind: lines.length === 1 && text.length <= 2 ? 'typing' : 'other', storedMarks: null });
+  return tx(state, b, caret(pos), { kind: lines.length === 1 && text.length <= 2 ? 'typing' : 'other', storedMarks: null, storedLook: null });
 }
 
 /** Markdown-style shortcut: typing "# " etc. at the start of a paragraph turns it into that block type. */
@@ -330,6 +344,112 @@ export function toggleMark(state: EditorState, mark: Mark): Transaction {
     b.step({ type: 'format', block: s.id, offset: s.from, before, after, mark, on });
   }
   return tx(state, b, state.selection);
+}
+
+/** One part of the look where the caret is, or shared by all the selected text (undefined when mixed or unset). */
+export function lookValue<K extends LookKey>(state: EditorState, key: K): Look[K] | undefined {
+  if (isCollapsed(state.selection)) {
+    const pos = state.selection.focus;
+    const stored = state.storedLook;
+    return (stored ?? lookAt(getBlock(state.doc, pos.block).runs, pos.offset))?.[key];
+  }
+  const runs = selectedSpans(state.doc, state.selection)
+    .filter((s) => s.to > s.from)
+    .flatMap((s) => sliceRuns(getBlock(state.doc, s.id).runs, s.from, s.to));
+  return runs.length ? commonLook(runs, key) : undefined;
+}
+
+/** Sets one part of the look (font, size, colour, highlight, raised/lowered) on the selection, or for the next typing. */
+export function setLook(state: EditorState, key: LookKey, value: string | number | null): Transaction {
+  const b = new Builder(state.doc);
+  if (isCollapsed(state.selection)) {
+    const pos = state.selection.focus;
+    const current = state.storedLook ?? lookAt(getBlock(state.doc, pos.block).runs, pos.offset);
+    return tx(state, b, state.selection, { storedLook: tidyLook({ ...current, [key]: value ?? undefined }) ?? {} });
+  }
+  for (const s of selectedSpans(state.doc, state.selection)) {
+    if (s.to <= s.from) continue;
+    const before = sliceRuns(getBlock(b.doc, s.id).runs, s.from, s.to);
+    const after = setLookOnRuns(before, key, value);
+    if (!sameRunsFormat(before, after)) b.step({ type: 'format', block: s.id, offset: s.from, before, after, look: key, value });
+  }
+  return tx(state, b, state.selection);
+}
+
+function sameRunsFormat(a: Run[], b: Run[]): boolean {
+  return a.length === b.length && a.every((r, i) => r.text === b[i].text && sameFormat(r, b[i]));
+}
+
+/** Word's Clear Formatting: bold, italic and the rest, fonts, sizes and colours all taken off the selection. */
+export function clearFormatting(state: EditorState): Transaction {
+  const b = new Builder(state.doc);
+  if (isCollapsed(state.selection)) return tx(state, b, state.selection, { storedMarks: [], storedLook: {} });
+  for (const s of selectedSpans(state.doc, state.selection)) {
+    if (s.to <= s.from) continue;
+    for (const mark of MARK_ORDER) {
+      const before = sliceRuns(getBlock(b.doc, s.id).runs, s.from, s.to);
+      if (!before.some((r) => r.marks.includes(mark))) continue;
+      b.step({ type: 'format', block: s.id, offset: s.from, before, after: setMarkOnRuns(before, mark, false), mark, on: false });
+    }
+    for (const key of LOOK_KEYS) {
+      const before = sliceRuns(getBlock(b.doc, s.id).runs, s.from, s.to);
+      if (!before.some((r) => r.look?.[key] !== undefined)) continue;
+      b.step({ type: 'format', block: s.id, offset: s.from, before, after: setLookOnRuns(before, key, null), look: key, value: null });
+    }
+  }
+  return tx(state, b, state.selection);
+}
+
+export type CaseChange = 'upper' | 'lower' | 'title' | 'sentence' | 'toggle';
+
+function recase(text: string, how: CaseChange, startOfSentence: boolean): string {
+  switch (how) {
+    case 'upper':
+      return text.toLocaleUpperCase();
+    case 'lower':
+      return text.toLocaleLowerCase();
+    case 'toggle':
+      return [...text].map((c) => (c === c.toLocaleUpperCase() ? c.toLocaleLowerCase() : c.toLocaleUpperCase())).join('');
+    case 'title':
+      return text.toLocaleLowerCase().replace(/(^|[^\p{L}\p{N}'’])(\p{L})/gu, (_, a: string, c: string) => a + c.toLocaleUpperCase());
+    case 'sentence': {
+      let start = startOfSentence;
+      return [...text.toLocaleLowerCase()]
+        .map((c) => {
+          if (start && /\p{L}/u.test(c)) {
+            start = false;
+            return c.toLocaleUpperCase();
+          }
+          if (/[.!?]/.test(c)) start = true;
+          return c;
+        })
+        .join('');
+    }
+  }
+}
+
+/** Word's Change Case on the selected text, keeping its formatting. */
+export function changeCase(state: EditorState, how: CaseChange): Transaction {
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  let focusEnd = to;
+  for (const s of selectedSpans(state.doc, state.selection)) {
+    if (s.to <= s.from) continue;
+    const runs = getBlock(b.doc, s.id).runs;
+    const before = sliceRuns(runs, s.from, s.to);
+    const prior = runsText(sliceRuns(runs, 0, s.from));
+    let sentence = !/\S/.test(prior) || /[.!?]\s*$/.test(prior);
+    const after = before.map((r) => {
+      const t = r.footnote !== undefined ? r.text : recase(r.text, how, sentence);
+      if (/\S/.test(r.text)) sentence = /[.!?]\s*$/.test(t);
+      return { ...r, text: t };
+    });
+    if (runsText(after) === runsText(before)) continue;
+    b.step({ type: 'remove', block: s.id, offset: s.from, runs: before });
+    b.step({ type: 'insert', block: s.id, offset: s.from, runs: after });
+    if (s.id === to.block) focusEnd = { block: s.id, offset: s.from + runsLength(after) };
+  }
+  return tx(state, b, { anchor: from, focus: focusEnd });
 }
 
 /** Selected blocks, first to last. */
@@ -520,10 +640,11 @@ export function syncBlockText(state: EditorState, id: string, domText: string, s
   }
   const b = new Builder(state.doc);
   const marks = state.storedMarks ?? marksAt(blk.runs, start);
+  const look = state.storedLook ?? lookAt(blk.runs, start);
   if (endOld > start) b.step({ type: 'remove', block: id, offset: start, runs: sliceRuns(blk.runs, start, endOld) });
   const inserted = domText.slice(start, endNew);
-  if (inserted) b.step({ type: 'insert', block: id, offset: start, runs: [{ text: inserted, marks }] });
-  return tx(state, b, selectionAfter, { kind: 'typing', storedMarks: null });
+  if (inserted) b.step({ type: 'insert', block: id, offset: start, runs: [look ? { text: inserted, marks, look } : { text: inserted, marks }] });
+  return tx(state, b, selectionAfter, { kind: 'typing', storedMarks: null, storedLook: null });
 }
 
 /**
@@ -704,6 +825,7 @@ export function trackedInsertText(state: EditorState, text: string, author: stri
   const at = isCollapsed(state.selection) ? from : markDeleted(b, from, to, makeChange('del', author));
   const block = getBlock(b.doc, at.block);
   const marks = state.storedMarks ?? marksAt(block.runs, at.offset);
+  const look = state.storedLook ?? lookAt(block.runs, at.offset);
   const link = linkAt(block.runs, at.offset);
   const comment = commentAt(block.runs, at.offset);
   const change = makeChange('ins', author);
@@ -715,11 +837,12 @@ export function trackedInsertText(state: EditorState, text: string, author: stri
       const run: Run = { text: line, marks: sortMarks(marks), change };
       if (link && n === 0) run.link = link;
       if (comment && n === 0) run.comment = comment;
+      if (look) run.look = look;
       b.step({ type: 'insert', block: pos.block, offset: pos.offset, runs: [run] });
       pos = { block: pos.block, offset: pos.offset + line.length };
     }
   });
-  return tx(state, b, caret(pos), { kind: lines.length === 1 && text.length <= 2 ? 'typing' : 'other', storedMarks: null });
+  return tx(state, b, caret(pos), { kind: lines.length === 1 && text.length <= 2 ? 'typing' : 'other', storedMarks: null, storedLook: null });
 }
 
 /**

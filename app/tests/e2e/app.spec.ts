@@ -1662,3 +1662,46 @@ test('chapters open as pages, with no “Start writing” on the page, and the p
   await page.getByRole('button', { name: 'More formatting' }).click();
   await expect(page.locator('.more-menu')).toBeVisible();
 });
+
+test('font, size, colour, highlight, superscript and change case on selected text, kept in the file', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Fonts', 'The sea was slate grey');
+  await page.keyboard.press('Shift+Home');
+  await page.getByRole('button', { name: 'Font', exact: true }).click();
+  await page.getByLabel('Search fonts').fill('Lora');
+  await page.locator('.font-menu .font-option', { hasText: /^Lora/ }).first().click();
+  await page.keyboard.press('Shift+Home');
+  await page.getByLabel('Font size', { exact: true }).fill('20');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Shift+Home');
+  await page.getByRole('button', { name: 'Font colour' }).click();
+  await page.getByRole('button', { name: 'Red', exact: true }).click();
+  const span = page.locator('.note-editor .lk').first();
+  await expect(span).toHaveText('The sea was slate grey');
+  await expect(span).toHaveCSS('font-size', /^26\.6/);
+  await expect(span).toHaveCSS('color', 'rgb(204, 0, 0)');
+  // Change case and superscript (Word's keys).
+  await page.keyboard.press('Shift+Home');
+  await (await toolButton(page, 'Change case')).click();
+  await page.getByRole('button', { name: 'UPPERCASE' }).click();
+  await expect(span).toHaveText('THE SEA WAS SLATE GREY');
+  await page.keyboard.press('End');
+  await page.keyboard.press('Control+Shift+Equal');
+  await page.keyboard.type('2');
+  await expect(page.locator('.note-editor .lk[style*="super"]')).toHaveText('2');
+  // Saved as Markdown that keeps it all.
+  await page.waitForTimeout(800);
+  const md = await page.evaluate(async () => {
+    const m = await import('/@fs/' + 'home/user/crumpet-app/packages/editor/src/markdown.ts').catch(() => null);
+    const s = (window as unknown as { crumpet: { flush(): void; getState(): { notes: { title: string; doc: unknown }[] } } }).crumpet;
+    s.flush();
+    const doc = s.getState().notes.find((n) => n.title === 'Fonts')!.doc;
+    return m ? (m as { toMarkdown(d: unknown): string }).toMarkdown(doc) : JSON.stringify(doc);
+  });
+  expect(md).toContain('font="Lora"');
+  expect(md).toContain('size=20');
+  expect(md).toContain('color=#cc0000');
+  expect(md).toContain('va=super');
+});

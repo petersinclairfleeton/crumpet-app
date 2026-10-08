@@ -16,6 +16,7 @@ import { EditorHost } from './EditorHost';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, isMac, useDocEditor } from './editing';
 import { FindBar, useFindKey } from './find';
 import { useTypewriter } from './typewriter';
+import { useDocFontsLoaded, useFontKeys } from './fonttools';
 import { useAppState, useAppStore, useNav } from './hooks';
 import { IconBack, IconFocus, IconMore, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
@@ -865,6 +866,9 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
   });
   useTracking(editor);
   useTypewriter(editor);
+  const msSheet = useMemo(() => fullSheet(owner?.styles, 'manuscript'), [owner?.styles]);
+  useFontKeys(editor, msSheet);
+  useDocFontsLoaded(editor);
   useEffect(() => {
     if (!editor) return;
     onEditor(chapter.id, editor);
