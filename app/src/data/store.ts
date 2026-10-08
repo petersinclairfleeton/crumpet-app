@@ -37,8 +37,10 @@ export interface AppState {
   focusMode: boolean;
   /** The chapter open in the project being viewed. */
   chapterId: string | null;
-  /** In a project: one chapter at a time, or the whole manuscript on one page. */
-  projectMode: 'chapter' | 'manuscript';
+  /** In a project: one chapter at a time, the whole manuscript on one page, or chapters as index cards. */
+  projectMode: 'chapter' | 'manuscript' | 'corkboard';
+  /** A research note open beside the project's writing. */
+  researchId: string | null;
   query: string;
 }
 
@@ -77,6 +79,7 @@ export class AppStore {
     activeSide: 'first',
     focusMode: false,
     chapterId: null,
+    researchId: null,
     projectMode: 'chapter',
     query: '',
   };
@@ -436,9 +439,10 @@ export class AppStore {
   restoreNote(id: string): void {
     const note = this.note(id);
     if (!note) return;
-    // If its notebook was deleted meanwhile, it comes back without a notebook.
+    // If its notebook (or project) was deleted meanwhile, it comes back without one.
     const notebookId = this.notebook(note.notebookId) ? note.notebookId : null;
-    this.updateNote(id, { trashedAt: null, notebookId }, { touch: false });
+    const projectId = note.projectId && this.project(note.projectId) ? note.projectId : null;
+    this.updateNote(id, { trashedAt: null, notebookId, projectId }, { touch: false });
     this.selectNeighbourIfHidden(id);
   }
 
@@ -588,6 +592,7 @@ export class AppStore {
         updatedAt: t.updated,
         trashedAt: t.trashed,
         ...(t.extra ? { extra: t.extra } : {}),
+        ...(t.projectId ? { projectId: t.projectId } : {}),
       };
       if (cur && sameNoteRecord(cur, next)) return cur;
       this.cancelSave(t.id);
@@ -833,7 +838,7 @@ export class AppStore {
     this.set({ chapterId: id });
   }
 
-  setProjectMode(mode: 'chapter' | 'manuscript'): void {
+  setProjectMode(mode: 'chapter' | 'manuscript' | 'corkboard'): void {
     this.flush();
     this.set({ projectMode: mode });
   }
@@ -862,8 +867,37 @@ export class AppStore {
     this.updateProject(id, { goal: goal && goal > 0 ? Math.round(goal) : null });
   }
 
+  // ---------- research ----------
+
+  /** A project's research, newest first. */
+  research(projectId: string): Note[] {
+    return this.state.notes.filter((n) => n.projectId === projectId && n.trashedAt === null).sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  /** Adds a note to a project's research and opens it beside the writing. */
+  addResearchNote(projectId: string, init: Partial<Pick<Note, 'title' | 'doc' | 'tags'>> = {}, open = true): Note {
+    const t = this.now();
+    const note: Note = { id: newId(), notebookId: null, projectId, title: init.title ?? '', doc: init.doc ?? emptyDoc(), tags: init.tags ?? [], favorite: false, createdAt: t, updatedAt: t, trashedAt: null };
+    this.set({ notes: [note, ...this.state.notes], ...(open ? { researchId: note.id } : {}) });
+    this.save(this.storage.putNote(note));
+    return note;
+  }
+
+  /** Opens a research note beside the writing (null closes it). */
+  openResearch(id: string | null): void {
+    this.flush();
+    this.set({ researchId: id });
+  }
+
+  /** Files a note as research for a project, or (with null) back among the notes. */
+  setResearchProject(id: string, projectId: string | null): void {
+    this.updateNote(id, { projectId, notebookId: null }, { touch: false });
+  }
+
   /** Deletes a project and all its chapters. */
   deleteProject(id: string): void {
+    // Its research goes to the Trash, where it can be got back.
+    for (const n of this.state.notes) if (n.projectId === id && n.trashedAt === null) this.updateNote(n.id, { trashedAt: this.now() }, { touch: false });
     const gone = this.state.chapters.filter((c) => c.projectId === id);
     for (const c of gone) {
       this.cancelSave(c.id);
@@ -990,7 +1024,8 @@ function sameNoteRecord(a: Note, b: Note): boolean {
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt &&
     a.trashedAt === b.trashedAt &&
-    (a.extra ?? '') === (b.extra ?? '')
+    (a.extra ?? '') === (b.extra ?? '') &&
+    (a.projectId ?? null) === (b.projectId ?? null)
   );
 }
 
@@ -1013,12 +1048,13 @@ export function tagUnder(noteTag: string, tag: string): boolean {
 }
 
 /** Notes in a view (before searching), newest first. */
-export function visibleIn(state: Pick<AppState, 'notes' | 'notebooks'>, view: View): Note[] {
+export function visibleIn(state: Pick<AppState, 'notes' | 'notebooks'>, view: View, search = false): Note[] {
   const live = state.notes.filter((n) => n.trashedAt === null);
   let out: Note[];
   switch (view.kind) {
     case 'all':
-      out = live;
+      // A project's research stays with the project (searching finds it, though).
+      out = search ? live : live.filter((n) => !n.projectId);
       break;
     case 'favorites':
       out = live.filter((n) => n.favorite);

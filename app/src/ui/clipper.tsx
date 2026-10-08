@@ -59,7 +59,13 @@ export function ClipDialog({ onSaved }: { onSaved(): void }) {
   if (!clip || !doc) return null;
 
   const save = () => {
-    store.createNote({ title: title.trim() || 'Clipped page', doc, notebookId: notebook || null, tags: ['clipped'] });
+    const name = title.trim() || 'Clipped page';
+    if (notebook.startsWith('project:')) {
+      // Into a project's research, opened beside its writing.
+      const projectId = notebook.slice('project:'.length);
+      store.setView({ kind: 'project', id: projectId });
+      store.addResearchNote(projectId, { title: name, doc, tags: ['clipped'] });
+    } else store.createNote({ title: name, doc, notebookId: notebook || null, tags: ['clipped'] });
     dismissClip();
     onSaved();
   };
@@ -97,7 +103,7 @@ export function ClipDialog({ onSaved }: { onSaved(): void }) {
             <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
           <label className="field">
-            <span>Notebook</span>
+            <span>Save to</span>
             <select value={notebook} onChange={(e) => setNotebook(e.target.value)}>
               <option value="">No notebook</option>
               {state.notebooks.map((nb) => (
@@ -105,6 +111,15 @@ export function ClipDialog({ onSaved }: { onSaved(): void }) {
                   {nb.name}
                 </option>
               ))}
+              {state.projects.length > 0 && (
+                <optgroup label="Research for a project">
+                  {state.projects.map((p) => (
+                    <option key={p.id} value={`project:${p.id}`}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </label>
           <p className="clip-preview">{text || 'Nothing but pictures.'}</p>

@@ -7,6 +7,7 @@
 //   .crumpet/vault.json              ids and colours of stacks and notebooks
 //   Projects/Book/project.json       a project: name, goal, order of parts and chapters
 //   Projects/Book/01 Opening.md      its chapters, numbered in order
+//   Projects/Book/Research/Map.md    notes kept as research for it
 //
 // Names are made safe for every file system, and kept unique within a folder
 // ignoring case (macOS and Windows don't tell "Ideas" and "ideas" apart).
@@ -22,6 +23,8 @@ export const PROJECTS = 'Projects';
 /** Pictures and other files attached to notes. */
 export const ATTACHMENTS = 'Attachments';
 export const PROJECT_FILE = 'project.json';
+/** A project's research notes, in a folder inside the project's. */
+export const RESEARCH = 'Research';
 
 export interface Layout {
   stacks: Record<string, string>;
@@ -113,14 +116,14 @@ export function layout(tree: Tree, prev: Layout): Layout {
 
   const stacks = place(Object.values(tree.stacks), () => '', (s) => safeName(s.name), '', prev.stacks);
   const notebooks = place(Object.values(tree.notebooks), (nb) => (nb.stackId ? (stacks[nb.stackId] ?? '') : ''), (nb) => safeName(nb.name), '', prev.notebooks);
+  const projects = place(Object.values(tree.projects), () => PROJECTS, (p) => safeName(p.name), '', prev.projects ?? {});
   const notes = place(
     Object.values(tree.notes),
-    (n) => (n.trashed !== null ? TRASH : n.notebookId ? (notebooks[n.notebookId] ?? '') : ''),
+    (n) => (n.trashed !== null ? TRASH : n.projectId && projects[n.projectId] ? join(projects[n.projectId], RESEARCH) : n.notebookId ? (notebooks[n.notebookId] ?? '') : ''),
     (n) => safeName(n.title || 'Untitled'),
     '.md',
     prev.notes,
   );
-  const projects = place(Object.values(tree.projects), () => PROJECTS, (p) => safeName(p.name), '', prev.projects ?? {});
   // Chapters are numbered in outline order, so they sort the same way anywhere.
   const chapters: Record<string, string> = {};
   for (const p of Object.values(tree.projects)) {

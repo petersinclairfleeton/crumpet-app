@@ -82,6 +82,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
         trashed: field(b?.trashed, l.trashed, r.trashed, newer.trashed),
         body: text === null ? l.body : tidy(text),
         extra: field(b?.extra, l.extra, r.extra, newer.extra),
+        ...withValue('projectId', field(b ? (b.projectId ?? null) : undefined, l.projectId ?? null, r.projectId ?? null, newer.projectId ?? null) ?? undefined),
       };
     });
     if (note) tree.notes[id] = note;
@@ -172,6 +173,9 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
     }
     if (!sameOutline(outline, p.outline)) tree.projects[p.id] = { ...p, outline };
   }
+  // Research for a project that's gone becomes an ordinary note.
+  for (const n of Object.values(tree.notes)) if (n.projectId && !tree.projects[n.projectId]) tree.notes[n.id] = { ...n, projectId: undefined };
+
   return { tree, copies };
 }
 

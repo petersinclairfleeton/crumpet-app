@@ -957,3 +957,58 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .logo { display: inline-block; flex: none; object-fit: contain; }
 .welcome .logo { margin-bottom: -10px; }
 .empty-logo .logo { filter: grayscale(1); opacity: 0.3; }
+
+/* A project's writing with a research note beside it. */
+.project-split { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.project-split > * { flex: 1 1 0; min-width: 0; }
+.project-split > .research-pane { flex: 0.8 1 0; border-left: 1px solid var(--line); }
+.research-pane { display: flex; flex-direction: column; min-height: 0; background: var(--page); }
+.research-pane > .note-pane { flex: 1; min-height: 0; }
+.research-kind { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 6px; }
+.research-title { width: 100%; border: none; background: none; outline: none; padding: 0; }
+.pdf-view { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 12px; }
+.pdf-view iframe { width: 100%; height: 70vh; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.pdf-view .link-btn { align-self: flex-start; }
+.research-missing { color: var(--muted); font-size: 13px; }
+
+/* Research under the outline. */
+.research { border-top: 1px solid var(--line); margin: 4px 8px 24px; padding-top: 8px; }
+.research-head { display: flex; align-items: center; }
+.research-head .note-actions { position: relative; }
+.research-toggle { display: inline-flex; align-items: center; gap: 6px; border: none; background: none; padding: 4px 8px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--text); cursor: pointer; }
+.research-toggle .count { font-weight: 500; color: var(--muted); }
+.research-items { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.research-item { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; font-size: 13px; cursor: pointer; color: var(--text); }
+.research-item:hover { background: var(--field); }
+.research-item.selected { background: var(--accent-soft); }
+.research-item:focus-visible { outline: 2px solid var(--accent); }
+.research-glyph { flex: none; min-width: 22px; text-align: center; font-size: 10px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 2px; }
+.research-empty { padding: 4px 8px; font-size: 12px; color: var(--muted); }
+
+/* The corkboard: chapters as index cards on a soft board. */
+.corkboard-pane { min-height: 0; }
+.corkboard-hint { font-size: 12px; color: var(--muted); padding: 0 6px; }
+.corkboard { flex: 1; overflow: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; align-content: start; background: var(--list-bg); }
+.cork-part { grid-column: 1 / -1; margin: 8px 0 -4px; font-family: var(--title-font, inherit); font-size: 18px; font-weight: 500; color: var(--text2, var(--text)); cursor: grab; position: relative; }
+.cork-card { position: relative; display: flex; flex-direction: column; min-height: 170px; background: var(--page); border: 1px solid var(--line); border-top: 4px solid var(--status, #b9b2a6); border-radius: 6px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.05); cursor: grab; }
+.cork-card.status-draft { --status: #d9a441; }
+.cork-card.status-revised { --status: #4d84c9; }
+.cork-card.status-done { --status: #3e9a62; }
+.cork-card.dragging, .cork-part.dragging { opacity: 0.4; }
+.cork-card.drop-before::before, .cork-card.drop-after::after { content: ''; position: absolute; top: 4px; bottom: 4px; width: 3px; border-radius: 2px; background: var(--accent); }
+.cork-card.drop-before::before { left: -10px; }
+.cork-card.drop-after::after { right: -10px; }
+.cork-part.drop-before::before { content: ''; position: absolute; left: 0; right: 0; top: -8px; height: 3px; border-radius: 2px; background: var(--accent); }
+.cork-card header { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px 4px; border-bottom: 1px solid color-mix(in srgb, #c44 18%, transparent); }
+.cork-num { font-size: 12px; font-weight: 700; color: var(--muted); }
+.cork-title { all: unset; flex: 1; min-width: 0; font-family: var(--title-font, inherit); font-size: 16px; font-weight: 600; color: var(--text); cursor: pointer; overflow-wrap: anywhere; }
+.cork-title:hover { text-decoration: underline; }
+.cork-title:focus-visible { outline: 2px solid var(--accent); border-radius: 3px; }
+.cork-synopsis { flex: 1; min-height: 80px; margin: 0; padding: 8px 12px; border: none; resize: none; background: repeating-linear-gradient(transparent 0, transparent 21px, color-mix(in srgb, #4d84c9 14%, transparent) 21px, color-mix(in srgb, #4d84c9 14%, transparent) 22px); background-position: 0 6px; font: inherit; font-size: 13.5px; line-height: 22px; color: var(--text); outline: none; cursor: text; }
+.cork-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px 8px; font-size: 12px; color: var(--muted); }
+.cork-card footer select { font: inherit; font-size: 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); padding: 2px 4px; }
+.cork-empty { grid-column: 1 / -1; color: var(--muted); text-align: center; padding: 40px 0; }
+.research-pane .note-title.research-title { font-size: 28px; }
+.research-pane .track-toggle:not(.on), .project-split .track-toggle:not(.on) { font-size: 0; gap: 0; padding: 0 8px; }
+.project-split .corkboard-hint { display: none; }
+.research-pane .note-body { padding-left: 28px; padding-right: 28px; }
