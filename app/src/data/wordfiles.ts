@@ -4,6 +4,7 @@
 
 import type { Doc } from '@crumpet/editor/model';
 import { DOCX_TYPE, fromDocx, toDocx } from './docx';
+import { EPUB_TYPE, toEpub } from './epub';
 import { addFile, mediaUrl } from './files';
 import { type HFContext, type HFRun, cleanHF, fieldValue } from './headers';
 import { docWords, projectChapters } from './selectors';
@@ -12,7 +13,7 @@ import { defaultPage, manuscriptPage } from './styles';
 import { DEFAULT_NOTE_SIZE, type Note, type Project } from './types';
 
 /** A picture's bytes, wherever it's kept. */
-async function mediaBytes(src: string): Promise<{ bytes: Uint8Array; type: string } | null> {
+export async function mediaBytes(src: string): Promise<{ bytes: Uint8Array; type: string } | null> {
   try {
     const url = await mediaUrl(src);
     const res = await fetch(url);
@@ -100,4 +101,26 @@ export async function readWordFile(file: File): Promise<{ title: string; doc: Do
   return { title: result.title || file.name.replace(/\.docx$/i, ''), doc: result.doc };
 }
 
-export { DOCX_TYPE };
+/** A project as an e-book: a title page, contents, and each chapter. */
+export async function projectEpub(state: AppState, project: Project): Promise<Uint8Array> {
+  const list = projectChapters(project, state.chapters);
+  const page = project.page ?? manuscriptPage();
+  const author = cleanHF(page.hf, page.pageNumbers).author || state.settings.name || undefined;
+  return toEpub(
+    list.map(({ chapter, number }) => ({ title: chapter.title || `Chapter ${number}`, doc: chapter.doc })),
+    { title: project.name || 'Untitled', author, language: navigator.language, id: project.id, media: mediaBytes },
+  );
+}
+
+/** A note as a little e-book of one chapter. */
+export async function noteEpub(state: AppState, note: Note): Promise<Uint8Array> {
+  const title = note.title || 'Untitled';
+  return toEpub([{ title, doc: note.doc }], { title, author: state.settings.name || undefined, language: navigator.language, id: note.id, media: mediaBytes });
+}
+
+/** A name for a downloaded file. */
+export function fileName(title: string, ext: string): string {
+  return docxName(title).replace(/\.docx$/, `.${ext}`);
+}
+
+export { DOCX_TYPE, EPUB_TYPE };

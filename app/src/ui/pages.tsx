@@ -47,6 +47,8 @@ interface Props {
   chapters?: boolean;
   /** Told how many pages there are. */
   onPages?(n: number): void;
+  /** Printing: no space between pages, and real size. */
+  print?: boolean;
 }
 
 /**
@@ -54,7 +56,8 @@ interface Props {
  * same elements are drawn whether page view is on or off, so switching never
  * recreates the editor's element.
  */
-export function PageView({ enabled, editor, page, sheetClass, children, onPage, fields, place, chapters = false, onPages }: Props) {
+export function PageView({ enabled, editor, page, sheetClass, children, onPage, fields, place, chapters = false, onPages, print = false }: Props) {
+  const gap = print ? 0 : PAGE_GAP;
   const outer = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [editing, setEditing] = useState<{ i: number; band: 'header' | 'footer'; slot: HFSlotName } | null>(null);
@@ -63,20 +66,20 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   const { width, height } = pageSize(page);
   const m = page.margins;
   const content = height - (m.top + m.bottom) * PX_PER_IN;
-  const between = (m.top + m.bottom) * PX_PER_IN + PAGE_GAP;
+  const between = (m.top + m.bottom) * PX_PER_IN + gap;
   const hf = pageHF(page);
   const settings = useAppState().settings;
 
   // Fit the page to the width available (never larger than real size).
   useLayoutEffect(() => {
     const el = outer.current;
-    if (!el || !enabled) return;
+    if (!el || !enabled || print) return;
     const fit = () => setScale(Math.min(1, Math.max(0.3, (el.clientWidth - 24) / width)));
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [width, enabled]);
+  }, [width, enabled, print]);
 
   // Tell the editor how big a page is; lay out again when fonts arrive or the styles change.
   useEffect(() => {
@@ -189,7 +192,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
     setEditing({ i, band, slot: SLOTS[third] });
   };
 
-  const pitch = height + PAGE_GAP;
+  const pitch = height + gap;
   const pageNotes = enabled ? (editor?.pageNotes ?? []) : [];
   const notes = enabled && editor ? footnotes(editor.state.doc) : [];
   const openNote = (i: number) => {
@@ -217,7 +220,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
           host={outer.current?.closest<HTMLElement>('.note-pane') ?? null}
         />
       )}
-      <div className="page-scaler" style={enabled ? { width: width * scale, height: (pages * pitch - PAGE_GAP) * scale } : undefined}>
+      <div className="page-scaler" style={enabled ? { width: width * scale, height: (pages * pitch - gap) * scale } : undefined}>
         <div className="page-inner" style={enabled ? { width, transform: scale === 1 ? undefined : `scale(${scale})` } : undefined}>
           {Array.from({ length: pages }, (_, i) => (
             <div key={i} className="sheet" style={{ top: i * pitch, height }} aria-hidden="true" />

@@ -4,6 +4,8 @@
 export interface ZipEntry {
   name: string;
   data: Uint8Array;
+  /** Kept as it is, not squeezed (an e-book's "mimetype" must be). */
+  store?: boolean;
 }
 
 const CRC_TABLE = (() => {
@@ -46,9 +48,9 @@ export async function writeZip(entries: ZipEntry[]): Promise<Uint8Array> {
   for (const e of entries) {
     const name = utf8(e.name);
     const crc = crc32(e.data);
-    const packed = await deflate(e.data);
+    const packed = e.store ? e.data : await deflate(e.data);
     // Store what doesn't get smaller (pictures are already squeezed).
-    const stored = packed.length >= e.data.length;
+    const stored = e.store || packed.length >= e.data.length;
     const body = stored ? e.data : packed;
     const method = stored ? 0 : 8;
     const local = new DataView(new ArrayBuffer(30));
