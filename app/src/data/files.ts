@@ -64,6 +64,7 @@ export function mediaUrl(src: string): string | Promise<string> {
   if (!p) {
     p = (async () => {
       let f: StoredFile | null = (await storage?.getFile(src)) ?? null;
+      if (f?.gone) throw new Error('Deleted');
       if (!f) {
         // Not on this device yet: fetch it from the cloud folder, and keep it.
         const provider = remote();
@@ -82,7 +83,7 @@ export function mediaUrl(src: string): string | Promise<string> {
   return p;
 }
 
-/** Copies files added on this device to the cloud folder. */
+/** Copies files added on this device to the cloud folder, and removes those no note uses any more. */
 export async function uploadFiles(provider: Provider): Promise<number> {
   if (!storage || !provider.writeBytes) return 0;
   const pending = await storage.unsyncedFiles();
@@ -90,5 +91,36 @@ export async function uploadFiles(provider: Provider): Promise<number> {
     await provider.writeBytes(f.path, f.blob);
     await storage.putFile({ ...f, synced: true });
   }
-  return pending.length;
+  const gone = await storage.goneFiles();
+  for (const f of gone) {
+    try {
+      await provider.remove(f.path);
+    } catch {
+      // Already gone from the folder (or never got there).
+    }
+    await storage.deleteFile(f.path);
+  }
+  return pending.length + gone.length;
+}
+
+/** The attachments a document shows (pictures and files kept in Attachments). */
+export function attachmentsIn(blocks: { type: string; src?: string }[]): string[] {
+  return blocks.filter((b) => (b.type === 'image' || b.type === 'file') && b.src?.startsWith(`${ATTACHMENTS}/`)).map((b) => b.src!);
+}
+
+/**
+ * Forgets attachments no note uses any more: gone from this device now, and
+ * from the cloud folder at the next sync (if they were ever copied there).
+ */
+export async function forgetFiles(store: Storage, paths: string[]): Promise<void> {
+  for (const path of new Set(paths)) {
+    const known = urls.get(path);
+    if (known) URL.revokeObjectURL(known);
+    urls.delete(path);
+    loading.delete(path);
+    const f = await store.getFile(path);
+    if (f && !f.synced) await store.deleteFile(path);
+    // Copied to the cloud (or perhaps added on another device): removed from there at the next sync.
+    else await store.putFile({ path, type: f?.type ?? '', blob: new Blob([]), synced: true, gone: true });
+  }
 }

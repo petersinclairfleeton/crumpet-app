@@ -11,7 +11,7 @@ import { chapterWords, projectChapters, projectGoal, projectWords } from '../dat
 import type { Chapter, ChapterStatus, Project } from '../data/types';
 import type { PageSetup } from '../data/styles';
 import { EditorHost } from './EditorHost';
-import { FormatTools, LinkBar, useDocEditor } from './editing';
+import { FormatTools, KeyboardBar, LinkBar, SelectionBar, useDocEditor } from './editing';
 import { useAppState, useAppStore, useNav } from './hooks';
 import { IconBack, IconFocus, IconMore, IconPlus } from './icons';
 import { InlineInput, Popover } from './Sidebar';
@@ -501,6 +501,8 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const paged = !!state.settings.pageView?.projects;
   const [, setTick] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
+  // The formatting bar floats above selected text, as in notes, unless pinned.
+  const floating = !narrow && (state.focusMode || state.settings.toolbar !== 'always');
   const chapters = new Map(state.chapters.filter((c) => c.projectId === project.id).map((c) => [c.id, c]));
   const total = projectWords(project, state.chapters);
   // Pages each chapter takes, so page numbers run on through the manuscript.
@@ -549,12 +551,34 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               <IconBack size={18} />
             </button>
           )}
-          <FormatTools editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />
+          {!floating && !narrow && <FormatTools editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />}
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
           <TrackToggle />
           <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
+          {!narrow && (
+            <button
+              type="button"
+              className={`icon-btn pin-tools${floating ? '' : ' on'}`}
+              aria-pressed={!floating}
+              aria-label="Formatting bar"
+              title={floating ? 'Show the formatting bar (it also appears when you select text)' : 'Hide the formatting bar until you select text'}
+              onClick={() => store.updateSettings({ toolbar: floating ? 'always' : 'selection' })}
+            >
+              Aa
+            </button>
+          )}
         </div>
+        {narrow && active && (
+          <KeyboardBar host={scroll}>
+            <FormatTools compact editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />
+          </KeyboardBar>
+        )}
+        {floating && active && (
+          <SelectionBar host={scroll}>
+            <FormatTools compact attach={false} editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />
+          </SelectionBar>
+        )}
         {linkOpen && active && <LinkBar editor={active} onClose={() => setLinkOpen(false)} />}
         <div className="note-scroll" ref={scroll}>
           <article className={`note-body manuscript-body${paged ? ' paged' : ''}`}>

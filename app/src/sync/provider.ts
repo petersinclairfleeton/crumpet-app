@@ -105,6 +105,7 @@ export class MemoryProvider implements Provider {
 
   async remove(path: string) {
     this.log.push(`remove ${path}`);
+    this.blobs.delete(path);
     if (this.files.delete(path)) return;
     if (!this.folders.has(path)) throw new ProviderError(`No file ${path}`, 'missing');
     const inside = [...this.files.keys(), ...this.folders].some((p) => p.startsWith(`${path}/`));
