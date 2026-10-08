@@ -157,6 +157,8 @@ export function isList(type: BlockType): boolean {
   return LIST_TYPES.includes(type);
 }
 
+import type { TableLook } from './table';
+
 export interface BlockAttrs {
   type: BlockType;
   /** Checklist items only. */
@@ -171,6 +173,8 @@ export interface BlockAttrs {
   folded?: boolean;
   /** Tables only: the cells' text, row by row (the first row is the header). */
   rows?: string[][];
+  /** Tables only: merged cells, shading, alignment, heading row, banding and lines (see table.ts). */
+  tbl?: TableLook;
   /** Track changes: the paragraph break before this block was added, or deleted (still there until accepted). */
   brk?: Change;
   /** Pictures and files: where the file is (a path like "Attachments/abc-photo.jpg", or a web address). */
@@ -558,6 +562,7 @@ export function makeBlock(type: BlockType, text = '', marks: Mark[] = [], extra:
   if (!block.align || block.align === 'left') delete block.align;
   if ((type !== 'image' && type !== 'file') || !block.src) delete block.src;
   if (type !== 'table' || !block.rows) delete block.rows;
+  if (type !== 'table' || !block.tbl) delete block.tbl;
   if (!isHeading(type) || !block.folded) delete block.folded;
   if (!block.brk) delete block.brk;
   return block;
@@ -570,7 +575,7 @@ export function docsEqual(a: Doc, b: Doc): boolean {
   return a.blocks.every((x, i) => {
     const y = b.blocks[i];
     if (x === y) return true;
-    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || (x.src ?? '') !== (y.src ?? '') || !!x.folded !== !!y.folded || !sameChange(x.brk, y.brk) || JSON.stringify(x.rows ?? null) !== JSON.stringify(y.rows ?? null) || x.runs.length !== y.runs.length) return false;
+    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || (x.src ?? '') !== (y.src ?? '') || !!x.folded !== !!y.folded || !sameChange(x.brk, y.brk) || JSON.stringify(x.rows ?? null) !== JSON.stringify(y.rows ?? null) || JSON.stringify(x.tbl ?? null) !== JSON.stringify(y.tbl ?? null) || x.runs.length !== y.runs.length) return false;
     return x.runs.every((r, j) => r.text === y.runs[j].text && sameFormat(r, y.runs[j]));
   });
 }

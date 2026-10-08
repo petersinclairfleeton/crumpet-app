@@ -53,6 +53,7 @@ import {
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs, BulletKind, NumFormat } from './model';
+import type { TableLook } from './table';
 
 export interface EditorState {
   doc: Doc;
@@ -755,10 +756,10 @@ export function insertTable(state: EditorState, rows = 2, cols = 3): Transaction
 }
 
 /** Changes a table's cells (or its rows and columns). */
-export function setTableRows(state: EditorState, id: string, rows: string[][]): Transaction {
+export function setTableRows(state: EditorState, id: string, rows: string[][], tbl?: TableLook): Transaction {
   const blk = getBlock(state.doc, id);
   const b = new Builder(state.doc);
-  const to = attrsOf({ ...blk, rows });
+  const to = attrsOf({ ...blk, rows, ...(arguments.length > 3 ? { tbl } : {}) });
   if (blk.type === 'table' && !sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to });
   return tx(state, b, state.selection);
 }

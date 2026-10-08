@@ -4,6 +4,7 @@
 // tracked changes are shown as if accepted.
 
 import { type Block, type Doc, type Run, BULLETS, isList, tidyRows } from '@crumpet/editor/model';
+import { isCovered, mergeAt } from '@crumpet/editor/table';
 import { NOTE_LINK } from '@crumpet/editor/markdown';
 import { type ZipEntry, utf8, writeZip } from './zip';
 
@@ -153,10 +154,18 @@ class Book {
           break;
         case 'table': {
           const rows = tidyRows(b.rows);
-          out += `<table><thead><tr>${rows[0].map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows
-            .slice(1)
-            .map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`)
-            .join('')}</tbody></table>`;
+          const t = b.tbl;
+          const head = !t?.noHeader;
+          // Merged cells span; shading, alignment, banding and lines as inline styles.
+          const cell = (r: number, c: number, tag: string) => {
+            if (isCovered(t, r, c)) return '';
+            const m = mergeAt(t, r, c);
+            const css = [t?.shades?.[`${r},${c}`] ? `background-color: ${t.shades[`${r},${c}`]}` : t?.banded && (head ? r % 2 === 0 && r > 0 : r % 2 === 1) ? 'background-color: #f2f2f2' : '', t?.aligns?.[c] ? `text-align: ${t.aligns[c]}` : '', t?.borders === 'none' || t?.borders === 'outside' ? 'border: none' : t?.borders === 'rows' ? 'border-left: none; border-right: none' : ''].filter(Boolean);
+            return `<${tag}${m && m[2] > 1 ? ` rowspan="${m[2]}"` : ''}${m && m[3] > 1 ? ` colspan="${m[3]}"` : ''}${css.length ? ` style="${css.join('; ')}"` : ''}>${esc(rows[r][c])}</${tag}>`;
+          };
+          const row = (r: number, tag: string) => `<tr>${rows[r].map((_, c) => cell(r, c, tag)).join('')}</tr>`;
+          const body = rows.map((_, r) => r).filter((r) => !head || r > 0);
+          out += `<table${t?.borders === 'outside' ? ' style="border: 1px solid #999"' : ''}>${head ? `<thead>${row(0, 'th')}</thead>` : ''}<tbody>${body.map((r) => row(r, 'td')).join('')}</tbody></table>`;
           break;
         }
         default:

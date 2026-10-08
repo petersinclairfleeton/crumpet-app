@@ -2,6 +2,7 @@
 // serialisable and has an exact inverse, which gives us undo/redo now and a
 // unit to send between devices for sync later.
 
+import { sameTable, tidyTable } from './table';
 import {
   type BlockAttrs,
   type BlockType,
@@ -70,7 +71,11 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
   if (b.style && styleAllowed(b.type, b.style)) a.style = b.style;
   if (b.align && b.align !== 'left') a.align = b.align;
   if ((b.type === 'image' || b.type === 'file') && b.src) a.src = b.src;
-  if (b.type === 'table') a.rows = tidyRows(b.rows);
+  if (b.type === 'table') {
+    a.rows = tidyRows(b.rows);
+    // Always present on a table (even when there's none), like `para`.
+    a.tbl = tidyTable(b.tbl, a.rows.length, a.rows[0].length);
+  }
   if (isHeading(b.type) && b.folded) a.folded = true;
   if (!isMedia(b.type) && b.type !== 'table') a.para = tidyPara(b.para);
   // Always present (even when there's none), so a setAttrs built from attrsOf says exactly what the break is.
@@ -81,7 +86,7 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
 export function sameAttrs(a: BlockAttrs, b: BlockAttrs): boolean {
   const x = attrsOf(a);
   const y = attrsOf(b);
-  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk) && samePara(x.para, y.para);
+  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk) && samePara(x.para, y.para) && sameTable(x.tbl, y.tbl);
 }
 
 export function applyOp(doc: Doc, op: Op): Doc {
@@ -127,6 +132,8 @@ export function applyOp(doc: Doc, op: Op): Doc {
       if (!to.brk) delete to.brk;
       if (!('para' in op.to) && !isMedia(to.type) && to.type !== 'table') to.para = tidyPara(b.para);
       if (!to.para) delete to.para;
+      if (to.type === 'table' && !('tbl' in op.to)) to.tbl = tidyTable(b.tbl, to.rows!.length, to.rows![0].length);
+      if (!to.tbl) delete to.tbl;
       blocks[i] = { id, ...to, runs };
       break;
     }
