@@ -28,6 +28,7 @@ export function ClipperSettings() {
       <a ref={link} className="clip-bookmark" draggable onClick={(e) => e.preventDefault()} title="Drag me to your bookmarks bar">
         ✂ Clip to Crumpet
       </a>
+      <p className="sync-hint">If a site won’t let the button work, copy what you want and paste it into a note: headings, lists, links and formatting come too.</p>
       {local && <p className="sync-hint">The clipper needs Crumpet opened from a web address, not a file on this device.</p>}
       <details className="clip-help">
         <summary>On a phone or tablet</summary>

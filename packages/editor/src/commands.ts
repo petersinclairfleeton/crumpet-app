@@ -785,3 +785,54 @@ export function resolveChanges(state: EditorState, accept: boolean, where?: { bl
   };
   return tx(state, b, { anchor: fix(state.selection.anchor), focus: fix(state.selection.focus) });
 }
+
+/**
+ * Pastes whole paragraphs (from a web page or Word): the first joins the
+ * paragraph at the caret, the rest follow it as paragraphs of their own, and
+ * the text after the caret ends up after the last one.
+ */
+export function insertBlocks(state: EditorState, blocks: Block[]): Transaction | null {
+  if (!blocks.length) return null;
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const at = deleteRange(b, from, to);
+  const here = getBlock(b.doc, at.block);
+  const [first, ...rest] = blocks;
+  // One stretch of text: just like typing it.
+  if (!rest.length && !isMedia(first.type) && !isMedia(here.type)) {
+    const runs = first.runs;
+    if (!runs.length) return tx(state, b, caret(at));
+    if (runsLength(here.runs) === 0 && here.type === 'paragraph' && !here.style && first.type !== 'paragraph') b.step({ type: 'setAttrs', block: here.id, from: attrsOf(here), to: attrsOf(first) });
+    b.step({ type: 'insert', block: at.block, offset: at.offset, runs });
+    return tx(state, b, caret({ block: at.block, offset: at.offset + runsLength(runs) }));
+  }
+  // The text after the caret waits in a block of its own.
+  const tail = splitAt(b, at);
+  let last = here.id;
+  let start = 0;
+  // A heading or list item pasted at the end of a line starts a line of its own rather than joining it.
+  const ownLine = first.type !== 'paragraph' && at.offset > 0 && at.offset === runsLength(here.runs);
+  const textual = !isMedia(first.type) && !isMedia(here.type) && !ownLine;
+  if (textual) {
+    // An empty plain line takes on the first paragraph's kind (a heading, a list item…).
+    if (at.offset === 0 && runsLength(here.runs) === 0 && here.type === 'paragraph' && !here.style) b.step({ type: 'setAttrs', block: here.id, from: attrsOf(getBlock(b.doc, here.id)), to: attrsOf(first) });
+    if (first.runs.length) b.step({ type: 'insert', block: here.id, offset: at.offset, runs: first.runs });
+    start = 1;
+  }
+  for (const blk of blocks.slice(start)) {
+    const prev = getBlock(b.doc, last);
+    const id = newId();
+    b.step({ type: 'split', block: last, offset: runsLength(prev.runs), newBlock: id, newAttrs: attrsOf(blk) });
+    if (blk.runs.length) b.step({ type: 'insert', block: id, offset: 0, runs: blk.runs });
+    last = id;
+  }
+  const lastBlock = getBlock(b.doc, last);
+  const end = { block: last, offset: runsLength(lastBlock.runs) };
+  // The text after the caret joins the last paragraph pasted, as in Word (unless that's a picture or table).
+  const tailBlock = getBlock(b.doc, tail.block);
+  if (!isMedia(lastBlock.type)) {
+    b.step({ type: 'join', block: last, second: tail.block, offset: end.offset, secondAttrs: attrsOf(tailBlock) });
+    return tx(state, b, caret(end));
+  }
+  return tx(state, b, caret(isMedia(lastBlock.type) ? { block: tail.block, offset: 0 } : end));
+}

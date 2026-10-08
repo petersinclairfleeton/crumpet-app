@@ -60,3 +60,25 @@ describe('clipping a web page', () => {
     expect(() => new Function(code)).not.toThrow();
   });
 });
+
+describe('pasting from Word and Google Docs', () => {
+  it('Google Docs: the bold wrapper around everything is ignored, styled spans count', () => {
+    const doc = htmlToDoc('<b style="font-weight:normal;" id="docs-internal-guid-1"><p><span style="font-weight:700">Strong</span><span> and </span><span style="font-style:italic;text-decoration:underline">fancy</span></p></b>', 'https://x.test/');
+    expect(doc.blocks[0].runs).toEqual([
+      { text: 'Strong', marks: ['bold'] },
+      { text: ' and ', marks: [] },
+      { text: 'fancy', marks: ['italic', 'underline'] },
+    ]);
+  });
+
+  it('Word: list paragraphs become lists, without their written-out bullets', () => {
+    const html = `<p class=MsoListParagraphCxSpFirst style='mso-list:l0 level1 lfo1'><span style='mso-list:Ignore'>·<span>&nbsp;&nbsp;</span></span>Apples</p>
+      <p class=MsoListParagraphCxSpLast style='mso-list:l0 level2 lfo1'><span style='mso-list:Ignore'>o<span>&nbsp;</span></span>Green</p>
+      <p class=MsoListParagraph style='mso-list:l1 level1 lfo2'><span style='mso-list:Ignore'>1.<span>&nbsp;</span></span>First</p>`;
+    expect(shape(html)).toEqual([
+      ['bullet', 'Apples'],
+      ['bullet', 'Green', 1],
+      ['numbered', 'First'],
+    ]);
+  });
+});
