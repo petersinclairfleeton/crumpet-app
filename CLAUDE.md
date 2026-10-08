@@ -98,8 +98,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
 
 ## Known gaps
 
-- Writing stats and the daily goal are counted per device, not added up
-  across devices.
+- Writing stats are added up across devices through
+  `.crumpet/stats/<device>.json` (one file per device), but a project's
+  deadline counts today's words on this device only.
 - Track changes: deletions made through some phone keyboards' word
   suggestions aren't tracked (typing is).
 - Names of characters and places are matched case-sensitively.

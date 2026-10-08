@@ -116,3 +116,13 @@ export function daysBetween(from: string, to: string): number {
   };
   return Math.round((t(to) - t(from)) / 86_400_000);
 }
+
+/** Words written each day on other devices, by device id (read from their files when syncing). */
+export type StatsElsewhere = Record<string, Record<string, number>>;
+
+/** Words written each day on every device: this one's, plus the others' as of the last sync. */
+export function allDailyWords(s: WritingStats | undefined, elsewhere: StatsElsewhere | undefined, now: number): Record<string, number> {
+  const days = dailyWords(s, now);
+  for (const other of Object.values(elsewhere ?? {})) for (const [day, n] of Object.entries(other)) if (n > 0) days[day] = (days[day] ?? 0) + n;
+  return days;
+}

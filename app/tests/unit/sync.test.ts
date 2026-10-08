@@ -35,6 +35,8 @@ async function device(provider: MemoryProvider) {
 const md = (text: string) => fromMarkdown(text);
 const body = (store: AppStore, title: string) => toMarkdown(store.getState().notes.find((n) => n.title === title)!.doc);
 const titles = (store: AppStore) => store.getState().notes.map((n) => n.title).sort();
+/** The files in the folder, leaving out each device's writing stats. */
+const fileList = (cloud: MemoryProvider) => [...cloud.files.keys()].filter((f) => !f.startsWith('.crumpet/stats/')).sort();
 /** Everything that syncs, without ids that are only local (block ids). */
 const shape = (store: AppStore) => localTree(store.getState());
 
@@ -75,7 +77,7 @@ describe('syncing two devices through files', () => {
     mac.store.addTag(note.id, 'draft');
     mac.store.createNote({ title: 'Loose thought', notebookId: null, doc: md('Hm.\n') });
     await mac.engine.sync();
-    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', 'Loose thought.md', 'Writing/Novel/Opening scene.md']);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Loose thought.md', 'Writing/Novel/Opening scene.md']);
     await phone.engine.sync();
     expect(shape(phone.store)).toEqual(shape(mac.store));
     expect(phone.store.getState().notebooks[0]).toMatchObject({ id: nb.id, name: 'Novel', stackId: stack.id, color: nb.color });
@@ -89,6 +91,29 @@ describe('syncing two devices through files', () => {
     cloud.log = [];
     await mac.engine.sync();
     expect(cloud.log).toEqual([]);
+  });
+
+  it('adds up writing stats from every device', async () => {
+    const cloud = new MemoryProvider(now);
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const n = mac.store.createNote({ title: 'Diary' });
+    mac.store.setDoc(n.id, md('one two three four five\n'));
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    const p = phone.store.getState().notes.find((x) => x.title === 'Diary')!;
+    phone.store.setDoc(p.id, md('one two three four five six seven\n'));
+    phone.store.flush();
+    await phone.engine.sync();
+    await mac.engine.sync();
+    const { allDailyWords, dayKey } = await import('../../src/data/stats');
+    const today = dayKey(clock);
+    const total = (store: AppStore) => allDailyWords(store.getState().settings.stats, store.getState().settings.statsElsewhere, clock)[today];
+    expect(total(mac.store)).toBe(7);
+    expect(total(phone.store)).toBe(7);
+    // Each device writes only its own file.
+    expect([...cloud.files.keys()].filter((f) => f.startsWith('.crumpet/stats/')).length).toBe(2);
   });
 
   it('merges edits to different parts of the same note', async () => {
@@ -156,7 +181,7 @@ describe('syncing two devices through files', () => {
     mac.store.trashNote(a.id);
     mac.store.deleteForever(b.id);
     await mac.engine.sync();
-    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', '.trash/A.md']);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', '.trash/A.md']);
     expect(parseNoteFile(cloud.files.get('.trash/A.md')!.text).from).toBe('Ideas');
     await phone.engine.sync();
     expect(phone.store.note(a.id)?.trashedAt).not.toBeNull();
@@ -182,7 +207,7 @@ describe('syncing two devices through files', () => {
     mac.store.setTitle(n.id, 'Q2');
     mac.store.flush();
     await mac.engine.sync();
-    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', 'Job/Roadmap/Q2.md']);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Job/Roadmap/Q2.md']);
     expect([...cloud.folders].sort()).toEqual(['.crumpet', 'Job', 'Job/Roadmap']);
     await phone.engine.sync();
     expect(shape(phone.store)).toEqual(shape(mac.store));
@@ -195,9 +220,9 @@ describe('syncing two devices through files', () => {
     mac.store.createNote({ title: 'idea' });
     mac.store.createNote({ title: 'a/b: c?' });
     await mac.engine.sync();
-    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', 'Idea.md', 'a-b- c-.md', 'idea 2.md']);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Idea.md', 'a-b- c-.md', 'idea 2.md']);
     await mac.engine.sync();
-    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', 'Idea.md', 'a-b- c-.md', 'idea 2.md']);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Idea.md', 'a-b- c-.md', 'idea 2.md']);
   });
 
   it('notices files and folders changed by other apps', async () => {
@@ -395,7 +420,7 @@ describe('syncing projects', () => {
     mac.store.setProjectGoal(p.id, 80000);
     mac.store.flush();
     await mac.engine.sync();
-    expect([...cloud.files.keys()].sort()).toEqual([
+    expect(fileList(cloud)).toEqual([
       '.crumpet/vault.json',
       'Projects/The Lighthouse/01 The Keeper.md',
       'Projects/The Lighthouse/02 Salt.md',
@@ -464,7 +489,7 @@ describe('syncing projects', () => {
     await mac.engine.sync();
     mac.store.renameProject(p.id, 'Final');
     await mac.engine.sync();
-    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', 'Projects/Final/01 Opening.md', 'Projects/Final/project.json']);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Projects/Final/01 Opening.md', 'Projects/Final/project.json']);
     expect([...cloud.folders].sort()).toEqual(['.crumpet', 'Projects', 'Projects/Final']);
     await cloud.move('Projects/Final/01 Opening.md', 'Projects/Final/01 Beginning.md');
     await mac.engine.sync();
@@ -479,7 +504,7 @@ describe('syncing projects', () => {
     mac.store.createProject('Novel');
     mac.store.flush();
     await mac.engine.sync();
-    expect([...cloud.files.keys()].sort()).toEqual(['.crumpet/vault.json', 'Projects/Ideas/An idea.md', 'Projects/Novel/01 Chapter 1.md', 'Projects/Novel/project.json']);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Projects/Ideas/An idea.md', 'Projects/Novel/01 Chapter 1.md', 'Projects/Novel/project.json']);
     await phone.engine.sync();
     expect(shape(phone.store)).toEqual(shape(mac.store));
     expect(phone.store.getState().notes.map((n) => n.title)).toEqual(['An idea']);
