@@ -1,6 +1,6 @@
 // Arranging the window: the sidebar in full, as icons or hidden; the note
-// list shown or not; panes resized by dragging their edges; and two notes
-// side by side or one above the other.
+// list shown or not; panes resized by dragging their edges; and splitting
+// the writing area into panes.
 
 import { useState } from 'react';
 import type { LayoutPrefs, View } from '../data/types';
@@ -9,6 +9,7 @@ import { useAppState, useAppStore } from './hooks';
 import { IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash } from './icons';
 import { SettingsDialog } from './Settings';
 import { Popover, initials } from './Sidebar';
+import { useActiveTab, usePanes } from './panes';
 
 export const SIDEBAR = { min: 180, max: 420, normal: 236 };
 export const LIST = { min: 240, max: 560, normal: 360 };
@@ -143,8 +144,9 @@ export function LayoutMenu() {
   const layout: LayoutPrefs = state.settings.layout ?? {};
   const set = (patch: Partial<LayoutPrefs>) => store.updateLayout(patch);
   const sidebar = layout.sidebar ?? 'full';
-  const split = layout.split ?? 'one';
   const inProject = state.view.kind === 'project';
+  const panes = usePanes();
+  const current = useActiveTab();
   return (
     <span className="layout-menu">
       <button type="button" className="icon-btn" aria-label="Layout" title="Layout" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -164,19 +166,27 @@ export function LayoutMenu() {
             <label className="check">
               <input type="checkbox" checked={layout.list !== false} onChange={(e) => set({ list: e.target.checked })} /> {inProject ? 'Outline' : 'Note list'}
             </label>
-            <p className="layout-label">Notes open</p>
-            <div className="split-choices" role="group" aria-label="Notes open">
-              {(['one', 'side', 'stacked'] as const).map((m) => (
-                <button key={m} type="button" aria-pressed={split === m} disabled={inProject} onClick={() => set({ split: m })}>
-                  <span className={`split-pic ${m}`} aria-hidden="true">
+            <p className="layout-label">Panes</p>
+            <div className="split-choices" role="group" aria-label="Split">
+              {(['right', 'bottom'] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  disabled={!current}
+                  onClick={() => {
+                    if (current) panes.split(current, m);
+                    setOpen(false);
+                  }}
+                >
+                  <span className={`split-pic ${m === 'right' ? 'side' : 'stacked'}`} aria-hidden="true">
                     <i />
-                    {m !== 'one' && <i />}
+                    <i />
                   </span>
-                  {m === 'one' ? 'One' : m === 'side' ? 'Side by side' : 'Stacked'}
+                  {m === 'right' ? 'Split right' : 'Split down'}
                 </button>
               ))}
             </div>
-            <p className="layout-hint">{inProject ? 'Two notes at once works outside projects.' : 'Click a note to open it on the side you were last in. Drag the edges between panes to resize them.'}</p>
+            <p className="layout-hint">Drag a note, chapter, card or tab to the edge of a pane to open it beside, or onto the tabs to add a tab. Drag the lines between panes to resize them.</p>
             <button type="button" className="btn quiet small" onClick={() => store.updateSettings({ layout: {} })}>
               Reset layout
             </button>

@@ -116,7 +116,18 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     device, the files, the last agreed version).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), the
     web clipper (`clip.ts`), writing stats, search, templates, attachments.
-  - `src/ui/`: screens. `EditorHost.tsx` wraps the editor for notes;
+  - `src/data/panes.ts`: the writing area's panes, like Obsidian's: a tree of
+    rows and columns of tab groups (`Workspace`, saved in
+    `settings.layout.panes`), with pure functions to open, split, drop, move
+    and close tabs. A tab shows a note, project, chapter, research note or
+    character/place card.
+  - `src/ui/`: screens. `panes.tsx` draws the panes (tab bars, drop zones
+    while dragging, resizable edges) and keeps them in step with the note
+    list and outline (`usePanesState`, `usePanes().open/split`); things are
+    made draggable into panes with `tabDrag`/`startTabDrag` (`tabdrag.ts`).
+    Phones show one thing at a time instead. `fold.tsx`: the « buttons that
+    fold the sidebar and list away, and the peek.
+    `EditorHost.tsx` wraps the editor for notes;
     `Project.tsx` holds the outline, chapter, manuscript and side panes;
     `pages.tsx` is page view, headers and footers, and printing.
     The formatting bar is one row (`toolbar.tsx`, extras under More) built

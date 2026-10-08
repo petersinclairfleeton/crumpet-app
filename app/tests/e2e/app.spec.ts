@@ -667,8 +667,9 @@ test('headers and footers in a project: manuscript format, and page numbers runn
   expect(hf).toBe(true);
 });
 
-test('layout: hide and fold the sidebar, hide the list, resize, and two notes side by side', async ({ page }) => {
+test('layout: fold the sidebar, resize the list, and panes of tabs: split, drag in, move and close', async ({ page }) => {
   await open(page);
+  await page.setViewportSize({ width: 1500, height: 900 });
   await newNote(page, 'First', 'One');
   await newNote(page, 'Second', 'Two');
   const layout = page.getByRole('button', { name: 'Layout', exact: true });
@@ -676,23 +677,44 @@ test('layout: hide and fold the sidebar, hide the list, resize, and two notes si
   await page.getByRole('button', { name: 'Icons', exact: true }).click();
   await expect(page.locator('.rail')).toBeVisible();
   await expect(page.locator('.sidebar')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Side by side' }).click();
-  await page.keyboard.press('Escape');
-  // The second side starts empty; working in it makes the list open notes there.
-  const second = page.getByRole('region', { name: 'Second note' });
-  await expect(second).toContainText('Choose a note in the list');
-  await second.click();
+  // Split right: the note in a second pane, which is now where notes open.
+  await page.getByRole('button', { name: 'Split right' }).click();
+  const panes = page.getByRole('region', { name: 'Pane' });
+  await expect(panes).toHaveCount(2);
   await list(page).locator('.card', { hasText: 'First' }).click();
-  await expect(second.getByLabel('Title')).toHaveValue('First');
-  await expect(page.getByRole('region', { name: 'Note', exact: true }).getByLabel('Title')).toHaveValue('Second');
+  await expect(panes.nth(1).getByLabel('Title')).toHaveValue('First');
+  await expect(panes.nth(0).getByLabel('Title')).toHaveValue('Second');
+  // Working in the first pane makes the list open notes there.
+  await panes.nth(0).locator('.note-editor').click();
+  await page.locator('.rail').getByRole('button', { name: 'New note' }).click();
+  await expect(panes.nth(0).getByLabel('Title')).toBeFocused();
+  await page.keyboard.type('Third');
+  await expect(panes.nth(0).getByLabel('Title')).toHaveValue('Third');
+  // A middle click opens a note as a new tab.
+  await list(page).locator('.card', { hasText: 'Second' }).click({ button: 'middle' });
+  await expect(panes.nth(0).getByRole('tab')).toHaveText(['Third', 'Second']);
+  // Dragging a note to the bottom of a pane opens it below.
+  const right = panes.nth(1).locator('.pane-body');
+  const box = (await right.boundingBox())!;
+  await list(page).locator('.card', { hasText: 'Third' }).dragTo(right, { targetPosition: { x: box.width / 2, y: box.height - 20 } });
+  await expect(panes).toHaveCount(3);
+  await expect(page.locator('.pane-split.col')).toHaveCount(1);
+  // A tab dragged onto another pane's tabs moves there.
+  await panes.nth(0).getByRole('tab', { name: 'Second' }).dragTo(panes.nth(1).locator('.pane-tabs'));
+  await expect(panes.nth(0).getByRole('tab')).toHaveText(['Third']);
+  await expect(panes.nth(1).getByRole('tab')).toHaveText(['First', 'Second']);
+  // Closing a pane's last tab closes the pane.
+  await panes.nth(2).getByRole('button', { name: 'Close tab' }).click();
+  await expect(panes).toHaveCount(2);
   // Resizing the list with the keyboard.
   const edge = page.getByRole('separator', { name: 'Note list width' });
   await edge.focus();
   await page.keyboard.press('ArrowRight');
   await expect.poll(() => page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { layout?: { listWidth?: number } } } } }).crumpet.getState().settings.layout?.listWidth)).toBe(376);
-  // Back to one note, and the sidebar hidden with Ctrl+\.
-  await second.getByRole('button', { name: 'Close this side' }).click();
-  await expect(second).toHaveCount(0);
+  // The panes are remembered.
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Pane' })).toHaveCount(2);
+  // The sidebar hidden with Ctrl+\.
   await page.locator('.note-pane').first().click();
   await page.keyboard.press('Control+\\');
   await expect(page.locator('.rail, .sidebar')).toHaveCount(0);

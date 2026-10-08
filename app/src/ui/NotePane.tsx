@@ -14,7 +14,7 @@ import { Tour } from './Tour';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
-import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
 interface PaneProps {
@@ -22,30 +22,15 @@ interface PaneProps {
   narrow: boolean;
   onNewNote(): void;
   onNewProject(): void;
-  /** With two notes open: which side this is, the note it shows, and closing it. */
-  side?: 'first' | 'second';
+  /** The note it shows (in a pane's tab); otherwise the selected note. */
   noteId?: string | null;
-  onCloseSide?(): void;
 }
 
-export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId, onCloseSide }: PaneProps) {
+export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: PaneProps) {
   const state = useAppState();
   const store = useAppStore();
   const nav = useNav();
   const note = store.note(noteId === undefined ? state.selectedId : noteId);
-  // Clicking or typing in one of two notes makes it the side the next note opens in.
-  const sideProps = side
-    ? {
-        'data-side': side,
-        onMouseDownCapture: () => store.setActiveSide(side),
-        onFocusCapture: () => store.setActiveSide(side),
-      }
-    : {};
-  const closeSide = onCloseSide ? (
-    <button type="button" className="icon-btn" aria-label="Close this side" title="Back to one note" onClick={onCloseSide}>
-      <IconClose size={15} />
-    </button>
-  ) : null;
   const editorRef = useRef<Editor | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const [menu, setMenu] = useState(false);
@@ -82,17 +67,6 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
     setAddingTag(false);
   }, [note?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!note && side === 'second') {
-    return (
-      <section {...sideProps} className={`pane-empty${state.activeSide === side ? ' side-active' : ''}`} aria-label="Second note">
-        <div className="side-empty-pane">
-          <p>Choose a note in the list to open it here.</p>
-          {closeSide}
-        </div>
-      </section>
-    );
-  }
-
   if (!note && !state.notes.length && !state.projects.length) {
     return (
       <section className="pane-empty" aria-label="Welcome">
@@ -103,7 +77,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
 
   if (!note) {
     return (
-      <section {...sideProps} className={`pane-empty${side && state.activeSide === side ? ' side-active' : ''}`} aria-label="Note">
+      <section className="pane-empty" aria-label="Note">
         <p>Choose a note, or start a new one.</p>
       </section>
     );
@@ -121,7 +95,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
   ) : null;
 
   const togglePage = () => store.updateSettings({ pageView: { ...state.settings.pageView, notes: !paged } });
-  const trail = trashed ? closeSide : (
+  const trail = trashed ? null : (
     <div className="note-actions">
       {!narrow && (
         <>
@@ -240,7 +214,6 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
           </button>
         </Popover>
       )}
-      {closeSide}
       {printing && (
         <PrintJob
           title={displayTitle(note)}
@@ -362,7 +335,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
   );
 
   return (
-    <section {...sideProps} className={`pane find-host${side && state.activeSide === side ? ' side-active' : ''}`} aria-label={side === 'second' ? 'Second note' : 'Note'} onKeyDown={trashed ? undefined : onFindKey}>
+    <section className="pane find-host" aria-label="Note" onKeyDown={trashed ? undefined : onFindKey}>
       {finding && !trashed && (
         <FindBar
           targets={[{ id: note.id, doc: note.doc, editor: editorRef.current }]}

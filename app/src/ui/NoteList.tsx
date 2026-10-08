@@ -8,6 +8,8 @@ import { allTags } from '../data/selectors';
 import { InlineInput, Popover } from './Sidebar';
 import { IconStarFilled, IconTag, IconTrash } from './icons';
 import { FoldButton } from './fold';
+import { tabDrag } from './tabdrag';
+import { usePanes } from './panes';
 import { IconCards, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
 
 interface Props {
@@ -238,12 +240,21 @@ function Snippet({ parts, fallback }: { parts: SnippetPart[] | null; fallback: s
 
 function Card({ note, words, selected, now, trash, showNotebook, onOpen }: { note: Note; words: string[]; selected: boolean; now: number; trash: boolean; showNotebook: boolean; onOpen(e: React.MouseEvent): void }) {
   const store = useAppStore();
+  const panes = usePanes();
   const nb = store.notebook(note.notebookId);
   const text = preview(note);
   const hits = words.length ? snippet(noteText(note), words) : null;
   const picture = note.doc.blocks.find((b) => b.type === 'image' && b.src)?.src;
   return (
-    <button type="button" className={`card${selected ? ' selected' : ''}${picture ? ' has-thumb' : ''}`} aria-current={selected ? 'true' : undefined} onClick={(e) => onOpen(e)}>
+    <button
+      type="button"
+      className={`card${selected ? ' selected' : ''}${picture ? ' has-thumb' : ''}`}
+      aria-current={selected ? 'true' : undefined}
+      onClick={(e) => onOpen(e)}
+      {...tabDrag({ kind: 'note', id: note.id })}
+      // A middle click opens it in a new tab.
+      onAuxClick={(e) => e.button === 1 && panes.open({ kind: 'note', id: note.id }, 'tab')}
+    >
       {picture && <Thumb src={picture} />}
       <span className="card-top">
         <span className="card-title ellipsis">

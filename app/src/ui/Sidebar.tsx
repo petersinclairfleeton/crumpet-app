@@ -11,6 +11,8 @@ import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from
 import { toMarkdown } from '@crumpet/editor/markdown';
 import { StatsDialog, useTodayWords } from './stats-ui';
 import { FoldButton } from './fold';
+import { tabDrag } from './tabdrag';
+import type { Tab } from '../data/panes';
 import { IconBook, IconChart, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
@@ -86,7 +88,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         <section className="side-section" aria-label="Recent notes">
           <h2 className="side-label">Recent Notes</h2>
           {recent.map((n) => (
-            <button key={n.id} type="button" className="side-row recent" onClick={() => onOpenNote(n.id)}>
+            <button key={n.id} type="button" className="side-row recent" onClick={() => onOpenNote(n.id)} {...tabDrag({ kind: 'note', id: n.id })}>
               <IconNote size={12} />
               <span className="ellipsis">{displayTitle(n)}</span>
             </button>
@@ -160,6 +162,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             countLabel="words"
             active={active({ kind: 'project', id: p.id })}
             onClick={() => onOpenView({ kind: 'project', id: p.id })}
+            drag={{ kind: 'project', id: p.id }}
           />
         ))}
 
@@ -293,9 +296,9 @@ function TagRows({ nodes, depth, active, onOpenView }: { nodes: TagNode[]; depth
   return <>{rows(nodes, depth)}</>;
 }
 
-function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean }) {
+function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean; drag?: Tab }) {
   return (
-    <button type="button" className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}`} aria-current={props.active ? 'page' : undefined} onClick={props.onClick}>
+    <button type="button" className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}`} aria-current={props.active ? 'page' : undefined} onClick={props.onClick} {...(props.drag ? tabDrag(props.drag) : {})}>
       {props.icon}
       <span className="grow ellipsis">{props.label}</span>
       {props.count !== undefined && (
