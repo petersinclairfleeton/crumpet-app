@@ -2262,7 +2262,7 @@ test('the right sidebar: the outline of headings, styles, and links to and from 
   await page.getByRole('button', { name: 'Show the right sidebar' }).click();
   const right = page.getByRole('complementary', { name: 'Right sidebar' });
   await expect(right.getByRole('tab', { name: 'Outline' })).toHaveAttribute('aria-selected', 'true');
-  await expect(right.locator('.right-outline button')).toHaveText(['Upstairs']);
+  await expect(right.locator('.right-outline button:not(.outline-mark)')).toHaveText(['Upstairs']);
   await right.getByRole('tab', { name: 'Links' }).click();
   await expect(right.locator('.right-links')).toContainText('Harbour');
   await right.getByRole('button', { name: 'Harbour' }).click();
@@ -2273,4 +2273,48 @@ test('the right sidebar: the outline of headings, styles, and links to and from 
   await expect(right.getByRole('complementary', { name: 'Styles' })).toBeVisible();
   await page.keyboard.press('Control+Alt+Backslash');
   await expect(right).toHaveCount(0);
+});
+
+test('quick switcher, command palette and bookmarks', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1400, height: 860 });
+  await newNote(page, 'Harbour walk', 'Gulls');
+  await newNote(page, 'Lamp room', 'The lens');
+  // Ctrl+O: a few letters, Enter opens it where you're working.
+  await page.keyboard.press('Control+o');
+  const finder = page.getByRole('dialog', { name: 'Quick switcher' });
+  await page.keyboard.type('hbw');
+  await expect(finder.getByRole('option').first()).toContainText('Harbour walk');
+  await page.keyboard.press('Enter');
+  await expect(finder).toHaveCount(0);
+  const pane = page.getByRole('region', { name: 'Pane' });
+  await expect(pane.getByLabel('Title')).toHaveValue('Harbour walk');
+  // Ctrl+Enter: a new tab.
+  await page.keyboard.press('Control+o');
+  await page.keyboard.type('lamp');
+  await page.keyboard.press('Control+Enter');
+  await expect(pane.getByRole('tab')).toHaveText(['Harbour walk', 'Lamp room']);
+  // No match: make a note with that title.
+  await page.keyboard.press('Control+o');
+  await page.keyboard.type('Brand new idea');
+  await page.getByRole('option', { name: /Create note/ }).click();
+  await expect(pane.getByLabel('Title')).toHaveValue('Brand new idea');
+  // Ctrl+P: commands, run on the text you're in.
+  await pane.locator('.note-editor').click();
+  await page.keyboard.type('bold words');
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('Control+p');
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
+  await page.keyboard.type('bold');
+  await page.keyboard.press('Enter');
+  await expect(pane.locator('.note-editor strong')).toHaveText('bold words');
+  // Bookmark it, and it's in the sidebar to open again.
+  await page.keyboard.press('Control+p');
+  await page.keyboard.type('bookmark this note');
+  await page.keyboard.press('Enter');
+  const marks = page.getByRole('region', { name: 'Bookmarks' });
+  await expect(marks).toContainText('Brand new idea');
+  await list(page).locator('.card', { hasText: 'Harbour walk' }).click();
+  await marks.getByRole('button', { name: 'Brand new idea', exact: true }).click();
+  await expect(pane.getByLabel('Title')).toHaveValue('Brand new idea');
 });
