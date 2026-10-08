@@ -62,7 +62,17 @@ export interface TChapter {
   body: string;
 }
 
+/** Settings shared by every device: how notes look on the page. */
+export interface TSettings {
+  noteStyles?: StyleSheet;
+  notePage?: PageSetup;
+  /** When they last changed. */
+  updated: number;
+}
+
 export interface Tree {
+  /** Absent: the defaults. */
+  settings?: TSettings;
   stacks: Record<string, TStack>;
   notebooks: Record<string, TNotebook>;
   notes: Record<string, TNote>;
@@ -80,8 +90,10 @@ export function fullTree(t: Partial<Tree> | undefined): Tree {
 }
 
 /** This device's notes as a tree. */
-export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'> & Partial<Pick<AppState, 'projects' | 'chapters'>>): Tree {
+export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'> & Partial<Pick<AppState, 'projects' | 'chapters' | 'settings'>>): Tree {
   const tree = emptyTree();
+  const st = state.settings;
+  if (st && (st.noteStyles || st.notePage)) tree.settings = { ...(st.noteStyles ? { noteStyles: st.noteStyles } : {}), ...(st.notePage ? { notePage: st.notePage } : {}), updated: st.sharedAt ?? 0 };
   for (const s of state.stacks) tree.stacks[s.id] = { id: s.id, name: s.name, created: s.createdAt };
   for (const nb of state.notebooks) {
     tree.notebooks[nb.id] = { id: nb.id, name: nb.name, color: nb.color, stackId: nb.stackId && tree.stacks[nb.stackId] ? nb.stackId : null, created: nb.createdAt };

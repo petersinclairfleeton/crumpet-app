@@ -505,6 +505,12 @@ export class AppStore {
    */
   applyTree(tree: Tree): void {
     const { state } = this;
+    // Shared settings from other devices.
+    const st = state.settings;
+    const want = tree.settings;
+    if (JSON.stringify(st.noteStyles ?? null) !== JSON.stringify(want?.noteStyles ?? null) || JSON.stringify(st.notePage ?? null) !== JSON.stringify(want?.notePage ?? null)) {
+      this.updateSettings({ noteStyles: want?.noteStyles, notePage: want?.notePage, sharedAt: want?.updated ?? st.sharedAt });
+    }
     const stacks: Stack[] = Object.values(tree.stacks).map((t) => {
       const cur = state.stacks.find((s) => s.id === t.id);
       if (cur && cur.name === t.name && cur.createdAt === t.created) return cur;
@@ -625,6 +631,8 @@ export class AppStore {
 
   updateSettings(patch: Partial<Settings>): void {
     const settings = { ...this.state.settings, ...patch };
+    // Note styles and page setup are shared with other devices: the newer change wins.
+    if (('noteStyles' in patch || 'notePage' in patch) && !('sharedAt' in patch)) settings.sharedAt = this.now();
     this.set({ settings });
     this.save(this.storage.putSettings(settings));
   }
