@@ -115,6 +115,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     settings in `.crumpet/vault.json`; snapshots one file each in
     `.crumpet/snapshots/` (`sync/snapshots.ts`, never changed once taken). A sync merges three versions (this
     device, the files, the last agreed version).
+  - `src/data/keywords.ts`: chapter keywords (Scrivener's), saved in the
+    chapter file's `tags`; `ui/keywords.tsx` draws chips and the outline's
+    filter (`keywordFilter` in the store, applied to outline, cards and
+    manuscript by `shownOutline`).
   - `src/data/snapshots.ts`: snapshots of notes and chapters (Scrivener's):
     kept in the store (`takeSnapshot`, `restoreSnapshot`), compared with
     diff-match-patch; the right sidebar's Snapshots tab is `ui/snapshots.tsx`.

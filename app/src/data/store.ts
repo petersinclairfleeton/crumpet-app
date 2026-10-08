@@ -16,6 +16,7 @@ import { attachmentsIn, forgetFiles } from './files';
 import { type StatsElsewhere, dayKey, recordEdit, wordsIn, wordsToday } from './stats';
 import { relinkDoc, sameTitle } from './links';
 import { type Snapshot, snapshotAttachments } from './snapshots';
+import { tidyKeywords } from './keywords';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
@@ -43,6 +44,8 @@ export interface AppState {
   castId: string | null;
   /** Snapshots of notes and chapters, newest first. */
   snapshots: Snapshot[];
+  /** In a project: only chapters with this keyword are shown (outline, cards and manuscript). */
+  keywordFilter: string | null;
   query: string;
 }
 
@@ -85,6 +88,7 @@ export class AppStore {
     researchId: null,
     castId: null,
     snapshots: [],
+    keywordFilter: null,
     projectMode: 'chapter',
     query: '',
   };
@@ -643,7 +647,7 @@ export class AppStore {
     const chapters: Chapter[] = Object.values(treeChapters).map((t) => {
       const cur = chaptersById.get(t.id);
       const doc = cur && toMarkdown(cur.doc) === t.body ? cur.doc : matchIds(cur?.doc ?? emptyDoc(), fromMarkdown(t.body));
-      const next: Chapter = { id: t.id, projectId: t.projectId, title: t.title, doc, status: t.status, synopsis: t.synopsis, goal: t.goal, createdAt: t.created, updatedAt: t.updated };
+      const next: Chapter = { id: t.id, projectId: t.projectId, title: t.title, doc, status: t.status, synopsis: t.synopsis, goal: t.goal, ...(t.keywords?.length ? { keywords: t.keywords } : {}), createdAt: t.created, updatedAt: t.updated };
       if (
         cur &&
         cur.doc === doc &&
@@ -652,6 +656,7 @@ export class AppStore {
         cur.status === next.status &&
         cur.synopsis === next.synopsis &&
         cur.goal === next.goal &&
+        (cur.keywords ?? []).join('\n') === (next.keywords ?? []).join('\n') &&
         cur.createdAt === next.createdAt &&
         cur.updatedAt === next.updatedAt
       )
@@ -836,7 +841,8 @@ export class AppStore {
     this.flush();
     const keep = this.chapter(this.state.chapterId)?.projectId === id ? this.state.chapterId : null;
     const first = project.outline.find((x) => x.type === 'chapter')?.id ?? null;
-    this.set({ view: { kind: 'project', id }, query: '', chapterId: chapterId ?? keep ?? first });
+    const switching = !(this.state.view.kind === 'project' && this.state.view.id === id);
+    this.set({ view: { kind: 'project', id }, query: '', chapterId: chapterId ?? keep ?? first, ...(switching ? { keywordFilter: null } : {}) });
   }
 
   selectChapter(id: string | null): void {
@@ -1050,6 +1056,15 @@ export class AppStore {
     this.set({ chapters });
     if (delaySave) this.scheduleSave(id);
     else this.save(this.storage.putChapter(updated));
+  }
+
+  setChapterKeywords(id: string, keywords: string[]): void {
+    const k = tidyKeywords(keywords);
+    this.updateChapter(id, { keywords: k.length ? k : undefined });
+  }
+
+  setKeywordFilter(word: string | null): void {
+    if (this.state.keywordFilter !== word) this.set({ keywordFilter: word });
   }
 
   // ---------- snapshots ----------

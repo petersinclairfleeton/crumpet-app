@@ -373,7 +373,7 @@ export function chapterFile(c: TChapter): NoteFile {
   return {
     id: c.id,
     title: c.title,
-    tags: [],
+    tags: c.keywords ?? [],
     favorite: false,
     created: c.created,
     updated: c.updated,

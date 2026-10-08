@@ -137,6 +137,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
         status: field(b?.status, l.status, r.status, newer.status),
         synopsis: field(b?.synopsis, l.synopsis, r.synopsis, newer.synopsis),
         goal: field(b?.goal, l.goal, r.goal, newer.goal),
+        ...keywords(mergeTags(b?.keywords ?? [], l.keywords ?? [], r.keywords ?? [])),
         created: Math.min(l.created, r.created),
         updated: Math.max(l.updated, r.updated),
         body: text === null ? l.body : tidy(text),
@@ -263,6 +264,8 @@ function pick<T>(b: T | undefined, l: T | undefined, r: T | undefined, same: (x:
 }
 
 /** One value merged three ways. When both sides changed it, `tie` decides (this device by default). */
+const keywords = (k: string[]) => (k.length ? { keywords: k } : {});
+
 function field<V>(b: V | undefined, l: V, r: V, tie: V = l): V {
   if (equal(l, r)) return l;
   if (b !== undefined && equal(b, l)) return r;
