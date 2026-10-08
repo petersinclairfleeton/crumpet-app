@@ -69,11 +69,35 @@ export type DiffPart = { kind: 'same' | 'add' | 'del'; text: string };
 
 /** What changed between two texts, in words people would see: kept, added and taken out. */
 export function compareTexts(before: string, after: string): DiffPart[] {
+  // Whole words, spaces and punctuation marks, not letters: each becomes one character to compare.
+  const words: string[] = [];
+  const index = new Map<string, number>();
+  const encode = (text: string) =>
+    (text.match(/\s+|[\p{L}\p{N}'’]+|[^\s\p{L}\p{N}'’]/gu) ?? [])
+      .map((w) => {
+        let i = index.get(w);
+        if (i === undefined) {
+          i = words.length;
+          words.push(w);
+          index.set(w, i);
+        }
+        return String.fromCharCode(i + 1);
+      })
+      .join('');
+  const a = encode(before);
+  const b = encode(after);
   const dmp = new diff_match_patch();
   dmp.Diff_Timeout = 2;
-  const diffs = dmp.diff_main(before, after);
+  const diffs = dmp.diff_main(a, b, false);
   dmp.diff_cleanupSemantic(diffs);
-  return diffs.map(([op, text]) => ({ kind: op === 0 ? 'same' : op > 0 ? 'add' : 'del', text }));
+  const out: DiffPart[] = [];
+  for (const [op, chars] of diffs) {
+    const text = [...chars].map((c) => words[c.charCodeAt(0) - 1]).join('');
+    const kind = op === 0 ? 'same' : op > 0 ? 'add' : 'del';
+    if (out.length && out[out.length - 1].kind === kind) out[out.length - 1].text += text;
+    else out.push({ kind, text });
+  }
+  return out;
 }
 
 /**

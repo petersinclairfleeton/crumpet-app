@@ -19,6 +19,7 @@ import { applyTheme } from './theme';
 import { startSession } from './writingtab';
 import { useTodayWords } from './stats-ui';
 import { SpeechBar, startReading, toggleDictation } from './speech';
+import { CompareDocs } from './comparedocs';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -232,7 +233,9 @@ export function App() {
   }, []);
 
   // Ctrl+O (⌘O): the quick switcher; Ctrl+P (⌘P) or Ctrl+Shift+P: the command palette.
-  const [finder, setFinder] = useState<null | 'switch' | 'commands'>(null);
+  const [finder, setFinder] = useState<null | 'switch' | 'commands' | 'compare'>(null);
+  const [compareFrom, setCompareFrom] = useState<string | null>(null);
+  const [compare, setCompare] = useState<{ a: string; b: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -301,7 +304,25 @@ export function App() {
         </div>
       )}
       <ClipDialog onSaved={() => setPane('note')} />
-      {finder && <Finder mode={finder} actions={{ newNote, newProject, openToday, openSettings: () => setSettingsOpen(true) }} onClose={() => setFinder(null)} />}
+      {finder && (
+        <Finder
+          mode={finder}
+          compareFrom={compareFrom ?? undefined}
+          actions={{
+            newNote,
+            newProject,
+            openToday,
+            openSettings: () => setSettingsOpen(true),
+            compareFrom: (id) => {
+              setCompareFrom(id);
+              setTimeout(() => setFinder('compare'));
+            },
+            compare: (a, b) => setCompare({ a, b }),
+          }}
+          onClose={() => setFinder(null)}
+        />
+      )}
+      {compare && <CompareDocs a={compare.a} b={compare.b} onSwap={() => setCompare({ a: compare.b, b: compare.a })} onClose={() => setCompare(null)} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
       <SpeechBar />
       {state.temporary && (
