@@ -31,6 +31,8 @@ import {
   type LookKey,
   type ParaLook,
   type ParaKey,
+  type NumFormat,
+  type BulletKind,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import {
@@ -80,6 +82,8 @@ import {
   paraValue,
   stepIndent,
   insertPageBreak,
+  setListStyle,
+  setListStart,
 } from './commands';
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
@@ -434,6 +438,17 @@ export class Editor {
   }
 
   /** Increase (1) or decrease (-1) indent. */
+  /** Word's bullet and numbering libraries (see setListStyle). */
+  setListStyle(style: { num: NumFormat } | { bullet: BulletKind }): void {
+    this.syncSelectionFromDom();
+    this.dispatch(setListStyle(this.state, style), 'command');
+  }
+
+  setListStart(start: number | undefined): void {
+    this.syncSelectionFromDom();
+    this.dispatch(setListStart(this.state, start), 'command');
+  }
+
   stepIndent(delta: 1 | -1): void {
     this.syncSelectionFromDom();
     this.dispatch(stepIndent(this.state, delta), 'command');

@@ -3,7 +3,7 @@
 // for Kindle). Pictures and footnotes come along; comments don't, and
 // tracked changes are shown as if accepted.
 
-import { type Block, type Doc, type Run, isList, tidyRows } from '@crumpet/editor/model';
+import { type Block, type Doc, type Run, BULLETS, isList, tidyRows } from '@crumpet/editor/model';
 import { NOTE_LINK } from '@crumpet/editor/markdown';
 import { type ZipEntry, utf8, writeZip } from './zip';
 
@@ -84,7 +84,25 @@ class Book {
       }
       return out;
     };
-    const style = (b: Block) => (b.align && b.align !== 'left' ? ` style="text-align: ${b.align}"` : '');
+    const style = (b: Block, extra = '') => {
+      const p = b.para;
+      const sides = { t: 'top', b: 'bottom', l: 'left', r: 'right' } as const;
+      const css = [
+        b.align && b.align !== 'left' ? `text-align: ${b.align}` : '',
+        ...[...(p?.border ?? '')].map((c) => `border-${sides[c as keyof typeof sides]}: 1px solid currentColor`),
+        p?.border ? 'padding: 0.15em 0.4em' : '',
+        p?.shade ? `background-color: ${p.shade}` : '',
+        extra,
+      ].filter(Boolean);
+      return css.length ? ` style="${css.join('; ')}"` : '';
+    };
+    // Word's number and bullet styles, as CSS list styles (1.1.1 shows as 1, 2, 3).
+    const listStyle = (b: Block) =>
+      b.type === 'numbered' && b.para?.num && b.para.num !== 'legal'
+        ? `list-style-type: ${b.para.num === 'paren' ? 'decimal' : b.para.num}`
+        : b.type === 'bullet' && b.para?.bullet
+          ? `list-style-type: "${BULLETS[b.para.bullet]}  "`
+          : '';
 
     let out = '';
     const blocks = doc.blocks;
@@ -106,7 +124,7 @@ class Book {
             open.push(tag);
           }
           const box = it.type === 'todo' ? `<span class="box">${it.checked ? '☑' : '☐'}</span> ` : '';
-          out += `<li${style(it)}>${box}${runs(it.runs)}`;
+          out += `<li${style(it, listStyle(it))}${it.type === 'numbered' && it.para?.start !== undefined ? ` value="${it.para.start}"` : ''}>${box}${runs(it.runs)}`;
         }
         while (open.length) out += `</li></${open.pop()}>`;
         i = j - 1;

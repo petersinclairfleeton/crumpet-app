@@ -195,9 +195,30 @@ export interface ParaLook {
   /** Kept on the same page as the next paragraph; its lines kept together. */
   keepNext?: boolean;
   keepLines?: boolean;
+  /** Numbered lists: how this level is numbered (Word's number library), and the number to start again from. */
+  num?: NumFormat;
+  start?: number;
+  /** Bulleted lists: the bullet. */
+  bullet?: BulletKind;
+  /** Lines around the paragraph: any of t, b, l, r (top, bottom, left, right). */
+  border?: string;
+  /** Shading behind the paragraph, as #rrggbb. */
+  shade?: string;
 }
 export type ParaKey = keyof ParaLook;
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'keepNext', 'keepLines'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade'];
+
+/** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
+export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
+export type NumFormat = (typeof NUM_FORMATS)[number];
+/** Word's bullet library. */
+export const BULLETS = { disc: '•', circle: '◦', square: '▪', dash: '–', arrow: '➢', check: '✓', diamond: '❖', star: '★' } as const;
+export type BulletKind = keyof typeof BULLETS;
+
+/** A paragraph border's sides, tidied to t, b, l, r in that order; '' when none. */
+export function tidyBorder(sides: string | undefined): string {
+  return ['t', 'b', 'l', 'r'].filter((c) => sides?.includes(c)).join('');
+}
 
 /** A paragraph look with nothing unset in it, or undefined if it's empty. */
 export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
@@ -208,6 +229,12 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
     if (typeof v === 'number' && Number.isFinite(v)) (out as Record<string, unknown>)[k] = Math.round(v * 1000) / 1000;
     else if (v === true) (out as Record<string, unknown>)[k] = true;
   }
+  if (out.start !== undefined) out.start = Math.max(0, Math.round(out.start));
+  if (p.num && (NUM_FORMATS as readonly string[]).includes(p.num)) out.num = p.num;
+  if (p.bullet && p.bullet in BULLETS) out.bullet = p.bullet;
+  const border = tidyBorder(p.border);
+  if (border) out.border = border;
+  if (p.shade && /^#[0-9a-f]{6}$/i.test(p.shade)) out.shade = p.shade.toLowerCase();
   return Object.keys(out).length ? out : undefined;
 }
 

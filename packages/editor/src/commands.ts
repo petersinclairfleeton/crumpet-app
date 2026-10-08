@@ -52,7 +52,7 @@ import {
   setChangeOnRuns,
 } from './model';
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
-import type { BlockAttrs } from './model';
+import type { BlockAttrs, BulletKind, NumFormat } from './model';
 
 export interface EditorState {
   doc: Doc;
@@ -212,7 +212,7 @@ function splitAt(b: Builder, pos: Pos): Pos {
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
   // A new paragraph carries on the spacing and indents of the one before (not a page break, nor after a heading).
-  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined });
+  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, start: undefined });
   const newAttrs = atEnd ? { ...nextBlockAttrs(block), para: carried } : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined, para: carried });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
@@ -471,6 +471,45 @@ export function setPara(state: EditorState, patch: Partial<ParaLook> | null): Tr
   for (const blk of selectedBlocks(state)) {
     if (isMedia(blk.type)) continue;
     const to = attrsOf({ ...blk, para: patch === null ? undefined : tidyPara({ ...blk.para, ...patch }) });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  }
+  return tx(state, b, state.selection);
+}
+
+/**
+ * Word's bullet and numbering libraries: makes the selected paragraphs a
+ * bulleted or numbered list in that style. With just a caret in a list, the
+ * whole list at that level takes the style (1.1.1 takes every level).
+ */
+export function setListStyle(state: EditorState, style: { num: NumFormat } | { bullet: BulletKind }): Transaction {
+  const b = new Builder(state.doc);
+  const type: BlockType = 'num' in style ? 'numbered' : 'bullet';
+  const blocks = state.doc.blocks;
+  let targets = selectedBlocks(state).filter((x) => !isMedia(x.type) && x.type !== 'table');
+  const here = targets[0];
+  if (targets.length === 1 && here?.type === type) {
+    // The list the caret is in: list items next to each other, at this level (or every level for 1.1.1).
+    let i = blockIndex(state.doc, here.id);
+    let j = i;
+    while (i > 0 && isList(blocks[i - 1].type)) i--;
+    while (j < blocks.length - 1 && isList(blocks[j + 1].type)) j++;
+    const all = 'num' in style && (style.num === 'legal' || here.para?.num === 'legal');
+    targets = blocks.slice(i, j + 1).filter((x) => x.type === type && (all || (x.indent ?? 0) === (here.indent ?? 0)));
+  }
+  for (const blk of targets) {
+    const list = blk.type === type ? blk : { ...blk, ...blockAttrs(type, false, isList(blk.type) ? blk.indent : 0), para: blk.para };
+    const to = attrsOf({ ...list, para: tidyPara({ ...blk.para, ...style }) });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** Word's Restart at 1 / Set Numbering Value: the numbered item at the caret starts again from `start` (undefined: carries on). */
+export function setListStart(state: EditorState, start: number | undefined): Transaction {
+  const b = new Builder(state.doc);
+  const blk = getBlock(state.doc, orderedRange(state.doc, state.selection).from.block);
+  if (blk.type === 'numbered') {
+    const to = attrsOf({ ...blk, para: tidyPara({ ...blk.para, start }) });
     if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
   }
   return tx(state, b, state.selection);
