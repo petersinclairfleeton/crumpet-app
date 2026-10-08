@@ -20,6 +20,11 @@ let chosen: Slot | null = null;
 const listeners = new Set<() => void>();
 const tell = () => listeners.forEach((f) => f());
 
+/** The editor the helpers work on now. */
+export function currentHelped(): Helped | null {
+  return current();
+}
+
 function current(): Helped | null {
   return chosen?.current ?? null;
 }
@@ -77,4 +82,15 @@ export function useOfferHelped(entry: Helped | null, root: RefObject<HTMLElement
       }
     };
   }, [root]);
+}
+
+/** Runs `fn` with the editor for `docId` once it's the one the helpers work on (it may still be opening). */
+export function whenHelped(docId: string, fn: (h: Helped) => void, wait = 3000): void {
+  const until = Date.now() + wait;
+  const tick = () => {
+    const h = current();
+    if (h?.docId === docId) fn(h);
+    else if (Date.now() < until) setTimeout(tick, 40);
+  };
+  tick();
 }

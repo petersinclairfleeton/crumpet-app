@@ -11,6 +11,7 @@ import { CommentList } from './comments';
 import { FoldButton } from './fold';
 import { backlinks, findByTitle, linkedTitles } from '../data/links';
 import { displayTitle } from '../data/selectors';
+import { sameBookmark, toggleBookmark } from '../data/bookmarks';
 
 export type RightTab = 'outline' | 'styles' | 'comments' | 'links';
 const TABS: { key: RightTab; label: string }[] = [
@@ -48,7 +49,7 @@ export function RightSidebar() {
         <FoldButton what="right" />
       </header>
       <div className="right-body" role="tabpanel" aria-label={TABS.find((t) => t.key === tab)!.label}>
-        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <Comments editor={helped.editor} /> : <Links docId={helped.docId} />}
+        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <Comments editor={helped.editor} /> : <Links docId={helped.docId} />}
       </div>
     </aside>
   );
@@ -62,7 +63,10 @@ const headingText = (b: Block) =>
     .trim();
 
 /** The headings, indented by level; the one you're in is marked. Click one to go there. */
-function Outline({ editor }: { editor: Editor }) {
+function Outline({ editor, docId }: { editor: Editor; docId: string }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const marks = state.settings.bookmarks ?? [];
   const [, setTick] = useState(0);
   useEffect(() => {
     const again = () => setTick((t) => t + 1);
@@ -82,6 +86,15 @@ function Outline({ editor }: { editor: Editor }) {
           <button type="button" className={`level-${b.type.slice(-1)}${b.id === here ? ' here' : ''}`} aria-current={b.id === here ? 'location' : undefined} onClick={() => editor.goToBlock(b.id)}>
             {headingText(b)}
           </button>
+          {(() => {
+            const mark = { kind: 'heading' as const, id: docId, block: b.id };
+            const on = marks.some((m) => sameBookmark(m, mark));
+            return (
+              <button type="button" className={`outline-mark${on ? ' on' : ''}`} aria-pressed={on} aria-label={on ? `Remove bookmark ${headingText(b)}` : `Bookmark ${headingText(b)}`} title={on ? 'Remove bookmark' : 'Bookmark this heading'} onClick={() => store.updateSettings({ bookmarks: toggleBookmark(marks, mark) })}>
+                {on ? '★' : '☆'}
+              </button>
+            );
+          })()}
         </li>
       ))}
     </ul>

@@ -145,6 +145,8 @@ export interface Settings {
   toolbar?: 'always' | 'selection';
   /** How the window is arranged (computers and tablets). */
   layout?: LayoutPrefs;
+  /** Shortcuts in the sidebar (this device only). */
+  bookmarks?: import('./bookmarks').Bookmark[];
   /** Typewriter mode: keep the typing line mid-screen, fade other paragraphs, typing sounds. */
   typewriter?: { scroll?: boolean; fade?: boolean; sound?: boolean };
   /** Show notes and projects as pages. */

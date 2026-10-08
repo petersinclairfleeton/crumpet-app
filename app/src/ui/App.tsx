@@ -12,6 +12,9 @@ import { LIST, RIGHT, Resizer, SIDEBAR, SidebarRail, TabBar } from './layout';
 import { type Peek, PeekContext } from './fold';
 import { PaneArea, PanesContext, usePanesState } from './panes';
 import { RightSidebar } from './rightside';
+import { Finder } from './finder';
+import { currentHelped } from './helpers';
+import { SettingsDialog } from './Settings';
 import { applyTheme } from './theme';
 import type { View } from '../data/types';
 
@@ -205,6 +208,27 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Ctrl+O (⌘O): the quick switcher; Ctrl+P (⌘P) or Ctrl+Shift+P: the command palette.
+  const [finder, setFinder] = useState<null | 'switch' | 'commands'>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
+      const k = e.key.toLowerCase();
+      // Remember the selected text, for commands that act on it once the window closes.
+      if (k === 'o' || k === 'p') currentHelped()?.editor.currentSelection();
+      if (k === 'o' && !e.shiftKey) {
+        e.preventDefault();
+        setFinder('switch');
+      } else if (k === 'p') {
+        e.preventDefault();
+        setFinder('commands');
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // A search shows matching notes, even from inside a project.
   const project = state.view.kind === 'project' && !state.query.trim() ? store.project(state.view.id) : undefined;
 
@@ -248,6 +272,8 @@ export function App() {
         </div>
       )}
       <ClipDialog onSaved={() => setPane('note')} />
+      {finder && <Finder mode={finder} actions={{ newNote, newProject, openToday, openSettings: () => setSettingsOpen(true) }} onClose={() => setFinder(null)} />}
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.

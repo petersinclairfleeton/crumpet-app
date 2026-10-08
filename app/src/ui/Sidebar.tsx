@@ -13,6 +13,7 @@ import { StatsDialog, useTodayWords } from './stats-ui';
 import { FoldButton } from './fold';
 import { tabDrag } from './tabdrag';
 import type { Tab } from '../data/panes';
+import { Bookmarks } from './bookmarks';
 import { IconBook, IconChart, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
@@ -83,6 +84,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         </button>
         <TemplateMenu onTemplate={onTemplate} onImport={onImport} />
       </div>
+
+      <Bookmarks />
 
       {recent.length > 0 && (
         <section className="side-section" aria-label="Recent notes">

@@ -14,6 +14,7 @@ import { ResearchPane } from './research';
 import { CastPane } from './cast';
 import { IconBook, IconClose, IconNote, IconPage, IconPen, IconNotebook } from './icons';
 import { Popover } from './Sidebar';
+import { sameBookmark, toggleBookmark } from '../data/bookmarks';
 import { dragged, startTabDrag, useDragging } from './tabdrag';
 
 // ---------------------------------------------------------------- the workspace
@@ -23,9 +24,11 @@ interface Panes {
   open(tab: Tab, how?: 'replace' | 'tab'): void;
   /** Opens something in a new pane beside the one you're working in. */
   split(tab: Tab, side: 'right' | 'bottom'): void;
+  /** Closes the tab showing where you're working. */
+  closeActive(): void;
 }
 export type Ctl = Panes & { ws: Workspace; current(): Workspace; update(fn: (w: Workspace) => Workspace): void };
-export const PanesContext = createContext<Panes>({ open() {}, split() {} });
+export const PanesContext = createContext<Panes>({ open() {}, split() {}, closeActive() {} });
 export function usePanes(): Panes {
   return useContext(PanesContext);
 }
@@ -156,6 +159,10 @@ export function usePanesState(): Ctl {
       split: (tab, side) => {
         update((w) => split(w, w.active, side, tab));
         follow(store, tab);
+      },
+      closeActive: () => {
+        update((w) => closeTab(w, w.active, activeGroup(w).active));
+        follow(store, activeTab(latest.current));
       },
     }),
     [ws, update, store],
@@ -407,6 +414,18 @@ function GroupView({ group, only = false, narrow, onBack, onNewNote, onNewProjec
                     {side === 'right' ? 'Split right' : 'Split down'}
                   </button>
                 ))}
+                {(t.kind === 'note' || t.kind === 'chapter' || t.kind === 'project') && (
+                  <button
+                    type="button"
+                    className="menu-item"
+                    onClick={() => {
+                      setMenu(null);
+                      store.updateSettings({ bookmarks: toggleBookmark(state.settings.bookmarks ?? [], { kind: t.kind, id: t.id }) });
+                    }}
+                  >
+                    {(state.settings.bookmarks ?? []).some((b) => sameBookmark(b, { kind: t.kind as 'note', id: t.id })) ? 'Remove bookmark' : 'Bookmark'}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="menu-item"

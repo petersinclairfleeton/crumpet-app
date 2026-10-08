@@ -1345,3 +1345,31 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .styles-pane-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 12px 12px; border-top: 1px solid var(--line); }
 .glyph-styles { font-size: 12px; font-weight: 700; letter-spacing: -0.5px; }
 .shape-gallery { display: grid; grid-template-columns: repeat(5, 34px); gap: 4px; padding: 6px; }
+
+/* The quick switcher and command palette. */
+.finder-backdrop { align-items: flex-start; padding-top: 12vh; }
+.dialog.finder { width: min(620px, calc(100vw - 32px)); max-height: 70vh; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.finder-input { flex: none; width: 100%; padding: 14px 16px; border: none; border-bottom: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; font-size: 16px; outline: none; }
+.finder-list { flex: 1; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 6px; }
+.finder-list li { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.finder-list li.on { background: var(--accent-soft); }
+.finder-list mark { background: none; color: var(--accent-ink); font-weight: 700; }
+.finder-glyph { flex: none; width: 18px; text-align: center; color: var(--muted); font-size: 13px; }
+.finder-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finder-where { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.finder-key { flex: none; color: var(--muted); font-size: 11.5px; padding: 1px 6px; border: 1px solid var(--line); border-radius: 4px; }
+.finder-none { color: var(--muted); cursor: default !important; }
+.finder-foot { flex: none; padding: 7px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
+
+/* Bookmarks in the sidebar, and on headings in the outline. */
+.bookmark-row { display: flex; align-items: center; padding: 0; }
+.bookmark-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 0 8px; min-height: 26px; border: none; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.bookmark-where { flex: 0 1 auto; margin-left: auto; color: var(--side-muted); font-size: 11px; max-width: 45%; }
+.bookmark-hash { width: 12px; text-align: center; color: var(--side-muted); font-weight: 700; font-size: 12px; }
+.bookmark-row .row-more { opacity: 0; }
+.bookmark-row:hover .row-more, .bookmark-row .row-more:focus-visible { opacity: 1; }
+.right-outline li { display: flex; align-items: center; }
+.right-outline li > button:first-child { flex: 1; min-width: 0; }
+.right-outline .outline-mark { flex: none; width: 22px; height: 22px; padding: 0 !important; border: none; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; font-size: 13px; }
+.right-outline li:hover .outline-mark, .right-outline .outline-mark.on, .right-outline .outline-mark:focus-visible { opacity: 1; }
+.right-outline .outline-mark.on { color: var(--accent); }

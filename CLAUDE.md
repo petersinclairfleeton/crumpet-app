@@ -125,7 +125,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     while dragging, resizable edges) and keeps them in step with the note
     list and outline (`usePanesState`, `usePanes().open/split`); things are
     made draggable into panes with `tabDrag`/`startTabDrag` (`tabdrag.ts`).
-    Phones show one thing at a time instead. `fold.tsx`: the « buttons that
+    Phones show one thing at a time instead. `finder.tsx`: the quick
+    switcher (Ctrl+O) and command palette (Ctrl+P, or > in the switcher),
+    matching with `data/fuzzy.ts`; `useOpener` opens things in place, in a
+    new tab or beside. `bookmarks.tsx` (+ `data/bookmarks.ts`): sidebar
+    shortcuts to notes, chapters, projects and headings. `fold.tsx`: the « buttons that
     fold the sidebar and list away, and the peek.
     `EditorHost.tsx` wraps the editor for notes;
     `Project.tsx` holds the outline, chapter, manuscript and side panes;
