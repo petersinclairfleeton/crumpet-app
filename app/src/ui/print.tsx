@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Doc } from '@crumpet/editor/model';
-import { PAGE_SIZES, type PageSetup, type StyleSheet } from '../data/styles';
+import { paperInches, type PageSetup, type StyleSheet } from '../data/styles';
 import { type PageFields, PageView } from './pages';
 import { useDocEditor } from './editing';
 import { useSheetClass } from './styles-ui';
@@ -48,7 +48,7 @@ export function PrintJob({ title, parts, page, sheet, chapters = false, onDone }
 
   // The paper size for the printer.
   useEffect(() => {
-    const size = PAGE_SIZES.find((s) => s.id === page.size) ?? PAGE_SIZES[0];
+    const size = paperInches(page);
     const style = document.createElement('style');
     style.textContent = `@page { size: ${size.width}in ${size.height}in; margin: 0; }`;
     document.head.appendChild(style);

@@ -298,3 +298,19 @@ describe('Word tables', () => {
     expect((await fromDocx(bytes)).doc.blocks[0].tbl).toEqual(tbl);
   });
 });
+
+describe('Word table of contents and orientation', () => {
+  it('writes Word’s own contents field with the headings, and reads it back as a table of contents', async () => {
+    const doc = { blocks: [makeBlock('toc'), makeBlock('heading1', 'Arrival'), makeBlock('paragraph', 'Text.'), makeBlock('heading2', 'The lamp')] };
+    const bytes = await toDocx([{ doc }], { title: 'T', page: { ...defaultPage(), landscape: true } });
+    const files = await readZip(bytes);
+    const xml = new TextDecoder().decode(files.get('word/document.xml'));
+    expect(xml).toContain('<w:docPartGallery w:val="Table of Contents"/>');
+    expect(xml).toContain('TOC \\o "1-3" \\h \\z \\u');
+    expect(xml).toContain('<w:pStyle w:val="TOC2"/>');
+    expect(xml).toContain('w:orient="landscape"');
+    expect(new TextDecoder().decode(files.get('word/settings.xml'))).toContain('<w:updateFields w:val="true"/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks.map((b) => b.type)).toEqual(['toc', 'heading1', 'paragraph', 'heading2']);
+  });
+});

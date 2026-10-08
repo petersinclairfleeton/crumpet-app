@@ -40,6 +40,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'title', label: 'Title', hint: 'The document’s title style', words: 'title', glyph: 'T', run: (ed) => ed.setBlockStyle('paragraph', 'title') },
   { id: 'scene', label: 'Scene break', hint: '* * *', words: 'divider separator line rule section break', glyph: '⁂', run: (ed) => ed.setBlockStyle('paragraph', 'scenebreak') },
   { id: 'table', label: 'Table', hint: 'Rows and columns', words: 'grid columns rows spreadsheet', glyph: '▦', run: (ed) => ed.insertTable() },
+  { id: 'toc', label: 'Table of contents', hint: 'The headings, with page numbers', words: 'contents toc index outline headings', glyph: '☰', run: (ed) => ed.insertToc() },
   { id: 'footnote', label: 'Footnote', hint: 'A numbered note at the bottom', words: 'footnote endnote note reference citation', glyph: '¹', run: addFootnoteHere },
   { id: 'picture', label: 'Picture or file', hint: 'From this device', words: 'image photo attachment upload pdf', glyph: '▣', run: (ed) => chooseFiles(ed) },
   { id: 'date', label: 'Today’s date', hint: longDate(), words: 'date today now', glyph: '◷', run: (ed) => ed.typeText(longDate()) },

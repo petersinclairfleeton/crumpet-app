@@ -57,22 +57,34 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
 
 - `packages/editor/`: our own rich-text editor (no ProseMirror etc.).
   - `model.ts`: flat list of blocks, each with runs of text. Runs carry
-    marks, links, footnotes, comments and tracked changes; blocks carry type,
-    style, alignment, tables (`rows`), pictures (`src`), folding and tracked
-    paragraph breaks (`brk`).
+    marks, links, footnotes, comments, tracked changes and a `look` (font,
+    size, colour, highlight, super/subscript); blocks carry type, style,
+    alignment, tables (`rows`, `tbl`), pictures (`src`), folding, tracked
+    paragraph breaks (`brk`) and `para` (Word's paragraph settings: spacing,
+    indents, page breaks, keeps, list number/bullet style and start,
+    borders, shading). A `toc` block is a table of contents.
+  - `table.ts`: table formatting (merged cells, shading, column alignment,
+    heading row, banding, lines) and keeping it in step as rows and
+    columns change.
   - `ops.ts`: small invertible operations (insert, remove, split, join,
     setAttrs, format). Everything is built from these, so undo and sync just
     work. `attrsOf` always includes `brk`; a `setAttrs` whose `to` has no
     `brk` key keeps the block's tracked break.
   - `commands.ts`: editing commands as transactions. `editor.ts`: input
     handling, clipboard, tables, hooks the app sets (`onFootnoteClick`,
-    `onCommentKey`, `htmlToBlocks`, `tracking`…). `view.ts`: drawing.
-    `paginate.ts`: page view, including room for footnotes.
+    `onCommentKey`, `htmlToBlocks`, `tracking`…). `view.ts`: drawing
+    (including the Table menu under tables and the contents list).
+    `paginate.ts`: page view, including room for footnotes, page breaks,
+    keeps, and the contents' page numbers.
   - `markdown.ts`: the file format. Plain Markdown, plus `{.style}` at the
     end of a line, `[[Note links]]`, footnotes `^[text]`, pipe tables,
     CriticMarkup for comments `{==text==}{>>Name (date): comment<<}` and
     tracked changes `{++added++}` / `{--deleted--}`, tracked paragraph breaks
-    as a tracked `¶` at the start of the line.
+    as a tracked `¶` at the start of the line. Text looks are spans
+    `[text]{font="Lora" size=14 color=#cc0000}`; paragraph settings go at
+    the end of the line `{.center line=2 num=upper-roman border=tb}`; a
+    table's look is a `{table .banded merge=1-0-1-2}` line under it, with
+    column alignment in its rule row; `[TOC]` is a table of contents.
   - `diff.ts` and `sync/`: turning remote changes into operations, and
     rebasing undo history.
 - `app/`: the app (React + TypeScript + Vite).
@@ -90,6 +102,12 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - `src/ui/`: screens. `EditorHost.tsx` wraps the editor for notes;
     `Project.tsx` holds the outline, chapter, manuscript and side panes;
     `pages.tsx` is page view, headers and footers, and printing.
+    The formatting bar is one row (`toolbar.tsx`, extras under More) built
+    in `editing.tsx` from `fonttools.tsx` (Font group), `paratools.tsx`
+    (Paragraph group and window), `listtools.tsx` (bullet and numbering
+    libraries, borders, shading) and `inserttools.tsx` (symbols, date,
+    contents). Page view has `ruler.tsx` and `statusbar.tsx` (page, words,
+    headings, zoom).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
 - `docs/google-drive-setup.md`: one-off Google setup. The Google client id
@@ -110,5 +128,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
 - Footnotes restart in each chapter of a manuscript.
 - The web clipper doesn't work on sites with strict security settings
   (pasting keeps formatting instead) or in the single-file build.
+- Word features not built: columns, sections (landscape and margins are
+  for the whole document), text boxes and shapes, styles of tables beyond
+  the Table menu, column widths, formatting inside table cells, and
+  pasting keeps bold/italic but not fonts and colours. Tables of contents
+  list one chapter at a time in a project (Word fills in the whole book's
+  when it updates the field).
 - Not built yet: native Mac/iPhone/iPad apps, other storage (local folder,
   Dropbox, OneDrive, iCloud), version history, reminders, sharing.

@@ -202,7 +202,7 @@ const ENDS_ON_ENTER = new Set(['title', 'subtitle', 'caption', 'scenebreak', 'ep
  * followed by body text.
  */
 function nextBlockAttrs(block: Block) {
-  if (isMedia(block.type)) return blockAttrs('paragraph');
+  if (isMedia(block.type) || block.type === 'table' || block.type === 'toc') return blockAttrs('paragraph');
   if (isList(block.type)) return { ...blockAttrs(block.type, false, block.indent), ...(block.align ? { align: block.align } : {}) };
   if (isHeading(block.type) || (block.style && ENDS_ON_ENTER.has(block.style))) return blockAttrs('paragraph');
   return { ...attrsOf(block), checked: undefined, brk: undefined };
@@ -236,7 +236,7 @@ export function splitBlock(state: EditorState): Transaction {
   }
   // Enter on an empty list item moves it out one level, and out of the list at the top level.
   // On an empty quote or heading it turns back into a paragraph instead of adding another.
-  if (block.type !== 'paragraph' && !isMedia(block.type) && runsLength(block.runs) === 0) {
+  if (block.type !== 'paragraph' && !isMedia(block.type) && block.type !== 'table' && block.type !== 'toc' && runsLength(block.runs) === 0) {
     const to = isList(block.type) && block.indent ? blockAttrs(block.type, false, block.indent - 1) : blockAttrs('paragraph');
     b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to });
     return tx(state, b, caret(at));
@@ -753,6 +753,11 @@ export function insertMedia(state: EditorState, type: 'image' | 'file', src: str
 /** Puts a new table (an empty header row and `rows` rows) after the caret's block. */
 export function insertTable(state: EditorState, rows = 2, cols = 3): Transaction {
   return insertWidget(state, attrsOf({ type: 'table', rows: Array.from({ length: rows + 1 }, () => Array.from({ length: cols }, () => '')) }));
+}
+
+/** Word's Table of Contents: a list of the headings (with page numbers in page view), kept up to date. */
+export function insertToc(state: EditorState): Transaction {
+  return insertWidget(state, attrsOf({ type: 'toc' }));
 }
 
 /** Changes a table's cells (or its rows and columns). */

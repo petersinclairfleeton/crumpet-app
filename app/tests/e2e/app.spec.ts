@@ -1861,3 +1861,38 @@ test('table layout and design: merge and split cells, shade a cell, align a colu
   expect(md).toContain('| --- | --- | ---: |');
   expect(md).toContain('{table .noheader .banded borders=outside shade=1-2-#fff2cc}');
 });
+
+test('table of contents: from the / menu, lists the headings with their pages, and goes to one; landscape pages', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.page-view')).toBeVisible();
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.type('/contents');
+  await page.keyboard.press('Enter');
+  const toc = page.locator('.note-editor .blk-toc');
+  await expect(toc).toContainText('Headings you add');
+  await page.keyboard.type('Arrival');
+  await page.keyboard.press('Control+Alt+1');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+Enter');
+  await page.keyboard.type('Departure');
+  await page.keyboard.press('Control+Alt+2');
+  await expect(toc.locator('.toc-entry')).toHaveCount(2);
+  await expect(toc.locator('.toc-entry').nth(1)).toHaveClass(/toc-2/);
+  await expect(toc.locator('.toc-entry').nth(0).locator('.toc-page')).toHaveText('1');
+  await expect(toc.locator('.toc-entry').nth(1).locator('.toc-page')).toHaveText('2');
+  // Clicking a line puts the caret at its heading.
+  await page.keyboard.press('Control+Home');
+  await toc.locator('.toc-entry', { hasText: 'Departure' }).click();
+  await page.keyboard.type('The ');
+  await expect(toc.locator('.toc-entry').nth(1)).toContainText('The Departure');
+  // Landscape pages are wider than they are tall.
+  await page.evaluate(() => {
+    const s = (window as unknown as { crumpet: { getState(): { projects: { id: string; page?: object }[] }; setProjectPage(id: string, p: object): void } }).crumpet;
+    const p = s.getState().projects[0];
+    s.setProjectPage(p.id, { size: 'letter', margins: { top: 1, right: 1, bottom: 1, left: 1 }, pageNumbers: false, ...p.page, landscape: true });
+  });
+  await expect.poll(() => page.locator('.sheet').first().evaluate((el) => (el as HTMLElement).offsetWidth > (el as HTMLElement).offsetHeight)).toBe(true);
+});

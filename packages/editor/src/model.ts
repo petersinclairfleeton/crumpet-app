@@ -113,7 +113,7 @@ export function sameComment(a: Comment | undefined, b: Comment | undefined): boo
 /** The character a footnote's marker stands on in the text (invisible; the number is drawn instead). */
 export const FOOTNOTE = '\u2063';
 
-export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote' | 'image' | 'file' | 'table';
+export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote' | 'image' | 'file' | 'table' | 'toc';
 
 export const HEADINGS: readonly BlockType[] = ['heading1', 'heading2', 'heading3', 'heading4'];
 
