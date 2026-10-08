@@ -7,12 +7,12 @@ import { useAppState, useAppStore, useNav } from './hooks';
 import { allTags, displayTitle, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
-import { chooseFiles } from './editing';
+import { chooseFiles, isMac } from './editing';
 import { Tour } from './Tour';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
-import { IconBack, IconFocus, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { IconBack, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
 interface PaneProps {
@@ -116,23 +116,48 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
     </button>
   ) : null;
 
+  const togglePage = () => store.updateSettings({ pageView: { ...state.settings.pageView, notes: !paged } });
   const trail = trashed ? closeSide : (
     <div className="note-actions">
-      <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" title="Focus mode (Ctrl+Shift+F)" onClick={() => store.setFocusMode(true)}>
-        <IconFocus size={16} />
-      </button>
-      <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, notes: on } })} />
-      <button type="button" className={`icon-btn read-toggle${reading ? ' on' : ''}`} aria-pressed={reading} aria-label={reading ? 'Back to editing' : 'Reading view'} title={reading ? 'Back to editing (Esc)' : 'Reading view'} onClick={() => setReading(!reading)}>
-        {reading ? <IconPen size={16} /> : <IconBook size={16} />}
-      </button>
-      <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} title={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} onClick={() => store.toggleFavorite(note.id)}>
+      {!narrow && (
+        <>
+          <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" data-tip={`Focus mode · ${isMac ? '⌘⇧F' : 'Ctrl+Shift+F'}`} onClick={() => store.setFocusMode(true)}>
+            <IconFocus size={16} />
+          </button>
+          <PageToggle on={paged} onChange={togglePage} />
+          <button type="button" className={`icon-btn read-toggle${reading ? ' on' : ''}`} aria-pressed={reading} aria-label={reading ? 'Back to editing' : 'Reading view'} data-tip={reading ? 'Back to editing (Esc)' : 'Reading view'} onClick={() => setReading(!reading)}>
+            {reading ? <IconPen size={16} /> : <IconBook size={16} />}
+          </button>
+        </>
+      )}
+      {narrow && reading && (
+        <button type="button" className="icon-btn read-toggle on" aria-pressed="true" aria-label="Back to editing" onClick={() => setReading(false)}>
+          <IconPen size={16} />
+        </button>
+      )}
+      <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} data-tip={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} onClick={() => store.toggleFavorite(note.id)}>
         {note.favorite ? <IconStarFilled size={16} /> : <IconStar size={16} />}
       </button>
-      <button type="button" className="icon-btn" aria-label="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+      <button type="button" className="icon-btn" aria-label="More" data-tip="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>
         <IconMore size={16} />
       </button>
       {menu && (
         <Popover onClose={() => setMenu(false)} label="Note options">
+          {narrow && (
+            <>
+              <p className="menu-label">View</p>
+              <button type="button" className="menu-item" onClick={() => (setMenu(false), setReading(!reading))}>
+                <IconBook size={14} /> {reading ? 'Back to editing' : 'Reading view'}
+              </button>
+              <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setMenu(false), togglePage())}>
+                <IconPage size={14} /> {paged ? 'Page view: on' : 'Page view'}
+              </button>
+              <button type="button" className="menu-item" onClick={() => (setMenu(false), store.setFocusMode(true))}>
+                <IconFocus size={14} /> Focus mode
+              </button>
+              <hr className="menu-sep" />
+            </>
+          )}
           <button
             type="button"
             className="menu-item"
@@ -141,7 +166,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
               if (editorRef.current) chooseFiles(editorRef.current);
             }}
           >
-            Add a picture or file…
+            <IconPicture size={14} /> Add a picture or file…
           </button>
           <button
             type="button"
@@ -151,17 +176,31 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
               store.saveAsTemplate(note.id);
             }}
           >
-            Save as template
+            <IconCopy size={14} /> Save as template
           </button>
+          <hr className="menu-sep" />
+          <p className="menu-label">Download or print</p>
           <button
             type="button"
             className="menu-item"
+            aria-label="Download as Word document"
             onClick={async () => {
               setMenu(false);
               download(await noteDocx(store.getState(), note), docxName(note.title), DOCX_TYPE);
             }}
           >
-            Download as Word document
+            <IconDownload size={14} /> Word document <small className="menu-hint">.docx</small>
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            aria-label="Download as e-book (ePub)"
+            onClick={async () => {
+              setMenu(false);
+              download(await noteEpub(store.getState(), note), fileName(note.title, 'epub'), EPUB_TYPE);
+            }}
+          >
+            <IconDownload size={14} /> E-book <small className="menu-hint">.epub</small>
           </button>
           <button
             type="button"
@@ -171,18 +210,9 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
               setPrinting(true);
             }}
           >
-            Print or save as PDF
+            <IconPrint size={14} /> Print or save as PDF
           </button>
-          <button
-            type="button"
-            className="menu-item"
-            onClick={async () => {
-              setMenu(false);
-              download(await noteEpub(store.getState(), note), fileName(note.title, 'epub'), EPUB_TYPE);
-            }}
-          >
-            Download as e-book (ePub)
-          </button>
+          <hr className="menu-sep" />
           <button
             type="button"
             className="menu-item danger"

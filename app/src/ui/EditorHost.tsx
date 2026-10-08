@@ -96,7 +96,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
             className={`icon-btn pin-tools${floating ? '' : ' on'}`}
             aria-pressed={!floating}
             aria-label="Formatting bar"
-            title={floating ? 'Show the formatting bar (it also appears when you select text)' : 'Hide the formatting bar until you select text'}
+            data-tip={floating ? 'Show the formatting bar' : 'Hide the formatting bar'}
             onClick={() => store.updateSettings({ toolbar: floating ? 'always' : 'selection' })}
           >
             Aa

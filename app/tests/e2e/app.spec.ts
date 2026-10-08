@@ -278,6 +278,18 @@ test.describe('on a phone', () => {
     await expect(sidebar(page)).toBeHidden();
     await expect(list(page).locator('h1')).toHaveText('Journal');
   });
+
+  test('the view buttons live in the note’s … menu, to keep the top bar short', async ({ page }) => {
+    await open(page);
+    await page.locator('.fab').click();
+    await page.keyboard.type('Short bar');
+    await expect(page.getByRole('button', { name: 'Focus mode' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Reading view' }).click();
+    await expect(page.locator('.note-pane.reading')).toBeVisible();
+    await page.getByRole('button', { name: 'Back to editing' }).click();
+    await expect(page.locator('.note-pane.reading')).toHaveCount(0);
+  });
 });
 
 test('settings: notes start on this device, with Google Drive one click away', async ({ page }) => {

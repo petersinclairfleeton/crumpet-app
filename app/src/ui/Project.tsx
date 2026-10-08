@@ -11,7 +11,7 @@ import { chapterWords, projectChapters, projectGoal, projectWords } from '../dat
 import type { Chapter, ChapterStatus, Project } from '../data/types';
 import type { PageSetup } from '../data/styles';
 import { EditorHost } from './EditorHost';
-import { FormatTools, KeyboardBar, LinkBar, SelectionBar, useDocEditor } from './editing';
+import { FormatTools, KeyboardBar, LinkBar, SelectionBar, isMac, useDocEditor } from './editing';
 import { useAppState, useAppStore, useNav } from './hooks';
 import { IconBack, IconFocus, IconMore, IconPlus } from './icons';
 import { InlineInput, Popover } from './Sidebar';
@@ -438,14 +438,14 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
 
   const trail = (
     <div className="note-actions">
-      <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" title="Focus mode (Ctrl+Shift+F)" onClick={() => store.setFocusMode(true)}>
+      <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" data-tip={`Focus mode · ${isMac ? '⌘⇧F' : 'Ctrl+Shift+F'}`} onClick={() => store.setFocusMode(true)}>
         <IconFocus size={16} />
       </button>
       <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
-      <button type="button" className="icon-btn" aria-label="Previous chapter" title="Previous chapter" disabled={!prev} onClick={() => prev && store.selectChapter(prev.id)}>
+      <button type="button" className="icon-btn" aria-label="Previous chapter" data-tip="Previous chapter" disabled={!prev} onClick={() => prev && store.selectChapter(prev.id)}>
         ‹
       </button>
-      <button type="button" className="icon-btn" aria-label="Next chapter" title="Next chapter" disabled={!next} onClick={() => next && store.selectChapter(next.id)}>
+      <button type="button" className="icon-btn" aria-label="Next chapter" data-tip="Next chapter" disabled={!next} onClick={() => next && store.selectChapter(next.id)}>
         ›
       </button>
     </div>
@@ -626,7 +626,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               className={`icon-btn pin-tools${floating ? '' : ' on'}`}
               aria-pressed={!floating}
               aria-label="Formatting bar"
-              title={floating ? 'Show the formatting bar (it also appears when you select text)' : 'Hide the formatting bar until you select text'}
+              data-tip={floating ? 'Show the formatting bar' : 'Hide the formatting bar'}
               onClick={() => store.updateSettings({ toolbar: floating ? 'always' : 'selection' })}
             >
               Aa

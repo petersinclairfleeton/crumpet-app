@@ -13,7 +13,7 @@ import { AlignTools, StylePicker } from './styles-ui';
 import { addFile } from '../data/files';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
 
-const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+export const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
 
 const MARKS: { mark: Mark; label: string; glyph: React.ReactNode; key: string }[] = [
