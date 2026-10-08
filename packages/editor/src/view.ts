@@ -352,9 +352,12 @@ function buildTable(block: Block): HTMLElement {
     b.tabIndex = -1;
     tools.appendChild(b);
   }
-  wrap.appendChild(tools);
+  // The table scrolls sideways on its own; the tools sit below it, so they never cover a cell.
+  const scroll = document.createElement('div');
+  scroll.className = 'table-scroll';
   const table = document.createElement('table');
-  wrap.appendChild(table);
+  scroll.appendChild(table);
+  wrap.append(scroll, tools);
   fillTable(table, block.rows ?? [['']]);
   return wrap;
 }

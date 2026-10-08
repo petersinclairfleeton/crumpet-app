@@ -39,3 +39,32 @@ describe('search filters', () => {
     expect(sortNotes([store.note(b.id)!, store.note(a.id)!], 'created').map((n) => n.title)).toEqual(['apple', 'Banana lamp']);
   });
 });
+
+describe('search results', () => {
+  it('shows the words found, highlighted, in a short snippet', async () => {
+    const { snippet } = await import('../../src/data/selectors');
+    const long = `${'Some words before. '.repeat(10)}The lamp had not been lit for eleven years.`;
+    const parts = snippet(long, ['lamp'])!;
+    expect(parts[0].text.startsWith('…')).toBe(true);
+    expect(parts.filter((p) => p.hit).map((p) => p.text)).toEqual(['lamp']);
+    expect(snippet('Nothing here', ['lamp'])).toBeNull();
+    expect(snippet('A Lamp and a LAMP', ['lamp'])!.filter((p) => p.hit).map((p) => p.text)).toEqual(['Lamp', 'LAMP']);
+  });
+
+  it('finds chapters in projects for a plain word search, but not with note filters', async () => {
+    const { matchingChapters, preview } = await import('../../src/data/selectors');
+    const store = new AppStore(new MemoryStorage());
+    const p = store.createProject('The Lighthouse');
+    const first = store.getState().chapters[0];
+    store.setChapterTitle(first.id, 'The Keeper');
+    store.setChapterDoc(first.id, fromMarkdown('Mara climbed the stairs.'));
+    store.setQuery('mara');
+    expect(matchingChapters(store.getState()).map((x) => x.chapter.title)).toEqual(['The Keeper']);
+    expect(matchingChapters(store.getState())[0].project.id).toBe(p.id);
+    store.setQuery('mara #idea');
+    expect(matchingChapters(store.getState())).toEqual([]);
+    // A table in a card reads row by row.
+    const n = store.createNote({ title: 'Books', doc: fromMarkdown('| Title | Author |\n|---|---|\n| Rebecca | du Maurier |') });
+    expect(preview(n)).toBe('Title – Author · Rebecca – du Maurier');
+  });
+});
