@@ -243,7 +243,7 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen }: { not
   const panes = usePanes();
   const nb = store.notebook(note.notebookId);
   const text = preview(note);
-  const hits = words.length ? snippet(noteText(note), words) : null;
+  const hits = words.length ? snippet(noteText(note, store.getState().fileText), words) : null;
   const picture = note.doc.blocks.find((b) => b.type === 'image' && b.src)?.src;
   return (
     <button

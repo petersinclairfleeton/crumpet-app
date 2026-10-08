@@ -47,6 +47,8 @@ export interface AppState {
   snapshots: Snapshot[];
   /** In a project: only chapters with this keyword are shown (outline, cards and manuscript). */
   keywordFilter: string | null;
+  /** The words read from attached PDFs and pictures, by path ('' when none were found), for search. */
+  fileText: Record<string, string>;
   query: string;
 }
 
@@ -59,6 +61,7 @@ const SAVE_DELAY_MS = 500;
 /** Where snapshots, and the ids of ones deleted here (still to go from the folder), are kept on this device. */
 export const SNAPSHOTS_KEY = 'snapshots';
 export const SNAPSHOTS_GONE_KEY = 'snapshotsGone';
+export const FILE_TEXT_KEY = 'fileText';
 const RELINK_DELAY_MS = 1200;
 const MAX_SAVE_WAIT_MS = 2000;
 const RESCUE_KEY = 'crumpet:unsaved';
@@ -90,6 +93,7 @@ export class AppStore {
     castId: null,
     snapshots: [],
     keywordFilter: null,
+    fileText: {},
     projectMode: 'chapter',
     query: '',
   };
@@ -158,7 +162,7 @@ export class AppStore {
     this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, projects, chapters: data.chapters ?? [], settings });
     if (data.settings?.dataVersion !== DATA_VERSION) this.save(this.storage.putSettings(settings));
     this.set({ selectedId: visibleIn(this.state, this.state.view)[0]?.id ?? null });
-    this.set({ snapshots: (await this.storage.getSync<Snapshot[]>(SNAPSHOTS_KEY)) ?? [] });
+    this.set({ snapshots: (await this.storage.getSync<Snapshot[]>(SNAPSHOTS_KEY)) ?? [], fileText: (await this.storage.getSync<Record<string, string>>(FILE_TEXT_KEY)) ?? {} });
     this.forgetUnused(expiredDocs);
   }
 
@@ -1062,6 +1066,14 @@ export class AppStore {
   setChapterKeywords(id: string, keywords: string[]): void {
     const k = tidyKeywords(keywords);
     this.updateChapter(id, { keywords: k.length ? k : undefined });
+  }
+
+  /** Remembers the words read from an attached file. */
+  setFileText(path: string, text: string): void {
+    if (this.state.fileText[path] === text) return;
+    const fileText = { ...this.state.fileText, [path]: text };
+    this.set({ fileText });
+    this.save(this.storage.putSync(FILE_TEXT_KEY, fileText));
   }
 
   setKeywordFilter(word: string | null): void {
