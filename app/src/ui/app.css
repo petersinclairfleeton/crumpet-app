@@ -899,3 +899,41 @@ input, select { font: inherit; color: inherit; }
 .tag-row .side-row { flex: 1; min-width: 0; padding-left: 4px; }
 .tag-fold { flex: none; display: grid; place-items: center; width: 16px; height: 22px; border: none; background: none; color: var(--side-muted, var(--muted)); cursor: pointer; padding: 0; border-radius: 4px; }
 button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
+
+/* Writing stats: tiles, the goal, 30 days of bars and a calendar. */
+.stats-dialog { width: min(600px, 100%); position: relative; }
+.stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+@media (max-width: 520px) { .stat-tiles { grid-template-columns: repeat(2, 1fr); } }
+.stat-tile { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--field); min-width: 0; }
+.stat-tile span { font-size: 12px; color: var(--muted); }
+.stat-tile b { font-size: 26px; font-weight: 700; line-height: 1.15; color: var(--text); font-variant-numeric: tabular-nums; }
+.stat-tile small { font-size: 12px; color: var(--muted); }
+.stat-meter { height: 6px; margin: 4px 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 18%, var(--page)); overflow: hidden; }
+.stat-meter i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.goal-field .with-unit { display: flex; align-items: center; gap: 8px; }
+.goal-field input { width: 100px; }
+.goal-field small { font-size: 12px; color: var(--muted); }
+.stats-head { display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px; }
+.stats-head h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text2, var(--text)); }
+.bars { position: relative; display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid var(--line2, var(--line)); }
+.bar-slot { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }
+.bar { display: block; width: 100%; border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--accent) 75%, var(--page)); }
+.bar.today { background: var(--accent); }
+.bar-slot:hover .bar { background: var(--accent); }
+.goal-line { position: absolute; left: 0; right: 0; border-top: 1.5px dashed color-mix(in srgb, var(--text) 35%, transparent); pointer-events: none; }
+.goal-line span { position: absolute; right: 0; bottom: 2px; font-size: 11px; color: var(--muted); background: var(--page); padding: 0 4px; }
+.bars-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: -12px; }
+.stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.stats-table th, .stats-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.stats-table td:last-child, .stats-table th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.calendar { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 2px; }
+.cal-week { display: flex; flex-direction: column; gap: 3px; }
+.cal-day { display: block; width: 14px; height: 14px; border-radius: 3px; background: var(--field); border: 1px solid var(--line); box-sizing: border-box; }
+.cal-day.future { visibility: hidden; }
+.cal-day.l1 { background: color-mix(in srgb, var(--accent) 30%, var(--page)); border-color: transparent; }
+.cal-day.l2 { background: color-mix(in srgb, var(--accent) 55%, var(--page)); border-color: transparent; }
+.cal-day.l3 { background: color-mix(in srgb, var(--accent) 80%, var(--page)); border-color: transparent; }
+.cal-day.l4 { background: var(--accent); border-color: transparent; }
+.cal-day.today { outline: 1.5px solid var(--text); outline-offset: 1px; }
+.cal-legend { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); margin-top: -8px; }
+.chart-tip { position: fixed; z-index: 60; transform: translate(-50%, calc(-100% - 6px)); padding: 4px 8px; border-radius: 6px; background: var(--text); color: var(--page); font-size: 12px; white-space: nowrap; pointer-events: none; }
