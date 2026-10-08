@@ -370,6 +370,22 @@ export class AppStore {
     this.updateNote(id, { tags: [...note.tags, clean] });
   }
 
+  /**
+   * Renames a tag on every note, with the tags nested inside it ("book" to
+   * "novel" makes "book/characters" "novel/characters"). Renaming it into
+   * another tag ("ideas" to "book/ideas") nests it there.
+   */
+  renameTag(from: string, to: string): void {
+    const clean = cleanTag(to);
+    if (!clean || clean === from) return;
+    for (const n of this.state.notes) {
+      if (!n.tags.some((t) => tagUnder(t, from))) continue;
+      const tags = [...new Set(n.tags.map((t) => (tagUnder(t, from) ? clean + t.slice(from.length) : t)))];
+      this.updateNote(n.id, { tags }, { touch: false });
+    }
+    if (this.state.view.kind === 'tag' && tagUnder(this.state.view.tag, from)) this.set({ view: { kind: 'tag', tag: clean + this.state.view.tag.slice(from.length) } });
+  }
+
   removeTag(id: string, tag: string): void {
     const note = this.note(id);
     if (note) this.updateNote(id, { tags: note.tags.filter((t) => t !== tag) });
@@ -943,8 +959,22 @@ function sameNoteRecord(a: Note, b: Note): boolean {
   );
 }
 
+/** A tag as kept: lower case, no spaces; "/" nests one tag in another ("book/characters"). */
 export function cleanTag(tag: string): string {
-  return tag.trim().replace(/^#+/, '').replace(/\s+/g, '-').toLowerCase().slice(0, 40);
+  return tag
+    .trim()
+    .replace(/^#+/, '')
+    .toLowerCase()
+    .split('/')
+    .map((part) => part.trim().replace(/\s+/g, '-').replace(/^#+/, ''))
+    .filter(Boolean)
+    .join('/')
+    .slice(0, 80);
+}
+
+/** Whether a note's tag is `tag` or nested inside it ("book/characters" is under "book"). */
+export function tagUnder(noteTag: string, tag: string): boolean {
+  return noteTag === tag || noteTag.startsWith(`${tag}/`);
 }
 
 /** Notes in a view (before searching), newest first. */
@@ -967,7 +997,7 @@ export function visibleIn(state: Pick<AppState, 'notes' | 'notebooks'>, view: Vi
       break;
     }
     case 'tag':
-      out = live.filter((n) => n.tags.includes(view.tag));
+      out = live.filter((n) => n.tags.some((t) => tagUnder(t, view.tag)));
       break;
     case 'project':
       return [];

@@ -1249,3 +1249,38 @@ test('page view: footnotes sit at the foot of the page their number is on', asyn
   await later.getByText('A note much later.').click();
   await expect(page.getByRole('dialog', { name: 'Footnote 2' })).toBeVisible();
 });
+
+test('nested tags: a tree in the sidebar, the parent shows everything inside it, and renaming moves them all', async ({ page }) => {
+  await open(page);
+  const tag = async (title: string, t: string) => {
+    await newNote(page, title, 'Text.');
+    await page.getByRole('button', { name: 'Add tag' }).click();
+    await page.keyboard.type(t);
+    await page.keyboard.press('Enter');
+  };
+  await tag('Hero', 'book/characters');
+  await tag('Harbour', 'book/places');
+  await tag('Shopping', 'home');
+  await sidebar(page).getByRole('button', { name: 'Tags' }).click();
+  const side = sidebar(page);
+  await expect(side.getByRole('button', { name: /^#book/ })).toContainText('2');
+  await expect(side.getByRole('button', { name: /^#characters/ })).toHaveCount(0);
+  await side.getByRole('button', { name: 'Show tags in #book' }).click();
+  await expect(side.getByRole('button', { name: /^#characters/ })).toBeVisible();
+  await side.getByRole('button', { name: /^#book/ }).click();
+  await expect(list(page).locator('h1')).toHaveText('#book');
+  await expect(list(page).locator('.card')).toHaveCount(2);
+  await side.getByRole('button', { name: /^#places/ }).click();
+  await expect(list(page).locator('.card')).toHaveCount(1);
+  // Rename the parent: the nested tags move with it.
+  await side.getByRole('button', { name: /^#book/ }).click();
+  await list(page).getByRole('button', { name: 'Rename tag' }).click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('novel');
+  await page.keyboard.press('Enter');
+  await expect(list(page).locator('h1')).toHaveText('#novel');
+  await expect(list(page).locator('.card')).toHaveCount(2);
+  await expect(side.getByRole('button', { name: /^#book/ })).toHaveCount(0);
+  await side.getByRole('button', { name: 'Show tags in #novel' }).click();
+  await expect(side.getByRole('button', { name: /^#characters/ })).toBeVisible();
+});

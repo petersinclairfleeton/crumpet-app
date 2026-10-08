@@ -893,3 +893,9 @@ input, select { font: inherit; color: inherit; }
 .page-note sup { font-size: 0.75em; margin-right: 2px; }
 .page-note:hover { background: color-mix(in srgb, var(--accent, #4a7) 8%, transparent); }
 .install-btn { align-self: flex-start; }
+
+/* Nested tags: a fold arrow, indented a step per level. */
+.tag-row { display: flex; align-items: center; padding-left: calc(10px + var(--tag-depth, 0) * 14px); }
+.tag-row .side-row { flex: 1; min-width: 0; padding-left: 4px; }
+.tag-fold { flex: none; display: grid; place-items: center; width: 16px; height: 22px; border: none; background: none; color: var(--side-muted, var(--muted)); cursor: pointer; padding: 0; border-radius: 4px; }
+button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }

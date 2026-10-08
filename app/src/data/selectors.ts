@@ -141,6 +141,46 @@ export function allTags(notes: Note[]): { tag: string; count: number }[] {
   return [...m.entries()].map(([tag, count]) => ({ tag, count })).sort((a, b) => a.tag.localeCompare(b.tag));
 }
 
+export interface TagNode {
+  /** The last part of the tag ("characters"), and the whole of it ("book/characters"). */
+  name: string;
+  path: string;
+  /** Notes with this tag or one nested inside it. */
+  count: number;
+  children: TagNode[];
+}
+
+/** Tags as a tree: "book/characters" sits inside "book" (which shows even if no note has just "book"). */
+export function tagTree(notes: Note[]): TagNode[] {
+  const roots: TagNode[] = [];
+  const nodes = new Map<string, TagNode>();
+  const notesUnder = new Map<string, Set<string>>();
+  for (const n of notes) {
+    if (n.trashedAt !== null) continue;
+    for (const t of n.tags) {
+      const parts = t.split('/').filter(Boolean);
+      for (let i = 1; i <= parts.length; i++) {
+        const path = parts.slice(0, i).join('/');
+        if (!nodes.has(path)) {
+          const node: TagNode = { name: parts[i - 1], path, count: 0, children: [] };
+          nodes.set(path, node);
+          (i === 1 ? roots : nodes.get(parts.slice(0, i - 1).join('/'))!.children).push(node);
+        }
+        let set = notesUnder.get(path);
+        if (!set) notesUnder.set(path, (set = new Set()));
+        set.add(n.id);
+      }
+    }
+  }
+  for (const [path, set] of notesUnder) nodes.get(path)!.count = set.size;
+  const sort = (list: TagNode[]) => {
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    for (const x of list) sort(x.children);
+  };
+  sort(roots);
+  return roots;
+}
+
 export function recentNotes(notes: Note[], n = 3): Note[] {
   return notes.filter((x) => x.trashedAt === null).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, n);
 }
