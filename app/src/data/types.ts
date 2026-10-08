@@ -96,6 +96,8 @@ export interface Chapter {
   synopsis: string;
   /** Word goal for this chapter, or null. */
   goal: number | null;
+  /** Keywords, like Scrivener's: point of view, plot thread, place... (in the chapter file's `tags`). */
+  keywords?: string[];
   createdAt: number;
   updatedAt: number;
 }

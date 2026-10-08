@@ -146,6 +146,30 @@ describe('syncing two devices through files', () => {
     expect([...cloud.files.keys()].filter((f) => f.startsWith('.crumpet/snapshots/'))).toHaveLength(1);
   });
 
+  it('syncs chapter keywords, merging ones added on each device', async () => {
+    const cloud = new MemoryProvider(now);
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const p = mac.store.createProject('Book');
+    const c = mac.store.getState().chapters.find((x) => x.projectId === p.id)!;
+    mac.store.setChapterKeywords(c.id, ['Mara']);
+    mac.store.flush();
+    await mac.engine.sync();
+    expect([...cloud.files.values()].some((f) => f.text.includes('tags: [Mara]'))).toBe(true);
+    await phone.engine.sync();
+    expect(phone.store.getState().chapters.find((x) => x.id === c.id)!.keywords).toEqual(['Mara']);
+    mac.store.setChapterKeywords(c.id, ['Mara', 'Storm']);
+    phone.store.setChapterKeywords(c.id, ['Mara', 'Night']);
+    mac.store.flush();
+    phone.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    await mac.engine.sync();
+    const words = (s: AppStore) => [...(s.getState().chapters.find((x) => x.id === c.id)!.keywords ?? [])].sort();
+    expect(words(mac.store)).toEqual(['Mara', 'Night', 'Storm']);
+    expect(words(phone.store)).toEqual(['Mara', 'Night', 'Storm']);
+  });
+
   it('merges edits to different parts of the same note', async () => {
     const cloud = new MemoryProvider(now);
     const mac = await device(cloud);

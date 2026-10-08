@@ -60,6 +60,8 @@ export interface TChapter {
   status: ChapterStatus;
   synopsis: string;
   goal: number | null;
+  /** Only when there are some. */
+  keywords?: string[];
   created: number;
   updated: number;
   /** Markdown. */
@@ -123,7 +125,7 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
   }
   for (const c of state.chapters ?? []) {
     if (!tree.projects[c.projectId]) continue;
-    tree.chapters[c.id] = { id: c.id, projectId: c.projectId, title: c.title, status: c.status, synopsis: c.synopsis, goal: c.goal, created: c.createdAt, updated: c.updatedAt, body: toMarkdown(c.doc) };
+    tree.chapters[c.id] = { id: c.id, projectId: c.projectId, title: c.title, status: c.status, synopsis: c.synopsis, goal: c.goal, ...(c.keywords?.length ? { keywords: c.keywords } : {}), created: c.createdAt, updated: c.updatedAt, body: toMarkdown(c.doc) };
   }
   return tree;
 }
@@ -154,6 +156,7 @@ export function sameChapter(a: TChapter | undefined, b: TChapter | undefined): b
       a.status === b.status &&
       a.synopsis === b.synopsis &&
       a.goal === b.goal &&
+      sameTags(a.keywords ?? [], b.keywords ?? []) &&
       a.created === b.created &&
       a.updated === b.updated &&
       a.body === b.body)

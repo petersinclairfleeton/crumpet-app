@@ -373,6 +373,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
         status: STATUSES.has(f.status as ChapterStatus) ? (f.status as ChapterStatus) : 'todo',
         synopsis: f.synopsis ?? '',
         goal: f.goal ?? null,
+        ...(f.tags.length ? { keywords: f.tags } : {}),
         created: f.created ?? modified,
         updated: f.updated ?? modified,
         body: f.body,

@@ -6,10 +6,12 @@ import { chapterWords, projectChapters } from '../data/selectors';
 import type { Project } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
 import { IconBack, IconPlus } from './icons';
-import { STATUSES } from './Project';
+import { STATUSES, shownOutline } from './Project';
+import { KeywordChips } from './keywords';
 
 export function Corkboard({ project, narrow, onBack }: { project: Project; narrow: boolean; onBack(): void }) {
   const state = useAppState();
+  const shown = shownOutline(project, state.chapters, state.keywordFilter);
   const store = useAppStore();
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
@@ -41,6 +43,7 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
       </div>
       <div className="corkboard" onDragOver={(e) => dragging && e.preventDefault()} onDrop={drop}>
         {project.outline.map((item, index) => {
+          if (!shown.has(item.id)) return null;
           const dropClass = dropAt === index ? ' drop-before' : dropAt === index + 1 && index === project.outline.length - 1 ? ' drop-after' : '';
           const drag = {
             draggable: true,
@@ -83,6 +86,7 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
                 </button>
               </header>
               <textarea className="cork-synopsis" aria-label={`Synopsis of chapter ${number}`} placeholder="What happens…" value={c.synopsis} onChange={(e) => store.setChapterSynopsis(c.id, e.target.value)} />
+              <KeywordChips chapter={c} />
               <footer>
                 <select aria-label={`Status of chapter ${number}`} value={c.status} onChange={(e) => store.setChapterStatus(c.id, e.target.value as typeof c.status)}>
                   {STATUSES.map((s) => (

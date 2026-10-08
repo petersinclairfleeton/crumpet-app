@@ -36,6 +36,7 @@ import { Corkboard } from './corkboard';
 import { CastList, CastPane, CastSpotting } from './cast';
 import { FoldButton } from './fold';
 import { startTabDrag } from './tabdrag';
+import { KeywordChips, KeywordEditor, KeywordFilter, hasKeyword } from './keywords';
 import { makeBlock } from '@crumpet/editor/model';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -58,6 +59,22 @@ function Progress({ value, goal, label }: { value: number; goal: number | null; 
 const words = (n: number) => `${n.toLocaleString()} word${n === 1 ? '' : 's'}`;
 
 // ---------------------------------------------------------------- outline
+
+/** The outline items to show: everything, or with a keyword filter, its chapters and the parts they're in. */
+export function shownOutline(project: Project, chapters: Chapter[], word: string | null): Set<string> {
+  if (!word) return new Set(project.outline.map((x) => x.id));
+  const byId = new Map(chapters.map((c) => [c.id, c]));
+  const out = new Set<string>();
+  let part: string | null = null;
+  for (const item of project.outline) {
+    if (item.type === 'part') part = item.id;
+    else if (byId.get(item.id) && hasKeyword(byId.get(item.id)!, word)) {
+      out.add(item.id);
+      if (part) out.add(part);
+    }
+  }
+  return out;
+}
 
 export function ProjectOutline({ project, onOpenChapter }: { project: Project; onOpenChapter(id: string): void }) {
   const state = useAppState();
@@ -83,6 +100,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
   const total = projectWords(project, state.chapters);
   const goal = projectGoal(project, state.chapters);
   const mode = state.projectMode;
+  const shownItems = shownOutline(project, state.chapters, state.keywordFilter);
 
   const drop = () => {
     if (dragging && dropAt !== null) store.moveOutlineItem(project.id, dragging, dropAt);
@@ -214,11 +232,15 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
           </div>
         </div>
         <Progress value={total} goal={goal} label="Project progress" />
+        <KeywordFilter project={project} />
         {project.deadline && goal ? <DeadlineLine project={project} goal={goal} total={total} onEdit={() => setMenu('deadline')} /> : null}
       </header>
 
+      {state.keywordFilter && shownItems.size === 0 && <p className="outline-filter-empty">No chapters have “{state.keywordFilter}” yet.</p>}
       <ol className="outline-items" onDragOver={(e) => dragging && e.preventDefault()} onDrop={drop}>
         {project.outline.map((item, index) => {
+          // Filtered by a keyword: only its chapters, and the parts they're in.
+          if (!shownItems.has(item.id)) return null;
           const dropLine = dropAt === index ? ' drop-before' : dropAt === index + 1 && index === project.outline.length - 1 ? ' drop-after' : '';
           const dragProps = {
             draggable: renaming !== item.id,
@@ -318,6 +340,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                   <span className="outline-words">{c.goal ? `${n.toLocaleString()} / ${c.goal.toLocaleString()}` : n.toLocaleString()}</span>
                 </span>
                 {c.synopsis && <span className="outline-synopsis">{c.synopsis}</span>}
+                <KeywordChips chapter={c} />
                 {c.goal ? <Progress value={n} goal={c.goal} label={`Progress of ${c.title || 'chapter'}`} /> : null}
               </button>
               <div className="note-actions">
@@ -621,6 +644,9 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
           )}
         </span>
       </div>
+      <div className="note-meta chapter-keywords">
+        <KeywordEditor chapter={chapter} />
+      </div>
       <AutoTextarea className="synopsis" aria-label="Synopsis" placeholder="Synopsis: what happens in this chapter" value={chapter.synopsis} onChange={(e) => store.setChapterSynopsis(chapter.id, e.target.value)} />
     </>
   );
@@ -741,6 +767,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const allPages = order.reduce((sum, c) => sum + pagesOf(c), 0);
   // The book's contents, for a table of contents in any chapter; a line goes to its chapter or heading.
   const numbered = order.map((chapter, i) => ({ chapter, number: i + 1 }));
+  const msShown = shownOutline(project, state.chapters, state.keywordFilter);
   const startOf = (c: Chapter) => order.slice(0, order.indexOf(c)).reduce((sum, x) => sum + pagesOf(x), 0);
   const onTocTarget = useCallback(
     (t: { chapter: string; block?: string }) => {
@@ -829,9 +856,11 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
         <div className="note-scroll" ref={scroll}>
           <article className={`note-body manuscript-body${paged ? ' paged' : ''}`}>
             <h1 className="manuscript-title">{project.name}</h1>
+            {state.keywordFilter && <p className="ms-filter">Showing the chapters with “{state.keywordFilter}”.</p>}
             {project.outline.map((item) => {
               if (item.type === 'part') {
                 part = item.title;
+                if (!msShown.has(item.id)) return null;
                 return (
                   <h2 key={item.id} className="ms-part">
                     {item.title}
@@ -841,6 +870,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               const c = chapters.get(item.id);
               if (!c) return null;
               number += 1;
+              if (!msShown.has(item.id)) return null;
               const before = offset;
               offset += pagesOf(c);
               return (

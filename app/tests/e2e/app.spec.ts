@@ -2340,3 +2340,29 @@ test('snapshots: take one, compare with the text now, and go back to it', async 
   await expect(right.locator('.snapshot-list li')).toHaveCount(2);
   await expect(right.locator('.snapshot-name').first()).toHaveText('Before going back to the snapshot');
 });
+
+test('chapter keywords: add them, see them in the outline and cards, and show only the chapters with one', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('Book');
+  await page.keyboard.press('Enter');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await page.getByLabel('Chapter title').fill('Arrival');
+  const addKeyword = async (word: string) => {
+    await page.getByRole('button', { name: '+ Keyword' }).click();
+    await page.getByLabel('New keyword').fill(word);
+    await page.keyboard.press('Enter');
+  };
+  await addKeyword('Mara');
+  await outline.getByRole('button', { name: 'Add chapter' }).click();
+  await page.getByLabel('Chapter title').fill('Storm');
+  await addKeyword('Tom');
+  await expect(outline.locator('.keyword-chip')).toHaveText(['Mara', 'Tom']);
+  // Show only Mara's chapters, in the outline and on the cards.
+  await outline.getByLabel('Show chapters with keyword').selectOption('Mara');
+  await expect(outline.locator('.outline-title')).toHaveText(['Arrival']);
+  await outline.getByRole('button', { name: 'Cards' }).click();
+  await expect(page.locator('.cork-title')).toHaveText(['Arrival']);
+  await outline.getByLabel('Show chapters with keyword').selectOption('');
+  await expect(page.locator('.cork-title')).toHaveText(['Arrival', 'Storm']);
+});

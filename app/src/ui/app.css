@@ -1397,3 +1397,19 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .compare-key span::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
 .key-add::before { background: color-mix(in srgb, #2e9d4f 35%, transparent); }
 .key-del::before { background: color-mix(in srgb, var(--danger) 35%, transparent); }
+
+/* Chapter keywords: coloured chips, and the outline's filter. */
+.keyword-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.keyword-editor { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.keyword-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; background: color-mix(in srgb, var(--kw) 16%, transparent); color: color-mix(in srgb, var(--kw) 75%, var(--text)); font-size: 12px; font-weight: 600; line-height: 1.5; }
+.keyword-chip::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--kw); }
+.keyword-chip.small { padding: 0 6px; font-size: 11px; }
+.keyword-chip button { display: inline-flex; padding: 1px; border: none; background: transparent; color: inherit; cursor: pointer; opacity: 0.6; border-radius: 3px; }
+.keyword-chip button:hover { opacity: 1; background: color-mix(in srgb, var(--kw) 20%, transparent); }
+.chapter-keywords { margin-top: 6px; }
+.keyword-filter { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.keyword-filter select { flex: 1; min-width: 0; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; }
+.keyword-filter-dot { width: 9px; height: 9px; border-radius: 50%; }
+.outline-filter-empty { margin: 8px 16px; color: var(--muted); font-size: 13px; }
+.ms-filter { margin: 0 0 1em; padding: 8px 12px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; font-family: var(--ui-font, inherit); }
+.cork-card .keyword-chips { padding: 0 12px; }
