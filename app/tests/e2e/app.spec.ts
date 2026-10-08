@@ -2204,3 +2204,23 @@ test('a text box: typing in it, its fill and wrapping, resizing, and saving it',
   });
   expect(md).toMatch(/\{shape rect w=[\d.]+ h=[\d.]+ fill=#[0-9a-f]{6} line=#333333 wrap=right\} Key \*\*fact\*\*/);
 });
+
+test('the sidebar and note list fold away with «, peek out at the edge, and come back', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1400, height: 860 });
+  await page.locator('.sidebar').hover();
+  await page.getByRole('button', { name: 'Hide the sidebar' }).click();
+  await expect(page.locator('.frame > .sidebar')).toHaveCount(0);
+  // Resting the mouse on the window's left edge slides it out over the page.
+  await page.mouse.move(3, 400);
+  await expect(page.locator('.peek-panel .sidebar')).toBeVisible();
+  await page.mouse.move(1000, 400);
+  await expect(page.locator('.peek-panel')).toHaveCount(0);
+  // Ctrl+Shift+\ folds the note list; its button in the top bar brings it back.
+  await page.keyboard.press('Control+Shift+Backslash');
+  await expect(page.locator('.panes > .list')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Show the note list' }).click();
+  await expect(page.locator('.panes > .list')).toBeVisible();
+  await page.getByRole('button', { name: 'Show the sidebar' }).click();
+  await expect(page.locator('.frame > .sidebar')).toBeVisible();
+});

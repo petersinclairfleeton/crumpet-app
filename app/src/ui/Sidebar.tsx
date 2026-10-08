@@ -10,6 +10,7 @@ import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/t
 import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from '../data/templates';
 import { toMarkdown } from '@crumpet/editor/markdown';
 import { StatsDialog, useTodayWords } from './stats-ui';
+import { FoldButton } from './fold';
 import { IconBook, IconChart, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
@@ -63,6 +64,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           <span className="account-name">{state.settings.name || 'Your notes'}</span>
           <IconChevron size={10} className="rot90" />
         </button>
+        <FoldButton what="sidebar" />
         <button type="button" className="icon-btn close-side" aria-label="Close menu" onClick={onClose}>
           <IconClose />
         </button>

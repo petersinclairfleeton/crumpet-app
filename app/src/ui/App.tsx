@@ -9,6 +9,7 @@ import { NotePane } from './NotePane';
 import { ProjectOutline, ProjectPane } from './Project';
 import { TopBar } from './TopBar';
 import { LIST, Resizer, SIDEBAR, SidebarRail, TabBar } from './layout';
+import { type Peek, PeekContext } from './fold';
 import { applyTheme } from './theme';
 import type { View } from '../data/types';
 
@@ -119,14 +120,37 @@ export function App() {
     // The title field focuses itself when a new, empty note opens.
   }, [store]);
 
-  // Ctrl+\ (⌘\ on a Mac): show or hide the sidebar.
+  // A folded-away sidebar or list peeks out while the mouse rests on its edge or its button.
+  const [peek, setPeek] = useState<Peek>(null);
+  const peekTimer = useRef<ReturnType<typeof setTimeout>>();
+  const peekCtl = useMemo(() => {
+    const later = (p: Peek, ms: number) => {
+      clearTimeout(peekTimer.current);
+      peekTimer.current = setTimeout(() => setPeek(p), ms);
+    };
+    return {
+      open: (p: Peek) => later(p, 120),
+      leave: () => later(null, 350),
+      stay: () => clearTimeout(peekTimer.current),
+      close: () => {
+        clearTimeout(peekTimer.current);
+        setPeek(null);
+      },
+    };
+  }, []);
+  useEffect(() => () => clearTimeout(peekTimer.current), []);
+
+  // Ctrl+\ (⌘\ on a Mac): show or hide the sidebar; with Shift, the note list.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+      if ((e.metaKey || e.ctrlKey) && (e.code === 'Backslash' || e.key === '\\')) {
         e.preventDefault();
-        const now = store.getState().settings.layout?.sidebar ?? 'full';
-        store.updateLayout({ sidebar: now === 'hidden' ? 'full' : 'hidden' });
+        setPeek(null);
+        const layout = store.getState().settings.layout;
+        if (e.shiftKey) store.updateLayout({ list: layout?.list === false });
+        else store.updateLayout({ sidebar: (layout?.sidebar ?? 'full') === 'hidden' ? 'full' : 'hidden' });
       }
+      if (e.key === 'Escape') setPeek(null);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -181,6 +205,7 @@ export function App() {
   const project = state.view.kind === 'project' && !state.query.trim() ? store.project(state.view.id) : undefined;
 
   const appRef = useRef<HTMLDivElement>(null);
+  const peekValue = useMemo(() => ({ peek, ...peekCtl }), [peek, peekCtl]);
   if (!state.ready) return <div className="loading">Opening your notes…</div>;
 
   // On phones one pane shows at a time, so the layout choices are for bigger screens.
@@ -193,6 +218,7 @@ export function App() {
   const ratio = layout.splitRatio ?? 0.5;
   const sizes = narrow ? undefined : ({ '--side-w': layout.sidebarWidth ? `${sideW}px` : undefined, '--list-w': layout.listWidth ? `${listW}px` : undefined, '--split': ratio } as React.CSSProperties);
   const target = () => appRef.current;
+  const peekable = !narrow && !state.focusMode;
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
 
   return (
@@ -227,13 +253,26 @@ export function App() {
           Some changes couldn’t be saved. Keep this page open and check your device has free space.
         </p>
       )}
+      <PeekContext.Provider value={peekValue}>
       <div className="frame">
+        {peekable && sidebarMode === 'hidden' && <div className="peek-edge" aria-hidden="true" onMouseEnter={() => peekCtl.open('sidebar')} onMouseLeave={peekCtl.leave} />}
+        {peekable && peek === 'sidebar' && sidebarMode === 'hidden' && (
+          <div className="peek-panel sidebar-peek" onMouseEnter={peekCtl.stay} onMouseLeave={peekCtl.leave}>
+            <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={peekCtl.close} onToday={openToday} onTemplate={newFromTemplate} onImport={importNote} />
+          </div>
+        )}
         {sidebarMode === 'full' && <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} onToday={openToday} onTemplate={newFromTemplate} onImport={importNote} />}
         {sidebarMode === 'full' && !narrow && <Resizer label="Sidebar width" value={sideW} {...SIDEBAR} cssVar="--side-w" target={target} onChange={(v) => store.updateLayout({ sidebarWidth: Math.round(v) })} />}
         {sidebarMode === 'icons' && <SidebarRail onOpenView={openView} onNewNote={newNote} onToday={openToday} />}
         <div className="workspace">
           <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} />
           <div className="panes">
+            {peekable && !showList && sidebarMode !== 'hidden' && <div className="peek-edge" aria-hidden="true" onMouseEnter={() => peekCtl.open('list')} onMouseLeave={peekCtl.leave} />}
+            {peekable && !showList && peek === 'list' && (
+              <div className="peek-panel list-peek" onMouseEnter={peekCtl.stay} onMouseLeave={peekCtl.leave}>
+                {project ? <ProjectOutline project={project} onOpenChapter={openChapter} /> : <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />}
+              </div>
+            )}
             {project ? (
               <>
                 {showList && <ProjectOutline project={project} onOpenChapter={openChapter} />}
@@ -269,6 +308,7 @@ export function App() {
           </div>
         </div>
       </div>
+      </PeekContext.Provider>
       {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
     </div>
     </NavContext.Provider>
