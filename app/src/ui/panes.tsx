@@ -12,9 +12,10 @@ import { NotePane } from './NotePane';
 import { ChapterPane, ProjectPane } from './Project';
 import { ResearchPane } from './research';
 import { CastPane } from './cast';
-import { IconBook, IconClose, IconNote, IconPage, IconPen, IconNotebook } from './icons';
+import { IconBook, IconClose, IconGraph, IconNote, IconPage, IconPen, IconNotebook } from './icons';
 import { Popover } from './Sidebar';
 import { sameBookmark, toggleBookmark } from '../data/bookmarks';
+import { GraphView } from './graph';
 import { dragged, startTabDrag, useDragging } from './tabdrag';
 
 // ---------------------------------------------------------------- the workspace
@@ -55,6 +56,8 @@ function exists(state: AppState, t: Tab): boolean {
       return state.chapters.some((c) => c.id === t.id);
     case 'cast':
       return !!state.projects.find((p) => p.id === t.project)?.cast?.some((m) => m.id === t.id);
+    case 'graph':
+      return true;
   }
 }
 
@@ -71,6 +74,8 @@ export function tabTitle(state: AppState, t: Tab): string {
       return state.chapters.find((c) => c.id === t.id)?.title.trim() || 'Untitled chapter';
     case 'cast':
       return state.projects.find((p) => p.id === t.project)?.cast?.find((m) => m.id === t.id)?.name || 'Card';
+    case 'graph':
+      return 'Graph';
   }
 }
 
@@ -79,6 +84,7 @@ function TabIcon({ tab }: { tab: Tab }) {
   if (tab.kind === 'chapter') return <IconPage size={13} />;
   if (tab.kind === 'research') return <IconNotebook size={13} />;
   if (tab.kind === 'cast') return <IconPen size={13} />;
+  if (tab.kind === 'graph') return <IconGraph size={13} />;
   return <IconNote size={13} />;
 }
 
@@ -493,6 +499,8 @@ function TabView({ tab, narrow, onBack, onNewNote, onNewProject, onClose }: { ta
       const note = state.notes.find((n) => n.id === tab.id);
       return note ? <ResearchPane note={note} onClose={onClose} /> : <Gone onClose={onClose} />;
     }
+    case 'graph':
+      return <GraphView />;
     case 'cast': {
       const project = state.projects.find((p) => p.id === tab.project);
       const member = project?.cast?.find((m) => m.id === tab.id);

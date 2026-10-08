@@ -8,7 +8,9 @@ export type Tab =
   | { kind: 'project'; id: string }
   | { kind: 'chapter'; id: string }
   | { kind: 'research'; id: string }
-  | { kind: 'cast'; project: string; id: string };
+  | { kind: 'cast'; project: string; id: string }
+  /** The graph of notes and links (one, so its id is always 'graph'). */
+  | { kind: 'graph'; id: 'graph' };
 
 export interface Group {
   id: string;
@@ -251,6 +253,7 @@ export function tidyWorkspace(raw: unknown): Workspace | null {
     const x = t as Partial<Tab> & { project?: unknown };
     if (!x || typeof x !== 'object' || typeof x.id !== 'string') return null;
     if (x.kind === 'cast') return typeof x.project === 'string' ? { kind: 'cast', project: x.project, id: x.id } : null;
+    if (x.kind === 'graph') return { kind: 'graph', id: 'graph' };
     return x.kind === 'note' || x.kind === 'project' || x.kind === 'chapter' || x.kind === 'research' ? ({ kind: x.kind, id: x.id } as Tab) : null;
   };
   const node = (n: unknown): PaneNode | null => {

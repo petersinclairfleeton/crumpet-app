@@ -143,6 +143,7 @@ function useCommands(actions: Actions): Item[] {
     cmd('Split right', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'right')),
     cmd('Split down', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'bottom')),
     cmd('Close tab', () => panes.closeActive()),
+    cmd('Open graph view', () => panes.open({ kind: 'graph', id: 'graph' }, 'tab'), `${mod}G`),
     cmd(state.focusMode ? 'Leave focus mode' : 'Focus mode', () => store.setFocusMode(!state.focusMode), `${isMac ? '⌘⇧' : 'Ctrl+Shift+'}F`),
     cmd(state.settings.trackChanges ? 'Stop tracking changes' : 'Track changes', () => store.updateSettings({ trackChanges: !state.settings.trackChanges })),
     cmd(state.settings.pageView?.notes ? 'Notes as one long page' : 'Notes as pages (page view)', () => store.updateSettings({ pageView: { ...state.settings.pageView, notes: !state.settings.pageView?.notes } })),
