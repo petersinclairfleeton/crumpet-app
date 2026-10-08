@@ -156,6 +156,33 @@ class Book {
         case 'toc':
           // E-book readers show their own contents (the book's is written for them).
           break;
+        case 'shape': {
+          const sh = b.shape;
+          if (!sh) break;
+          const w = Math.min(sh.w, 6);
+          if (sh.kind === 'line' || sh.kind === 'arrow') {
+            // A line or arrow: a small drawing.
+            const c = sh.line ?? '#000000';
+            const W = Math.round(w * 96), H = Math.max(Math.round(sh.h * 96), 4);
+            const head = sh.kind === 'arrow' ? `<polygon points="${W},${H / 2} ${W - 10},${H / 2 - 5} ${W - 10},${H / 2 + 5}" fill="${c}"/>` : '';
+            out += `<div class="shape" style="text-align: center"><svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="0" y1="${H / 2}" x2="${sh.kind === 'arrow' ? W - 8 : W}" y2="${H / 2}" stroke="${c}" stroke-width="1.5"/>${head}</svg></div>`;
+            break;
+          }
+          // A box, rounded box or oval with its text in the middle.
+          const css = [
+            `width: ${w}in`,
+            `min-height: ${sh.h}in`,
+            sh.fill ? `background-color: ${sh.fill}` : '',
+            sh.line ? `border: 1px solid ${sh.line}` : 'border: none',
+            sh.kind === 'ellipse' ? 'border-radius: 50%' : sh.kind === 'rounded' ? 'border-radius: 0.6em' : '',
+            sh.wrap === 'left' ? 'float: left; margin: 0 1em 0.5em 0' : sh.wrap === 'right' ? 'float: right; margin: 0 0 0.5em 1em' : 'margin: 0.5em auto',
+            'padding: 0.5em',
+            'box-sizing: border-box',
+            'text-align: center',
+          ].filter(Boolean);
+          out += `<div class="shape" style="${css.join('; ')}"><p>${runs(cellRuns(sh.text)) || '&#160;'}</p></div>`;
+          break;
+        }
         case 'table': {
           const rows = tidyRows(b.rows);
           const t = b.tbl;

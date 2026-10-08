@@ -2164,3 +2164,43 @@ test('a book’s table of contents lists every chapter with its page, and the he
   await toc.locator('.toc-entry', { hasText: 'Salt' }).click();
   await expect(page.getByLabel('Chapter title')).toHaveValue('Salt');
 });
+
+test('a text box: typing in it, its fill and wrapping, resizing, and saving it', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Boxed', 'Above the box.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/textbox');
+  await page.keyboard.press('Enter');
+  const shape = page.locator('.note-editor .blk-shape');
+  await expect(shape).toHaveCount(1);
+  const text = shape.locator('.shape-text');
+  await text.click();
+  await page.keyboard.type('Key fact');
+  await page.keyboard.press('Shift+Control+ArrowLeft');
+  await page.keyboard.press('Control+b');
+  await expect(text.locator('strong')).toHaveText('fact');
+  // Fill and wrapping from its menu.
+  await shape.hover();
+  await shape.getByRole('button', { name: 'Shape ▾' }).click();
+  await shape.getByRole('button', { name: 'Fill light blue' }).click();
+  await shape.hover();
+  await shape.getByRole('button', { name: 'Shape ▾' }).click();
+  await shape.getByRole('button', { name: 'Square, on the right' }).click();
+  await expect(shape).toHaveAttribute('data-wrap', 'right');
+  // Drag its corner to make it wider.
+  const box = shape.locator('.shape-box');
+  const before = (await box.boundingBox())!.width;
+  await shape.hover();
+  const grip = (await shape.locator('.shape-grip').boundingBox())!;
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + 100, grip.y + 20, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => (await box.boundingBox())!.width).toBeGreaterThan(before + 60);
+  const md = await page.evaluate(async () => {
+    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+    return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+  });
+  expect(md).toMatch(/\{shape rect w=[\d.]+ h=[\d.]+ fill=#[0-9a-f]{6} line=#333333 wrap=right\} Key \*\*fact\*\*/);
+});

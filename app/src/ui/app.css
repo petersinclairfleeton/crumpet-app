@@ -1262,3 +1262,4 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .styles-pane .tool-drop .popover { right: 0; left: auto; top: 26px; z-index: 40; min-width: 240px; }
 .styles-pane-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 12px 12px; border-top: 1px solid var(--line); }
 .glyph-styles { font-size: 12px; font-weight: 700; letter-spacing: -0.5px; }
+.shape-gallery { display: grid; grid-template-columns: repeat(5, 34px); gap: 4px; padding: 6px; }

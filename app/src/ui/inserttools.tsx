@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
+import type { ShapeKind } from '@crumpet/editor/shape';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
 
@@ -101,7 +102,64 @@ const ICON_TOC = (
   </svg>
 );
 
+const SHAPES: [ShapeKind, string, string][] = [
+  ['rect', 'Rectangle', 'M3 6h18v12H3z'],
+  ['rounded', 'Rounded rectangle', 'M7 6h10a4 4 0 0 1 4 4v4a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-4a4 4 0 0 1 4-4z'],
+  ['ellipse', 'Oval', 'M12 6c5 0 9 2.7 9 6s-4 6-9 6-9-2.7-9-6 4-6 9-6z'],
+  ['line', 'Line', 'M3 12h18'],
+  ['arrow', 'Arrow', 'M3 12h16M15 8l4 4-4 4'],
+];
+
+const ICON_TEXTBOX = (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 5h18v14H3zM8 9h8M12 9v7" />
+  </svg>
+);
+
+/** Word's Insert > Shapes: a gallery of shapes. */
+function ShapesTool({ ed, off }: { ed: Editor | null; off: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="tool-drop">
+      <button type="button" aria-label="Shapes" aria-expanded={open} title="Shapes" disabled={off} onClick={() => setOpen(!open)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 13h8v8H3zM17 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zM14 21l4-7 4 7z" />
+        </svg>
+        <span aria-hidden="true" className="caret">▾</span>
+      </button>
+      {open && (
+        <Popover label="Shapes" onClose={() => setOpen(false)}>
+          <div className="shape-gallery" role="group" aria-label="Shapes">
+            {SHAPES.map(([kind, name, d]) => (
+              <button
+                key={kind}
+                type="button"
+                className="symbol-btn"
+                aria-label={name}
+                title={name}
+                onClick={() => {
+                  setOpen(false);
+                  ed?.focus();
+                  ed?.insertShape(kind);
+                }}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d={d} />
+                </svg>
+              </button>
+            ))}
+          </div>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
 export function insertItems(ed: Editor | null, off: boolean): ToolItem[] {
+  const textBox = () => {
+    ed?.focus();
+    ed?.insertShape('rect', true);
+  };
   const toc = () => {
     ed?.focus();
     ed?.insertToc();
@@ -109,6 +167,21 @@ export function insertItems(ed: Editor | null, off: boolean): ToolItem[] {
   return [
     { key: 'symbol', label: 'Symbol', pri: 1, sep: true, node: <SymbolTool ed={ed} off={off} /> },
     { key: 'date', label: 'Date and time', pri: 1, node: <DateTool ed={ed} off={off} /> },
+    {
+      key: 'textbox',
+      pri: 1,
+      node: (
+        <button type="button" aria-label="Text box" title="Text box" disabled={off} onClick={textBox}>
+          {ICON_TEXTBOX}
+        </button>
+      ),
+      menu: (
+        <button type="button" className="menu-item" disabled={off} onClick={textBox}>
+          <span className="menu-glyph">{ICON_TEXTBOX}</span> Text box
+        </button>
+      ),
+    },
+    { key: 'shapes', label: 'Shapes', pri: 1, node: <ShapesTool ed={ed} off={off} /> },
     {
       key: 'toc',
       pri: 1,

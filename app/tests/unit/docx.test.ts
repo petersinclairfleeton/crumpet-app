@@ -353,3 +353,21 @@ describe('Word sections, columns and column breaks', () => {
     expect(back.doc.blocks.map((b) => [b.runs.map((r) => r.text).join(''), b.para])).toEqual(blocks.map((b) => [b.runs.map((r) => r.text).join(''), b.para]));
   });
 });
+
+describe('Word text boxes and shapes', () => {
+  it('writes shapes as Word drawings and reads them back', async () => {
+    const box = { ...makeBlock('shape', ''), shape: { kind: 'rounded' as const, w: 2.5, h: 1.25, fill: '#cfe2f3', line: '#1f4e79', wrap: 'right' as const, text: 'A **bold** note' } };
+    const arrow = { ...makeBlock('shape', ''), shape: { kind: 'arrow' as const, w: 3, h: 0.25, fill: null, line: '#cc0000', wrap: 'inline' as const, text: '' } };
+    const blocks = [makeBlock('paragraph', 'Before'), box, arrow, makeBlock('paragraph', 'After')];
+    const bytes = await toDocx([{ doc: { blocks } }], { title: 'T', page: defaultPage() });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<a:prstGeom prst="roundRect">');
+    expect(xml).toContain('wps:txbx');
+    expect(xml).toContain('<wp:wrapSquare');
+    expect(xml).toContain('tailEnd');
+    const back = await fromDocx(bytes);
+    const shapes = back.doc.blocks.filter((b) => b.type === 'shape').map((b) => b.shape);
+    expect(shapes).toEqual([box.shape, arrow.shape]);
+    expect(back.doc.blocks.map((b) => b.runs.map((r) => r.text).join('')).filter(Boolean)).toEqual(['Before', 'After']);
+  });
+});

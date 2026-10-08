@@ -6,6 +6,7 @@
 import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { type TableLook, mergeAt, tidyTable } from '@crumpet/editor/table';
 import { cellRuns, cellText } from '@crumpet/editor/cells';
+import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { type PageSetup, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -269,6 +270,37 @@ class Writer {
     return this.paragraph(null, drawing, `<w:keepNext/>${jc}`);
   }
 
+  private nextShape = 1;
+
+  /**
+   * A text box or shape, as Word draws one (a DrawingML shape): in line
+   * with the text, or anchored to its paragraph with the text wrapping
+   * round it on the left or right.
+   */
+  shape(b: Block, lead: string): string {
+    const s = b.shape;
+    if (!s) return '';
+    const EMU = 914400;
+    const cx = Math.round(s.w * EMU);
+    const cy = Math.round(s.h * EMU);
+    const n = 1000 + this.nextShape++;
+    const flat = s.kind === 'line' || s.kind === 'arrow';
+    const prst = { rect: 'rect', rounded: 'roundRect', ellipse: 'ellipse', line: 'line', arrow: 'line' }[s.kind];
+    const hex = (c: string) => c.slice(1).toUpperCase();
+    const fill = !flat && s.fill ? `<a:solidFill><a:srgbClr val="${hex(s.fill)}"/></a:solidFill>` : '<a:noFill/>';
+    const line = s.line || flat ? `<a:ln w="19050"><a:solidFill><a:srgbClr val="${hex(s.line ?? '#333333')}"/></a:solidFill>${s.kind === 'arrow' ? '<a:tailEnd type="triangle"/>' : ''}</a:ln>` : '<a:ln><a:noFill/></a:ln>';
+    const text = !flat && s.text ? `<wps:txbx><w:txbxContent>${this.paragraph(null, this.runs(cellRuns(s.text)), '<w:jc w:val="center"/>')}</w:txbxContent></wps:txbx>` : '';
+    const wsp = `<wps:wsp><wps:cNvSpPr${s.text ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${flat ? '' : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</wps:spPr>${text}<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
+    const graphic = `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">${wsp}</a:graphicData></a:graphic>`;
+    const name = `<wp:docPr id="${n}" name="${s.text ? 'Text Box' : 'Shape'} ${n}"/><wp:cNvGraphicFramePr/>`;
+    const drawing =
+      s.wrap === 'inline'
+        ? `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${name}${graphic}</wp:inline>`
+        : `<wp:anchor distT="45720" distB="45720" distL="114300" distR="114300" simplePos="0" relativeHeight="${251659264 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:align>${s.wrap}</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapSquare wrapText="bothSides"/>${name}${graphic}</wp:anchor>`;
+    const jc = b.align && b.align !== 'left' && s.wrap === 'inline' ? `<w:jc w:val="${JC[b.align] ?? b.align}"/>` : '';
+    return this.paragraph(null, `<w:r><w:drawing>${drawing}</w:drawing></w:r>`, lead + jc);
+  }
+
   /** Word's own Table of Contents field: Word fills in the page numbers when it updates the field (it asks on opening). */
   toc(): string {
     const tab = `<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="${Math.round((this.contentWidth / 96) * TWIPS)}"/></w:tabs>`;
@@ -393,6 +425,9 @@ class Writer {
           if (lead) out += this.paragraph(null, '', lead);
           out += this.toc();
           continue;
+        case 'shape':
+          out += this.shape(b, lead);
+          continue;
         case 'heading1':
         case 'heading2':
         case 'heading3':
@@ -457,6 +492,8 @@ function numberSwitch(hf: HeadersFooters | undefined): string {
 
 const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
 const NS = `xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`;
+/** The document also names the drawing parts, for shapes and text boxes. */
+const DOC_NS = `${NS} xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="wps"`;
 
 function stylesXml(font: string, size: number): string {
   const hp = Math.round(size * 2);
@@ -649,7 +686,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     return xml;
   });
   const sect = sectionXml(w.section, firstSect);
-  const documentXml = `${XML}<w:document ${NS}><w:body>${body}${sect}</w:body></w:document>`;
+  const documentXml = `${XML}<w:document ${DOC_NS}><w:body>${body}${sect}</w:body></w:document>`;
 
   w.rel(`${REL}/styles`, 'styles.xml');
   w.rel(`${REL}/numbering`, 'numbering.xml');
@@ -917,6 +954,51 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const core = parseXml(files.get('docProps/core.xml'));
   const coreTitle = core?.getElementsByTagName('dc:title')[0]?.textContent?.trim() ?? '';
 
+  /** A Word text box or shape (DrawingML), as a shape block. */
+  const readShape = async (drawing: Element): Promise<Block | null> => {
+    // Drawing attributes carry no prefix.
+    const plain = (el: Element | undefined | null, name: string) => el?.getAttribute(name) ?? null;
+    const all = Array.from(drawing.getElementsByTagName('*'));
+    const wsp = all.find((x) => x.localName === 'wsp');
+    if (!wsp) return null;
+    const find = (root: Element | undefined, name: string) => (root ? Array.from(root.getElementsByTagName('*')).find((x) => x.localName === name) : undefined);
+    const extent = all.find((x) => x.localName === 'extent');
+    const EMU = 914400;
+    const w = Number(plain(extent ?? null, 'cx') ?? 0) / EMU;
+    const h = Number(plain(extent ?? null, 'cy') ?? 0) / EMU;
+    const spPr = kids(wsp).find((x) => x.localName === 'spPr');
+    const prst = plain(find(spPr, 'prstGeom') ?? null, 'prst') ?? 'rect';
+    const ln = spPr && kids(spPr).find((x) => x.localName === 'ln');
+    const arrow = !!ln && kids(ln).some((x) => (x.localName === 'tailEnd' || x.localName === 'headEnd') && (plain(x, 'type') ?? 'none') !== 'none');
+    const kind: ShapeKind = prst === 'roundRect' ? 'rounded' : prst === 'ellipse' ? 'ellipse' : /line|Connector/i.test(prst) ? (arrow ? 'arrow' : 'line') : prst === 'rightArrow' ? 'arrow' : 'rect';
+    const colorIn = (el: Element | undefined): string | null | undefined => {
+      if (!el) return undefined;
+      if (kids(el).some((x) => x.localName === 'noFill')) return null;
+      const solid = kids(el).find((x) => x.localName === 'solidFill');
+      const rgb = solid && kids(solid).find((x) => x.localName === 'srgbClr');
+      const v = plain(rgb ?? null, 'val');
+      return v && /^[0-9a-f]{6}$/i.test(v) ? `#${v.toLowerCase()}` : undefined;
+    };
+    const fill = spPr ? colorIn(spPr) : undefined;
+    const line = ln ? colorIn(ln) : undefined;
+    // The text in it.
+    const box = find(wsp, 'txbxContent');
+    const runs: Run[] = [];
+    if (box) {
+      for (const [k, p] of kids(box).filter((x) => x.localName === 'p').entries()) {
+        if (k > 0) runs.push({ text: ' ', marks: [] });
+        await readRuns(p, runs, []);
+      }
+    }
+    const text = cellText(runs.filter((x) => !x.footnote && !x.comment).map((x) => ({ text: x.text.replace(/\n/g, ' '), marks: x.marks, ...(x.look ? { look: x.look } : {}), ...(x.link ? { link: x.link } : {}) })));
+    // Floating with the text round it: on the side it's aligned to.
+    const anchor = all.find((x) => x.localName === 'anchor');
+    const wraps = anchor && Array.from(anchor.children).some((x) => /^wrap(Square|Tight|Through)$/.test(x.localName));
+    const side = find(all.find((x) => x.localName === 'positionH'), 'align')?.textContent ?? 'left';
+    const shape = tidyShape({ kind, w: w || undefined, h: h || undefined, fill, line, wrap: wraps ? (side === 'right' ? 'right' : 'left') : 'inline', text });
+    return makeBlock('shape', '', [], { shape });
+  };
+
   const readRuns = async (p: Element, out: Run[], pics: Block[], marks: Mark[] = [], link?: string) => {
     for (const el of kids(p)) {
       switch (el.localName) {
@@ -950,6 +1032,17 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
             else if (c.localName === 'footnoteReference' || c.localName === 'endnoteReference') {
               const text = c.localName === 'footnoteReference' ? notes.get(attr(c, 'id') ?? '') : undefined;
               out.push({ text: FOOTNOTE, marks: [], footnote: text ?? '' });
+            } else if (c.localName === 'AlternateContent') {
+              // Word's choice of ways to show something (a shape, with an older drawing as the fallback): the first.
+              const choice = kids(c).find((x) => x.localName === 'Choice') ?? kids(c).find((x) => x.localName === 'Fallback');
+              const drawing = choice && kids(choice).find((x) => x.localName === 'drawing' || x.localName === 'pict');
+              if (drawing) {
+                const shape = await readShape(drawing);
+                if (shape) pics.push(shape);
+              }
+            } else if (c.localName === 'drawing' && Array.from(c.getElementsByTagName('*')).some((x) => x.localName === 'wsp')) {
+              const shape = await readShape(c);
+              if (shape) pics.push(shape);
             } else if (c.localName === 'drawing' || c.localName === 'pict') {
               const blip = Array.from(c.getElementsByTagName('*')).find((x) => x.localName === 'blip' || x.localName === 'imagedata');
               const id = blip?.getAttributeNS(R_NS, 'embed') ?? blip?.getAttributeNS(R_NS, 'id') ?? blip?.getAttribute('r:embed') ?? blip?.getAttribute('r:id');
