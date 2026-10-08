@@ -408,3 +408,34 @@ describe('templates and the daily note', () => {
     expect(store.getState().selectedId).toBe(n.id);
   });
 });
+
+describe('nested tags', () => {
+  it('are tidied, shown as a tree, found from their parent, and renamed together', async () => {
+    const { cleanTag, visibleIn } = await import('../../src/data/store');
+    const { tagTree } = await import('../../src/data/selectors');
+    const { parseQuery, matchesFilters } = await import('../../src/data/search');
+    expect(cleanTag(' #Book / Main Characters/ ')).toBe('book/main-characters');
+    expect(cleanTag('//a//b//')).toBe('a/b');
+    const store = new AppStore(new MemoryStorage());
+    await store.load();
+    const a = store.createNote({ title: 'A' });
+    const b = store.createNote({ title: 'B' });
+    const c = store.createNote({ title: 'C' });
+    store.addTag(a.id, 'book/characters');
+    store.addTag(b.id, 'book/places/towns');
+    store.addTag(b.id, 'book');
+    store.addTag(c.id, 'bookish');
+    const tree = tagTree(store.getState().notes);
+    expect(tree.map((t) => [t.path, t.count])).toEqual([['book', 2], ['bookish', 1]]);
+    expect(tree[0].children.map((t) => [t.name, t.count, t.children.length])).toEqual([['characters', 1, 0], ['places', 1, 1]]);
+    const titles = (tag: string) => visibleIn(store.getState(), { kind: 'tag', tag }).map((n) => n.title).sort();
+    expect(titles('book')).toEqual(['A', 'B']);
+    expect(titles('book/places')).toEqual(['B']);
+    const { filters } = parseQuery('#book');
+    expect(store.getState().notes.filter((n) => matchesFilters(n, filters, '', [])).map((n) => n.title).sort()).toEqual(['A', 'B']);
+    store.renameTag('book', 'novel');
+    expect(store.note(a.id)!.tags).toEqual(['novel/characters']);
+    expect(store.note(b.id)!.tags).toEqual(['novel/places/towns', 'novel']);
+    expect(store.note(c.id)!.tags).toEqual(['bookish']);
+  });
+});

@@ -5,7 +5,7 @@ import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
 import { statusText } from './SyncSettings';
 import { SettingsDialog } from './Settings';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
-import { allTags, displayTitle, noteCounts, notebookTree, projectWords, recentNotes, sameView } from '../data/selectors';
+import { tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectWords, recentNotes, sameView } from '../data/selectors';
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
 import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from '../data/templates';
 import { toMarkdown } from '@crumpet/editor/markdown';
@@ -38,7 +38,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   }, []);
   const { loose, stacks } = notebookTree(state.stacks, state.notebooks);
   const counts = noteCounts(state.notes);
-  const tags = allTags(state.notes);
+  const tags = tagTree(state.notes);
   const recent = recentNotes(state.notes);
   const trashCount = state.notes.filter((n) => n.trashedAt !== null).length;
   const active = (v: View) => !state.query && sameView(state.view, v);
@@ -232,9 +232,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         {tagsOpen && (
           <div className="tag-list">
             {tags.length === 0 && <p className="side-empty indent">Tags you add to notes show up here.</p>}
-            {tags.map((t) => (
-              <SideRow key={t.tag} label={`#${t.tag}`} count={t.count} indent active={active({ kind: 'tag', tag: t.tag })} onClick={() => onOpenView({ kind: 'tag', tag: t.tag })} />
-            ))}
+            <TagRows nodes={tags} depth={0} active={active} onOpenView={onOpenView} />
           </div>
         )}
         <SideRow icon={<IconTrash size={13} />} label="Trash" count={trashCount || undefined} active={active({ kind: 'trash' })} onClick={() => onOpenView({ kind: 'trash' })} strong />
@@ -257,6 +255,35 @@ function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return '✎';
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+}
+
+/** Tags as a tree: tags nested in another ("book/characters") fold away under it. */
+function TagRows({ nodes, depth, active, onOpenView }: { nodes: TagNode[]; depth: number; active(v: View): boolean; onOpenView(v: View): void }) {
+  const [open, setOpen] = useState<string[]>(() => remember('openTags', []));
+  const toggle = (path: string) => {
+    const next = open.includes(path) ? open.filter((p) => p !== path) : [...open, path];
+    setOpen(next);
+    keep('openTags', next);
+  };
+  const rows = (list: TagNode[], level: number): React.ReactNode[] =>
+    list.flatMap((t) => {
+      const isOpen = open.includes(t.path);
+      const view: View = { kind: 'tag', tag: t.path };
+      const row = (
+        <div key={t.path} className="tag-row" style={{ '--tag-depth': level } as React.CSSProperties}>
+          {t.children.length > 0 ? (
+            <button type="button" className="tag-fold" aria-label={`${isOpen ? 'Fold away' : 'Show'} tags in #${t.path}`} aria-expanded={isOpen} onClick={() => toggle(t.path)}>
+              <IconChevron size={9} className={isOpen ? 'rot90' : ''} />
+            </button>
+          ) : (
+            <span className="tag-fold" />
+          )}
+          <SideRow label={`#${t.name}`} count={t.count} active={active(view)} onClick={() => onOpenView(view)} />
+        </div>
+      );
+      return isOpen ? [row, ...rows(t.children, level + 1)] : [row];
+    });
+  return <>{rows(nodes, depth)}</>;
 }
 
 function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean }) {

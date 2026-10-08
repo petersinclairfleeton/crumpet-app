@@ -125,7 +125,8 @@ function has(note: Note, h: Has): boolean {
 /** Whether a note matches; `text` is its searchable text, `places` its notebook's and stack's names. */
 export function matchesFilters(note: Note, f: Filters, text: string, places: string[]): boolean {
   if (f.favorite && !note.favorite) return false;
-  if (f.tags.length && !f.tags.every((t) => note.tags.some((nt) => nt.toLowerCase() === t))) return false;
+  // A tag finds the tags nested inside it too.
+  if (f.tags.length && !f.tags.every((t) => note.tags.some((nt) => nt.toLowerCase() === t || nt.toLowerCase().startsWith(`${t}/`)))) return false;
   if (f.places.length && !f.places.every((p) => places.some((name) => name.toLowerCase() === p))) return false;
   if (f.after !== undefined && note.updatedAt < f.after) return false;
   if (f.before !== undefined && note.updatedAt >= f.before) return false;

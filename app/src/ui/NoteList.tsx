@@ -56,6 +56,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [pickedNow.length]);
   const nb = state.view.kind === 'notebook' ? store.notebook(state.view.id) : undefined;
+  const [renamingTag, setRenamingTag] = useState(false);
   const style = state.settings.listStyle;
   const jumps = searching ? matchingNotebooks(state) : [];
   const title = searching ? 'Search results' : viewTitle(state.view, state);
@@ -71,6 +72,11 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
           <span>
             {notes.length} note{notes.length === 1 ? '' : 's'}
           </span>
+          {state.view.kind === 'tag' && !searching && (
+            <button type="button" className="link-btn" onClick={() => setRenamingTag(true)}>
+              Rename tag
+            </button>
+          )}
           {trash && notes.length > 0 && (
             <button type="button" className="link-btn" onClick={() => store.emptyTrash()}>
               Empty Trash
@@ -96,6 +102,17 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
             </button>
           </div>
         </div>
+        {renamingTag && state.view.kind === 'tag' && (
+          <InlineInput
+            label="New name for the tag"
+            placeholder="Use / to put it inside another tag"
+            initial={state.view.tag}
+            onDone={(name) => {
+              setRenamingTag(false);
+              if (name && state.view.kind === 'tag') store.renameTag(state.view.tag, name);
+            }}
+          />
+        )}
         {trash && <p className="list-note">Notes in the Trash are deleted for good after 30 days.</p>}
         {searching && (
           <div className="search-tools">
