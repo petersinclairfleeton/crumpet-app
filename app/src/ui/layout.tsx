@@ -6,8 +6,9 @@ import { useState } from 'react';
 import type { LayoutPrefs, View } from '../data/types';
 import { sameView } from '../data/selectors';
 import { useAppState, useAppStore } from './hooks';
-import { IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash, NotebookIcon } from './icons';
-import { Popover } from './Sidebar';
+import { IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash } from './icons';
+import { SettingsDialog } from './Settings';
+import { Popover, initials } from './Sidebar';
 
 export const SIDEBAR = { min: 180, max: 420, normal: 236 };
 export const LIST = { min: 240, max: 560, normal: 360 };
@@ -80,6 +81,7 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
   const state = useAppState();
   const store = useAppStore();
   const active = (v: View) => !state.query && sameView(state.view, v);
+  const [settings, setSettings] = useState(false);
   const item = (v: View, label: string, icon: React.ReactNode) => (
     <button key={label} type="button" className={`rail-btn${active(v) ? ' active' : ''}`} aria-label={label} title={label} aria-current={active(v) ? 'page' : undefined} onClick={() => onOpenView(v)}>
       {icon}
@@ -113,9 +115,22 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
       {item({ kind: 'favorites' }, 'Favorites', <IconStar size={18} />)}
       {state.projects.map((p) => item({ kind: 'project', id: p.id }, p.name, <IconBook size={18} />))}
       <span className="rail-gap" />
-      {state.notebooks.map((nb) => item({ kind: 'notebook', id: nb.id }, nb.name, <NotebookIcon color={nb.color} size={16} cut="var(--shell, var(--side-bg))" />))}
+      {state.notebooks.map((nb) =>
+        item(
+          { kind: 'notebook', id: nb.id },
+          nb.name,
+          // The notebook's colour with its first letter, so notebooks can be told apart.
+          <span className="rail-nb" style={{ background: nb.color }} aria-hidden="true">
+            {Array.from(nb.name.trim())[0]?.toUpperCase() ?? '·'}
+          </span>,
+        ),
+      )}
       <span className="grow" />
       {item({ kind: 'trash' }, 'Trash', <IconTrash size={18} />)}
+      <button type="button" className="rail-btn" aria-label="Settings" title="Settings" aria-expanded={settings} onClick={() => setSettings(true)}>
+        <span className="avatar">{initials(state.settings.name)}</span>
+      </button>
+      {settings && <SettingsDialog onClose={() => setSettings(false)} />}
     </nav>
   );
 }
