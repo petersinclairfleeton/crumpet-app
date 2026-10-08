@@ -122,8 +122,12 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     contents) and `layouttools.tsx` (Breaks, Columns, Orientation, and
     `pagesetup.tsx`'s Page Setup window, for the caret's section, the whole
     document or from the caret on; the first section's settings sit on the
-    first paragraph). Page view has `ruler.tsx` and `statusbar.tsx` (page, words,
-    headings, zoom).
+    first paragraph). `stylespane.tsx` is Word's Styles pane, docked beside
+    the text (`.note-main`). `booktoc.ts`: in a project, a table of contents
+    lists the whole book (chapters with their start pages, and their
+    headings), given to each chapter's editor (`setTocEntries`,
+    `setPageOffset`). Page view has `ruler.tsx` and `statusbar.tsx` (page,
+    words, headings, zoom).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
 - `docs/google-drive-setup.md`: one-off Google setup. The Google client id
@@ -146,8 +150,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   (pasting keeps formatting instead) or in the single-file build.
 - Word features not built: text boxes and shapes, styles of tables beyond
   the Table menu, paper size per section. Printing turns landscape pages only
-  in browsers that support named pages (Chrome, Edge, Firefox). Tables of contents
-  list one chapter at a time in a project (Word fills in the whole book's
-  when it updates the field).
+  in browsers that support named pages (Chrome, Edge, Firefox). A book's table of contents
+  guesses the pages of headings in chapters not laid out yet (from their
+  words) until they have been.
 - Not built yet: native Mac/iPhone/iPad apps, other storage (local folder,
   Dropbox, OneDrive, iCloud), version history, reminders, sharing.

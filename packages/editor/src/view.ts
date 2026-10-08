@@ -57,6 +57,9 @@ interface Rendered {
 export class View {
   private rendered = new Map<string, Rendered>();
 
+  /** Entries for a table of contents other than this document's headings (a book's, set by the app). */
+  tocOverride: TocEntry[] | null = null;
+
   constructor(public root: HTMLElement) {
     root.contentEditable = 'true';
     root.spellcheck = true;
@@ -122,7 +125,7 @@ export class View {
     }
     // A table of contents lists the headings as they are now.
     if (doc.blocks.some((b) => b.type === 'toc')) {
-      const entries = tocEntries(doc);
+      const entries = this.tocOverride ?? tocEntries(doc);
       for (const block of doc.blocks) if (block.type === 'toc') fillToc(this.rendered.get(block.id)!.el, entries);
     }
     // Footnotes are numbered in order through the whole note.
@@ -434,14 +437,27 @@ function buildMedia(block: Block): HTMLElement {
 
 // ---------------------------------------------------------------- table of contents
 
+/**
+ * A line of a table of contents: a heading in this document (`id`), or
+ * something elsewhere (a chapter of the book, `chapter`), with its page
+ * number when it's known from elsewhere.
+ */
+export interface TocEntry {
+  id?: string;
+  chapter?: string;
+  level: number;
+  text: string;
+  page?: number;
+}
+
 /** The headings a table of contents lists (Heading 1 to 3, as Word's own does). */
-export function tocEntries(doc: Doc): { id: string; level: number; text: string }[] {
+export function tocEntries(doc: Doc): TocEntry[] {
   return doc.blocks
     .filter((b) => (b.type === 'heading1' || b.type === 'heading2' || b.type === 'heading3') && b.runs.some((r) => r.text.trim() && r.change?.kind !== 'del'))
     .map((b) => ({ id: b.id, level: Number(b.type.slice(-1)), text: b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote).map((r) => r.text).join('').trim() }));
 }
 
-function fillToc(el: HTMLElement, entries: { id: string; level: number; text: string }[]): void {
+function fillToc(el: HTMLElement, entries: TocEntry[]): void {
   const box = el.querySelector<HTMLElement>('.toc-box');
   if (!box) return;
   const key = JSON.stringify(entries);
@@ -461,8 +477,9 @@ function fillToc(el: HTMLElement, entries: { id: string; level: number; text: st
   for (const e of entries) {
     const row = document.createElement('a');
     row.className = `toc-entry toc-${e.level}`;
-    row.href = `#${e.id}`;
-    row.dataset.tocTarget = e.id;
+    row.href = `#${e.id ?? e.chapter ?? ''}`;
+    if (e.id) row.dataset.tocTarget = e.id;
+    if (e.chapter) row.dataset.tocChapter = e.chapter;
     const text = document.createElement('span');
     text.className = 'toc-text';
     text.textContent = e.text;
@@ -470,6 +487,11 @@ function fillToc(el: HTMLElement, entries: { id: string; level: number; text: st
     dots.className = 'toc-dots';
     const page = document.createElement('span');
     page.className = 'toc-page';
+    // A page number from elsewhere stays; one for a heading here is filled in by page view.
+    if (e.page !== undefined) {
+      page.textContent = String(e.page);
+      page.dataset.fixed = '';
+    }
     row.append(text, dots, page);
     box.appendChild(row);
   }

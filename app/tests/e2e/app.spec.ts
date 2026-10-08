@@ -1872,23 +1872,26 @@ test('table of contents: from the / menu, lists the headings with their pages, a
   await page.locator('.note-editor .blk').first().click();
   await page.keyboard.type('/contents');
   await page.keyboard.press('Enter');
+  // In a book, the contents list the chapters, then the headings in them.
   const toc = page.locator('.note-editor .blk-toc');
-  await expect(toc).toContainText('Headings you add');
+  await expect(toc.locator('.toc-entry')).toHaveText([/Chapter 1\s*1/]);
   await page.keyboard.type('Arrival');
   await page.keyboard.press('Control+Alt+1');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Control+Enter');
   await page.keyboard.type('Departure');
   await page.keyboard.press('Control+Alt+2');
-  await expect(toc.locator('.toc-entry')).toHaveCount(2);
-  await expect(toc.locator('.toc-entry').nth(1)).toHaveClass(/toc-2/);
-  await expect(toc.locator('.toc-entry').nth(0).locator('.toc-page')).toHaveText('1');
-  await expect(toc.locator('.toc-entry').nth(1).locator('.toc-page')).toHaveText('2');
+  const lines = toc.locator('.toc-entry');
+  await expect(lines).toHaveCount(3);
+  await expect(lines.nth(1)).toHaveClass(/toc-2/);
+  await expect(lines.nth(2)).toHaveClass(/toc-3/);
+  await expect(lines.nth(1).locator('.toc-page')).toHaveText('1');
+  await expect(lines.nth(2).locator('.toc-page')).toHaveText('2');
   // Clicking a line puts the caret at its heading.
   await page.keyboard.press('Control+Home');
   await toc.locator('.toc-entry', { hasText: 'Departure' }).click();
   await page.keyboard.type('The ');
-  await expect(toc.locator('.toc-entry').nth(1)).toContainText('The Departure');
+  await expect(lines.nth(2)).toContainText('The Departure');
   // Landscape pages are wider than they are tall.
   await page.evaluate(() => {
     const s = (window as unknown as { crumpet: { getState(): { projects: { id: string; page?: object }[] }; setProjectPage(id: string, p: object): void } }).crumpet;
@@ -1990,12 +1993,13 @@ test('page view lays out sections: two columns that flow and balance, a landscap
   // Page 1: the intro across the page, then two columns.
   await expect(pages.nth(0).locator('.pg-band')).toHaveCount(2);
   await expect(pages.nth(0).locator('.pg-band').nth(1).locator('.pg-col')).toHaveCount(2);
-  // Page 2: the rest of the columns, balanced, then one column again.
-  const bands = pages.nth(1).locator('.pg-band');
-  await expect(bands).toHaveCount(2);
-  const heights = await bands.nth(0).locator('.pg-col').evaluateAll((cols) => cols.map((c) => c.getBoundingClientRect().height));
+  // Then the rest of the columns, balanced above the one-column section on the same page.
+  const one = page.locator('.note-editor .pg-band', { hasText: 'One column again.' });
+  await expect(one.locator('.pg-col')).toHaveCount(1);
+  const balanced = one.locator('xpath=preceding-sibling::div[contains(@class, "pg-band")][1]');
+  await expect(balanced.locator('.pg-col')).toHaveCount(2);
+  const heights = await balanced.locator('.pg-col').evaluateAll((cols) => cols.map((c) => c.getBoundingClientRect().height));
   expect(Math.abs(heights[0] - heights[1])).toBeLessThan(60);
-  await expect(bands.nth(1)).toContainText('One column again.');
   // Page 3 is on its side.
   const size = await pages.nth(2).evaluate((el) => [(el as HTMLElement).offsetWidth, (el as HTMLElement).offsetHeight]);
   expect(size[0]).toBeGreaterThan(size[1]);
@@ -2133,4 +2137,30 @@ test('styles pane: apply a style, count its uses, update a style to match the se
   await page.getByRole('button', { name: 'Find next (2)' }).click();
   await page.keyboard.type('X');
   await expect(page.locator('.note-editor .blk').first()).toHaveText('XFirst paragraph.');
+});
+
+test('a book’s table of contents lists every chapter with its page, and the headings in them, and opens one', async ({ page }) => {
+  await open(page);
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createProject(n: string): { id: string }; getState(): { chapters: { id: string; projectId: string }[] }; addChapter(id: string): void; setChapterTitle(id: string, t: string): void; setChapterDoc(id: string, d: unknown): void; openProject(id: string): void; selectChapter(id: string): void } }).crumpet;
+    const p = s.createProject('The Lighthouse');
+    s.addChapter(p.id);
+    s.addChapter(p.id);
+    const ids = s.getState().chapters.filter((c) => c.projectId === p.id).map((c) => c.id);
+    s.setChapterTitle(ids[0], 'Front');
+    s.setChapterDoc(ids[0], md.fromMarkdown('[TOC]\n\n# In front'));
+    s.setChapterTitle(ids[1], 'The Keeper');
+    s.setChapterDoc(ids[1], md.fromMarkdown('# The lamp\n\nShe climbs.'));
+    s.setChapterTitle(ids[2], 'Salt');
+    s.setChapterDoc(ids[2], md.fromMarkdown('A boat comes in.'));
+    s.openProject(p.id);
+    s.selectChapter(ids[0]);
+  });
+  const toc = page.locator('.note-editor .blk-toc');
+  await expect(toc.locator('.toc-entry')).toHaveText([/Front\s*1/, /In front/, /The Keeper\s*2/, /The lamp/, /Salt\s*3/]);
+  await expect(toc.locator('.toc-entry.toc-2').first()).toContainText('In front');
+  // Another chapter's line opens that chapter.
+  await toc.locator('.toc-entry', { hasText: 'Salt' }).click();
+  await expect(page.getByLabel('Chapter title')).toHaveValue('Salt');
 });
