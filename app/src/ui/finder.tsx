@@ -130,7 +130,7 @@ function useCommands(actions: Actions): Item[] {
     cmd(layout.sidebar === 'hidden' ? 'Show the sidebar' : 'Hide the sidebar', () => set({ sidebar: layout.sidebar === 'hidden' ? 'full' : 'hidden' }), `${mod}\\`),
     cmd(layout.list === false ? 'Show the note list' : 'Hide the note list', () => set({ list: layout.list === false }), `${isMac ? '⌘⇧' : 'Ctrl+Shift+'}\\`),
     cmd(layout.right ? 'Hide the right sidebar' : 'Show the right sidebar', () => set({ right: !layout.right }), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}\\`),
-    ...(['outline', 'styles', 'comments', 'links'] as const).map((t) => cmd(`Show ${t === 'styles' ? 'the Styles pane' : t}`, () => set({ right: true, rightTab: t }))),
+    ...(['outline', 'styles', 'comments', 'links', 'snapshots'] as const).map((t) => cmd(`Show ${t === 'styles' ? 'the Styles pane' : t}`, () => set({ right: true, rightTab: t }))),
     cmd('Split right', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'right')),
     cmd('Split down', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'bottom')),
     cmd('Close tab', () => panes.closeActive()),
@@ -146,6 +146,12 @@ function useCommands(actions: Actions): Item[] {
   if (here.doc) {
     const on = marks.some((m) => m.kind === here.doc!.kind && m.id === here.doc!.id && !m.block);
     list.push(cmd(on ? `Remove bookmark: ${here.doc.kind === 'note' ? 'this note' : 'this chapter'}` : `Bookmark ${here.doc.kind === 'note' ? 'this note' : 'this chapter'}`, () => store.updateSettings({ bookmarks: toggleBookmark(marks, here.doc!) })));
+  }
+  if (here.doc) {
+    list.push(cmd('Take a snapshot', () => {
+      store.takeSnapshot(here.doc!.id);
+      set({ right: true, rightTab: 'snapshots' });
+    }, `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}S`));
   }
   if (here.heading) {
     const on = marks.some((m) => m.kind === 'heading' && m.id === here.heading!.id && m.block === here.heading!.block);

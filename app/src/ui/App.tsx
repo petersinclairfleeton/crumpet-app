@@ -158,6 +158,13 @@ export function App() {
         else store.updateLayout({ sidebar: (layout?.sidebar ?? 'full') === 'hidden' ? 'full' : 'hidden' });
       }
       if (e.key === 'Escape') setPeek(null);
+      // Ctrl+Alt+S (⌘⌥S): a snapshot of what you're writing, shown in the right sidebar.
+      if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === 'KeyS') {
+        const h = currentHelped();
+        if (!h) return;
+        e.preventDefault();
+        if (store.takeSnapshot(h.docId)) store.updateLayout({ right: true, rightTab: 'snapshots' });
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

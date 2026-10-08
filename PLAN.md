@@ -57,7 +57,7 @@ Next possibilities: native Mac and iPhone/iPad apps, more storage choices (a fol
 Saved for later (October 2026), not scheduled yet:
 
 1. Shapes you can drag anywhere on the page and rotate.
-2. Version history: see and restore earlier drafts.
+2. Version history: see and restore earlier drafts. (Snapshots you take yourself are built; automatic history isn't yet.)
 3. Footnotes numbered through the whole book, not restarting in each chapter.
 4. Table styles: Word's gallery of ready-made table looks.
 5. Saving to a folder on the computer, Dropbox or OneDrive as well as Google Drive.

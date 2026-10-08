@@ -20,6 +20,7 @@ import { type Provider, ProviderError } from './provider';
 import { type Base, type FileCache, type ProjectCache, type Snapshot, emptyBase, readRemote, remoteTree, writeMeta, writeProject } from './remote';
 import { type TChapter, type TNote, type Tree, fullTree, localTree, sameChapter, sameNote } from './tree';
 import { type StatsCache, syncStats } from './stats';
+import { syncSnapshots } from './snapshots';
 import { dailyWords } from '../data/stats';
 
 export interface SyncState {
@@ -31,6 +32,8 @@ export interface SyncState {
   projectFiles?: ProjectCache;
   /** Every device's stats file, as last read or written. */
   stats?: StatsCache;
+  /** Ids of the snapshots in the folder after the last sync. */
+  snapshots?: string[];
 }
 
 export interface SyncStatePersistence {
@@ -170,6 +173,11 @@ export class SyncEngine {
     const st = this.store.getState().settings;
     const counted = await syncStats(this.provider, snap.entries, state.stats ?? {}, this.store.deviceId(), dailyWords(st.stats, this.now()));
     this.store.setStatsElsewhere(counted.others);
+    // Snapshots: new ones copied each way, deleted ones removed.
+    const gone = await this.store.goneSnapshots();
+    const mine = this.store.getState().snapshots;
+    const snaps = await syncSnapshots(this.provider, snap.entries, state.snapshots ?? [], mine, gone);
+    await this.store.syncedSnapshots(snaps.list, gone, mine.map((x) => x.id));
 
     // Apply here, keeping anything typed while the sync ran.
     this.store.flush();
@@ -182,7 +190,7 @@ export class SyncEngine {
     } finally {
       this.applying = false;
     }
-    await this.persistence.save({ base: { tree: merged, layout: want, ids: pushed.ids }, cache: pushed.cache, meta: pushed.meta, projectFiles: pushed.projectFiles, stats: counted.cache, lastSynced: this.now() });
+    await this.persistence.save({ base: { tree: merged, layout: want, ids: pushed.ids }, cache: pushed.cache, meta: pushed.meta, projectFiles: pushed.projectFiles, stats: counted.cache, snapshots: snaps.known, lastSynced: this.now() });
     if (!unchanged) this.again = true;
     return copies.length;
   }
