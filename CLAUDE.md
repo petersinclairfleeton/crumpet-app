@@ -105,7 +105,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   suggestions aren't tracked (typing is).
 - Names of characters and places match in any case, except a one-word name
   written all in small letters (so Rose isn't found in "rose").
-- Comments in Word files: replies become extra lines inside the comment.
+- Comment replies go to Word as Word's own threaded replies
+  (`commentsExtended.xml`); checked by tests, not yet in real Word.
 - Footnotes restart in each chapter of a manuscript.
 - The web clipper doesn't work on sites with strict security settings
   (pasting keeps formatting instead) or in the single-file build.

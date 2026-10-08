@@ -108,7 +108,7 @@ describe('Word documents', () => {
 
 describe('Word comments', () => {
   it('are written as Word comments and read back onto the same text', async () => {
-    const c = { ...makeComment('Ann Lee', 'Which hill?', Date.UTC(2026, 9, 7, 9, 32)), replies: [{ author: 'Bo', at: 0, text: 'The big one' }] };
+    const c = { ...makeComment('Ann Lee', 'Which hill?', Date.UTC(2026, 9, 7, 9, 32)), replies: [{ author: 'Bo', at: Date.UTC(2026, 9, 7, 10, 0), text: 'The big one' }, { author: 'Ann Lee', at: Date.UTC(2026, 9, 7, 10, 5), text: 'Thanks!' }] };
     const a = makeBlock('paragraph', '');
     a.runs = [{ text: 'The castle ', marks: [] }, { text: 'stood ', marks: [], comment: c }, { text: 'on', marks: ['bold'], comment: c }];
     const b = makeBlock('paragraph', '');
@@ -117,14 +117,33 @@ describe('Word comments', () => {
     const files = await readZip(bytes);
     const xml = new TextDecoder().decode(files.get('word/comments.xml'));
     expect(xml).toContain('w:author="Ann Lee"');
-    expect(xml).toContain('Bo: The big one');
+    // Each reply is a comment of its own, tied to the first in Word's thread list.
+    expect(xml.match(/<w:comment /g)).toHaveLength(3);
+    expect(xml).toContain('w:author="Bo"');
+    const threads = new TextDecoder().decode(files.get('word/commentsExtended.xml'));
+    expect(threads.match(/paraIdParent="10000000"/g)).toHaveLength(2);
+    expect(new TextDecoder().decode(files.get('[Content_Types].xml'))).toContain('commentsExtended+xml');
     const doc = new TextDecoder().decode(files.get('word/document.xml'));
-    expect(doc.match(/commentRangeStart/g)).toHaveLength(1);
-    expect(doc.match(/commentReference/g)).toHaveLength(1);
+    expect(doc.match(/commentRangeStart/g)).toHaveLength(3);
+    expect(doc.match(/commentReference/g)).toHaveLength(3);
     const back = await fromDocx(bytes);
     const runs = back.doc.blocks.flatMap((x) => x.runs);
     expect(runs.filter((r) => r.comment).map((r) => r.text)).toEqual(['stood ', 'on', 'the hill']);
     expect(runs.find((r) => r.comment)!.comment).toEqual(c);
+  });
+
+  it('read older files whose replies are extra lines in the comment', async () => {
+    const c = { ...makeComment('Ann Lee', 'Which hill?', Date.UTC(2026, 9, 7, 9, 32)) };
+    const a = makeBlock('paragraph', '');
+    a.runs = [{ text: 'stood', marks: [], comment: c }];
+    const files = await readZip(await toDocx([{ doc: { blocks: [a] } }], { title: 'T' }));
+    // As Crumpet used to write them: no thread list, the reply as a second paragraph.
+    const old = new TextDecoder().decode(files.get('word/comments.xml')).replace('</w:p></w:comment>', '</w:p><w:p><w:r><w:t>Bo: The big one</w:t></w:r></w:p></w:comment>');
+    files.set('word/comments.xml', new TextEncoder().encode(old));
+    files.delete('word/commentsExtended.xml');
+    const { writeZip } = await import('../../src/data/zip');
+    const back = await fromDocx(await writeZip([...files].map(([name, data]) => ({ name, data }))));
+    expect(back.doc.blocks[0].runs[0].comment?.replies).toEqual([{ author: 'Bo', at: 0, text: 'The big one' }]);
   });
 });
 

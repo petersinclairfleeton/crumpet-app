@@ -35,6 +35,8 @@ export interface DocxOptions {
 }
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const W14_NS = 'http://schemas.microsoft.com/office/word/2010/wordml';
+const W15_NS = 'http://schemas.microsoft.com/office/word/2012/wordml';
 const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const TWIPS = 1440;
@@ -90,9 +92,10 @@ class Writer {
   rels: { id: string; type: string; target: string; external?: boolean }[] = [];
   media: ZipEntry[] = [];
   footnotes: string[] = [];
-  /** Comments in the order they start, and how many commented runs each has still to come. */
-  comments: Comment[] = [];
-  private commentNum = new Map<string, number>();
+  /** Comments in the order they start (each with its id, and its replies' ids), and how many commented runs each has still to come. */
+  comments: { comment: Comment; id: number; replies: number[] }[] = [];
+  private nextComment = 0;
+  private commentNum = new Map<string, { id: number; replies: number[] }>();
   private commentLeft = new Map<string, number>();
   /** Numbered lists each get their own numbering, so they start again at 1. */
   numbered = 0;
@@ -144,17 +147,20 @@ class Writer {
     const c = r.comment;
     if (!c) return this.plainRun(r, linked);
     let out = '';
-    let n = this.commentNum.get(c.id);
-    if (n === undefined) {
-      n = this.comments.length;
-      this.commentNum.set(c.id, n);
-      this.comments.push(c);
-      out += `<w:commentRangeStart w:id="${n}"/>`;
+    // Word keeps each reply as a comment of its own on the same text, linked to the first (see commentsExtendedXml).
+    let entry = this.commentNum.get(c.id);
+    if (!entry) {
+      const id = this.nextComment++;
+      const replies = (c.replies ?? []).map(() => this.nextComment++);
+      entry = { id, replies };
+      this.commentNum.set(c.id, entry);
+      this.comments.push({ comment: c, ...entry });
+      for (const n of [id, ...replies]) out += `<w:commentRangeStart w:id="${n}"/>`;
     }
     out += this.plainRun(r, linked);
     const left = (this.commentLeft.get(c.id) ?? 1) - 1;
     this.commentLeft.set(c.id, left);
-    if (left <= 0) out += `<w:commentRangeEnd w:id="${n}"/><w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:commentReference w:id="${n}"/></w:r>`;
+    if (left <= 0) for (const n of [entry.id, ...entry.replies]) out += `<w:commentRangeEnd w:id="${n}"/><w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:commentReference w:id="${n}"/></w:r>`;
     return out;
   }
 
@@ -373,15 +379,23 @@ function numberingXml(lists: number): string {
   return XML + `<w:numbering ${NS}><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>${levels(true)}</w:abstractNum><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="hybridMultilevel"/>${levels(false)}</w:abstractNum>${nums}</w:numbering>`;
 }
 
-function commentsXml(list: Comment[]): string {
-  const para = (text: string, first: boolean) =>
-    `<w:p><w:pPr><w:pStyle w:val="CommentText"/></w:pPr>${first ? '<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>' : ''}<w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
-  const date = (at: number) => (at ? ` w:date="${new Date(at).toISOString().replace(/\.\d+Z$/, 'Z')}"` : '');
-  const initials = (name: string) => esc(name.split(/\s+/).map((w) => w[0] ?? '').join('').slice(0, 3).toUpperCase());
-  const body = list
-    .map((c, n) => `<w:comment w:id="${n}" w:author="${esc(c.author || 'Someone')}"${date(c.at)} w:initials="${initials(c.author || 'S')}">${para(c.text, true)}${(c.replies ?? []).map((r) => para(`${r.author || 'Someone'}: ${r.text}`, false)).join('')}</w:comment>`)
-    .join('');
-  return XML + `<w:comments ${NS}>${body}</w:comments>`;
+/** The id Word uses to tie a comment's paragraph to its thread (8 hex digits, below 0x80000000). */
+const paraId = (n: number) => (0x10000000 + n).toString(16).toUpperCase();
+
+type WrittenComment = { comment: Comment; id: number; replies: number[] };
+
+function commentsXml(list: WrittenComment[]): string {
+  const one = (id: number, author: string, at: number, text: string) =>
+    `<w:comment w:id="${id}" w:author="${esc(author || 'Someone')}"${at ? ` w:date="${new Date(at).toISOString().replace(/\.\d+Z$/, 'Z')}"` : ''} w:initials="${esc((author || 'S').split(/\s+/).map((w) => w[0] ?? '').join('').slice(0, 3).toUpperCase())}">` +
+    `<w:p w14:paraId="${paraId(id)}" w14:textId="77777777"><w:pPr><w:pStyle w:val="CommentText"/></w:pPr><w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r><w:r><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p></w:comment>`;
+  const body = list.map(({ comment: c, id, replies }) => one(id, c.author, c.at, c.text) + (c.replies ?? []).map((r, i) => one(replies[i], r.author, r.at, r.text)).join('')).join('');
+  return XML + `<w:comments ${NS} xmlns:w14="${W14_NS}" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w14">${body}</w:comments>`;
+}
+
+/** Which comments are replies to which: Word's threads. */
+function commentsExtendedXml(list: WrittenComment[]): string {
+  const body = list.map(({ id, replies }) => `<w15:commentEx w15:paraId="${paraId(id)}" w15:done="0"/>` + replies.map((r) => `<w15:commentEx w15:paraId="${paraId(r)}" w15:paraIdParent="${paraId(id)}" w15:done="0"/>`).join('')).join('');
+  return XML + `<w15:commentsEx xmlns:w15="${W15_NS}" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w15">${body}</w15:commentsEx>`;
 }
 
 function footnotesXml(notes: string[]): string {
@@ -444,6 +458,8 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   if (w.comments.length) {
     w.rel(`${REL}/comments`, 'comments.xml');
     files.push({ name: 'word/comments.xml', data: utf8(commentsXml(w.comments)) });
+    w.rel('http://schemas.microsoft.com/office/2011/relationships/commentsExtended', 'commentsExtended.xml');
+    files.push({ name: 'word/commentsExtended.xml', data: utf8(commentsExtendedXml(w.comments)) });
   }
   const docRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${w.rels.map((r) => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"${r.external ? ' TargetMode="External"' : ''}/>`).join('')}</Relationships>`;
   const settings = `${XML}<w:settings ${NS}>${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/><w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
@@ -458,7 +474,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>' +
     '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>' +
     '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>' +
-    files.map((f) => `<Override PartName="/${f.name}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : f.name.includes('comments') ? 'comments' : 'footer'}+xml"/>`).join('') +
+    files.map((f) => `<Override PartName="/${f.name}" ContentType="${f.name.endsWith('commentsExtended.xml') ? 'application/vnd.ms-word.commentsExtended+xml' : `application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : f.name.includes('comments') ? 'comments' : 'footer'}+xml`}"/>`).join('') +
     '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>';
   const rootRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`;
 
@@ -575,19 +591,60 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   // Comments: what each says, and which are open at the text being read.
   const notesById = new Map<string, Comment>();
   const commentsPath = [...rels.values()].find((p) => /comments\.xml$/.test(p));
-  for (const c of Array.from(parseXml(commentsPath ? files.get(commentsPath) : undefined)?.getElementsByTagNameNS(W_NS, 'comment') ?? [])) {
-    const author = (attr(c, 'author') ?? '').replace(/\s+/g, ' ').trim();
+  // Word's threads: which comment (by its last paragraph's id) answers which.
+  const extendedPath = [...rels.values()].find((p) => /commentsExtended\.xml$/.test(p));
+  const extended = parseXml(extendedPath ? files.get(extendedPath) : undefined);
+  const parentOf = new Map<string, string>();
+  for (const x of Array.from(extended?.getElementsByTagName('*') ?? []).filter((e) => e.localName === 'commentEx')) {
+    const own = x.getAttributeNS(W15_NS, 'paraId') ?? x.getAttribute('w15:paraId');
+    const parent = x.getAttributeNS(W15_NS, 'paraIdParent') ?? x.getAttribute('w15:paraIdParent');
+    if (own && parent) parentOf.set(own.toUpperCase(), parent.toUpperCase());
+  }
+  const raw = Array.from(parseXml(commentsPath ? files.get(commentsPath) : undefined)?.getElementsByTagNameNS(W_NS, 'comment') ?? []).map((c) => {
     const date = Date.parse(attr(c, 'date') ?? '');
-    const at = Number.isNaN(date) ? 0 : Math.floor(date / 60000) * 60000;
-    const paras = kids(c).filter((x) => x.localName === 'p').map(textOf).filter(Boolean);
-    const text = paras[0] ?? '';
-    const replies: CommentReply[] = paras.slice(1).map((p) => {
-      const m = /^([^:]{1,60}): (.*)$/.exec(p);
-      return m ? { author: m[1], at: 0, text: m[2] } : { author: '', at: 0, text: p };
-    });
-    const comment: Comment = { id: commentId(author, at, text), author, at, text };
+    const ps = kids(c).filter((x) => x.localName === 'p');
+    const last = ps[ps.length - 1];
+    return {
+      xmlId: attr(c, 'id') ?? '',
+      author: (attr(c, 'author') ?? '').replace(/\s+/g, ' ').trim(),
+      at: Number.isNaN(date) ? 0 : Math.floor(date / 60000) * 60000,
+      paras: ps.map(textOf).filter(Boolean),
+      paraId: (last?.getAttributeNS(W14_NS, 'paraId') ?? last?.getAttribute('w14:paraId') ?? '').toUpperCase(),
+    };
+  });
+  const byPara = new Map(raw.filter((r) => r.paraId).map((r) => [r.paraId, r]));
+  /** The comment that starts a reply's thread. */
+  const rootOf = (r: (typeof raw)[number]) => {
+    let at = r;
+    for (let i = 0; i < 50; i++) {
+      const up = byPara.get(parentOf.get(at.paraId) ?? '');
+      if (!up || up === at) break;
+      at = up;
+    }
+    return at;
+  };
+  const replyTo = new Map<string, CommentReply[]>();
+  for (const r of raw) {
+    const root = rootOf(r);
+    if (root === r) continue;
+    const list = replyTo.get(root.xmlId) ?? [];
+    list.push({ author: r.author, at: r.at, text: r.paras.join(' ') });
+    replyTo.set(root.xmlId, list);
+  }
+  for (const r of raw) {
+    if (rootOf(r) !== r) continue;
+    const text = parentOf.size ? r.paras.join(' ') : (r.paras[0] ?? '');
+    // Without Word's threads (older files), extra paragraphs written as "Name: reply" are replies.
+    const legacy: CommentReply[] = parentOf.size
+      ? []
+      : r.paras.slice(1).map((p) => {
+          const m = /^([^:]{1,60}): (.*)$/.exec(p);
+          return m ? { author: m[1], at: 0, text: m[2] } : { author: '', at: 0, text: p };
+        });
+    const replies = [...legacy, ...(replyTo.get(r.xmlId) ?? [])].sort((a, b) => a.at - b.at);
+    const comment: Comment = { id: commentId(r.author, r.at, text), author: r.author, at: r.at, text };
     if (replies.length) comment.replies = replies;
-    notesById.set(attr(c, 'id') ?? '', comment);
+    notesById.set(r.xmlId, comment);
   }
   const openComments: string[] = [];
   let trackedChange: Change | undefined;

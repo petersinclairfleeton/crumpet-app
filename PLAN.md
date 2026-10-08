@@ -47,6 +47,8 @@ Live at https://petersinclairfleeton.github.io/crumpet-app/ and installable as a
 - **Look**: themes including Paper and ink, writing fonts, layout you control, focus mode, phone and tablet layouts, a first-visit tour.
 - **Your files, your cloud**: notes sync as Markdown files to a folder the person owns (Google Drive; setup in `docs/google-drive-setup.md`). No Crumpet server or account.
 - **Web clipper**: a "Clip to Crumpet" bookmark, and pasting from web pages keeps formatting.
+- **Writing tools** (second October batch): find and replace (in a note, a chapter or the whole book), deadlines with a daily target and "on track", a name generator for characters and places, typewriter mode with typing sounds, writing stats added up across devices.
+- **Design pass**: tables, previews and times tidied; search finds chapters and highlights matches; labelled icon buttons and a grouped … menu; character cards that make room and work on phones; Settings in sections; a clearer tablet sidebar.
 
 Next possibilities: native Mac and iPhone/iPad apps, more storage choices (a folder on the computer, Dropbox, OneDrive, iCloud), version history, reminders, sharing. See `CLAUDE.md` for how we work and known gaps.
 
