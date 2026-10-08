@@ -1128,3 +1128,18 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .tw-fade:focus .blk { opacity: 0.3; transition: opacity 0.25s ease; }
 .tw-fade:focus .blk.tw-current { opacity: 1; }
 .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
+.page-view .editor[data-empty] .blk:first-child .text::before { content: none; }
+/* The formatting row keeps to one line; what doesn't fit goes under More. */
+.note-toolbar:has(> .tools.fit) { flex-wrap: nowrap; }
+.tools.fit { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; }
+.tools.fit + .grow { display: none; }
+.tools .tool { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+.tools .more-tools { position: relative; }
+.tools .more-tools > button { font-size: 12.5px; font-weight: 600; padding: 0 8px; white-space: nowrap; }
+.tools .more-tools .popover { left: 0; right: auto; top: 34px; min-width: 230px; max-height: 70vh; overflow-y: auto; }
+.more-menu { display: flex; flex-direction: column; gap: 2px; }
+.more-row { display: flex; align-items: center; gap: 4px; }
+.more-row > .menu-item { flex: 1; justify-content: flex-start; width: auto; height: auto; min-height: 32px; font-weight: 400; color: var(--text); font-size: 13px; }
+.more-row > .menu-item.on { color: var(--accent-ink); }
+.menu-glyph { display: inline-flex; justify-content: center; min-width: 20px; font-weight: 700; }
+.note-toolbar:has(> .tools.fit) .track-toggle:not(.on) { font-size: 0; gap: 0; padding: 0 8px; }

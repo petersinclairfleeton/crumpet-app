@@ -500,7 +500,7 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const onFindKey = useFindKey(() => setFinding(true));
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
   const pageSetup = project.page ?? manuscriptPage();
-  const paged = !!state.settings.pageView?.projects;
+  const paged = state.settings.pageView?.projects ?? true;
   const list = projectChapters(project, state.chapters);
   const at = list.findIndex((x) => x.chapter.id === chapter.id);
   const prev = list[at - 1]?.chapter;
@@ -690,7 +690,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
   const styles = useSheetClass(sheet);
   const pageSetup = project.page ?? manuscriptPage();
-  const paged = !!state.settings.pageView?.projects;
+  const paged = state.settings.pageView?.projects ?? true;
   const [, setTick] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   // The formatting bar floats above selected text, as in notes, unless pinned.
@@ -751,7 +751,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               <IconBack size={18} />
             </button>
           )}
-          {!floating && !narrow && <FormatTools editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />}
+          {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} />}
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
           <TrackToggle />

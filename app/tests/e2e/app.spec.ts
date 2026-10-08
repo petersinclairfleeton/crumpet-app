@@ -20,6 +20,14 @@ async function newNote(page: Page, title: string, body = '') {
   }
 }
 
+/** A formatting button in the pinned bar, looking under More when there isn't room for it. */
+async function toolButton(page: Page, name: RegExp | string) {
+  const inBar = page.locator('.note-toolbar .tools.fit > .tool').getByRole('button', { name });
+  if (await inBar.count()) return inBar.first();
+  await page.getByRole('button', { name: 'More formatting' }).click();
+  return page.locator('.more-menu').getByRole('button', { name }).first();
+}
+
 async function newNotebook(page: Page, name: string) {
   await sidebar(page).getByRole('button', { name: 'New notebook or stack' }).click();
   await page.getByRole('button', { name: 'New notebook', exact: true }).click();
@@ -472,7 +480,7 @@ test('styles: apply from the menu, align, and modify a style for every paragraph
   await page.keyboard.press('Enter');
   await page.keyboard.type('Body text after the title.');
   await expect(page.getByRole('button', { name: 'Style', exact: true })).toHaveText(/Normal/);
-  await page.getByRole('button', { name: /^Alignment/ }).click();
+  await (await toolButton(page, /^Alignment/)).click();
   await page.getByRole('menuitemradio', { name: /Justify/ }).click();
   await expect(body.locator('.blk').nth(1)).toHaveAttribute('data-align', 'justify');
 
@@ -632,7 +640,8 @@ test('headers and footers in a project: manuscript format, and page numbers runn
   await page.getByLabel('Chapter title').fill('The Keeper');
   await page.keyboard.press('Enter');
   await page.keyboard.insertText(long(20));
-  await page.getByRole('button', { name: 'Page view' }).click();
+  // Chapters open in page view.
+  await expect(page.getByRole('button', { name: 'Page view' })).toHaveAttribute('aria-pressed', 'true');
   // Standard manuscript format: nothing on the first page, then “Author / Title / page”.
   await expect(page.locator('.hf-header')).toHaveText(['', 'Mara Quinn / The Lighthouse / 2']);
   await page.evaluate(() => {
@@ -702,9 +711,9 @@ test('the formatting bar floats above selected text, can be pinned, and focus mo
   await expect(page.locator('.note-editor strong')).toHaveText('Some words to format');
   // Pinned: the full bar stays at the top.
   await page.getByRole('button', { name: 'Formatting bar' }).click();
-  await expect(page.locator('.note-toolbar').getByRole('button', { name: 'Undo' })).toBeVisible();
+  await expect(page.locator('.note-toolbar').getByRole('button', { name: 'Italic' })).toBeVisible();
   await page.getByRole('button', { name: 'Formatting bar' }).click();
-  await expect(page.locator('.note-toolbar').getByRole('button', { name: 'Undo' })).toHaveCount(0);
+  await expect(page.locator('.note-toolbar').getByRole('button', { name: 'Italic' })).toHaveCount(0);
   // Focus mode.
   await page.getByRole('button', { name: 'Focus mode' }).click();
   await expect(page.locator('.sidebar')).toBeHidden();
@@ -1635,4 +1644,21 @@ test('typewriter mode: the typing line stays mid-screen, other paragraphs fade, 
   expect(where).toBeLessThan(0.6);
   await expect(page.locator('.note-editor .blk.tw-current')).toHaveText('Line 30 of the tide.');
   expect(await page.locator('.note-editor .blk').first().evaluate((el) => getComputedStyle(el).opacity)).toBe('0.3');
+});
+
+test('chapters open as pages, with no “Start writing” on the page, and the pinned bar keeps to one row', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.page-view')).toBeVisible();
+  const label = await page.locator('.note-editor .blk .text').first().evaluate((el) => getComputedStyle(el, '::before').content);
+  expect(label).toBe('none');
+  // One row, however narrow: the rest is under More.
+  await page.setViewportSize({ width: 1000, height: 800 });
+  const bar = page.locator('.note-toolbar').first();
+  await expect.poll(() => bar.evaluate((el) => el.getBoundingClientRect().height)).toBeLessThan(64);
+  await page.getByRole('button', { name: 'More formatting' }).click();
+  await expect(page.locator('.more-menu')).toBeVisible();
 });

@@ -36,7 +36,7 @@ export function TrackToggle() {
   const store = useAppStore();
   const on = !!state.settings.trackChanges;
   return (
-    <button type="button" className={`track-toggle${on ? ' on' : ''}`} aria-pressed={on} title={on ? 'Changes are being tracked: click to stop' : 'Track changes: show what’s added and deleted, to accept or reject later'} onClick={() => store.updateSettings({ trackChanges: !on })}>
+    <button type="button" className={`track-toggle${on ? ' on' : ''}`} aria-pressed={on} data-tip={on ? 'Tracking changes: click to stop' : 'Track changes: mark what’s added and deleted'} onClick={() => store.updateSettings({ trackChanges: !on })}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M4 20h4L19 9l-4-4L4 16v4z" />
         <path d="M13 7l4 4" />

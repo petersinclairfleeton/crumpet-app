@@ -10,6 +10,7 @@ import { stepsOf } from '@crumpet/editor/sync/transform';
 import type { BlockType, Doc, Mark } from '@crumpet/editor/model';
 import type { StyleSheet } from '../data/styles';
 import { AlignTools, StylePicker } from './styles-ui';
+import { OverflowRow, type ToolItem } from './toolbar';
 import { addFile } from '../data/files';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
 
@@ -166,59 +167,74 @@ export function chooseFiles(ed: Editor): void {
 }
 
 /** The formatting buttons, acting on whichever editor is given. */
-export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean }) {
+export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true, fit = false }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean; fit?: boolean }) {
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
-  return (
-    <div className="tools" onMouseDown={(e) => e.preventDefault()}>
-      <StylePicker editor={ed} sheet={sheet} disabled={off} onEditStyles={onEditStyles} />
-      <span className="sep" />
-      {MARKS.map((m) => (
-        <button key={m.mark} type="button" className={ed?.isMarkActive(m.mark) ? 'active' : ''} aria-label={m.label} aria-pressed={!!ed?.isMarkActive(m.mark)} title={`${m.label} (${m.key})`} disabled={off} onClick={() => ed?.toggleMark(m.mark)}>
-          {m.glyph}
-        </button>
-      ))}
-      <button type="button" aria-label="Link" title={`Link (${mod}K)`} disabled={off} onClick={onLink}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-          <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
-          <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
-        </svg>
+  /** A button for the bar, and the same as a named line in the More menu. */
+  const tool = (key: string, pri: number, label: string, title: string, glyph: ReactNode, onClick: () => void, opts: { active?: boolean; disabled?: boolean; sep?: boolean; extra?: Record<string, string> } = {}): ToolItem => ({
+    key,
+    pri,
+    sep: opts.sep,
+    node: (
+      <button type="button" className={opts.active ? 'active' : ''} aria-label={label} aria-pressed={opts.active === undefined ? undefined : opts.active} title={title} disabled={off || opts.disabled} onClick={onClick} {...opts.extra}>
+        {glyph}
       </button>
-      <button type="button" data-comment-button aria-label="Comment" title={`Comment on the selected text (${mod}${isMac ? '⌥' : 'Alt+'}M)`} disabled={off} onMouseDown={(e) => e.preventDefault()} onClick={() => ed?.onCommentKey?.()}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
-        </svg>
+    ),
+    menu: (
+      <button type="button" className={`menu-item${opts.active ? ' on' : ''}`} disabled={off || opts.disabled} onClick={onClick}>
+        <span className="menu-glyph">{glyph}</span> {label}
       </button>
-      <span className="sep" />
-      <AlignTools editor={ed} disabled={off} />
-      <span className="sep" />
-      {BLOCKS.map((b) => (
-        <button key={b.type} type="button" className={type === b.type ? 'active' : ''} aria-label={b.label} aria-pressed={type === b.type} title={b.label} disabled={off} onClick={() => ed?.setBlockType(b.type)}>
-          {b.glyph}
-        </button>
-      ))}
-      {attach && (
-        <button type="button" aria-label="Add a picture or file" title="Add a picture or file (or drop one in)" disabled={off} onClick={() => ed && chooseFiles(ed)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <circle cx="9" cy="10" r="1.6" />
-            <path d="M21 16l-5-5-8 8" />
-          </svg>
-        </button>
-      )}
-      {!compact && (
-        <>
-          <span className="sep" />
-          <button type="button" aria-label="Undo" title={`Undo (${mod}Z)`} disabled={off || !ed?.history.canUndo} onClick={() => ed?.undo()}>
-            ↶
-          </button>
-          <button type="button" aria-label="Redo" title={`Redo (${mod}⇧Z)`} disabled={off || !ed?.history.canRedo} onClick={() => ed?.redo()}>
-            ↷
-          </button>
-        </>
-      )}
-    </div>
-  );
+    ),
+  });
+  const items: ToolItem[] = [
+    { key: 'style', pri: 3, node: <StylePicker editor={ed} sheet={sheet} disabled={off} onEditStyles={onEditStyles} /> },
+    ...MARKS.map((m, i) => tool(m.mark, m.mark === 'code' ? 1 : m.mark === 'strike' ? 2 : 3, m.label, `${m.label} (${m.key})`, m.glyph, () => ed?.toggleMark(m.mark), { active: !!ed?.isMarkActive(m.mark), sep: i === 0 })),
+    tool(
+      'link',
+      2,
+      'Link',
+      `Link (${mod}K)`,
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+        <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
+        <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+      </svg>,
+      onLink,
+    ),
+    tool(
+      'comment',
+      2,
+      'Comment',
+      `Comment on the selected text (${mod}${isMac ? '⌥' : 'Alt+'}M)`,
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+      </svg>,
+      () => ed?.onCommentKey?.(),
+      { extra: { 'data-comment-button': '' } },
+    ),
+    { key: 'align', pri: 2, sep: true, node: <AlignTools editor={ed} disabled={off} /> },
+    ...BLOCKS.map((b, i) => tool(b.type, b.type === 'todo' ? 1 : 2, b.label, b.label, b.glyph, () => ed?.setBlockType(b.type), { active: type === b.type, sep: i === 0 })),
+  ];
+  if (attach)
+    items.push(
+      tool(
+        'attach',
+        1,
+        'Add a picture or file',
+        'Add a picture or file (or drop one in)',
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <circle cx="9" cy="10" r="1.6" />
+          <path d="M21 16l-5-5-8 8" />
+        </svg>,
+        () => ed && chooseFiles(ed),
+      ),
+    );
+  if (!compact)
+    items.push(
+      tool('undo', 1, 'Undo', `Undo (${mod}Z)`, '↶', () => ed?.undo(), { disabled: !ed?.history.canUndo, sep: true }),
+      tool('redo', 1, 'Redo', `Redo (${mod}⇧Z)`, '↷', () => ed?.redo(), { disabled: !ed?.history.canRedo }),
+    );
+  return <OverflowRow items={items} fit={fit} />;
 }
 
 /**
