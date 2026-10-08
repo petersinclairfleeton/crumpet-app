@@ -13,7 +13,7 @@ import type { Tree } from '../sync/tree';
 import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
 import { attachmentsIn, forgetFiles } from './files';
-import { dayKey, recordEdit, wordsIn, wordsToday } from './stats';
+import { type StatsElsewhere, dayKey, recordEdit, wordsIn, wordsToday } from './stats';
 import { relinkDoc, sameTitle } from './links';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
@@ -873,6 +873,21 @@ export class AppStore {
 
   setProjectPage(id: string, page: PageSetup): void {
     this.updateProject(id, { page });
+  }
+
+  /** This device's id, made the first time it's asked for. */
+  deviceId(): string {
+    const id = this.state.settings.deviceId;
+    if (id) return id;
+    const made = newId();
+    this.updateSettings({ deviceId: made });
+    return made;
+  }
+
+  /** Words written on the other devices, as read from their stats files. */
+  setStatsElsewhere(others: StatsElsewhere): void {
+    if (JSON.stringify(others) === JSON.stringify(this.state.settings.statsElsewhere ?? {})) return;
+    this.updateSettings({ statsElsewhere: others });
   }
 
   setProjectGoal(id: string, goal: number | null): void {

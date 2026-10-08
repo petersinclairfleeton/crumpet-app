@@ -19,6 +19,8 @@ import { type NoteFile, writeNoteFile } from './notefile';
 import { type Provider, ProviderError } from './provider';
 import { type Base, type FileCache, type ProjectCache, type Snapshot, emptyBase, readRemote, remoteTree, writeMeta, writeProject } from './remote';
 import { type TChapter, type TNote, type Tree, fullTree, localTree, sameChapter, sameNote } from './tree';
+import { type StatsCache, syncStats } from './stats';
+import { dailyWords } from '../data/stats';
 
 export interface SyncState {
   base: Base;
@@ -27,6 +29,8 @@ export interface SyncState {
   lastSynced: number;
   /** project.json files as last read or written. */
   projectFiles?: ProjectCache;
+  /** Every device's stats file, as last read or written. */
+  stats?: StatsCache;
 }
 
 export interface SyncStatePersistence {
@@ -162,6 +166,10 @@ export class SyncEngine {
     const want = layout(merged, at);
     const pushed = await push(this.provider, snap, remote, at, merged, want);
     await this.uploadFiles?.(this.provider);
+    // Writing stats: this device's days out, the other devices' days in.
+    const st = this.store.getState().settings;
+    const counted = await syncStats(this.provider, snap.entries, state.stats ?? {}, this.store.deviceId(), dailyWords(st.stats, this.now()));
+    this.store.setStatsElsewhere(counted.others);
 
     // Apply here, keeping anything typed while the sync ran.
     this.store.flush();
@@ -174,7 +182,7 @@ export class SyncEngine {
     } finally {
       this.applying = false;
     }
-    await this.persistence.save({ base: { tree: merged, layout: want, ids: pushed.ids }, cache: pushed.cache, meta: pushed.meta, projectFiles: pushed.projectFiles, lastSynced: this.now() });
+    await this.persistence.save({ base: { tree: merged, layout: want, ids: pushed.ids }, cache: pushed.cache, meta: pushed.meta, projectFiles: pushed.projectFiles, stats: counted.cache, lastSynced: this.now() });
     if (!unchanged) this.again = true;
     return copies.length;
   }

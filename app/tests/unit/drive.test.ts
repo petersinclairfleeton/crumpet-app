@@ -53,7 +53,10 @@ describe('Google Drive', () => {
     await phone.engine.sync();
     await mac.engine.sync();
     expect(toMarkdown(mac.store.note(n.id)!.doc)).toBe('It was **dark**.\n\nAnd stormy.\n');
-    expect(drive.paths(root)).toEqual(['.crumpet/', '.crumpet/vault.json', 'Writing/', 'Writing/Book/', 'Writing/Book/Chapter 1.md']);
+    // The phone wrote two words, so it has a stats file of its own.
+    const stats = drive.paths(root).filter((p) => p.startsWith('.crumpet/stats/'));
+    expect(stats.length).toBe(2);
+    expect(drive.paths(root).filter((p) => !p.startsWith('.crumpet/stats/'))).toEqual(['.crumpet/', '.crumpet/vault.json', 'Writing/', 'Writing/Book/', 'Writing/Book/Chapter 1.md']);
 
     mac.store.deleteForever(n.id);
     await mac.engine.sync();

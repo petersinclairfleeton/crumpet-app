@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { addDays, dailyWords, dayKey, streaks } from '../data/stats';
+import { addDays, allDailyWords, dayKey, streaks } from '../data/stats';
 import { useAppState, useAppStore } from './hooks';
 import { IconClose } from './icons';
 
@@ -19,7 +19,7 @@ const fmt = (n: number) => n.toLocaleString();
 /** Words written today, for the sidebar. */
 export function useTodayWords(): number {
   const state = useAppState();
-  return dailyWords(state.settings.stats, Date.now())[dayKey(Date.now())] ?? 0;
+  return allDailyWords(state.settings.stats, state.settings.statsElsewhere, Date.now())[dayKey(Date.now())] ?? 0;
 }
 
 interface Tip {
@@ -38,9 +38,10 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
   const now = Date.now();
   const today = dayKey(now);
   const goal = state.settings.dailyGoal ?? 0;
-  const days = useMemo(() => dailyWords(state.settings.stats, now), [state.settings.stats, now]);
+  const days = useMemo(() => allDailyWords(state.settings.stats, state.settings.statsElsewhere, now), [state.settings.stats, state.settings.statsElsewhere, now]);
   const { current, best } = streaks(days, goal, now);
   const todayWords = days[today] ?? 0;
+  const devices = Object.keys(state.settings.statsElsewhere ?? {}).length;
   const last30 = Array.from({ length: 30 }, (_, i) => addDays(today, i - 29));
   const week = last30.slice(-7).reduce((n, d) => n + (days[d] ?? 0), 0);
   const month = last30.reduce((n, d) => n + (days[d] ?? 0), 0);
@@ -218,7 +219,10 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
             ))}
             More
           </div>
-          <p className="sync-hint">Counted on this device: words added to notes and chapters each day, after any deleting.</p>
+          <p className="sync-hint">
+            Words added to notes and chapters each day, after any deleting.{' '}
+            {devices > 0 ? `Added up across your ${devices + 1} devices (the others as of the last sync).` : 'With Google Drive connected, writing on your other devices is added in too.'}
+          </p>
         </div>
         {tip && (
           <div className="chart-tip" role="tooltip" style={{ left: tip.x, top: tip.y }}>
