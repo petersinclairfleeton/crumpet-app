@@ -7,7 +7,7 @@ import { Popover } from './Sidebar';
 
 export interface ToolItem {
   key: string;
-  /** Higher stays longer: 3 always shown if at all possible, 1 the first to go. */
+  /** Higher stays longer: 4 (bold, italic…) the last to go, 1 the first. */
   pri: number;
   /** As it appears in the bar. */
   node: ReactNode;
@@ -55,10 +55,11 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
     return () => ro.disconnect();
   }, [keys, fit]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const shown = fit ? items.filter((i) => !hidden.includes(i.key)) : items;
+  // Floating over the text, the bar keeps to the most-used controls.
+  const shown = fit ? items.filter((i) => !hidden.includes(i.key)) : items.filter((i) => i.pri >= 2);
   const extra = fit ? items.filter((i) => hidden.includes(i.key)) : [];
   return (
-    <div ref={row} className={`tools${fit ? ' fit' : ''}`} onMouseDown={(e) => e.preventDefault()}>
+    <div ref={row} className={`tools${fit ? ' fit' : ''}`} onMouseDown={(e) => !(e.target as Element).closest('input, select, textarea') && e.preventDefault()}>
       {shown.map((i, n) => (
         <span key={i.key} className="tool" data-tool={i.key} data-sep={i.sep && n > 0 ? '1' : undefined}>
           {i.sep && n > 0 && <span className="sep" />}

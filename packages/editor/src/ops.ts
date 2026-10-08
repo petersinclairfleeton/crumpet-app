@@ -14,6 +14,8 @@ import {
   MAX_INDENT,
   styleAllowed,
   commonLink,
+  commonLook,
+  type LookKey,
   isList,
   tidyRows,
   isHeading,
@@ -43,7 +45,15 @@ export type Op =
    * Replace formatting on a span; `before` and `after` hold the same text. The intent is recorded
    * for sync: either a mark switched on/off, or a link set (a URL) or removed (null).
    */
-  | ({ type: 'format'; block: string; offset: number; before: Run[]; after: Run[] } & ({ mark: Mark; on: boolean; link?: undefined; comment?: undefined; change?: undefined } | { link: string | null; mark?: undefined; comment?: undefined; change?: undefined } | { comment: Comment | null; mark?: undefined; link?: undefined; change?: undefined } | { change: Change | null; mark?: undefined; link?: undefined; comment?: undefined }));
+  | ({ type: 'format'; block: string; offset: number; before: Run[]; after: Run[] } & FormatIntent);
+
+/** What a format op set, for sync: a mark, a link, a comment, a tracked change, or one part of the look (font, size…). */
+export type FormatIntent =
+  | { mark: Mark; on: boolean; link?: undefined; comment?: undefined; change?: undefined; look?: undefined }
+  | { link: string | null; mark?: undefined; comment?: undefined; change?: undefined; look?: undefined }
+  | { comment: Comment | null; mark?: undefined; link?: undefined; change?: undefined; look?: undefined }
+  | { change: Change | null; mark?: undefined; link?: undefined; comment?: undefined; look?: undefined }
+  | { look: LookKey; value: string | number | null; mark?: undefined; link?: undefined; comment?: undefined; change?: undefined };
 
 export class OpError extends Error {}
 
@@ -138,6 +148,7 @@ export function invertOp(op: Op): Op {
     case 'setAttrs':
       return { type: 'setAttrs', block: op.block, from: op.to, to: op.from };
     case 'format':
+      if (op.look !== undefined) return { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, look: op.look, value: commonLook(op.before, op.look) ?? null };
       if (op.change !== undefined) return { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, change: op.before[0]?.change ?? null };
       if (op.comment !== undefined) return { type: 'format', block: op.block, offset: op.offset, before: op.after, after: op.before, comment: op.before[0]?.comment ?? null };
       return op.link !== undefined

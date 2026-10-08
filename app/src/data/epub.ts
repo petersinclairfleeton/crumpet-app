@@ -74,6 +74,10 @@ class Book {
         if (m.includes('underline')) t = `<u>${t}</u>`;
         if (m.includes('italic')) t = `<em>${t}</em>`;
         if (m.includes('bold')) t = `<strong>${t}</strong>`;
+        // E-readers choose the font and size; colour, highlight and raised or lowered text are kept.
+        if (r.look?.va) t = r.look.va === 'super' ? `<sup>${t}</sup>` : `<sub>${t}</sub>`;
+        const css = [r.look?.color ? `color: ${r.look.color}` : '', r.look?.highlight ? `background-color: ${r.look.highlight}` : ''].filter(Boolean).join('; ');
+        if (css) t = `<span style="${css}">${t}</span>`;
         if (r.link && /^(https?|mailto):/.test(r.link)) t = `<a href="${esc(r.link)}">${t}</a>`;
         else if (r.link?.startsWith(NOTE_LINK)) t = `<span class="note-link">${t}</span>`;
         out += t;

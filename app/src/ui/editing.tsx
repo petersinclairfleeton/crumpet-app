@@ -11,6 +11,7 @@ import type { BlockType, Doc, Mark } from '@crumpet/editor/model';
 import type { StyleSheet } from '../data/styles';
 import { AlignTools, StylePicker } from './styles-ui';
 import { OverflowRow, type ToolItem } from './toolbar';
+import { useFontItems } from './fonttools';
 import { addFile } from '../data/files';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
 
@@ -170,6 +171,7 @@ export function chooseFiles(ed: Editor): void {
 export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true, fit = false }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean; fit?: boolean }) {
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
+  const fontItems = useFontItems(ed, off, sheet);
   /** A button for the bar, and the same as a named line in the More menu. */
   const tool = (key: string, pri: number, label: string, title: string, glyph: ReactNode, onClick: () => void, opts: { active?: boolean; disabled?: boolean; sep?: boolean; extra?: Record<string, string> } = {}): ToolItem => ({
     key,
@@ -188,7 +190,8 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   });
   const items: ToolItem[] = [
     { key: 'style', pri: 3, node: <StylePicker editor={ed} sheet={sheet} disabled={off} onEditStyles={onEditStyles} /> },
-    ...MARKS.map((m, i) => tool(m.mark, m.mark === 'code' ? 1 : m.mark === 'strike' ? 2 : 3, m.label, `${m.label} (${m.key})`, m.glyph, () => ed?.toggleMark(m.mark), { active: !!ed?.isMarkActive(m.mark), sep: i === 0 })),
+    ...fontItems,
+    ...MARKS.map((m, i) => tool(m.mark, m.mark === 'code' ? 1 : m.mark === 'strike' ? 2 : 4, m.label, `${m.label} (${m.key})`, m.glyph, () => ed?.toggleMark(m.mark), { active: !!ed?.isMarkActive(m.mark), sep: i === 0 })),
     tool(
       'link',
       2,

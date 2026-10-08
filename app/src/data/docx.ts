@@ -3,7 +3,7 @@
 // needs (styles, lists, footnotes, pictures, headers and footers) and read
 // back what Crumpet can show.
 
-import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Mark, type Run, FOOTNOTE, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type Run, FOOTNOTE, tidyLook, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { PAGE_SIZES, type PageSetup } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -35,6 +35,27 @@ export interface DocxOptions {
 }
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+/** Word's highlighter colours (w:highlight); any other colour is written as shading. */
+const HIGHLIGHTS: [string, string][] = [
+  ['yellow', '#ffff00'],
+  ['green', '#00ff00'],
+  ['cyan', '#00ffff'],
+  ['magenta', '#ff00ff'],
+  ['blue', '#0000ff'],
+  ['red', '#ff0000'],
+  ['darkBlue', '#000080'],
+  ['darkCyan', '#008080'],
+  ['darkGreen', '#008000'],
+  ['darkMagenta', '#800080'],
+  ['darkRed', '#800000'],
+  ['darkYellow', '#808000'],
+  ['darkGray', '#808080'],
+  ['lightGray', '#c0c0c0'],
+  ['black', '#000000'],
+  ['white', '#ffffff'],
+];
+const HIGHLIGHT_NAME: Record<string, string> = Object.fromEntries(HIGHLIGHTS.map(([n, h]) => [h, n]));
+const HIGHLIGHT_HEX: Record<string, string> = Object.fromEntries(HIGHLIGHTS);
 const W14_NS = 'http://schemas.microsoft.com/office/word/2010/wordml';
 const W15_NS = 'http://schemas.microsoft.com/office/word/2012/wordml';
 const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
@@ -131,14 +152,22 @@ class Writer {
     return out;
   }
 
-  private props(marks: Mark[], linked: boolean): string {
+  /** A run's properties, in the order Word expects them. */
+  private props(marks: Mark[], linked: boolean, look?: Look): string {
     let p = '';
     if (linked) p += '<w:rStyle w:val="Hyperlink"/>';
-    if (marks.includes('code')) p += '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/>';
+    const font = marks.includes('code') ? 'Courier New' : look?.font;
+    if (font) p += `<w:rFonts w:ascii="${esc(font)}" w:hAnsi="${esc(font)}" w:eastAsia="${esc(font)}" w:cs="${esc(font)}"/>`;
     if (marks.includes('bold')) p += '<w:b/>';
     if (marks.includes('italic')) p += '<w:i/>';
     if (marks.includes('strike')) p += '<w:strike/>';
+    if (look?.color) p += `<w:color w:val="${look.color.slice(1).toUpperCase()}"/>`;
+    if (look?.size) p += `<w:sz w:val="${Math.round(look.size * 2)}"/><w:szCs w:val="${Math.round(look.size * 2)}"/>`;
+    const named = look?.highlight ? HIGHLIGHT_NAME[look.highlight.toLowerCase()] : undefined;
+    if (named) p += `<w:highlight w:val="${named}"/>`;
     if (marks.includes('underline')) p += '<w:u w:val="single"/>';
+    if (look?.highlight && !named) p += `<w:shd w:val="clear" w:color="auto" w:fill="${look.highlight.slice(1).toUpperCase()}"/>`;
+    if (look?.va) p += `<w:vertAlign w:val="${look.va === 'super' ? 'superscript' : 'subscript'}"/>`;
     return p ? `<w:rPr>${p}</w:rPr>` : '';
   }
 
@@ -180,7 +209,7 @@ class Writer {
       this.footnotes.push(r.footnote);
       return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${id}"/></w:r>`;
     }
-    const props = this.props(r.marks, linked);
+    const props = this.props(r.marks, linked, r.look);
     const body = r.text
       .replaceAll(FOOTNOTE, '')
       .split(/(\n|\t)/)
@@ -564,7 +593,31 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const styleName = new Map<string, string>();
   const styleLevel = new Map<string, number>();
   const stylesPath = [...rels.values()].find((p) => /styles\.xml$/.test(p)) ?? 'word/styles.xml';
-  for (const s of Array.from(parseXml(files.get(stylesPath))?.getElementsByTagNameNS(W_NS, 'style') ?? [])) {
+  const stylesXml = parseXml(files.get(stylesPath));
+  // The document's usual font and size: text set in those needs no look of its own.
+  const defaults = Array.from(stylesXml?.getElementsByTagNameNS(W_NS, 'rPrDefault') ?? [])[0];
+  const normal = Array.from(stylesXml?.getElementsByTagNameNS(W_NS, 'style') ?? []).find((x) => attr(x, 'type') === 'paragraph' && attr(x, 'default') === '1');
+  const usualFont = new Set([attr(child(child(defaults, 'rPr'), 'rFonts'), 'ascii'), attr(child(child(normal, 'rPr'), 'rFonts'), 'ascii')].filter((x): x is string => !!x));
+  const usualSize = new Set([attr(child(child(defaults, 'rPr'), 'sz'), 'val'), attr(child(child(normal, 'rPr'), 'sz'), 'val')].filter((x): x is string => !!x));
+  const readLook = (rpr: Element | null | undefined, code: boolean): Look | undefined => {
+    if (!rpr) return undefined;
+    const look: Look = {};
+    const font = attr(child(rpr, 'rFonts'), 'ascii') ?? attr(child(rpr, 'rFonts'), 'hAnsi');
+    if (font && !code && !usualFont.has(font)) look.font = font;
+    const sz = attr(child(rpr, 'sz'), 'val');
+    if (sz && !usualSize.has(sz) && +sz > 0) look.size = +sz / 2;
+    const color = attr(child(rpr, 'color'), 'val');
+    if (color && /^[0-9a-f]{6}$/i.test(color) && color.toUpperCase() !== '000000') look.color = `#${color.toLowerCase()}`;
+    const hl = attr(child(rpr, 'highlight'), 'val');
+    const fill = attr(child(rpr, 'shd'), 'fill');
+    if (hl && HIGHLIGHT_HEX[hl]) look.highlight = HIGHLIGHT_HEX[hl];
+    else if (fill && /^[0-9a-f]{6}$/i.test(fill) && fill.toUpperCase() !== 'FFFFFF') look.highlight = `#${fill.toLowerCase()}`;
+    const va = attr(child(rpr, 'vertAlign'), 'val');
+    if (va === 'superscript') look.va = 'super';
+    else if (va === 'subscript') look.va = 'sub';
+    return tidyLook(look);
+  };
+  for (const s of Array.from(stylesXml?.getElementsByTagNameNS(W_NS, 'style') ?? [])) {
     const id = attr(s, 'styleId') ?? '';
     styleName.set(id, (attr(child(s, 'name'), 'val') ?? id).toLowerCase());
     const lvl = attr(child(child(s, 'pPr'), 'outlineLvl'), 'val');
@@ -676,10 +729,12 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
           const marksHere = sortMarks([...new Set(m)]);
           const comment = currentComment();
           const change = trackedChange;
+          const look = readLook(rpr, marksHere.includes('code'));
           const push = (text: string) => {
             const run: Run = link ? { text, marks: marksHere, link } : { text, marks: marksHere };
             if (comment) run.comment = comment;
             if (change) run.change = change;
+            if (look) run.look = look;
             out.push(run);
           };
           for (const c of kids(el)) {

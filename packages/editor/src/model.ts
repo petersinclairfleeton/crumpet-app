@@ -19,6 +19,35 @@ export interface Run {
   comment?: Comment;
   /** With track changes: this text was added, or deleted (still shown, struck through, until accepted). */
   change?: Change;
+  /** Font, size, colour, highlight, raised or lowered: how this text looks beyond bold and italic. */
+  look?: Look;
+}
+
+/** Character formatting beyond the marks, as in Word's Font group. */
+export interface Look {
+  /** A font family name. */
+  font?: string;
+  /** Size in points. */
+  size?: number;
+  /** Text colour and highlight, as #rrggbb. */
+  color?: string;
+  highlight?: string;
+  /** Superscript or subscript. */
+  va?: 'super' | 'sub';
+}
+export type LookKey = keyof Look;
+export const LOOK_KEYS: LookKey[] = ['font', 'size', 'color', 'highlight', 'va'];
+
+/** A look with nothing unset left in it, or undefined if it's empty. */
+export function tidyLook(l: Look | undefined): Look | undefined {
+  if (!l) return undefined;
+  const out: Look = {};
+  for (const k of LOOK_KEYS) if (l[k] !== undefined && l[k] !== null && l[k] !== '') (out as Record<string, unknown>)[k] = l[k];
+  return Object.keys(out).length ? out : undefined;
+}
+
+export function sameLook(a: Look | undefined, b: Look | undefined): boolean {
+  return LOOK_KEYS.every((k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined));
 }
 
 /** A tracked change: who made it and when (ms, to the minute; 0 if unknown). */
@@ -199,11 +228,13 @@ export function withText(r: Run, text: string): Run {
   if (r.footnote !== undefined) out.footnote = r.footnote;
   if (r.comment) out.comment = r.comment;
   if (r.change) out.change = r.change;
+  const look = tidyLook(r.look);
+  if (look) out.look = look;
   return out;
 }
 
 export function sameFormat(a: Run, b: Run): boolean {
-  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && sameComment(a.comment, b.comment) && sameChange(a.change, b.change);
+  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && sameComment(a.comment, b.comment) && sameChange(a.change, b.change) && sameLook(a.look, b.look);
 }
 
 /** Drops empty runs and merges neighbours with identical formatting. */
@@ -271,6 +302,33 @@ export function setMarkOnRuns(runs: Run[], mark: Mark, on: boolean): Run[] {
   );
 }
 
+/** Sets one part of the look (or, with null, takes it away) on every run, keeping the text and the rest. */
+export function setLookOnRuns(runs: Run[], key: LookKey, value: string | number | null): Run[] {
+  return normalizeRuns(runs.map((r) => ({ ...r, look: tidyLook({ ...r.look, [key]: value ?? undefined }) })));
+}
+
+/** Takes every look and mark away (Word's Clear Formatting), keeping links, comments and tracked changes. */
+export function clearFormatOnRuns(runs: Run[]): Run[] {
+  return normalizeRuns(runs.map((r) => ({ ...r, marks: [], look: undefined })));
+}
+
+/** The look a character typed at `offset` should take: that of the character before it. */
+export function lookAt(runs: Run[], offset: number): Look | undefined {
+  let pos = 0;
+  for (const r of runs) {
+    const end = pos + r.text.length;
+    if (offset > pos && offset <= end) return r.look;
+    pos = end;
+  }
+  return runs.length && offset === 0 ? runs[0].look : undefined;
+}
+
+/** The value of one part of the look shared by all these runs: undefined when it's mixed or unset. */
+export function commonLook<K extends LookKey>(runs: Run[], key: K): Look[K] | undefined {
+  const v = runs[0]?.look?.[key];
+  return runs.every((r) => r.look?.[key] === v) ? v : undefined;
+}
+
 /** Sets (or, with null, removes) the link on every run, keeping the text and formatting. */
 export function setLinkOnRuns(runs: Run[], link: string | null): Run[] {
   return normalizeRuns(runs.map((r) => withLink(r, link)));
@@ -278,7 +336,7 @@ export function setLinkOnRuns(runs: Run[], link: string | null): Run[] {
 
 /** A copy of `r` with a different link (or none). */
 export function withLink(r: Run, link: string | null): Run {
-  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, comment: r.comment, change: r.change }, r.text);
+  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, comment: r.comment, change: r.change, look: r.look }, r.text);
   if (link) out.link = link;
   return out;
 }
@@ -287,7 +345,7 @@ export function withLink(r: Run, link: string | null): Run {
 export function setCommentOnRuns(runs: Run[], comment: Comment | null): Run[] {
   return normalizeRuns(
     runs.map((r) => {
-      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, change: r.change }, r.text);
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, change: r.change, look: r.look }, r.text);
       if (comment) out.comment = comment;
       return out;
     }),
@@ -298,7 +356,7 @@ export function setCommentOnRuns(runs: Run[], comment: Comment | null): Run[] {
 export function setChangeOnRuns(runs: Run[], change: Change | null): Run[] {
   return normalizeRuns(
     runs.map((r) => {
-      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, comment: r.comment }, r.text);
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, comment: r.comment, look: r.look }, r.text);
       if (change) out.change = change;
       return out;
     }),

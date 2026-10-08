@@ -20,7 +20,7 @@
 // lines, fenced code and autolinks. Things Crumpet can't show yet (images,
 // tables, other HTML) are kept as their literal text.
 
-import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES } from './model';
+import { type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -247,11 +247,54 @@ function writeChanges(runs: Run[], style: Style): string {
     const c = runs[i].change;
     let j = i + 1;
     while (j < runs.length && sameChange(runs[j].change, c)) j++;
-    const part = writeFormatted(runs.slice(i, j), style);
+    const part = writeLooks(runs.slice(i, j), style);
     out += c ? changeMarkup(part, c) : part;
     i = j;
   }
   return out;
+}
+
+/** Text with a font, size or colour of its own is a bracketed span: [the text]{font="Garamond" size=14}. */
+function writeLooks(runs: Run[], style: Style): string {
+  let out = '';
+  for (let i = 0; i < runs.length; ) {
+    const l = runs[i].look;
+    let j = i + 1;
+    while (j < runs.length && sameLook(runs[j].look, l)) j++;
+    const part = writeFormatted(runs.slice(i, j), style);
+    out += l ? `[${part}]{${lookAttrs(l)}}` : part;
+    i = j;
+  }
+  return out;
+}
+
+function lookAttrs(l: Look): string {
+  const parts: string[] = [];
+  if (l.font) parts.push(`font="${l.font.replace(/["{}\\]/g, '')}"`);
+  if (l.size) parts.push(`size=${l.size}`);
+  if (l.color) parts.push(`color=${l.color}`);
+  if (l.highlight) parts.push(`highlight=${l.highlight}`);
+  if (l.va) parts.push(`va=${l.va}`);
+  return parts.join(' ');
+}
+
+/** The look in a span's {…}, or null if it isn't one of ours. */
+function readLookAttrs(raw: string): Look | null {
+  const look: Look = {};
+  const re = /([a-z]+)=(?:"([^"]*)"|([^\s"}]+))/g;
+  let seen = 0;
+  for (const m of raw.matchAll(re)) {
+    const v = m[2] ?? m[3];
+    seen += m[0].length;
+    if (m[1] === 'font' && v.trim()) look.font = v.trim();
+    else if (m[1] === 'size' && +v > 0 && +v <= 400) look.size = +v;
+    else if (m[1] === 'color' && /^#[0-9a-f]{6}$/i.test(v)) look.color = v.toLowerCase();
+    else if (m[1] === 'highlight' && /^#[0-9a-f]{6}$/i.test(v)) look.highlight = v.toLowerCase();
+    else if (m[1] === 'va' && (v === 'super' || v === 'sub')) look.va = v;
+    else return null;
+  }
+  // Nothing but our settings (and spaces) inside the braces.
+  return seen && !raw.replace(re, '').trim() ? (tidyLook(look) ?? null) : null;
 }
 
 function changeMarkup(inner: string, c: Change): string {
@@ -596,7 +639,7 @@ interface Delim {
   node: TextNode;
 }
 
-type Node = TextNode | Delim | { kind: 'mark'; mark: Mark; open: boolean } | { kind: 'link'; open: boolean; href?: string } | { kind: 'comment'; open: boolean; comment?: Comment } | { kind: 'change'; open: boolean; change?: Change };
+type Node = TextNode | Delim | { kind: 'mark'; mark: Mark; open: boolean } | { kind: 'link'; open: boolean; href?: string } | { kind: 'comment'; open: boolean; comment?: Comment } | { kind: 'change'; open: boolean; change?: Change } | { kind: 'look'; open: boolean; look?: Look };
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 
@@ -626,6 +669,7 @@ export function parseInline(src: string): Run[] {
   const links: string[] = [];
   const notes: Comment[] = [];
   const edits: Change[] = [];
+  const looks: Look[] = [];
   const runs: Run[] = [];
   for (const n of nodes) {
     if (n.kind === 'mark') {
@@ -647,6 +691,11 @@ export function parseInline(src: string): Run[] {
       else edits.pop();
       continue;
     }
+    if (n.kind === 'look') {
+      if (n.open) looks.push(n.look!);
+      else looks.pop();
+      continue;
+    }
     const node = n.kind === 'delim' ? n.node : n;
     if (!node.text) continue;
     const marks = sortMarks([...node.marks, ...[...active.entries()].filter(([, c]) => c > 0).map(([m]) => m)]);
@@ -655,6 +704,7 @@ export function parseInline(src: string): Run[] {
     if (node.footnote !== undefined) run.footnote = node.footnote;
     if (notes.length) run.comment = notes[notes.length - 1];
     if (edits.length) run.change = edits[edits.length - 1];
+    if (looks.length) run.look = tidyLook(Object.assign({}, ...looks));
     runs.push(run);
   }
   return normalizeRuns(runs);
@@ -774,6 +824,22 @@ function tokenize(src: string): Node[] {
         nodes.push({ kind: 'text', text: wiki[2] ?? title, marks: [], link: noteLink(title) });
         i += wiki[0].length;
         continue;
+      }
+    }
+    // Text with a look of its own: [text]{font="Garamond" size=14}.
+    if (c === '[') {
+      const end = closeBracket(src, i);
+      if (end > 0 && src[end + 1] === '{') {
+        const close = src.indexOf('}', end + 2);
+        const look = close > 0 ? readLookAttrs(src.slice(end + 2, close)) : null;
+        if (look) {
+          flush();
+          nodes.push({ kind: 'look', open: true, look });
+          nodes.push(...tokenize(src.slice(i + 1, end)));
+          nodes.push({ kind: 'look', open: false });
+          i = close + 1;
+          continue;
+        }
       }
     }
     if (c === '[') {

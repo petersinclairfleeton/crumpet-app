@@ -3,7 +3,7 @@
 // difference as ops, instead of replacing the document, keeps the caret next
 // to the same text and keeps undo working.
 
-import { type Block, type Doc, MARK_ORDER, type Run, blockIndex, getBlock, newId, runsLength, runsText, sameChange, sameComment, setChangeOnRuns, setCommentOnRuns, setMarkOnRuns, sliceRuns, withLink } from './model';
+import { type Block, type Doc, LOOK_KEYS, MARK_ORDER, type Run, blockIndex, getBlock, newId, runsLength, runsText, sameChange, sameComment, setChangeOnRuns, setCommentOnRuns, setLookOnRuns, setMarkOnRuns, sliceRuns, withLink } from './model';
 import { type Op, applyOp, attrsOf, sameAttrs } from './ops';
 
 /**
@@ -154,6 +154,22 @@ function editBlock(doc: () => Doc, id: string, target: Block, apply: (op: Op) =>
       while (j < len && at(target.runs, j).marks.includes(mark) === want && at(cur.runs, j).marks.includes(mark) !== want) j++;
       const before = sliceRuns(cur.runs, i, j);
       apply({ type: 'format', block: id, offset: i, before, after: setMarkOnRuns(before, mark, want), mark, on: want });
+      i = j;
+    }
+  }
+  // Each part of the look (font, size, colour…).
+  for (const key of LOOK_KEYS) {
+    for (let i = 0; i < len; ) {
+      cur = getBlock(doc(), id);
+      const want = at(target.runs, i).look?.[key] ?? null;
+      if ((at(cur.runs, i).look?.[key] ?? null) === want) {
+        i++;
+        continue;
+      }
+      let j = i + 1;
+      while (j < len && (at(target.runs, j).look?.[key] ?? null) === want && (at(cur.runs, j).look?.[key] ?? null) !== want) j++;
+      const before = sliceRuns(cur.runs, i, j);
+      apply({ type: 'format', block: id, offset: i, before, after: setLookOnRuns(before, key, want), look: key, value: want });
       i = j;
     }
   }

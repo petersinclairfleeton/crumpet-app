@@ -176,3 +176,27 @@ describe('Word tracked paragraph breaks', () => {
     expect(back.doc.blocks[1].brk).toEqual(c);
   });
 });
+
+describe('Word fonts, sizes and colours', () => {
+  it('are written as Word run settings and read back', async () => {
+    const a = makeBlock('paragraph', '');
+    a.runs = [
+      { text: 'Plain ', marks: [] },
+      { text: 'grand', marks: ['bold'], look: { font: 'EB Garamond', size: 20, color: '#cc0000' } },
+      { text: ' marked', marks: [], look: { highlight: '#ffff00' } },
+      { text: ' soft', marks: [], look: { highlight: '#fde7c8' } },
+      { text: ' E=mc', marks: [] },
+      { text: '2', marks: [], look: { va: 'super' } },
+    ];
+    const bytes = await toDocx([{ doc: { blocks: [a] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:rFonts w:ascii="EB Garamond"');
+    expect(xml).toContain('<w:sz w:val="40"/>');
+    expect(xml).toContain('<w:color w:val="CC0000"/>');
+    expect(xml).toContain('<w:highlight w:val="yellow"/>');
+    expect(xml).toContain('w:fill="FDE7C8"');
+    expect(xml).toContain('<w:vertAlign w:val="superscript"/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks[0].runs).toEqual(a.runs);
+  });
+});
