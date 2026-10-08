@@ -16,7 +16,7 @@ import { attachmentsIn, forgetFiles } from './files';
 import { recordEdit, wordsIn } from './stats';
 import { relinkDoc, sameTitle } from './links';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
-import { type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
+import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
 export interface AppState {
   ready: boolean;
@@ -41,6 +41,8 @@ export interface AppState {
   projectMode: 'chapter' | 'manuscript' | 'corkboard';
   /** A research note open beside the project's writing. */
   researchId: string | null;
+  /** A character's or place's card open beside the project's writing. */
+  castId: string | null;
   query: string;
 }
 
@@ -80,6 +82,7 @@ export class AppStore {
     focusMode: false,
     chapterId: null,
     researchId: null,
+    castId: null,
     projectMode: 'chapter',
     query: '',
   };
@@ -155,8 +158,14 @@ export class AppStore {
   private forgetUnused(docs: Doc[]): void {
     const candidates = docs.flatMap((d) => attachmentsIn(d.blocks));
     if (!candidates.length) return;
+    this.forgetPictures(candidates);
+  }
+
+  /** Deletes attachments nothing uses any more (no note, chapter, character or place). */
+  private forgetPictures(candidates: string[]): void {
     const used = new Set([...this.state.notes.map((n) => n.doc), ...this.state.chapters.map((c) => c.doc)].flatMap((d) => attachmentsIn(d.blocks)));
-    const unused = candidates.filter((p) => !used.has(p));
+    for (const p of this.state.projects) for (const m of p.cast ?? []) if (m.picture) used.add(m.picture);
+    const unused = candidates.filter((p) => p.startsWith('Attachments/') && !used.has(p));
     if (unused.length) this.save(forgetFiles(this.storage, unused));
   }
 
@@ -618,7 +627,7 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}) };
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}) };
       if (
         cur &&
         cur.name === next.name &&
@@ -627,7 +636,8 @@ export class AppStore {
         cur.updatedAt === next.updatedAt &&
         JSON.stringify(cur.outline) === JSON.stringify(next.outline) &&
         JSON.stringify(cur.styles ?? null) === JSON.stringify(next.styles ?? null) &&
-        JSON.stringify(cur.page ?? null) === JSON.stringify(next.page ?? null)
+        JSON.stringify(cur.page ?? null) === JSON.stringify(next.page ?? null) &&
+        JSON.stringify(cur.cast ?? null) === JSON.stringify(next.cast ?? null)
       )
         return cur;
       this.save(this.storage.putProject(next));
@@ -886,7 +896,43 @@ export class AppStore {
   /** Opens a research note beside the writing (null closes it). */
   openResearch(id: string | null): void {
     this.flush();
-    this.set({ researchId: id });
+    this.set({ researchId: id, castId: null });
+  }
+
+  // ---------- characters and places ----------
+
+  /** Adds a character or place to a project and opens its card. */
+  addCastMember(projectId: string, kind: CastMember['kind'], name = ''): CastMember | undefined {
+    const p = this.project(projectId);
+    if (!p) return;
+    const member: CastMember = { id: newId(), kind, name, aliases: [], description: '', notes: '' };
+    this.updateProject(projectId, { cast: [...(p.cast ?? []), member] });
+    this.set({ castId: member.id, researchId: null });
+    return member;
+  }
+
+  updateCastMember(projectId: string, id: string, patch: Partial<Omit<CastMember, 'id'>>): void {
+    const p = this.project(projectId);
+    if (!p?.cast) return;
+    const before = p.cast.find((m) => m.id === id);
+    this.updateProject(projectId, { cast: p.cast.map((m) => (m.id === id ? { ...m, ...patch } : m)) });
+    // A picture replaced or taken away is deleted if nothing else uses it.
+    if (before?.picture && 'picture' in patch && patch.picture !== before.picture) this.forgetPictures([before.picture]);
+  }
+
+  deleteCastMember(projectId: string, id: string): void {
+    const p = this.project(projectId);
+    if (!p?.cast) return;
+    const gone = p.cast.find((m) => m.id === id);
+    this.updateProject(projectId, { cast: p.cast.filter((m) => m.id !== id) });
+    if (this.state.castId === id) this.set({ castId: null });
+    if (gone?.picture) this.forgetPictures([gone.picture]);
+  }
+
+  /** Opens a character's or place's card beside the writing (null closes it). */
+  openCast(id: string | null): void {
+    this.flush();
+    this.set({ castId: id, researchId: null });
   }
 
   /** Files a note as research for a project, or (with null) back among the notes. */
@@ -896,6 +942,7 @@ export class AppStore {
 
   /** Deletes a project and all its chapters. */
   deleteProject(id: string): void {
+    const project = this.project(id);
     // Its research goes to the Trash, where it can be got back.
     for (const n of this.state.notes) if (n.projectId === id && n.trashedAt === null) this.updateNote(n.id, { trashedAt: this.now() }, { touch: false });
     const gone = this.state.chapters.filter((c) => c.projectId === id);
@@ -908,6 +955,8 @@ export class AppStore {
     this.save(this.storage.deleteProject(id));
     if (view.kind === 'all') this.reselectIfHidden();
     this.forgetUnused(gone.map((c) => c.doc));
+    const pictures = (project?.cast ?? []).flatMap((m) => (m.picture ? [m.picture] : []));
+    if (pictures.length) this.forgetPictures(pictures);
   }
 
   private makeChapter(projectId: string, title: string, t = this.now()): Chapter {

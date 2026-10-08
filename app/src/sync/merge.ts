@@ -15,7 +15,7 @@
 
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { mergeText } from './textmerge';
-import type { OutlineItem } from '../data/types';
+import type { CastMember, OutlineItem } from '../data/types';
 import { type TChapter, type TNote, type Tree, emptyTree, sameChapter, sameNote, sameNotebook, sameJson, sameOutline, sameProject, sameStack, sameTags } from './tree';
 
 export interface MergeOptions {
@@ -118,6 +118,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       updated: Math.max(l.updated, r.updated),
       ...withValue('styles', jsonField(b?.styles, l.styles, r.styles, r.updated > l.updated ? r.styles : l.styles)),
       ...withValue('page', jsonField(b?.page, l.page, r.page, r.updated > l.updated ? r.page : l.page)),
+      ...withValue('cast', mergeCast(b?.cast ?? [], l.cast ?? [], r.cast ?? [])),
     }));
     if (p) tree.projects[id] = p;
   }
@@ -209,6 +210,25 @@ function mergeOutline(base: OutlineItem[], local: OutlineItem[], remote: Outline
 }
 
 /** A three-way merge of one value compared by content (style sheets, page setup). */
+/**
+ * Characters and places: each one merges on its own (a change on one side
+ * wins; both changed, this device's), added on either side are kept, and
+ * deleted on either side go unless the other side changed them.
+ */
+function mergeCast(b: CastMember[], l: CastMember[], r: CastMember[]): CastMember[] | undefined {
+  const byId = (list: CastMember[]) => new Map(list.map((m) => [m.id, m]));
+  const [B, L, R] = [byId(b), byId(l), byId(r)];
+  const out: CastMember[] = [];
+  for (const id of new Set([...L.keys(), ...R.keys()])) {
+    const m = jsonField(B.get(id), L.get(id), R.get(id), L.get(id) ?? R.get(id));
+    if (m) out.push(m);
+  }
+  // This device's order, then any added elsewhere.
+  const order = [...l.map((m) => m.id), ...r.map((m) => m.id)];
+  out.sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id));
+  return out.length ? out : undefined;
+}
+
 function jsonField<V>(b: V | undefined, l: V | undefined, r: V | undefined, tie: V | undefined): V | undefined {
   if (sameJson(l, r)) return l;
   if (sameJson(b, l)) return r;

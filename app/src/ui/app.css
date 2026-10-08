@@ -1012,3 +1012,35 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .research-pane .track-toggle:not(.on), .project-split .track-toggle:not(.on) { font-size: 0; gap: 0; padding: 0 8px; }
 .project-split .corkboard-hint { display: none; }
 .research-pane .note-body { padding-left: 28px; padding-right: 28px; }
+
+/* Characters and places. */
+::highlight(crumpet-cast) { text-decoration: underline dotted; text-decoration-color: color-mix(in srgb, var(--accent) 75%, transparent); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.cast-avatar { flex: none; display: inline-grid; place-items: center; overflow: hidden; border-radius: 50%; background: color-mix(in srgb, var(--accent) 22%, var(--page)); color: var(--text); font-weight: 700; line-height: 1; }
+.cast-avatar.place { border-radius: 28%; background: color-mix(in srgb, #4d84c9 20%, var(--page)); }
+.cast-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.cast-divider { height: 1px; margin: 4px 8px; background: var(--line); }
+.cast-pane .note-toolbar { gap: 8px; }
+.cast-card { display: flex; flex-direction: column; gap: 16px; padding: 20px 28px 40px; max-width: 640px; }
+.cast-top { display: flex; gap: 16px; align-items: flex-start; }
+.cast-picture { flex: none; width: 96px; height: 96px; border-radius: 50%; overflow: hidden; border: 1px dashed var(--line2, var(--line)); background: var(--field); color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 0; }
+.cast-pane[aria-label^='Place'] .cast-picture { border-radius: 14px; }
+.cast-picture img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cast-names { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.cast-name { width: 100%; border: none; background: none; outline: none; padding: 0; font-size: 28px; }
+.cast-field { display: flex; flex-direction: column; gap: 4px; }
+.cast-field > span { font-size: 12px; font-weight: 700; color: var(--text2, var(--muted)); }
+.cast-field input, .cast-field textarea { font: inherit; font-size: 14px; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; resize: vertical; }
+.cast-field input:focus, .cast-field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.cast-seen { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cast-seen li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
+.cast-seen small { color: var(--muted); }
+.cast-hover { position: fixed; z-index: 47; width: 280px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--page); color: var(--text); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; }
+.cast-hover-top { display: flex; gap: 10px; align-items: center; }
+.cast-hover-top b { display: block; font-size: 15px; }
+.cast-hover-top small { color: var(--muted); }
+.cast-hover p { margin: 0; line-height: 1.45; }
+.cast-hover .link-btn { align-self: flex-start; }
+.btn.danger-text { color: var(--danger, #b3261e); }
+.cast-pane .note-toolbar { flex-wrap: nowrap; }
+.cast-pane .cast-name { font-size: 22px; }
+@media (max-width: 1100px) { .cast-top { flex-direction: column; } }

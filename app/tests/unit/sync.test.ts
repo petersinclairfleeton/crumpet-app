@@ -595,3 +595,29 @@ describe('project research', () => {
     expect(cloud.log.filter((l) => !l.startsWith('write .crumpet'))).toEqual([]);
   });
 });
+
+describe('characters and places', () => {
+  it('sync in project.json, each one merging on its own', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const p = mac.store.createProject('The Lighthouse');
+    const mara = mac.store.addCastMember(p.id, 'character', 'Mara')!;
+    const rock = mac.store.addCastMember(p.id, 'place', 'Gull Rock')!;
+    mac.store.flush();
+    await mac.engine.sync();
+    expect(cloud.files.get('Projects/The Lighthouse/project.json')!.text).toContain('"Gull Rock"');
+    await phone.engine.sync();
+    expect(phone.store.project(p.id)?.cast?.map((m) => m.name)).toEqual(['Mara', 'Gull Rock']);
+    // Different changes on each device: both kept.
+    mac.store.updateCastMember(p.id, mara.id, { description: 'The new keeper.' });
+    phone.store.updateCastMember(p.id, rock.id, { aliases: ['the Rock'] });
+    phone.store.addCastMember(p.id, 'character', 'Tam');
+    await mac.engine.sync();
+    await phone.engine.sync();
+    await mac.engine.sync();
+    const names = (s: AppStore) => s.project(p.id)?.cast?.map((m) => `${m.name}|${m.description}|${m.aliases.join(',')}`);
+    expect(names(mac.store)).toEqual(['Mara|The new keeper.|', 'Gull Rock||the Rock', 'Tam||']);
+    expect(names(phone.store)).toEqual(names(mac.store));
+  });
+});

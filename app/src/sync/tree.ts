@@ -5,7 +5,7 @@
 
 import { toMarkdown } from '@crumpet/editor/markdown';
 import type { AppState } from '../data/store';
-import type { ChapterStatus, OutlineItem } from '../data/types';
+import type { CastMember, ChapterStatus, OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 
 export interface TStack {
@@ -47,6 +47,7 @@ export interface TProject {
   /** Named styles and page setup (absent: the defaults). */
   styles?: StyleSheet;
   page?: PageSetup;
+  cast?: CastMember[];
   created: number;
   updated: number;
 }
@@ -117,7 +118,7 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
     };
   }
   for (const p of state.projects ?? []) {
-    tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}) };
+    tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}) };
   }
   for (const c of state.chapters ?? []) {
     if (!tree.projects[c.projectId]) continue;
@@ -133,7 +134,7 @@ export function sameOutline(a: OutlineItem[], b: OutlineItem[]): boolean {
 export function sameProject(a: TProject | undefined, b: TProject | undefined): boolean {
   return (
     a === b ||
-    (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline) && sameJson(a.styles, b.styles) && sameJson(a.page, b.page))
+    (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline) && sameJson(a.styles, b.styles) && sameJson(a.page, b.page) && sameJson(a.cast, b.cast))
   );
 }
 

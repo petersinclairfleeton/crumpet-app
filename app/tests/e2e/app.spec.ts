@@ -1410,3 +1410,51 @@ test('corkboard and research: chapters as cards to edit and reorder, research no
   await outline.locator('.research-item', { hasText: 'Coastline' }).click();
   await expect(page.getByRole('region', { name: 'Research note' }).locator('.blk-image img')).toHaveAttribute('src', /^blob:/);
 });
+
+test('characters and places: a card for each, names spotted in the chapters, and a card on hover', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await page.getByLabel('Chapter title').fill('Arrival');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Mara stepped onto Gull Rock. Old Tam was waiting.');
+
+  // A character.
+  await outline.getByRole('button', { name: 'Add a character or place' }).click();
+  await page.getByRole('button', { name: 'New character' }).click();
+  const card = page.getByRole('region', { name: 'Character card' });
+  await expect(card.getByLabel('Name')).toBeFocused();
+  await page.keyboard.type('Tam');
+  await card.getByLabel('Also called').fill('Old Tam, the keeper');
+  await card.getByLabel('Description').fill('Keeper of the light for forty years.');
+  await expect(card.locator('.cast-seen')).toContainText('1. Arrival');
+  await expect(card.locator('.cast-seen')).toContainText('1 mention');
+  // A place.
+  await outline.getByRole('button', { name: 'Add a character or place' }).click();
+  await page.getByRole('button', { name: 'New place' }).click();
+  const place = page.getByRole('region', { name: 'Place card' });
+  await page.keyboard.type('Gull Rock');
+  await expect(outline.locator('.research-item')).toHaveText(['TTam', 'GGull Rock']);
+  await place.getByRole('button', { name: 'Close card' }).click();
+
+  // Their names are underlined in the chapter (as highlights, the text is untouched).
+  await expect.poll(() => page.evaluate(() => CSS.highlights.get('crumpet-cast')?.size ?? 0)).toBe(2);
+  await expect(page.locator('.note-editor .blk').last()).toHaveText('Mara stepped onto Gull Rock. Old Tam was waiting.');
+  // Hovering over a name shows its card.
+  const box = await page.evaluate(() => {
+    const r = [...(CSS.highlights.get('crumpet-cast') as Highlight)].map((x) => (x as Range).getBoundingClientRect()).sort((a, b) => b.left - a.left)[0];
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  await page.mouse.move(box.x, box.y);
+  const hover = page.getByRole('tooltip');
+  await expect(hover).toContainText('Tam');
+  await expect(hover).toContainText('Keeper of the light for forty years.');
+  await hover.getByRole('button', { name: 'Open card' }).click();
+  await expect(page.getByRole('region', { name: 'Character card' }).getByLabel('Name')).toHaveValue('Tam');
+  // Still there after a reload.
+  await page.reload();
+  await sidebar(page).getByRole('button', { name: /The Lighthouse/ }).click();
+  await expect(page.getByRole('region', { name: 'Outline' }).locator('.research-item')).toHaveText(['TTam', 'GGull Rock']);
+});
