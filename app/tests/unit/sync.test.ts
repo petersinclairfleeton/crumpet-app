@@ -561,3 +561,37 @@ describe('shared settings', () => {
     expect(phone.store.getState().settings.notePage).toBeUndefined();
   });
 });
+
+describe('project research', () => {
+  it('lives in the project’s Research folder and comes back as research on another device', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const p = mac.store.createProject('The Lighthouse');
+    const r = mac.store.addResearchNote(p.id, { title: 'Lamps', doc: md('Fresnel lenses.') });
+    mac.store.createNote({ title: 'Shopping', doc: md('Bread') });
+    mac.store.flush();
+    await mac.engine.sync();
+    expect([...cloud.files.keys()].filter((k) => k.endsWith('.md')).sort()).toEqual(['Projects/The Lighthouse/01 Chapter 1.md', 'Projects/The Lighthouse/Research/Lamps.md', 'Shopping.md']);
+    expect(cloud.files.has('Projects/The Lighthouse/Research/Lamps.md')).toBe(true);
+    await phone.engine.sync();
+    const there = phone.store.note(r.id);
+    expect(there?.projectId).toBe(p.id);
+    expect(phone.store.getState().notebooks).toEqual([]);
+    expect(shape(phone.store)).toEqual(shape(mac.store));
+    // Renaming the project moves its research along.
+    mac.store.renameProject(p.id, 'Lamp');
+    mac.store.flush();
+    await mac.engine.sync();
+    expect(cloud.files.has('Projects/Lamp/Research/Lamps.md')).toBe(true);
+    expect([...cloud.files.keys()].some((k) => k.startsWith('Projects/The Lighthouse'))).toBe(false);
+    expect([...cloud.folders].some((k) => k.startsWith('Projects/The Lighthouse'))).toBe(false);
+    // Nothing more to do.
+    cloud.log = [];
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(phone.store.note(r.id)?.projectId).toBe(p.id);
+    await mac.engine.sync();
+    expect(cloud.log.filter((l) => !l.startsWith('write .crumpet'))).toEqual([]);
+  });
+});

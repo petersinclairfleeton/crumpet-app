@@ -35,6 +35,8 @@ export interface TNote {
   body: string;
   /** Front matter Crumpet doesn't use, kept as written. */
   extra: string;
+  /** Research for this project. */
+  projectId?: string | null;
 }
 
 export interface TProject {
@@ -111,6 +113,7 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
       trashed: n.trashedAt,
       body: toMarkdown(n.doc),
       extra: n.extra ?? '',
+      ...(n.projectId && (state.projects ?? []).some((p) => p.id === n.projectId) ? { projectId: n.projectId } : {}),
     };
   }
   for (const p of state.projects ?? []) {
@@ -176,7 +179,8 @@ export function sameNote(a: TNote | undefined, b: TNote | undefined): boolean {
       a.updated === b.updated &&
       a.trashed === b.trashed &&
       a.body === b.body &&
-      a.extra === b.extra)
+      a.extra === b.extra &&
+      (a.projectId ?? null) === (b.projectId ?? null))
   );
 }
 

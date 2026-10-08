@@ -51,7 +51,7 @@ export function listedNotes(state: AppState): Note[] {
   const { filters } = parseQuery(state.query);
   const stacks = new Map(state.stacks.map((s) => [s.id, s.name]));
   const books = new Map(state.notebooks.map((n) => [n.id, n]));
-  return visibleIn(state, { kind: 'all' }).filter((n) => {
+  return visibleIn(state, { kind: 'all' }, true).filter((n) => {
     const nb = books.get(n.notebookId ?? '');
     const places = nb ? [nb.name, stacks.get(nb.stackId ?? '') ?? ''] : [];
     return matchesFilters(n, filters, `${n.title}\n${noteText(n)}\n${n.tags.map((t) => '#' + t).join(' ')}\n${nb?.name ?? ''}`, places);
@@ -182,7 +182,7 @@ export function tagTree(notes: Note[]): TagNode[] {
 }
 
 export function recentNotes(notes: Note[], n = 3): Note[] {
-  return notes.filter((x) => x.trashedAt === null).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, n);
+  return notes.filter((x) => x.trashedAt === null && !x.projectId).sort((a, b) => b.updatedAt - a.updatedAt).slice(0, n);
 }
 
 export function viewTitle(view: View, state: Pick<AppState, 'notebooks' | 'stacks' | 'projects'>): string {

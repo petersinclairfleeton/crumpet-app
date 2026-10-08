@@ -1348,3 +1348,65 @@ test('print or save as PDF: the pages as page view shows them, and e-books downl
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as e-book (ePub)' }).click()]);
   expect(download.suggestedFilename()).toBe('Long essay.epub');
 });
+
+test('corkboard and research: chapters as cards to edit and reorder, research notes and files beside the writing', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await page.getByLabel('Chapter title').fill('Arrival');
+  await outline.getByRole('button', { name: 'Add chapter' }).click();
+  await page.getByLabel('Chapter title').fill('Storm');
+  await outline.getByRole('button', { name: 'Add chapter' }).click();
+  await page.getByLabel('Chapter title').fill('Rescue');
+
+  // The corkboard.
+  await outline.getByRole('button', { name: 'Cards' }).click();
+  const board = page.getByRole('region', { name: 'Corkboard' });
+  await expect(board.locator('.cork-card')).toHaveCount(3);
+  await board.getByLabel('Synopsis of chapter 2').fill('The lamp fails in the gale.');
+  await board.getByLabel('Status of chapter 2').selectOption('draft');
+  await expect(outline.locator('.outline-chapter').nth(1)).toContainText('The lamp fails in the gale.');
+  await expect(board.locator('.cork-card').nth(1)).toHaveClass(/status-draft/);
+  // Drag "Rescue" before "Arrival".
+  await board.locator('.cork-card').nth(2).dragTo(board.locator('.cork-card').nth(0), { targetPosition: { x: 10, y: 60 } });
+  await expect(board.locator('.cork-title')).toHaveText(['Rescue', 'Arrival', 'Storm']);
+  await expect(outline.locator('.outline-title')).toHaveText(['Rescue', 'Arrival', 'Storm']);
+  // Clicking a title opens the chapter to write.
+  await board.getByRole('button', { name: 'Storm' }).click();
+  await expect(page.getByLabel('Chapter title')).toHaveValue('Storm');
+
+  // Research: a note, opened beside the chapter.
+  await outline.getByRole('button', { name: 'Add research' }).click();
+  await page.getByRole('button', { name: 'New research note' }).click();
+  const research = page.getByRole('region', { name: 'Research note' });
+  await expect(research.getByLabel('Title')).toBeFocused();
+  await page.keyboard.type('Lighthouse lamps');
+  await research.locator('.note-editor').click();
+  await page.keyboard.type('Fresnel lenses, paraffin, clockwork.');
+  await expect(page.getByLabel('Chapter title')).toHaveValue('Storm');
+  await expect(outline.locator('.research-item')).toHaveText(['¶Lighthouse lamps']);
+  // Research isn't in the note list, but search finds it.
+  await research.getByRole('button', { name: 'Close research' }).click();
+  await expect(research).toHaveCount(0);
+  await sidebar(page).getByRole('button', { name: /^All Notes/ }).click();
+  await expect(list(page).locator('.card')).toHaveCount(0);
+  await page.getByPlaceholder('Search notes').fill('paraffin');
+  await expect(list(page).locator('.card')).toHaveCount(1);
+  await page.getByPlaceholder('Search notes').fill('');
+
+  // A picture and a PDF.
+  await sidebar(page).getByRole('button', { name: /The Lighthouse/ }).click();
+  await outline.getByRole('button', { name: 'Add research' }).click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Pictures or PDFs…' }).click()]);
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  await chooser.setFiles([
+    { name: 'Coastline.png', mimeType: 'image/png', buffer: (globalThis as unknown as { Buffer: { from(s: string, e: string): Uint8Array } }).Buffer.from(PNG, 'base64') as never },
+    { name: 'Lamp manual.pdf', mimeType: 'application/pdf', buffer: (globalThis as unknown as { Buffer: { from(s: string): Uint8Array } }).Buffer.from('%PDF-1.4\n%%EOF') as never },
+  ]);
+  await expect(outline.locator('.research-item')).toHaveCount(3);
+  await expect(page.getByRole('region', { name: 'Research note' }).locator('iframe[title="PDF"]')).toBeVisible();
+  await outline.locator('.research-item', { hasText: 'Coastline' }).click();
+  await expect(page.getByRole('region', { name: 'Research note' }).locator('.blk-image img')).toHaveAttribute('src', /^blob:/);
+});

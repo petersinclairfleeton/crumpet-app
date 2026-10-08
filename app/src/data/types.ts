@@ -31,6 +31,8 @@ export interface Note {
   updatedAt: number;
   /** When it was moved to Trash; null if not in Trash. */
   trashedAt: number | null;
+  /** Research for this project (kept with it, not in the note list). */
+  projectId?: string | null;
   /** Front matter from the note's file that Crumpet doesn't use, kept so syncing never drops it. */
   extra?: string;
 }

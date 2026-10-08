@@ -13,7 +13,7 @@
 // again from the last agreed version. Every step is safe to repeat.
 
 import type { AppStore } from '../data/store';
-import { type Layout, META_FILE, PROJECT_FILE, fullLayout, layout, parentOf } from './layout';
+import { type Layout, META_FILE, PROJECT_FILE, RESEARCH, fullLayout, join, layout, parentOf } from './layout';
 import { mergeTrees } from './merge';
 import { type NoteFile, writeNoteFile } from './notefile';
 import { type Provider, ProviderError } from './provider';
@@ -324,7 +324,7 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
   }
 
   // Folders of stacks, notebooks and projects that moved or went, once nothing is left inside.
-  const old = [...Object.values(at.stacks), ...Object.values(at.notebooks), ...Object.values(at.projects)].filter((f) => !folders.has(f));
+  const old = [...Object.values(at.stacks), ...Object.values(at.notebooks), ...Object.values(at.projects), ...Object.values(at.projects).map((p) => join(p, RESEARCH)).filter((f) => live.has(f))].filter((f) => !folders.has(f));
   for (const f of old.sort((a, b) => b.split('/').length - a.split('/').length)) {
     if ([...live].some((q) => q.startsWith(`${f}/`))) continue;
     try {

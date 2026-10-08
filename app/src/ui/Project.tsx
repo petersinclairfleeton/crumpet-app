@@ -21,6 +21,8 @@ import { CommentCard, CommentList } from './comments';
 import { ChangeCard, ChangesBar, TrackToggle, useTracking } from './changes';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, projectDocx, projectEpub } from '../data/wordfiles';
 import { PrintJob } from './print';
+import { ResearchList, ResearchPane } from './research';
+import { Corkboard } from './corkboard';
 import { makeBlock } from '@crumpet/editor/model';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -179,6 +181,9 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
             <button type="button" aria-pressed={mode === 'manuscript'} onClick={() => store.setProjectMode('manuscript')}>
               Manuscript
             </button>
+            <button type="button" aria-pressed={mode === 'corkboard'} title="Corkboard: chapters as index cards" onClick={() => store.setProjectMode('corkboard')}>
+              Cards
+            </button>
           </div>
         </div>
         <Progress value={total} goal={goal} label="Project progress" />
@@ -315,6 +320,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
           <IconPlus size={13} /> Part
         </button>
       </div>
+      <ResearchList project={project} />
     </section>
   );
 }
@@ -346,7 +352,24 @@ function GoalInput({ label, value, onDone }: { label: string; value: number | nu
 
 export function ProjectPane({ project, narrow, onBack }: { project: Project; narrow: boolean; onBack(): void }) {
   const state = useAppState();
+  const store = useAppStore();
+  const research = state.notes.find((n) => n.id === state.researchId && n.projectId === project.id && n.trashedAt === null);
+  if (!research) return <ProjectWriting project={project} narrow={narrow} onBack={onBack} />;
+  const pane = <ResearchPane key={research.id} note={research} onClose={() => store.openResearch(null)} />;
+  // Research opens beside the writing (on a phone, instead of it).
+  if (narrow) return pane;
+  return (
+    <div className="project-split">
+      <ProjectWriting project={project} narrow={narrow} onBack={onBack} />
+      {pane}
+    </div>
+  );
+}
+
+function ProjectWriting({ project, narrow, onBack }: { project: Project; narrow: boolean; onBack(): void }) {
+  const state = useAppState();
   if (state.projectMode === 'manuscript') return <Manuscript project={project} narrow={narrow} onBack={onBack} />;
+  if (state.projectMode === 'corkboard') return <Corkboard project={project} narrow={narrow} onBack={onBack} />;
   const chapter = state.chapters.find((c) => c.id === state.chapterId && c.projectId === project.id);
   if (!chapter) {
     return (

@@ -93,7 +93,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
       )}
 
       <section className="side-section">
-        <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
+        <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null && !n.projectId).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
         <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
         <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
         <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
