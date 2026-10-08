@@ -1705,3 +1705,27 @@ test('font, size, colour, highlight, superscript and change case on selected tex
   expect(md).toContain('color=#cc0000');
   expect(md).toContain('va=super');
 });
+
+test('paragraph settings: line spacing, indent, the Paragraph window, and a page break with Ctrl+Enter', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Spacing', 'First paragraph.');
+  await page.keyboard.press('Control+2');
+  const first = page.locator('.note-editor .blk').first();
+  await expect(first).toHaveCSS('line-height', /px/);
+  await page.keyboard.press('Control+m');
+  await expect(first).toHaveCSS('margin-left', '48px');
+  await (await toolButton(page, /Paragraph settings/)).click();
+  const dialog = page.getByRole('dialog', { name: 'Paragraph' });
+  await dialog.getByLabel('Before', { exact: true }).fill('18');
+  await dialog.getByLabel('Special').selectOption('first');
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  await expect(first).toHaveCSS('margin-top', '24px');
+  await expect(first).toHaveCSS('text-indent', '48px');
+  // Ctrl+Enter: what follows starts on a new page.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Control+Enter');
+  await page.keyboard.type('On a new page.');
+  await expect(page.locator('.note-editor .blk').nth(1)).toHaveAttribute('data-page-before', '');
+});

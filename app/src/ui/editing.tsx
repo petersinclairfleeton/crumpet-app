@@ -12,6 +12,7 @@ import type { StyleSheet } from '../data/styles';
 import { AlignTools, StylePicker } from './styles-ui';
 import { OverflowRow, type ToolItem } from './toolbar';
 import { useFontItems } from './fonttools';
+import { useParaItems } from './paratools';
 import { addFile } from '../data/files';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
 
@@ -172,6 +173,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
   const fontItems = useFontItems(ed, off, sheet);
+  const para = useParaItems(ed, off);
   /** A button for the bar, and the same as a named line in the More menu. */
   const tool = (key: string, pri: number, label: string, title: string, glyph: ReactNode, onClick: () => void, opts: { active?: boolean; disabled?: boolean; sep?: boolean; extra?: Record<string, string> } = {}): ToolItem => ({
     key,
@@ -215,6 +217,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       { extra: { 'data-comment-button': '' } },
     ),
     { key: 'align', pri: 2, sep: true, node: <AlignTools editor={ed} disabled={off} /> },
+    ...para.items,
     ...BLOCKS.map((b, i) => tool(b.type, b.type === 'todo' ? 1 : 2, b.label, b.label, b.glyph, () => ed?.setBlockType(b.type), { active: type === b.type, sep: i === 0 })),
   ];
   if (attach)
@@ -237,7 +240,12 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       tool('undo', 1, 'Undo', `Undo (${mod}Z)`, '↶', () => ed?.undo(), { disabled: !ed?.history.canUndo, sep: true }),
       tool('redo', 1, 'Redo', `Redo (${mod}⇧Z)`, '↷', () => ed?.redo(), { disabled: !ed?.history.canRedo }),
     );
-  return <OverflowRow items={items} fit={fit} />;
+  return (
+    <>
+      <OverflowRow items={items} fit={fit} />
+      {para.dialog}
+    </>
+  );
 }
 
 /**

@@ -175,6 +175,44 @@ export interface BlockAttrs {
   brk?: Change;
   /** Pictures and files: where the file is (a path like "Attachments/abc-photo.jpg", or a web address). */
   src?: string;
+  /** Spacing, indents and page breaks set on this paragraph by hand (Word's Paragraph settings). */
+  para?: ParaLook;
+}
+
+/** Paragraph formatting set by hand, on top of the paragraph's style. */
+export interface ParaLook {
+  /** Line spacing, as a multiple (1 = single, 2 = double). */
+  line?: number;
+  /** Space before and after, in points. */
+  before?: number;
+  after?: number;
+  /** Indents in inches; `first` is the first line's (negative: a hanging indent). */
+  left?: number;
+  right?: number;
+  first?: number;
+  /** Starts on a new page. */
+  pageBefore?: boolean;
+  /** Kept on the same page as the next paragraph; its lines kept together. */
+  keepNext?: boolean;
+  keepLines?: boolean;
+}
+export type ParaKey = keyof ParaLook;
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'keepNext', 'keepLines'];
+
+/** A paragraph look with nothing unset in it, or undefined if it's empty. */
+export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
+  if (!p) return undefined;
+  const out: ParaLook = {};
+  for (const k of PARA_KEYS) {
+    const v = p[k];
+    if (typeof v === 'number' && Number.isFinite(v)) (out as Record<string, unknown>)[k] = Math.round(v * 1000) / 1000;
+    else if (v === true) (out as Record<string, unknown>)[k] = true;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+export function samePara(a: ParaLook | undefined, b: ParaLook | undefined): boolean {
+  return PARA_KEYS.every((k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined));
 }
 
 export interface Block extends BlockAttrs {
