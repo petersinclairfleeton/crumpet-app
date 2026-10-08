@@ -15,6 +15,7 @@ import type { Persisted, Storage } from './db';
 import { attachmentsIn, forgetFiles } from './files';
 import { type StatsElsewhere, dayKey, recordEdit, wordsIn, wordsToday } from './stats';
 import { relinkDoc, sameTitle } from './links';
+import { type Snapshot, snapshotAttachments } from './snapshots';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
@@ -40,6 +41,8 @@ export interface AppState {
   researchId: string | null;
   /** A character's or place's card open beside the project's writing. */
   castId: string | null;
+  /** Snapshots of notes and chapters, newest first. */
+  snapshots: Snapshot[];
   query: string;
 }
 
@@ -49,6 +52,9 @@ export const DEFAULT_SETTINGS: Settings = { name: '', accent: '#D4A257', theme: 
 export const DATA_VERSION = 2;
 
 const SAVE_DELAY_MS = 500;
+/** Where snapshots, and the ids of ones deleted here (still to go from the folder), are kept on this device. */
+export const SNAPSHOTS_KEY = 'snapshots';
+export const SNAPSHOTS_GONE_KEY = 'snapshotsGone';
 const RELINK_DELAY_MS = 1200;
 const MAX_SAVE_WAIT_MS = 2000;
 const RESCUE_KEY = 'crumpet:unsaved';
@@ -78,6 +84,7 @@ export class AppStore {
     chapterId: null,
     researchId: null,
     castId: null,
+    snapshots: [],
     projectMode: 'chapter',
     query: '',
   };
@@ -146,6 +153,7 @@ export class AppStore {
     this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, projects, chapters: data.chapters ?? [], settings });
     if (data.settings?.dataVersion !== DATA_VERSION) this.save(this.storage.putSettings(settings));
     this.set({ selectedId: visibleIn(this.state, this.state.view)[0]?.id ?? null });
+    this.set({ snapshots: (await this.storage.getSync<Snapshot[]>(SNAPSHOTS_KEY)) ?? [] });
     this.forgetUnused(expiredDocs);
   }
 
@@ -160,6 +168,8 @@ export class AppStore {
   private forgetPictures(candidates: string[]): void {
     const used = new Set([...this.state.notes.map((n) => n.doc), ...this.state.chapters.map((c) => c.doc)].flatMap((d) => attachmentsIn(d.blocks)));
     for (const p of this.state.projects) for (const m of p.cast ?? []) if (m.picture) used.add(m.picture);
+    // A snapshot still uses the pictures it had.
+    for (const snap of this.state.snapshots) for (const a of snapshotAttachments(snap)) used.add(a);
     const unused = candidates.filter((p) => p.startsWith('Attachments/') && !used.has(p));
     if (unused.length) this.save(forgetFiles(this.storage, unused));
   }
@@ -1040,6 +1050,60 @@ export class AppStore {
     this.set({ chapters });
     if (delaySave) this.scheduleSave(id);
     else this.save(this.storage.putChapter(updated));
+  }
+
+  // ---------- snapshots ----------
+
+  /** Keeps a copy of a note or chapter as it is now. */
+  takeSnapshot(docId: string, name = ''): Snapshot | null {
+    this.flush();
+    const note = this.note(docId);
+    const chapter = note ? undefined : this.chapter(docId);
+    const doc = note?.doc ?? chapter?.doc;
+    if (!doc) return null;
+    const snap: Snapshot = { id: newId(), docId, kind: note ? 'note' : 'chapter', title: (note?.title ?? chapter?.title ?? '').trim(), name: name.trim(), at: this.now(), words: wordsIn(doc), md: toMarkdown(doc) };
+    this.setSnapshots([snap, ...this.state.snapshots]);
+    return snap;
+  }
+
+  deleteSnapshot(id: string): void {
+    if (!this.state.snapshots.some((x) => x.id === id)) return;
+    this.setSnapshots(this.state.snapshots.filter((x) => x.id !== id));
+    void this.storage.getSync<string[]>(SNAPSHOTS_GONE_KEY).then((gone) => this.save(this.storage.putSync(SNAPSHOTS_GONE_KEY, [...(gone ?? []), id])));
+  }
+
+  /** Puts a snapshot's text back, keeping a snapshot of what it replaces first. */
+  restoreSnapshot(id: string): void {
+    const snap = this.state.snapshots.find((x) => x.id === id);
+    if (!snap) return;
+    const doc = this.note(snap.docId)?.doc ?? this.chapter(snap.docId)?.doc;
+    if (!doc) return;
+    this.takeSnapshot(snap.docId, `Before going back to ${snap.name || 'the snapshot'}`);
+    const restored = matchIds(doc, fromMarkdown(snap.md));
+    if (this.note(snap.docId)) this.setDoc(snap.docId, restored);
+    else this.setChapterDoc(snap.docId, restored);
+  }
+
+  /** Snapshots deleted here, still to be removed from the folder. */
+  async goneSnapshots(): Promise<string[]> {
+    return (await this.storage.getSync<string[]>(SNAPSHOTS_GONE_KEY)) ?? [];
+  }
+
+  /** After a sync: its snapshots, plus any taken while it ran, less any deleted meanwhile. */
+  async syncedSnapshots(list: Snapshot[], handled: string[], before: string[]): Promise<void> {
+    const goneNow = await this.goneSnapshots();
+    const ids = new Set(list.map((x) => x.id));
+    const had = new Set(before);
+    const added = this.state.snapshots.filter((x) => !ids.has(x.id) && !had.has(x.id));
+    const next = [...added, ...list.filter((x) => !goneNow.includes(x.id))].sort((a, b) => b.at - a.at);
+    if (next.map((x) => x.id).join() !== this.state.snapshots.map((x) => x.id).join()) this.setSnapshots(next);
+    const still = goneNow.filter((id) => !handled.includes(id));
+    if (still.length !== goneNow.length) this.save(this.storage.putSync(SNAPSHOTS_GONE_KEY, still));
+  }
+
+  setSnapshots(list: Snapshot[]): void {
+    this.set({ snapshots: list });
+    this.save(this.storage.putSync(SNAPSHOTS_KEY, list));
   }
 
   setChapterDoc(id: string, doc: Doc): void {

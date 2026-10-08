@@ -2318,3 +2318,25 @@ test('quick switcher, command palette and bookmarks', async ({ page }) => {
   await marks.getByRole('button', { name: 'Brand new idea', exact: true }).click();
   await expect(pane.getByLabel('Title')).toHaveValue('Brand new idea');
 });
+
+test('snapshots: take one, compare with the text now, and go back to it', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1440, height: 880 });
+  await newNote(page, 'Draft', 'The lamp was dark.');
+  await page.keyboard.press('Control+Alt+s');
+  const right = page.getByRole('complementary', { name: 'Right sidebar' });
+  await expect(right.getByRole('tab', { name: 'Snapshots' })).toHaveAttribute('aria-selected', 'true');
+  await expect(right.locator('.snapshot-list li')).toHaveCount(1);
+  // Change the text, then compare.
+  await page.keyboard.type(' It lit itself.');
+  await right.getByRole('button', { name: 'Compare' }).click();
+  const compare = page.getByRole('dialog', { name: 'Compare with snapshot' });
+  await expect(compare.locator('ins')).toHaveText([' It lit itself.']);
+  await compare.getByRole('button', { name: 'Close' }).click();
+  // Go back: the text as it was, and the rewrite kept as a snapshot.
+  await right.getByRole('button', { name: 'Go back to this' }).click();
+  await right.getByRole('button', { name: 'Go back', exact: true }).click();
+  await expect(page.locator('.note-editor')).toHaveText('The lamp was dark.');
+  await expect(right.locator('.snapshot-list li')).toHaveCount(2);
+  await expect(right.locator('.snapshot-name').first()).toHaveText('Before going back to the snapshot');
+});

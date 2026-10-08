@@ -116,6 +116,36 @@ describe('syncing two devices through files', () => {
     expect([...cloud.files.keys()].filter((f) => f.startsWith('.crumpet/stats/')).length).toBe(2);
   });
 
+  it('copies snapshots to every device, restores one, and deletes one everywhere', async () => {
+    const cloud = new MemoryProvider(now);
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const n = mac.store.createNote({ title: 'Draft', doc: md('The first version.\n') });
+    const snap = mac.store.takeSnapshot(n.id, 'First go')!;
+    mac.store.setDoc(n.id, md('A rewrite.\n'));
+    mac.store.flush();
+    await mac.engine.sync();
+    expect([...cloud.files.keys()].filter((f) => f.startsWith('.crumpet/snapshots/'))).toHaveLength(1);
+    await phone.engine.sync();
+    expect(phone.store.getState().snapshots.map((x) => x.name)).toEqual(['First go']);
+    // Going back on the phone keeps a snapshot of the rewrite first.
+    phone.store.restoreSnapshot(snap.id);
+    phone.store.flush();
+    expect(body(phone.store, 'Draft')).toBe('The first version.\n');
+    expect(phone.store.getState().snapshots).toHaveLength(2);
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect(body(mac.store, 'Draft')).toBe('The first version.\n');
+    expect(mac.store.getState().snapshots).toHaveLength(2);
+    // Deleted on the Mac: gone from the folder, and then from the phone.
+    mac.store.deleteSnapshot(snap.id);
+    await new Promise((r) => setTimeout(r));
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(phone.store.getState().snapshots.map((x) => x.id)).not.toContain(snap.id);
+    expect([...cloud.files.keys()].filter((f) => f.startsWith('.crumpet/snapshots/'))).toHaveLength(1);
+  });
+
   it('merges edits to different parts of the same note', async () => {
     const cloud = new MemoryProvider(now);
     const mac = await device(cloud);
