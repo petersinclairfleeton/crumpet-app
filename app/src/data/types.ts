@@ -95,6 +95,8 @@ export interface Settings {
   /** The named styles notes use; Crumpet's own when unset. */
   noteStyles?: StyleSheet;
   notePage?: PageSetup;
+  /** When the note styles or page setup (shared with other devices) last changed. */
+  sharedAt?: number;
   /** Track changes: typing is marked as added, deleting strikes text through. */
   trackChanges?: boolean;
   /** How the note list is sorted. */

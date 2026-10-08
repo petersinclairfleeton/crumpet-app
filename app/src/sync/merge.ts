@@ -33,6 +33,15 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
   const tree = emptyTree();
   const copies: string[] = [];
 
+  // Shared settings, each on its own: a change on one side wins; both changed, the newer one.
+  {
+    const [b, l, r] = [base.settings, local.settings, remote.settings];
+    const newer = (r?.updated ?? 0) > (l?.updated ?? 0) ? r : l;
+    const noteStyles = jsonField(b?.noteStyles, l?.noteStyles, r?.noteStyles, newer?.noteStyles);
+    const notePage = jsonField(b?.notePage, l?.notePage, r?.notePage, newer?.notePage);
+    if (noteStyles || notePage) tree.settings = { ...withValue('noteStyles', noteStyles), ...withValue('notePage', notePage), updated: Math.max(l?.updated ?? 0, r?.updated ?? 0) };
+  }
+
   for (const id of keys(base.stacks, local.stacks, remote.stacks)) {
     const s = pick(base.stacks[id], local.stacks[id], remote.stacks[id], sameStack, (b, l, r) => ({
       ...l,

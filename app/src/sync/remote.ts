@@ -18,10 +18,12 @@ import type { PageSetup, StyleSheet } from '../data/styles';
 import { ATTACHMENTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
 import { type NoteFile, parseNoteFile } from './notefile';
 import type { Entry, Provider } from './provider';
-import { type TChapter, type TNote, type Tree, emptyTree, hashId } from './tree';
+import { type TChapter, type TNote, type TSettings, type Tree, emptyTree, hashId } from './tree';
 
 export interface VaultMeta {
   version: 1;
+  /** Settings every device shares (note styles, page setup). */
+  settings?: TSettings;
   stacks: { id: string; name: string; folder: string; created: number }[];
   notebooks: { id: string; name: string; color: string; folder: string; created: number }[];
 }
@@ -132,6 +134,7 @@ export function parseMeta(text: string | null): VaultMeta | null {
       version: 1,
       stacks: Array.isArray(m.stacks) ? m.stacks.filter((s) => s && typeof s.id === 'string' && typeof s.folder === 'string') : [],
       notebooks: Array.isArray(m.notebooks) ? m.notebooks.filter((n) => n && typeof n.id === 'string' && typeof n.folder === 'string') : [],
+      ...(m.settings && typeof m.settings === 'object' ? { settings: { ...m.settings, updated: Number(m.settings.updated) || 0 } } : {}),
     };
   } catch {
     return null;
@@ -141,6 +144,7 @@ export function parseMeta(text: string | null): VaultMeta | null {
 export function writeMeta(tree: Tree, l: Layout): string {
   const meta: VaultMeta = {
     version: 1,
+    ...(tree.settings ? { settings: tree.settings } : {}),
     stacks: Object.values(tree.stacks)
       .map((s) => ({ id: s.id, name: s.name, folder: l.stacks[s.id], created: s.created }))
       .sort((a, b) => (a.folder < b.folder ? -1 : 1)),
@@ -156,6 +160,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   const tree = emptyTree();
   const where = emptyLayout();
   const meta = snap.meta ?? { version: 1, stacks: [], notebooks: [] };
+  if (meta.settings) tree.settings = meta.settings;
 
   // ---- projects: folders in Projects/ holding a project.json
   const projectDirs = new Map<string, Partial<ProjectJson>>();

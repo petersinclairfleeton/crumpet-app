@@ -525,3 +525,39 @@ describe('syncing projects', () => {
     expect([...cloud.files.keys()]).toEqual(['.crumpet/vault.json']);
   });
 });
+
+describe('shared settings', () => {
+  it('note styles and page setup reach other devices; the newer change wins', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    mac.store.createNote({ title: 'Hello', doc: md('Hi') });
+    const page = { ...defaultPage(), size: 'a5' as const };
+    mac.store.updateSettings({ notePage: page });
+    await mac.engine.sync();
+    expect(cloud.files.get('.crumpet/vault.json')!.text).toContain('"notePage"');
+    await phone.engine.sync();
+    expect(phone.store.getState().settings.notePage).toEqual(page);
+    // Each changes something different: both changes are kept.
+    phone.store.updateSettings({ noteStyles: presetSheet('manuscript') });
+    mac.store.updateSettings({ notePage: { ...page, size: 'book' } });
+    await phone.engine.sync();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(mac.store.getState().settings.notePage?.size).toBe('book');
+    expect(phone.store.getState().settings.notePage?.size).toBe('book');
+    expect(mac.store.getState().settings.noteStyles).toEqual(presetSheet('manuscript'));
+    // Both change the same thing: the later change wins.
+    phone.store.updateSettings({ notePage: { ...page, size: 'legal' } });
+    mac.store.updateSettings({ notePage: { ...page, size: 'letter' } });
+    await phone.engine.sync();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(phone.store.getState().settings.notePage?.size).toBe('letter');
+    // Back to the defaults on one device: the other follows.
+    mac.store.updateSettings({ notePage: undefined, noteStyles: undefined });
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(phone.store.getState().settings.notePage).toBeUndefined();
+  });
+});

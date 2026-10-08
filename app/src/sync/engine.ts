@@ -117,7 +117,7 @@ export class SyncEngine {
     let last = this.store.getState();
     this.unsubscribe = this.store.subscribe(() => {
       const s = this.store.getState();
-      const changed = s.notes !== last.notes || s.notebooks !== last.notebooks || s.stacks !== last.stacks;
+      const changed = s.notes !== last.notes || s.notebooks !== last.notebooks || s.stacks !== last.stacks || s.projects !== last.projects || s.chapters !== last.chapters || s.settings.noteStyles !== last.settings.noteStyles || s.settings.notePage !== last.settings.notePage;
       last = s;
       if (changed && !this.applying) this.schedule(delay);
     });
@@ -166,7 +166,7 @@ export class SyncEngine {
     // Apply here, keeping anything typed while the sync ran.
     this.store.flush();
     const s1 = this.store.getState();
-    const unchanged = s1.notes === s0.notes && s1.notebooks === s0.notebooks && s1.stacks === s0.stacks && s1.projects === s0.projects && s1.chapters === s0.chapters;
+    const unchanged = s1.notes === s0.notes && s1.notebooks === s0.notebooks && s1.stacks === s0.stacks && s1.projects === s0.projects && s1.chapters === s0.chapters && s1.settings.noteStyles === s0.settings.noteStyles && s1.settings.notePage === s0.settings.notePage;
     const final = unchanged ? merged : mergeTrees(local, localTree(s1), merged, opts).tree;
     this.applying = true;
     try {
