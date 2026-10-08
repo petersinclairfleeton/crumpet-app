@@ -7,8 +7,8 @@
 // also travel in the address itself (#clip=…), for pages that cut the link
 // between windows.
 
-import { type Block, type BlockType, type Doc, type Mark, type Run, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
-import { cellText, domRuns } from '@crumpet/editor/cells';
+import { type Block, type BlockType, type Doc, type Look, type Mark, type Run, makeBlock, normalizeRuns, sortMarks, tidyLook, tidyRows } from '@crumpet/editor/model';
+import { cellText, domRuns, hexColor, lookOfStyle } from '@crumpet/editor/cells';
 
 export interface Clip {
   title: string;
@@ -129,7 +129,27 @@ function absolute(href: string, base: string): string | null {
  * A web page's HTML as a note: headings, paragraphs, lists, quotes, code,
  * tables and pictures (left on the web), with bold, italic, links and so on.
  */
-export function htmlToDoc(html: string, base: string): Doc {
+/**
+ * HTML as a document: headings, lists, quotes, tables, pictures, bold and
+ * the rest. With `looks`, fonts, sizes, colours, highlighting and super- and
+ * subscript are kept too, as Word does when pasting (not for web clippings,
+ * which would bring the website's colours).
+ */
+/** The font, size, colour, highlight and super/subscript an element gives its text (black text and white highlight are just the defaults). */
+function pastedLook(el: Element): Look {
+  const look: Look = el instanceof HTMLElement ? lookOfStyle(el.style, el.tagName) : {};
+  if (el.localName === 'font') {
+    const face = el.getAttribute('face')?.split(',')[0].trim().replace(/^["']|["']$/g, '');
+    if (face) look.font = face;
+    const color = hexColor(el.getAttribute('color') ?? '');
+    if (color) look.color = color;
+  }
+  if (look.color === '#000000') delete look.color;
+  if (look.highlight === '#ffffff') delete look.highlight;
+  return look;
+}
+
+export function htmlToDoc(html: string, base: string, opts: { looks?: boolean } = {}): Doc {
   const page = new DOMParser().parseFromString(html, 'text/html');
   const blocks: Block[] = [];
   let runs: Run[] = [];
@@ -157,10 +177,13 @@ export function htmlToDoc(html: string, base: string): Doc {
     current = { type, extra };
   };
 
-  const inline = (node: Node, marks: Mark[], link: string | undefined) => {
+  // The look the block being read gives its text (a <p style="color:…">).
+  let inherited: Look = {};
+  const inline = (node: Node, marks: Mark[], link: string | undefined, look: Look = inherited) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent ?? '';
-      if (text) runs.push(link ? { text, marks: sortMarks(marks), link } : { text, marks: sortMarks(marks) });
+      const l = opts.looks ? tidyLook(look) : undefined;
+      if (text) runs.push({ text, marks: sortMarks(marks), ...(link ? { link } : {}), ...(l ? { look: l } : {}) });
       return;
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
@@ -203,11 +226,20 @@ export function htmlToDoc(html: string, base: string): Doc {
     if (/text-decoration[^;]*underline/.test(style)) add('underline');
     if (/text-decoration[^;]*line-through/.test(style)) add('strike');
     const href = tag === 'a' ? absolute(el.getAttribute('href') ?? '', base) : null;
-    for (const c of Array.from(el.childNodes)) inline(c, here, href ?? link);
+    for (const c of Array.from(el.childNodes)) inline(c, here, href ?? link, opts.looks ? { ...look, ...pastedLook(el) } : look);
   };
 
   const listDepth: ('bullet' | 'numbered')[] = [];
   const block = (el: Element) => {
+    const saved = inherited;
+    if (opts.looks) inherited = { ...inherited, ...pastedLook(el) };
+    try {
+      blockInner(el);
+    } finally {
+      inherited = saved;
+    }
+  };
+  const blockInner = (el: Element) => {
     const tag = el.localName;
     if (SKIP.has(tag) || el.getAttribute('aria-hidden') === 'true' || (el as HTMLElement).hidden) return;
     const kids = () => {

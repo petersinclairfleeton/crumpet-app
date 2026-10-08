@@ -171,6 +171,17 @@ export class Editor {
     root.addEventListener('compositionstart', (e) => inWidget(e.target) || this.onCompositionStart(), { signal });
     root.addEventListener('compositionend', (e) => inWidget(e.target) || this.onCompositionEnd(), { signal });
     root.addEventListener('paste', (e) => (inWidget(e.target) ? pastePlain(e) : this.onPaste(e)), { signal });
+    // Ctrl+Shift+V pastes just the text (Word's Keep Text Only).
+    root.addEventListener(
+      'keydown',
+      (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyV') {
+          this.plainPaste = true;
+          setTimeout(() => (this.plainPaste = false), 500);
+        }
+      },
+      { signal, capture: true },
+    );
     root.addEventListener('cut', (e) => inWidget(e.target) || this.onCut(e), { signal });
     root.addEventListener('copy', (e) => inWidget(e.target) || this.onCopy(e), { signal });
     root.addEventListener('focusout', (e) => inWidget(e.target) && this.commitTables(), { signal });
@@ -1182,8 +1193,12 @@ export class Editor {
     this.onFiles(files);
   }
 
+  private plainPaste = false;
+
   private onPaste(e: ClipboardEvent): void {
     e.preventDefault();
+    const plain = this.plainPaste;
+    this.plainPaste = false;
     this.syncSelectionFromDom();
     const files = Array.from(e.clipboardData?.files ?? []);
     if (files.length && this.onFiles && !this.isReadOnly) {
@@ -1192,7 +1207,7 @@ export class Editor {
     }
     // Formatted text (from a web page, Word, Google Docs): kept with its headings, lists and formatting.
     const html = e.clipboardData?.getData('text/html');
-    if (html && this.htmlToBlocks && !this.isReadOnly) {
+    if (html && this.htmlToBlocks && !this.isReadOnly && !plain) {
       let blocks = this.htmlToBlocks(html);
       if (blocks?.length) {
         if (this.tracking) {

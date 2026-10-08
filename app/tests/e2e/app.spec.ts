@@ -1940,3 +1940,34 @@ test('formatting inside table cells, from the bar and with Ctrl+B, and dragging 
   expect(md).toContain('| **Mara** | Keeps the [lamp]{size=18} |');
   expect(md).toMatch(/\{table widths=[\d.]+-[\d.]+-[\d.]+\}/);
 });
+
+test('pasting keeps fonts and colours; Ctrl+Shift+V pastes just the text', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Pasted', 'Start ');
+  const paste = (html: string, text: string) =>
+    page.evaluate(
+      ([h, t]) => {
+        const dt = new DataTransfer();
+        dt.setData('text/html', h);
+        dt.setData('text/plain', t);
+        document.querySelector('.note-editor')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      },
+      [html, text],
+    );
+  await paste('<span style="font-family:Lora;font-size:18pt;color:#cc0000">red Lora</span>', 'red Lora');
+  const body = page.locator('.note-editor');
+  await expect(body.locator('.lk')).toHaveText('red Lora');
+  await expect(body.locator('.lk')).toHaveCSS('color', 'rgb(204, 0, 0)');
+  await expect(body.locator('.lk')).toHaveCSS('font-size', '24px');
+  // Ctrl+Shift+V: the same, without the look.
+  await page.keyboard.press('End');
+  await page.keyboard.type(' ');
+  await page.keyboard.down('Control');
+  await page.keyboard.down('Shift');
+  await body.dispatchEvent('keydown', { key: 'V', code: 'KeyV', ctrlKey: true, shiftKey: true, bubbles: true });
+  await page.keyboard.up('Shift');
+  await page.keyboard.up('Control');
+  await paste('<span style="color:#1155cc">plain blue</span>', 'plain blue');
+  await expect(body).toContainText('red Lora plain blue');
+  await expect(body.locator('.lk')).toHaveCount(1);
+});

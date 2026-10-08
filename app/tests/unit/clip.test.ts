@@ -82,3 +82,27 @@ describe('pasting from Word and Google Docs', () => {
     ]);
   });
 });
+
+describe('pasting keeps fonts and colours', () => {
+  const html =
+    '<p style="color:#1155cc">Blue <span style="font-family:Georgia,serif;font-size:14pt">and Georgia</span></p>' +
+    '<p><span style="color:#000000;background-color:#ffff00">marked</span> H<sub>2</sub>O <font face="Courier New" color="#cc0000">old</font></p>';
+  it('as Word does: font, size, colour, highlight, subscript (black text is just the default)', () => {
+    const { blocks } = htmlToDoc(html, 'https://example.com/', { looks: true });
+    expect(blocks[0].runs).toEqual([
+      { text: 'Blue ', marks: [], look: { color: '#1155cc' } },
+      { text: 'and Georgia', marks: [], look: { font: 'Georgia', size: 14, color: '#1155cc' } },
+    ]);
+    expect(blocks[1].runs.map((r) => [r.text, r.look])).toEqual([
+      ['marked', { highlight: '#ffff00' }],
+      [' H', undefined],
+      ['2', { va: 'sub' }],
+      ['O ', undefined],
+      ['old', { font: 'Courier New', color: '#cc0000' }],
+    ]);
+  });
+  it('not for web clippings', () => {
+    const { blocks } = htmlToDoc(html, 'https://example.com/');
+    expect(blocks.flatMap((b) => b.runs).every((r) => !r.look)).toBe(true);
+  });
+});

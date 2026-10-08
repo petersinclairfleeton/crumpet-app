@@ -132,7 +132,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   (pasting keeps formatting instead) or in the single-file build.
 - Word features not built: columns, sections (landscape and margins are
   for the whole document), text boxes and shapes, styles of tables beyond
-  the Table menu, and pasting keeps bold/italic but not fonts and colours. Tables of contents
+  the Table menu. Tables of contents
   list one chapter at a time in a project (Word fills in the whole book's
   when it updates the field).
 - Not built yet: native Mac/iPhone/iPad apps, other storage (local folder,
