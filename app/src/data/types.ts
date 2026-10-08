@@ -153,6 +153,8 @@ export interface Settings {
   zoom?: number;
   /** Show the ruler above the pages. */
   ruler?: boolean;
+  /** Word's Styles pane, open beside the text. */
+  stylesPane?: boolean;
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
 }

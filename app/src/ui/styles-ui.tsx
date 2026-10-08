@@ -32,7 +32,7 @@ export function useSheetClass(sheet: StyleSheet): string {
 }
 
 /** How a style looks in the menu: its font, weight and slant, at a size that fits. */
-function previewCss(d: StyleDef): React.CSSProperties {
+export function previewCss(d: StyleDef): React.CSSProperties {
   return {
     fontFamily: d.font ? fontStack(d.font) : 'var(--note-font, inherit)',
     fontSize: d.size ? `${Math.min(Math.max(d.size, 9), 17)}pt` : '13px',
@@ -156,8 +156,8 @@ const SPACINGS: [number, string][] = [
   [2, 'Double'],
 ];
 
-export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, chapters = false }: { title: string; sheet: StyleSheet; onChange(sheet: StyleSheet): void; page?: PageSetup; onPage?(p: PageSetup): void; onClose(): void; chapters?: boolean }) {
-  const [key, setKey] = useState<StyleKey>('normal');
+export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, chapters = false, initial = 'normal' }: { title: string; sheet: StyleSheet; onChange(sheet: StyleSheet): void; page?: PageSetup; onPage?(p: PageSetup): void; onClose(): void; chapters?: boolean; initial?: StyleKey }) {
+  const [key, setKey] = useState<StyleKey>(initial);
   const [tab, setTab] = useState<'styles' | 'page'>('styles');
   const d = sheet.styles[key];
   const set = (patch: Partial<StyleDef>) => onChange({ ...sheet, styles: { ...sheet.styles, [key]: { ...d, ...patch } } });

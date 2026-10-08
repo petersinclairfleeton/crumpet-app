@@ -1242,3 +1242,23 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .orient-card.on { box-shadow: 0 0 0 2px var(--accent); }
 .orient-page { display: block; width: 26px; height: 34px; border: 1.5px solid currentColor; border-radius: 2px; opacity: 0.7; }
 .orient-page.wide { width: 34px; height: 26px; }
+/* Word's Styles pane, docked beside the text. */
+.note-main { flex: 1; min-height: 0; display: flex; }
+.note-main > .note-scroll { flex: 1; min-width: 0; }
+.styles-pane { flex: 0 0 250px; display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: var(--page); }
+.styles-pane-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px; }
+.styles-pane-head h2 { margin: 0; font-size: 14px; font-weight: 700; }
+.styles-pane-list { flex: 1; min-height: 0; overflow-y: auto; padding: 0 6px; }
+.styles-pane-row { display: flex; align-items: center; gap: 4px; border-radius: 6px; }
+.styles-pane-row:hover { background: var(--field); }
+.styles-pane-row.on { background: var(--accent-soft); }
+.styles-pane-apply { flex: 1; min-width: 0; display: block; padding: 6px 8px; border: none; background: none; color: var(--text); text-align: left; cursor: pointer; overflow: hidden; }
+.styles-pane-name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 2.2em; line-height: 1.3; font-size: 14px; }
+.styles-pane-name[style] { font-size: min(1em, 20px) !important; margin: 0 !important; text-indent: 0 !important; }
+.styles-pane-count { font-size: 11px; color: var(--muted); min-width: 18px; text-align: right; font-variant-numeric: tabular-nums; }
+.styles-pane-more { border: none; background: none; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.styles-pane-more:hover { color: var(--text); background: var(--field); }
+.styles-pane .tool-drop { position: relative; }
+.styles-pane .tool-drop .popover { right: 0; left: auto; top: 26px; z-index: 40; min-width: 240px; }
+.styles-pane-foot { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 12px 12px; border-top: 1px solid var(--line); }
+.glyph-styles { font-size: 12px; font-weight: 700; letter-spacing: -0.5px; }

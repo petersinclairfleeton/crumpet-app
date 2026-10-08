@@ -2101,3 +2101,36 @@ test('page setup: margins for one section from the caret on, and for the whole d
   await expect.poll(async () => (await pad(1))[1]).toBe(false);
   expect((await pad(0))[0]).toBe((await pad(1))[0]);
 });
+
+test('styles pane: apply a style, count its uses, update a style to match the selection, and find the next paragraph in it', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1700, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Styled', 'First paragraph.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('A heading');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Second paragraph.');
+  await (await toolButton(page, 'Styles pane')).click();
+  const pane = page.getByRole('complementary', { name: 'Styles' });
+  await expect(pane).toBeVisible();
+  const row = (name: string) => pane.getByRole('listitem').filter({ has: page.getByTitle(`Apply ${name}`, { exact: true }) });
+  await expect(row('Normal').locator('.styles-pane-count')).toHaveText('3');
+  // Apply Heading 2 to the middle line.
+  await page.locator('.note-editor .blk').nth(1).click();
+  await pane.getByTitle('Apply Heading 2').click();
+  await expect(page.locator('.note-editor h2')).toHaveText('A heading');
+  await expect(row('Normal').locator('.styles-pane-count')).toHaveText('2');
+  // Double line spacing on the last paragraph, then make Normal match it.
+  await page.locator('.note-editor .blk').nth(2).click();
+  await page.keyboard.press('Control+2');
+  await pane.getByRole('button', { name: 'Normal options' }).click();
+  await page.getByRole('button', { name: 'Update Normal to match selection' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { noteStyles?: { styles: { normal: { lineSpacing: number } } } } } } }).crumpet.getState().settings.noteStyles?.styles.normal.lineSpacing)).toBe(2.3);
+  await expect(page.locator('.note-editor .blk').nth(2)).not.toHaveAttribute('style', /line-height/);
+  // Find next: from the last paragraph back round to the first.
+  await pane.getByRole('button', { name: 'Normal options' }).click();
+  await page.getByRole('button', { name: 'Find next (2)' }).click();
+  await page.keyboard.type('X');
+  await expect(page.locator('.note-editor .blk').first()).toHaveText('XFirst paragraph.');
+});
