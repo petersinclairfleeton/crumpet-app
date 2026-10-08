@@ -1440,3 +1440,6 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 /* Highlighting: the rest of the text fades. */
 .ling-dim [data-block] > .text { color: color-mix(in srgb, var(--text) 38%, transparent); }
 ::highlight(crumpet-focus) { color: var(--text); background-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.rev-swatch { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; vertical-align: 0; }
+.rev-remove { display: block; margin-top: 8px; font-size: 12.5px; }
+.revision-chip { padding: 3px 9px; border: 1px solid var(--rev); border-radius: 12px; background: color-mix(in srgb, var(--rev) 12%, transparent); color: var(--rev); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }

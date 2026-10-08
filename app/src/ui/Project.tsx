@@ -28,7 +28,7 @@ import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
-import { ChangeCard, ChangesBar, TrackToggle, useTracking } from './changes';
+import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from './changes';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, projectDocx, projectEpub } from '../data/wordfiles';
 import { PrintJob } from './print';
 import { ResearchList, ResearchPane } from './research';
@@ -823,6 +823,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
+          <RevisionChip />
           <TrackToggle />
           <button type="button" className="icon-btn" aria-label="Find and replace" data-tip={`Find and replace · ${isMac ? '⌘F' : 'Ctrl+F'}`} onClick={() => setFinding(true)}>
             <IconSearch size={16} />

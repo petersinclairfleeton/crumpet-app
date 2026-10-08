@@ -2384,3 +2384,28 @@ test('the Writing tab: session words and target, text statistics, highlighting a
   await expect(page.locator('.note-editor.ling-dim')).toHaveCount(0);
   await expect(tab.locator('.word-freq li').first()).toContainText('lamp');
 });
+
+test('revision mode: typing in the round’s colour, and taking the colours off', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1440, height: 880 });
+  await newNote(page, 'Revise me', 'First draft.');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'writing' }));
+  const tab = page.getByRole('tabpanel', { name: 'Writing' });
+  await tab.getByRole('button', { name: 'Second' }).click();
+  await expect(page.getByRole('button', { name: 'Second revision' })).toBeVisible();
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Now better.');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
+    });
+  await expect.poll(md).toContain('First draft.[ Now better.]{color=#c0392b}');
+  // Stop revising, then take the colours off.
+  await page.getByRole('button', { name: 'Second revision' }).click();
+  await expect(page.getByRole('button', { name: 'Second revision' })).toHaveCount(0);
+  await tab.getByRole('button', { name: 'Remove revision colours from this note' }).click();
+  await expect.poll(md).toBe('First draft. Now better.\n');
+});

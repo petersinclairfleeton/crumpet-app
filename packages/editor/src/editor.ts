@@ -36,6 +36,7 @@ import {
   type ParaKey,
   type NumFormat,
   type BulletKind,
+  lookAt,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import { type CellAlign, type TableBorders, type TableShape, addCol, addRow, alignCol, deleteCol, deleteRow, mergeAt, mergeCells, setTableLook, setWidths, shadeCell, splitCell } from './table';
@@ -879,6 +880,7 @@ export class Editor {
     }
 
     this.syncSelectionFromDom();
+    if (/^insert(Text|ReplacementText|FromPaste|FromDrop)/.test(e.inputType)) this.reviseLook();
     const s = this.state;
     if (this.tracking && this.trackedInput(e)) return;
 
@@ -977,6 +979,18 @@ export class Editor {
 
   /** Track changes: who is editing, or null when changes aren't tracked. */
   tracking: { author: string } | null = null;
+
+  /** Revision mode, like Scrivener's: text typed now is in this colour (#rrggbb), or null. */
+  revisionColor: string | null = null;
+
+  /** With revision mode on, what's typed next takes the round's colour (on top of the look where it's typed). */
+  private reviseLook(): void {
+    if (!this.revisionColor) return;
+    const at = this.state.selection.focus;
+    const block = this.state.doc.blocks.find((b) => b.id === at.block);
+    const look = this.state.storedLook ?? (block ? lookAt(block.runs, at.offset) : undefined);
+    this.state = { ...this.state, storedLook: { ...(look ?? {}), color: this.revisionColor } };
+  }
 
   // ---------- find and replace ----------
 
@@ -1090,6 +1104,11 @@ export class Editor {
       if (t && this.tracking) {
         const change = makeChange('ins', this.tracking.author);
         t = { ...t, ops: t.ops.map((op) => (op.type === 'insert' ? { ...op, runs: op.runs.map((r) => ({ ...r, change })) } : op)) };
+      }
+      // Text a phone keyboard typed straight into the page: in the revision colour too.
+      if (t && this.revisionColor) {
+        const color = this.revisionColor;
+        t = { ...t, ops: t.ops.map((op) => (op.type === 'insert' ? { ...op, runs: op.runs.map((r) => ({ ...r, look: { ...(r.look ?? {}), color } })) } : op)) };
       }
       if (t) {
         this.state = { ...this.state, doc: applyOps(this.state.doc, t.ops), selection: t.selectionAfter, storedMarks: null };
@@ -1206,6 +1225,7 @@ export class Editor {
   /** Types `text` at the caret, as if typed. */
   typeText(text: string): void {
     this.syncSelectionFromDom();
+    this.reviseLook();
     this.dispatch(insertText(this.state, text), 'command');
   }
 
@@ -1429,6 +1449,7 @@ export class Editor {
     }
     const text = e.clipboardData?.getData('text/plain')?.replaceAll(FOOTNOTE, '');
     if (!text) return;
+    this.reviseLook();
     if (this.tracking) return this.dispatch(trackedInsertText(this.state, text, this.tracking.author));
     this.dispatch(pasteLink(this.state, text) ?? insertText(this.state, text));
   }

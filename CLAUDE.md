@@ -123,6 +123,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     linguistic focus finders (dialogue, -ly adverbs, filler, likely passive);
     the right sidebar's Writing tab (`ui/writingtab.tsx`) highlights them with
     the CSS highlight `crumpet-focus` and keeps the session target.
+  - `src/data/revisions.ts`: revision mode (Scrivener's): the round's
+    colour is set on the editor (`editor.revisionColor`, via `useTracking`)
+    and typed text takes it as an ordinary text colour; `removeRevisions`
+    takes the colours off.
   - `src/data/snapshots.ts`: snapshots of notes and chapters (Scrivener's):
     kept in the store (`takeSnapshot`, `restoreSnapshot`), compared with
     diff-match-patch; the right sidebar's Snapshots tab is `ui/snapshots.tsx`.
