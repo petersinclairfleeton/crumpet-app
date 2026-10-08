@@ -34,6 +34,11 @@ export function App() {
 
   useEffect(() => applyTheme(state.settings), [state.settings]);
 
+  // A character card or research note opening in a project takes the whole screen on a phone.
+  useEffect(() => {
+    if (state.castId || state.researchId) setPane('note');
+  }, [state.castId, state.researchId]);
+
   const openView = useCallback(
     (view: View) => {
       store.setView(view);
