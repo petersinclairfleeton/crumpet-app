@@ -8,11 +8,12 @@ import { allTags, displayTitle, docWords, longTime, notebookTree, wordCount } fr
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
 import { chooseFiles, isMac } from './editing';
+import { FindBar, useFindKey } from './find';
 import { Tour } from './Tour';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
-import { IconBack, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconClose, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 
 interface PaneProps {
@@ -51,6 +52,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
   const [reading, setReading] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const onFindKey = useFindKey(() => setFinding(true));
   const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
   const pageSetup = state.settings.notePage ?? defaultPage();
   const paged = !!state.settings.pageView?.notes;
@@ -158,6 +161,16 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
               <hr className="menu-sep" />
             </>
           )}
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              setMenu(false);
+              setFinding(true);
+            }}
+          >
+            <IconSearch size={14} /> Find and replace <small className="menu-hint">{isMac ? '⌘F' : 'Ctrl+F'}</small>
+          </button>
           <button
             type="button"
             className="menu-item"
@@ -348,7 +361,15 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
   );
 
   return (
-    <section {...sideProps} className={`pane${side && state.activeSide === side ? ' side-active' : ''}`} aria-label={side === 'second' ? 'Second note' : 'Note'}>
+    <section {...sideProps} className={`pane find-host${side && state.activeSide === side ? ' side-active' : ''}`} aria-label={side === 'second' ? 'Second note' : 'Note'} onKeyDown={trashed ? undefined : onFindKey}>
+      {finding && !trashed && (
+        <FindBar
+          targets={[{ id: note.id, doc: note.doc, editor: editorRef.current }]}
+          onReplaceDoc={(id, doc) => store.setDoc(id, doc)}
+          author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
+          onClose={() => setFinding(false)}
+        />
+      )}
       {stylesOpen && (
         <StylesDialog
           title="Styles for notes"
