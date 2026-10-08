@@ -11,7 +11,8 @@ import { chapterWords, projectChapters, projectGoal, projectWords } from '../dat
 import { dayKey, wordsToday } from '../data/stats';
 import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
-import type { PageSetup } from '../data/styles';
+import type { PageSetup, StyleKey } from '../data/styles';
+import { StylesPane } from './stylespane';
 import { EditorHost } from './EditorHost';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, isMac, useDocEditor } from './editing';
 import { FindBar, useFindKey } from './find';
@@ -497,7 +498,7 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const editorRef = useRef<Editor | null>(null);
   const [chapterEditor, setChapterEditor] = useState<Editor | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
-  const [stylesOpen, setStylesOpen] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState<StyleKey | boolean>(false);
   const [finding, setFinding] = useState(false);
   const [findScope, setFindScope] = useState<'chapter' | 'book'>('chapter');
   const onFindKey = useFindKey(() => setFinding(true));
@@ -640,6 +641,7 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
           onPage={(page) => store.setProjectPage(project.id, page)}
           onClose={() => setStylesOpen(false)}
           chapters
+          initial={typeof stylesOpen === 'string' ? stylesOpen : undefined}
         />
       )}
       <EditorHost
@@ -650,7 +652,8 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
         pagePlace={{ offset, chapterStart: true, total: offset + (pages || 1) + after }}
         chapters
         onPages={onPages}
-        onEditStyles={() => setStylesOpen(true)}
+        onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)}
+        onSheet={(styles) => store.setProjectStyles(project.id, styles)}
         docId={chapter.id}
         doc={chapter.doc}
         onDoc={(doc) => store.setChapterDoc(chapter.id, doc)}
@@ -690,7 +693,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const onFindKey = useFindKey(() => setFinding(true));
   const msEditors = useMemo(() => Object.values(editors), [editors]);
   const [linkOpen, setLinkOpen] = useState(false);
-  const [stylesOpen, setStylesOpen] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState<StyleKey | boolean>(false);
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
   const styles = useSheetClass(sheet);
   const pageSetup = project.page ?? manuscriptPage();
@@ -746,6 +749,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           onPage={(page) => store.setProjectPage(project.id, page)}
           onClose={() => setStylesOpen(false)}
           chapters
+          initial={typeof stylesOpen === 'string' ? stylesOpen : undefined}
         />
       )}
       <div className={`note-pane manuscript ${styles}`}>
@@ -755,7 +759,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               <IconBack size={18} />
             </button>
           )}
-          {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
+          {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
           <TrackToggle />
@@ -778,15 +782,16 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
         </div>
         {narrow && active && (
           <KeyboardBar host={scroll}>
-            <FormatTools compact editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
+            <FormatTools compact editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
           </KeyboardBar>
         )}
         {floating && active && (
           <SelectionBar host={scroll}>
-            <FormatTools compact attach={false} editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={() => setStylesOpen(true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
+            <FormatTools compact attach={false} editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
           </SelectionBar>
         )}
         {linkOpen && active && <LinkBar editor={active} onClose={() => setLinkOpen(false)} />}
+        <div className="note-main">
         <div className="note-scroll" ref={scroll}>
           <article className={`note-body manuscript-body${paged ? ' paged' : ''}`}>
             <h1 className="manuscript-title">{project.name}</h1>
@@ -830,6 +835,8 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               <IconPlus size={13} /> Add a chapter
             </button>
           </article>
+        </div>
+        {state.settings.stylesPane && !narrow && <StylesPane editor={active} sheet={sheet} onSheet={(styles) => store.setProjectStyles(project.id, styles)} onEditStyles={(key) => setStylesOpen(key ?? true)} onClose={() => store.updateSettings({ stylesPane: false })} />}
         </div>
         {paged && msEditors.length > 0 && <StatusBar editors={msEditors} scroller={scroll} />}
       </div>

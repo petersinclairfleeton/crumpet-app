@@ -1,3 +1,4 @@
+import { StylesPane } from './stylespane';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { noteLinkTitle } from '@crumpet/editor/markdown';
 import type { Editor } from '@crumpet/editor/editor';
@@ -5,7 +6,7 @@ import type { Doc } from '@crumpet/editor/model';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, useDocEditor } from './editing';
 import { useAppState, useAppStore, useMedia, useNav } from './hooks';
 import { findByTitle } from '../data/links';
-import { type PageSetup, type StyleSheet, defaultPage } from '../data/styles';
+import { type PageSetup, type StyleKey, type StyleSheet, defaultPage } from '../data/styles';
 import { type PageFields, type PagePlacement, PageView } from './pages';
 import { useSheetClass } from './styles-ui';
 import { SlashMenu } from './slash';
@@ -36,7 +37,9 @@ interface Props {
   label?: string;
   /** The named styles the document uses, and opening the window to change them. */
   sheet: StyleSheet;
-  onEditStyles?(): void;
+  onEditStyles?(key?: StyleKey): void;
+  /** Changing the style sheet (the Styles pane's Update to Match). */
+  onSheet?(s: StyleSheet): void;
   /** Page view: the page setup to lay the text out on, or null for one long page. */
   page?: PageSetup | null;
   onEditor?(editor: Editor | null): void;
@@ -49,7 +52,7 @@ interface Props {
 }
 
 /** One document with its toolbar: our editor engine, mounted once and re-loaded when a different document opens. */
-export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
+export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, onSheet, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
   const store = useAppStore();
   const state = useAppState();
   const narrow = useMedia('(max-width: 759px)');
@@ -130,6 +133,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
       {!readOnly && !reading && <ChangeCard editor={ed} />}
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
       {!readOnly && !reading && <ChangesBar doc={doc} editor={ed} />}
+      <div className="note-main">
       <div className="note-scroll" ref={scrollBox}>
         <article className={`note-body${paged ? ' paged' : ''}`}>
           {header}
@@ -140,6 +144,8 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           {!reading && <CommentList doc={doc} editor={readOnly ? null : ed} />}
           {footer}
         </article>
+      </div>
+      {state.settings.stylesPane && !narrow && !readOnly && !reading && <StylesPane editor={ed} sheet={sheet} onSheet={onSheet} onEditStyles={onEditStyles} onClose={() => store.updateSettings({ stylesPane: false })} />}
       </div>
       {paged && ed && !reading && <StatusBar editors={statusEditors} scroller={scrollBox} pageOffset={pagePlace?.offset ?? 0} pageTotal={pagePlace?.total} />}
     </div>

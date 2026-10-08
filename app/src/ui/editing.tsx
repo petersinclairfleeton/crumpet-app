@@ -1,6 +1,7 @@
 // Pieces shared by everything that edits text: notes, chapters, and the
 // manuscript (several chapters on one page sharing one toolbar).
 
+import { useAppState, useAppStore } from './hooks';
 import { htmlToDoc } from '../data/clip';
 import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -173,6 +174,8 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   const fontItems = useFontItems(ed, off, sheet);
   const para = useParaItems(ed, off);
   const layout = useLayoutItems(ed, off, { page, onPage, chapters });
+  const store = useAppStore();
+  const stylesPane = !!useAppState().settings.stylesPane;
   /** A button for the bar, and the same as a named line in the More menu. */
   const tool = (key: string, pri: number, label: string, title: string, glyph: ReactNode, onClick: () => void, opts: { active?: boolean; disabled?: boolean; sep?: boolean; extra?: Record<string, string> } = {}): ToolItem => ({
     key,
@@ -221,6 +224,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     tool('todo', 1, 'Checklist', 'Checklist', '☐', () => ed?.setBlockType('todo'), { active: type === 'todo' }),
     ...borderItems(ed, off),
     ...layout.items,
+    tool('stylespane', 1, 'Styles pane', 'Styles pane: every style, with how often it’s used', <span className="glyph-styles">A¶</span>, () => store.updateSettings({ stylesPane: !stylesPane }), { active: stylesPane }),
   ];
   items.push(...insertItems(ed, off));
   if (attach)

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
 import { PageToggle } from './pages';
 import { StylesDialog } from './styles-ui';
+import type { StyleKey } from '../data/styles';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useNav } from './hooks';
 import { allTags, displayTitle, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
@@ -50,7 +51,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
   const [menu, setMenu] = useState(false);
   const [addingTag, setAddingTag] = useState(false);
   const [reading, setReading] = useState(false);
-  const [stylesOpen, setStylesOpen] = useState(false);
+  const [stylesOpen, setStylesOpen] = useState<StyleKey | boolean>(false);
   const [printing, setPrinting] = useState(false);
   const [finding, setFinding] = useState(false);
   const onFindKey = useFindKey(() => setFinding(true));
@@ -378,6 +379,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
           page={pageSetup}
           onPage={(notePage) => store.updateSettings({ notePage })}
           onClose={() => setStylesOpen(false)}
+          initial={typeof stylesOpen === 'string' ? stylesOpen : undefined}
         />
       )}
       <EditorHost
@@ -385,7 +387,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, side, noteId
         page={paged ? pageSetup : null}
         onPage={(notePage) => store.updateSettings({ notePage })}
         pageFields={{ title: note.title, words, created: note.createdAt, updated: note.updatedAt }}
-        onEditStyles={() => setStylesOpen(true)}
+        onEditStyles={(key) => setStylesOpen(key ?? true)}
+        onSheet={(noteStyles) => store.updateSettings({ noteStyles })}
         docId={note.id}
         doc={note.doc}
         onDoc={(doc) => store.setDoc(note.id, doc)}
