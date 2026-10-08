@@ -12,8 +12,9 @@ import type { Chapter, ChapterStatus, Project } from '../data/types';
 import type { PageSetup } from '../data/styles';
 import { EditorHost } from './EditorHost';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, isMac, useDocEditor } from './editing';
+import { FindBar, useFindKey } from './find';
 import { useAppState, useAppStore, useNav } from './hooks';
-import { IconBack, IconFocus, IconMore, IconPlus } from './icons';
+import { IconBack, IconFocus, IconMore, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
@@ -416,6 +417,9 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
   const [chapterEditor, setChapterEditor] = useState<Editor | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const [findScope, setFindScope] = useState<'chapter' | 'book'>('chapter');
+  const onFindKey = useFindKey(() => setFinding(true));
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
   const pageSetup = project.page ?? manuscriptPage();
   const paged = !!state.settings.pageView?.projects;
@@ -456,6 +460,9 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
         <IconFocus size={16} />
       </button>
       <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
+      <button type="button" className="icon-btn" aria-label="Find and replace" data-tip={`Find and replace · ${isMac ? '⌘F' : 'Ctrl+F'}`} onClick={() => setFinding(true)}>
+        <IconSearch size={16} />
+      </button>
       <button type="button" className="icon-btn" aria-label="Previous chapter" data-tip="Previous chapter" disabled={!prev} onClick={() => prev && store.selectChapter(prev.id)}>
         ‹
       </button>
@@ -525,8 +532,24 @@ function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; c
     </p>
   );
 
+  const bookTargets = list.map(({ chapter: c }) => ({ id: c.id, doc: c.doc, editor: c.id === chapter.id ? chapterEditor : null }));
   return (
-    <section className="pane" aria-label="Chapter">
+    <section className="pane find-host" aria-label="Chapter" onKeyDown={onFindKey}>
+      {finding && (
+        <FindBar
+          targets={findScope === 'book' ? bookTargets : bookTargets.filter((t) => t.id === chapter.id)}
+          onReplaceDoc={(id, doc) => store.setChapterDoc(id, doc)}
+          onGoTo={(id) => store.selectChapter(id)}
+          author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
+          scopes={[
+            { id: 'chapter', label: 'This chapter' },
+            { id: 'book', label: 'Whole book' },
+          ]}
+          scope={findScope}
+          onScope={(id) => setFindScope(id as 'chapter' | 'book')}
+          onClose={() => setFinding(false)}
+        />
+      )}
       {stylesOpen && (
         <StylesDialog
           title={`Styles for ${project.name}`}
@@ -571,6 +594,19 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const state = useAppState();
   const store = useAppStore();
   const [active, setActive] = useState<Editor | null>(null);
+  // Each chapter's editor, for find and replace across the manuscript.
+  const [editors, setEditors] = useState<Record<string, Editor>>({});
+  const onEditor = useCallback((id: string, ed: Editor | null) => {
+    setEditors((all) => {
+      if ((all[id] ?? null) === ed) return all;
+      const next = { ...all };
+      if (ed) next[id] = ed;
+      else delete next[id];
+      return next;
+    });
+  }, []);
+  const [finding, setFinding] = useState(false);
+  const onFindKey = useFindKey(() => setFinding(true));
   const [linkOpen, setLinkOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
@@ -610,7 +646,15 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   let offset = 0;
   let part: string | undefined;
   return (
-    <section className="pane" aria-label="Manuscript">
+    <section className="pane find-host" aria-label="Manuscript" onKeyDown={onFindKey}>
+      {finding && (
+        <FindBar
+          targets={order.map((c) => ({ id: c.id, doc: c.doc, editor: editors[c.id] ?? null }))}
+          onReplaceDoc={(id, doc) => store.setChapterDoc(id, doc)}
+          author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
+          onClose={() => setFinding(false)}
+        />
+      )}
       {stylesOpen && (
         <StylesDialog
           title={`Styles for ${project.name}`}
@@ -633,6 +677,9 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
           <TrackToggle />
+          <button type="button" className="icon-btn" aria-label="Find and replace" data-tip={`Find and replace · ${isMac ? '⌘F' : 'Ctrl+F'}`} onClick={() => setFinding(true)}>
+            <IconSearch size={16} />
+          </button>
           <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
           {!narrow && (
             <button
@@ -692,6 +739,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
                     setTick((t) => t + 1);
                     if (state.chapterId !== c.id) store.selectChapter(c.id);
                   }}
+                  onEditor={onEditor}
                   onLinkKey={() => setLinkOpen(true)}
                 />
               );
@@ -712,6 +760,8 @@ interface ManuscriptChapterProps {
   page: PageSetup | null;
   sheetClass: string;
   onActive(ed: Editor): void;
+  /** Tells the manuscript this chapter's editor (null when it goes). */
+  onEditor(id: string, ed: Editor | null): void;
   onLinkKey(): void;
   onPage(p: PageSetup): void;
   fields: PageFields;
@@ -721,7 +771,7 @@ interface ManuscriptChapterProps {
   onPages(chapterId: string, n: number): void;
 }
 
-function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLinkKey, onPage, fields, offset, total, onPages }: ManuscriptChapterProps) {
+function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEditor, onLinkKey, onPage, fields, offset, total, onPages }: ManuscriptChapterProps) {
   const store = useAppStore();
   const reportPages = useCallback((n: number) => onPages(chapter.id, n), [onPages, chapter.id]);
   const nav = useNav();
@@ -736,6 +786,11 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onLink
     onNoteLink: (title) => nav.openTitle(title),
   });
   useTracking(editor);
+  useEffect(() => {
+    if (!editor) return;
+    onEditor(chapter.id, editor);
+    return () => onEditor(chapter.id, null);
+  }, [editor, chapter.id, onEditor]);
   return (
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
       <SlashMenu editor={editor} host={host} notes={store.getState().notes} />

@@ -69,6 +69,7 @@ import {
   setTableRows,
 } from './commands';
 import { History } from './history';
+import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { View, readTable } from './view';
 import { noteLink } from './markdown';
 import { type PageGeometry, Paginator } from './paginate';
@@ -561,6 +562,33 @@ export class Editor {
 
   /** Track changes: who is editing, or null when changes aren't tracked. */
   tracking: { author: string } | null = null;
+
+  // ---------- find and replace ----------
+
+  /** Every place `query` appears in this document. */
+  find(query: string, opts: FindOptions = {}): Match[] {
+    return findMatches(this.state.doc, query, opts);
+  }
+
+  /** Replaces matches with `text` (tracked, if track changes is on), as one step to undo. */
+  replace(matches: Match[], text: string): void {
+    this.dispatch(replaceMatches(this.state, matches, text, this.tracking?.author ?? null), 'command');
+  }
+
+  /** A DOM range over a match, to highlight it or scroll it into view. */
+  rangeOf(m: Match): Range | null {
+    const a = this.view.posToDom({ block: m.block, offset: m.from });
+    const b = this.view.posToDom({ block: m.block, offset: m.to });
+    if (!a || !b) return null;
+    const r = this.view.root.ownerDocument.createRange();
+    try {
+      r.setStart(a.node, a.offset);
+      r.setEnd(b.node, b.offset);
+    } catch {
+      return null;
+    }
+    return r;
+  }
 
   setTracking(author: string | null): void {
     this.tracking = author === null ? null : { author };

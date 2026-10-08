@@ -1508,3 +1508,48 @@ test('search finds words in chapters too, highlighted, and opens the chapter', a
   await hits.getByRole('button', { name: /The Keeper/ }).click();
   await expect(page.getByLabel('Chapter title')).toHaveValue('The Keeper');
 });
+
+test('find and replace: in a note with Ctrl+F, and across a whole book', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Lamps', 'The lamp and the Lamp and the lampshade.');
+  await page.keyboard.press('Control+f');
+  const bar = page.getByRole('search', { name: 'Find and replace' });
+  await expect(bar.getByRole('searchbox', { name: 'Find' })).toBeFocused();
+  await page.keyboard.type('lamp');
+  await expect(bar.locator('.find-count')).toHaveText('1 of 3');
+  await bar.getByLabel('Whole words').check();
+  await expect(bar.locator('.find-count')).toHaveText('1 of 2');
+  await bar.getByLabel('Replace with').fill('light');
+  await bar.getByRole('button', { name: 'Replace all' }).click();
+  await expect(page.locator('.note-editor')).toContainText('The light and the light and the lampshade.');
+  await expect(bar.locator('.find-count')).toHaveText('None');
+  // One undo brings both back.
+  await page.locator('.note-editor').first().click();
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('.note-editor')).toContainText('The lamp and the Lamp and the lampshade.');
+
+  // A book: look in every chapter, and replace in all of them.
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.getByLabel('Chapter title').fill('One');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The sea was slate.');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await outline.getByRole('button', { name: 'Add chapter' }).click();
+  await page.getByLabel('Chapter title').fill('Two');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Slate skies, slate roofs.');
+  await page.getByRole('button', { name: 'Find and replace' }).click();
+  await page.keyboard.type('slate');
+  await expect(bar.locator('.find-count')).toHaveText('1 of 2');
+  await bar.getByRole('button', { name: 'Whole book' }).click();
+  await expect(bar.locator('.find-count')).toHaveText('1 of 3');
+  await expect(page.getByLabel('Chapter title')).toHaveValue('One');
+  await bar.getByLabel('Replace with').fill('grey');
+  await bar.getByRole('button', { name: 'Replace all' }).click();
+  await expect(bar.locator('.find-count')).toHaveText('None');
+  await expect(page.locator('.note-editor')).toContainText('The sea was grey.');
+  await outline.locator('.outline-open', { hasText: 'Two' }).click();
+  await expect(page.locator('.note-editor')).toContainText('grey skies, grey roofs.');
+});
