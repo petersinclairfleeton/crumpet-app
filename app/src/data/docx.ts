@@ -3,7 +3,7 @@
 // needs (styles, lists, footnotes, pictures, headers and footers) and read
 // back what Crumpet can show.
 
-import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { PAGE_SIZES, type PageSetup } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -118,8 +118,8 @@ class Writer {
   private nextComment = 0;
   private commentNum = new Map<string, { id: number; replies: number[] }>();
   private commentLeft = new Map<string, number>();
-  /** Numbered lists each get their own numbering, so they start again at 1. */
-  numbered = 0;
+  /** Each list gets its own numbering (numId = index + 1), with its levels' number or bullet styles. */
+  lists: ListDef[] = [];
   private nextRel = 1;
   private nextPic = 1;
 
@@ -274,14 +274,24 @@ class Writer {
   async blocks(blocks: Block[], first: string): Promise<string> {
     let out = '';
     let num = 0;
+    let bul = 0;
+    const newList = (bullet: boolean, start?: [number, number]) => this.lists.push({ bullet, levels: [], start });
     for (const [k, b] of blocks.entries()) {
       const lead = out ? '' : first;
       const after = blocks[k + 1]?.brk;
       this.markNext = after && b.type !== 'table' ? after : null;
       // A numbered list starts again at 1 after anything that isn't a list item.
+      // Bulleted lists likewise, so each keeps its own bullets. A numbering value set by hand starts a new list, as in Word.
+      const lvl = Math.min(8, b.indent ?? 0);
       if (b.type === 'numbered') {
-        if (!num) num = ++this.numbered + 1;
-      } else if (!isListType(b.type)) num = 0;
+        if (!num || b.para?.start !== undefined) num = newList(false, b.para?.start !== undefined ? [lvl, b.para.start] : undefined);
+        const f = b.para?.num;
+        if (f === 'legal') this.lists[num - 1].levels = Array(9).fill('legal');
+        else if (f) this.lists[num - 1].levels[lvl] = f;
+      } else if (b.type === 'bullet') {
+        if (!bul) bul = newList(true);
+        if (b.para?.bullet) this.lists[bul - 1].levels[lvl] = b.para.bullet;
+      } else if (!isListType(b.type)) num = bul = 0;
       const jc = b.align && JC[b.align] ? `<w:jc w:val="${JC[b.align]}"/>` : '';
       // Paragraph settings set by hand, each where Word expects it: keep and page break first, then spacing and indents.
       const p = b.para;
@@ -291,7 +301,9 @@ class Writer {
       const spacing = p && (p.before !== undefined || p.after !== undefined || p.line !== undefined) ? `<w:spacing${p.before !== undefined ? ` w:before="${Math.round(p.before * 20)}"` : ''}${p.after !== undefined ? ` w:after="${Math.round(p.after * 20)}"` : ''}${p.line !== undefined ? ` w:line="${Math.round(p.line * 240)}" w:lineRule="auto"` : ''}/>` : '';
       const left = p?.left ?? (p?.first !== undefined && p.first < 0 ? -p.first : undefined);
       const ind = p && (left !== undefined || p.right !== undefined || p.first !== undefined) ? `<w:ind${left !== undefined ? ` w:left="${tw(left)}"` : ''}${p.right !== undefined ? ` w:right="${tw(p.right)}"` : ''}${p.first !== undefined ? (p.first < 0 ? ` w:hanging="${tw(-p.first)}"` : ` w:firstLine="${tw(p.first)}"`) : ''}/>` : '';
-      const layout = spacing + ind;
+      const sides = p?.border ? ([['t', 'top'], ['l', 'left'], ['b', 'bottom'], ['r', 'right']] as const).filter(([c]) => p.border!.includes(c)).map(([, side]) => `<w:${side} w:val="single" w:sz="4" w:space="4" w:color="auto"/>`).join('') : '';
+      const box = (sides ? `<w:pBdr>${sides}</w:pBdr>` : '') + (p?.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${p.shade.slice(1).toUpperCase()}"/>` : '');
+      const layout = box + spacing + ind;
       switch (b.type) {
         case 'image': {
           const pic = await this.picture(b);
@@ -320,11 +332,11 @@ class Writer {
         case 'bullet':
         case 'todo':
         case 'numbered': {
-          const id = b.type === 'numbered' ? num : 1;
-          const box = b.type === 'todo' ? [{ text: b.checked ? '☒ ' : '☐ ', marks: [] as Mark[] }] : [];
+          const id = b.type === 'numbered' ? num : bul;
+          const check = b.type === 'todo' ? [{ text: b.checked ? '☒ ' : '☐ ', marks: [] as Mark[] }] : [];
           const numPr = b.type === 'todo' ? '' : `<w:numPr><w:ilvl w:val="${Math.min(8, b.indent ?? 0)}"/><w:numId w:val="${id}"/></w:numPr>`;
           const todoInd = b.type === 'todo' && !ind ? `<w:ind w:left="${360 + (b.indent ?? 0) * 360}"/>` : '';
-          out += this.paragraph('ListParagraph', this.runs([...box, ...b.runs]), head + numPr + layout + todoInd + jc);
+          out += this.paragraph('ListParagraph', this.runs([...check, ...b.runs]), head + numPr + layout + todoInd + jc);
           continue;
         }
         default:
@@ -406,16 +418,51 @@ function stylesXml(font: string, size: number): string {
   );
 }
 
-function numberingXml(lists: number): string {
-  const levels = (bullet: boolean) =>
-    Array.from({ length: 9 }, (_, l) => {
-      const fmt = bullet ? 'bullet' : ['decimal', 'lowerLetter', 'lowerRoman'][l % 3];
-      const text = bullet ? ['•', '◦', '▪'][l % 3] : `%${l + 1}.`;
-      return `<w:lvl w:ilvl="${l}"><w:start w:val="1"/><w:numFmt w:val="${fmt}"/><w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="${720 + l * 360}" w:hanging="360"/></w:pPr></w:lvl>`;
-    }).join('');
-  let nums = '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>';
-  for (let i = 2; i <= lists + 1; i++) nums += `<w:num w:numId="${i}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/></w:lvlOverride></w:num>`;
-  return XML + `<w:numbering ${NS}><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>${levels(true)}</w:abstractNum><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="hybridMultilevel"/>${levels(false)}</w:abstractNum>${nums}</w:numbering>`;
+interface ListDef {
+  bullet: boolean;
+  /** Number or bullet style set for each level (unset: Word's usual one). */
+  levels: (string | undefined)[];
+  /** A numbering value set by hand: [level, number]. */
+  start?: [number, number];
+}
+
+interface WordLevel {
+  fmt: string;
+  text: string;
+  start: number;
+}
+
+/** Bullets Word draws from symbol fonts, as the characters they show. */
+const WORD_BULLETS: Record<string, BulletKind> = { '\uf0b7': 'disc', '\uf0a7': 'square', o: 'circle', '\uf0d8': 'arrow', '\uf0fc': 'check', '\uf076': 'diamond', '-': 'dash', '\uf0ab': 'star' };
+
+/** A Word list level as Crumpet's number or bullet style, when it isn't the usual one for that level. */
+function wordListStyle(l: WordLevel, level: number): ParaLook {
+  if (l.fmt === 'bullet') {
+    const kind = (Object.keys(BULLETS) as BulletKind[]).find((k) => BULLETS[k] === l.text) ?? WORD_BULLETS[l.text];
+    return kind && kind !== DEFAULT_BULLETS[level % 3] ? { bullet: kind } : {};
+  }
+  const f: NumFormat | undefined = (l.text.match(/%/g) ?? []).length > 1 ? 'legal' : l.fmt === 'decimal' || l.fmt === 'decimalZero' ? (/\)\s*$/.test(l.text) ? 'paren' : 'decimal') : ({ upperLetter: 'upper-alpha', lowerLetter: 'lower-alpha', upperRoman: 'upper-roman', lowerRoman: 'lower-roman' } as Record<string, NumFormat>)[l.fmt];
+  return f && f !== DEFAULT_NUMS[level % 3] ? { num: f } : {};
+}
+
+const DEFAULT_NUMS = ['decimal', 'lower-alpha', 'lower-roman'];
+const DEFAULT_BULLETS: BulletKind[] = ['disc', 'circle', 'square'];
+const NUM_FMT: Record<string, string> = { decimal: 'decimal', paren: 'decimal', legal: 'decimal', 'upper-alpha': 'upperLetter', 'lower-alpha': 'lowerLetter', 'upper-roman': 'upperRoman', 'lower-roman': 'lowerRoman' };
+
+function numberingXml(lists: ListDef[]): string {
+  const lvl = (list: ListDef, l: number) => {
+    const ind = `<w:pPr><w:ind w:left="${720 + l * 360}" w:hanging="360"/></w:pPr>`;
+    if (list.bullet) {
+      const kind = (list.levels[l] ?? DEFAULT_BULLETS[l % 3]) as BulletKind;
+      return `<w:lvl w:ilvl="${l}"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="${BULLETS[kind] ?? '•'}"/><w:lvlJc w:val="left"/>${ind}</w:lvl>`;
+    }
+    const f = list.levels[l] ?? DEFAULT_NUMS[l % 3];
+    const text = f === 'legal' ? Array.from({ length: l + 1 }, (_, i) => `%${i + 1}`).join('.') + (l === 0 ? '.' : '') : `%${l + 1}${f === 'paren' ? ')' : '.'}`;
+    return `<w:lvl w:ilvl="${l}"><w:start w:val="1"/><w:numFmt w:val="${NUM_FMT[f] ?? 'decimal'}"/>${f === 'legal' ? '<w:isLgl/>' : ''}<w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/>${ind}</w:lvl>`;
+  };
+  const abstracts = lists.map((list, i) => `<w:abstractNum w:abstractNumId="${i}"><w:multiLevelType w:val="${list.levels.includes('legal') ? 'multilevel' : 'hybridMultilevel'}"/>${Array.from({ length: 9 }, (_, l) => lvl(list, l)).join('')}</w:abstractNum>`).join('');
+  const nums = lists.map((list, i) => `<w:num w:numId="${i + 1}"><w:abstractNumId w:val="${i}"/>${list.start ? `<w:lvlOverride w:ilvl="${list.start[0]}"><w:startOverride w:val="${list.start[1]}"/></w:lvlOverride>` : ''}</w:num>`).join('');
+  return XML + `<w:numbering ${NS}>${abstracts}${nums}</w:numbering>`;
 }
 
 /** The id Word uses to tie a comment's paragraph to its thread (8 hex digits, below 0x80000000). */
@@ -524,7 +571,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     { name: 'word/document.xml', data: utf8(documentXml) },
     { name: 'word/_rels/document.xml.rels', data: utf8(docRels) },
     { name: 'word/styles.xml', data: utf8(stylesXml(opts.font || 'Georgia', opts.size || 12)) },
-    { name: 'word/numbering.xml', data: utf8(numberingXml(w.numbered)) },
+    { name: 'word/numbering.xml', data: utf8(numberingXml(w.lists)) },
     { name: 'word/footnotes.xml', data: utf8(footnotesXml(w.footnotes)) },
     { name: 'word/settings.xml', data: utf8(settings) },
     ...files,
@@ -635,16 +682,47 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   }
 
   // Lists: which numbering is bullets.
-  const numFmt = new Map<string, string[]>();
+  // Each numbering's levels (format, text such as "%1.", start), the list it counts with, and any start set on it.
+  const numDefs = new Map<string, { abs: string; levels: WordLevel[]; restart: Map<number, number> }>();
   const numberingPath = [...rels.values()].find((p) => /numbering\.xml$/.test(p)) ?? 'word/numbering.xml';
   const numbering = parseXml(files.get(numberingPath));
   if (numbering) {
-    const abstract = new Map<string, string[]>();
+    const abstract = new Map<string, WordLevel[]>();
     for (const a of Array.from(numbering.getElementsByTagNameNS(W_NS, 'abstractNum'))) {
-      abstract.set(attr(a, 'abstractNumId') ?? '', kids(a).filter((c) => c.localName === 'lvl').map((l) => attr(child(l, 'numFmt'), 'val') ?? 'decimal'));
+      abstract.set(
+        attr(a, 'abstractNumId') ?? '',
+        kids(a)
+          .filter((c) => c.localName === 'lvl')
+          .map((l) => ({ fmt: attr(child(l, 'numFmt'), 'val') ?? 'decimal', text: attr(child(l, 'lvlText'), 'val') ?? '', start: Number(attr(child(l, 'start'), 'val') ?? 1) || 0 })),
+      );
     }
-    for (const n of Array.from(numbering.getElementsByTagNameNS(W_NS, 'num'))) numFmt.set(attr(n, 'numId') ?? '', abstract.get(attr(child(n, 'abstractNumId'), 'val') ?? '') ?? []);
+    for (const n of Array.from(numbering.getElementsByTagNameNS(W_NS, 'num'))) {
+      const abs = attr(child(n, 'abstractNumId'), 'val') ?? '';
+      const restart = new Map<number, number>();
+      for (const o of kids(n).filter((c) => c.localName === 'lvlOverride')) {
+        const v = attr(child(o, 'startOverride'), 'val');
+        if (v !== null) restart.set(Number(attr(o, 'ilvl') ?? 0), Number(v));
+      }
+      numDefs.set(attr(n, 'numId') ?? '', { abs, levels: abstract.get(abs) ?? [], restart });
+    }
   }
+  // Word counts each list through the whole document; the number each numbered paragraph shows there.
+  const counting = new Map<string, (number | undefined)[]>();
+  const begun = new Set<string>();
+  const wordNumber = new Map<Block, number>();
+  const countItem = (numId: string, level: number): number => {
+    const def = numDefs.get(numId);
+    const key = def?.abs ?? numId;
+    const c = counting.get(key) ?? [];
+    counting.set(key, c);
+    if (def && !begun.has(numId)) {
+      begun.add(numId);
+      for (const [l, v] of def.restart) c[l] = v - 1;
+    }
+    c[level] = (c[level] ?? (def?.levels[level]?.start ?? 1) - 1) + 1;
+    c.fill(undefined, level + 1);
+    return c[level]!;
+  };
 
   // Footnotes' text.
   const notes = new Map<string, string>();
@@ -839,6 +917,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     if (pics.length && !clean.some((r) => r.text.trim())) return;
     const jc = attr(child(ppr, 'jc'), 'val');
     const align = jc === 'center' ? 'center' : jc === 'right' || jc === 'end' ? 'right' : jc === 'both' || jc === 'distribute' ? 'justify' : undefined;
+    const listPara: ParaLook = {};
     const num = child(ppr, 'numPr');
     const numId = attr(child(num, 'numId'), 'val');
     const level = Number(attr(child(num, 'ilvl'), 'val') ?? 0);
@@ -854,8 +933,10 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     } else if (name === 'subtitle') b = makeBlock('paragraph', '', [], { style: 'subtitle' });
     else if (heading) b = makeBlock(`heading${Math.min(4, Number(heading))}` as BlockType);
     else if (numId && numId !== '0') {
-      const fmt = numFmt.get(numId)?.[level] ?? 'decimal';
-      b = makeBlock(fmt === 'bullet' ? 'bullet' : 'numbered', '', [], { indent: Math.min(6, level) });
+      const lvl = numDefs.get(numId)?.levels[level];
+      b = makeBlock(lvl?.fmt === 'bullet' ? 'bullet' : 'numbered', '', [], { indent: Math.min(6, level) });
+      if (lvl) Object.assign(listPara, wordListStyle(lvl, level));
+      if (b.type === 'numbered') wordNumber.set(b, countItem(numId, level));
     } else if (name === 'quote' || name === 'intense quote') b = makeBlock('quote', '', [], name === 'intense quote' ? { style: 'intense' } : {});
     else if (name === 'no spacing') b = makeBlock('paragraph', '', [], { style: 'nospacing' });
     else if (name === 'caption') b = makeBlock('paragraph', '', [], { style: 'caption' });
@@ -873,7 +954,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     }
     if (align && !b.align) b.align = align;
     // Spacing, indents and page breaks set on the paragraph itself (not by its style); list items keep their own indents.
-    const para: ParaLook = {};
+    const para: ParaLook = isListType(b.type) ? { ...listPara } : {};
     const sp = child(ppr, 'spacing');
     const twPt = (v: string | null) => (v !== null && Number.isFinite(+v) ? +v / 20 : undefined);
     if (sp) {
@@ -896,6 +977,11 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     if (on2(child(ppr, 'pageBreakBefore')) || carried) para.pageBefore = true;
     if (on2(child(ppr, 'keepNext'))) para.keepNext = true;
     if (on2(child(ppr, 'keepLines'))) para.keepLines = true;
+    // Borders and shading.
+    const bdr = child(ppr, 'pBdr');
+    if (bdr) para.border = (['top', 'bottom', 'left', 'right'] as const).filter((side) => { const v = attr(child(bdr, side), 'val'); return v !== null && v !== 'none' && v !== 'nil'; }).map((side) => side[0]).join('');
+    const fill = attr(child(ppr, 'shd'), 'fill');
+    if (fill && /^[0-9a-f]{6}$/i.test(fill) && fill.toLowerCase() !== 'ffffff') para.shade = `#${fill.toLowerCase()}`;
     // A page break (Ctrl+Enter in Word): on its own or after the text, the next paragraph starts a new page; before the text, this one does.
     const breaks = Array.from(p.getElementsByTagNameNS(W_NS, 'br')).filter((x) => attr(x, 'type') === 'page');
     if (breaks.length) {
@@ -932,6 +1018,21 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     }
   };
   if (body) await walk(body);
+  // Where Word's numbering differs from what the list shows on its own (carrying on after a paragraph, or starting again), keep Word's.
+  const shown: number[] = [];
+  for (const b of blocks) {
+    const l = b.indent ?? 0;
+    if (b.type === 'numbered') {
+      shown[l] = (shown[l] ?? 0) + 1;
+      shown.fill(0, l + 1);
+      const want = wordNumber.get(b);
+      if (want !== undefined && want !== shown[l]) {
+        b.para = tidyPara({ ...b.para, start: want });
+        shown[l] = want;
+      }
+    } else if (isListType(b.type)) shown.fill(0, l);
+    else shown.length = 0;
+  }
   // Trailing empty paragraphs aren't wanted.
   while (blocks.length > 1 && blocks[blocks.length - 1].type === 'paragraph' && !blocks[blocks.length - 1].runs.length && !blocks[blocks.length - 1].style) blocks.pop();
   return { title: title || coreTitle, doc: { blocks: blocks.length ? blocks : [makeBlock('paragraph')] } };

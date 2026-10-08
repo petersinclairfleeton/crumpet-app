@@ -232,3 +232,41 @@ describe('Word paragraph settings', () => {
     ]);
   });
 });
+
+describe('Word lists, borders and shading', () => {
+  it('number and bullet styles, numbering values, borders and shading are written and read back', async () => {
+    const blocks = [
+      { ...makeBlock('numbered', 'One'), para: { num: 'upper-roman' as const } },
+      { ...makeBlock('numbered', 'Sub', [], { indent: 1 }), para: { num: 'paren' as const } },
+      { ...makeBlock('numbered', 'Two'), para: { num: 'upper-roman' as const } },
+      makeBlock('paragraph', 'Between'),
+      { ...makeBlock('numbered', 'Three'), para: { num: 'upper-roman' as const, start: 3 } },
+      { ...makeBlock('bullet', 'Ticked'), para: { bullet: 'check' as const } },
+      { ...makeBlock('bullet', 'Also'), para: { bullet: 'check' as const } },
+      { ...makeBlock('paragraph', 'Boxed'), para: { border: 'tblr', shade: '#fff2cc' } },
+      { ...makeBlock('paragraph', 'Ruled'), para: { border: 'b' } },
+    ];
+    const bytes = await toDocx([{ doc: { blocks } }], { title: 'T' });
+    const files = await readZip(bytes);
+    const xml = new TextDecoder().decode(files.get('word/document.xml'));
+    const numbering = new TextDecoder().decode(files.get('word/numbering.xml'));
+    expect(numbering).toContain('<w:numFmt w:val="upperRoman"/>');
+    expect(numbering).toContain('<w:lvlText w:val="%2)"/>');
+    expect(numbering).toContain('<w:startOverride w:val="3"/>');
+    expect(numbering).toContain('<w:lvlText w:val="✓"/>');
+    expect(xml).toContain('<w:pBdr><w:top w:val="single" w:sz="4" w:space="4" w:color="auto"/>');
+    expect(xml).toContain('<w:shd w:val="clear" w:color="auto" w:fill="FFF2CC"/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks.map((x) => [x.type, x.para])).toEqual(blocks.map((x) => [x.type, x.para]));
+  });
+
+  it('a Word list that carries on after a paragraph keeps its numbers', async () => {
+    const item = (t: string) => `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>${t}</w:t></w:r></w:p>`;
+    const body = item('One') + item('Two') + '<w:p><w:r><w:t>Note</w:t></w:r></w:p>' + item('Three');
+    const files = await readZip(await toDocx([{ doc: { blocks: [makeBlock('numbered', 'x')] } }], { title: 'T' }));
+    const doc = new TextDecoder().decode(files.get('word/document.xml')).replace(/<w:body>.*<w:sectPr>/s, `<w:body>${body}<w:sectPr>`);
+    files.set('word/document.xml', new TextEncoder().encode(doc));
+    const back = await fromDocx(await writeZip([...files].map(([name, data]) => ({ name, data }))));
+    expect(back.doc.blocks.map((x) => x.para?.start)).toEqual([undefined, undefined, undefined, 3]);
+  });
+});

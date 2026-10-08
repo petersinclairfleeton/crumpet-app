@@ -1207,3 +1207,15 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .symbol-btn { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font-size: 15px; cursor: pointer; padding: 0; }
 .symbol-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
 .page-view { align-items: safe center; }
+/* Bullets and Numbering: the button, and a small arrow for the library. */
+.tools .split-tool > button:first-child { padding-right: 2px; }
+.tools .split-tool > .split-caret { min-width: 14px; width: 14px; padding: 0; font-size: 9px; opacity: 0.75; }
+.list-library { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; padding: 6px 8px; min-width: 220px; }
+.list-library .list-choice { height: auto; border: 1px solid var(--line2); background: var(--page); border-radius: 6px; padding: 8px 6px; font: inherit; font-size: 13px; color: var(--text); cursor: pointer; white-space: nowrap; }
+.list-library .list-choice.bullet-choice { font-size: 18px; padding: 4px 6px; }
+.list-library .list-choice:hover, .list-library .list-choice.on { box-shadow: 0 0 0 2px var(--accent); }
+.menu-row { display: flex; align-items: center; gap: 6px; padding: 4px 10px 6px; font-size: 13px; }
+.menu-row input { width: 56px; margin-left: 4px; }
+.tools .tool-drop .popover .menu-item { justify-content: flex-start; width: 100%; height: auto; font-weight: 400; color: var(--text); }
+.tools .tool-drop .popover .menu-item.on { color: var(--accent-ink); font-weight: 600; }
+.tools .tool-drop .popover .menu-row .btn { height: 28px; min-width: 0; padding: 0 10px; font-weight: 600; }

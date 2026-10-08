@@ -7,12 +7,13 @@ import { createPortal } from 'react-dom';
 import { Editor } from '@crumpet/editor/editor';
 import { diffDocs } from '@crumpet/editor/diff';
 import { stepsOf } from '@crumpet/editor/sync/transform';
-import type { BlockType, Doc, Mark } from '@crumpet/editor/model';
+import type { Doc, Mark } from '@crumpet/editor/model';
 import type { StyleSheet } from '../data/styles';
 import { AlignTools, StylePicker } from './styles-ui';
 import { OverflowRow, type ToolItem } from './toolbar';
 import { useFontItems } from './fonttools';
 import { useParaItems } from './paratools';
+import { borderItems, listItems } from './listtools';
 import { insertItems } from './inserttools';
 import { addFile } from '../data/files';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
@@ -26,12 +27,6 @@ const MARKS: { mark: Mark; label: string; glyph: React.ReactNode; key: string }[
   { mark: 'underline', label: 'Underline', glyph: <u>U</u>, key: `${mod}U` },
   { mark: 'strike', label: 'Strikethrough', glyph: <s>S</s>, key: `${mod}⇧X` },
   { mark: 'code', label: 'Code', glyph: <code>{'</>'}</code>, key: `${mod}E` },
-];
-
-const BLOCKS: { type: BlockType; label: string; glyph: string }[] = [
-  { type: 'bullet', label: 'Bulleted list', glyph: '•≡' },
-  { type: 'numbered', label: 'Numbered list', glyph: '1≡' },
-  { type: 'todo', label: 'Checklist', glyph: '☐' },
 ];
 
 export interface DocEditorOptions {
@@ -219,7 +214,9 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     ),
     { key: 'align', pri: 2, sep: true, node: <AlignTools editor={ed} disabled={off} /> },
     ...para.items,
-    ...BLOCKS.map((b, i) => tool(b.type, b.type === 'todo' ? 1 : 2, b.label, b.label, b.glyph, () => ed?.setBlockType(b.type), { active: type === b.type, sep: i === 0 })),
+    ...listItems(ed, off),
+    tool('todo', 1, 'Checklist', 'Checklist', '☐', () => ed?.setBlockType('todo'), { active: type === 'todo' }),
+    ...borderItems(ed, off),
   ];
   items.push(...insertItems(ed, off));
   if (attach)

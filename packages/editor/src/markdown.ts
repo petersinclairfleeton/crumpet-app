@@ -93,7 +93,7 @@ function blockLine(b: Block, number: number): string {
   // Styles, alignment and paragraph settings Markdown has no syntax for go at the end of the line, as {.title .center line=2}.
   const p = b.para;
   const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined].filter(Boolean);
-  const values = p ? (['line', 'before', 'after', 'left', 'right', 'first'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
+  const values = p ? (['line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'shade'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
   const attrs = [...classes.map((c) => `.${c}`), ...values];
   return attrs.length ? `${line} {${attrs.join(' ')}}` : line;
 }
@@ -126,9 +126,10 @@ function runsPlain(runs: Run[]): string {
 
 const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
 const KNOWN_STYLES = new Set<string>([...Object.values(BLOCK_STYLES).flat(), 'folded']);
-const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=-?[\d.]+)[ \t]*)+)\}[ \t]*$/;
+const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=(?:-?[\d.]+|[a-z][a-z-]*|#[0-9a-fA-F]{6}))[ \t]*)+)\}[ \t]*$/;
 const PARA_FLAGS: Record<string, 'pageBefore' | 'keepNext' | 'keepLines'> = { pagebreak: 'pageBefore', keepnext: 'keepNext', keeplines: 'keepLines' };
-const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first']);
+const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start']);
+const PARA_WORDS = new Set(['num', 'bullet', 'border', 'shade']);
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */
 function protectBraces(text: string): string {
@@ -141,7 +142,7 @@ function splitAttrs(line: string): { line: string; classes: string[] } {
   const m = ATTRS.exec(line);
   if (!m) return { line, classes: [] };
   const tokens = m[2].trim().split(/\s+/);
-  const ok = tokens.every((t) => (t.startsWith('.') ? ALIGNS.has(t.slice(1)) || KNOWN_STYLES.has(t.slice(1)) || t.slice(1) in PARA_FLAGS : PARA_VALUES.has(t.split('=')[0])));
+  const ok = tokens.every((t) => (t.startsWith('.') ? ALIGNS.has(t.slice(1)) || KNOWN_STYLES.has(t.slice(1)) || t.slice(1) in PARA_FLAGS : PARA_VALUES.has(t.split('=')[0]) || PARA_WORDS.has(t.split('=')[0])));
   if (!ok) return { line, classes: [] };
   return { line: m[1], classes: tokens.map((t) => (t.startsWith('.') ? t.slice(1) : t)) };
 }
@@ -152,6 +153,7 @@ function applyAttrs(b: Block, classes: string[]): Block {
     if (c.includes('=')) {
       const [k, v] = c.split('=');
       if (PARA_VALUES.has(k) && Number.isFinite(+v)) (para as Record<string, number>)[k] = +v;
+      else if (PARA_WORDS.has(k)) (para as Record<string, string>)[k] = v;
       continue;
     }
     if (c in PARA_FLAGS) {

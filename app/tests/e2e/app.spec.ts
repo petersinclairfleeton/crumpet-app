@@ -1782,3 +1782,37 @@ test('page view status bar: page and word count, zoom, ruler indents, headings t
   await page.getByRole('button', { name: iso }).click();
   await expect(page.locator('.note-editor .blk').nth(1)).toContainText(iso);
 });
+
+test('list styles from the libraries, a numbering value, and paragraph borders and shading', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Lists', 'Overview');
+  await (await toolButton(page, 'Numbering styles')).click();
+  await page.getByRole('button', { name: 'Capital Roman numerals' }).click();
+  const first = page.locator('.note-editor .blk').first();
+  await expect(first).toHaveAttribute('data-num', 'upper-roman');
+  expect(await first.evaluate((el) => getComputedStyle(el, '::before').content)).toContain('upper-roman');
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Method');
+  const second = page.locator('.note-editor .blk').nth(1);
+  await expect(second).toHaveAttribute('data-num', 'upper-roman');
+  await (await toolButton(page, 'Numbering styles')).click();
+  await page.getByLabel('Numbering value').fill('7');
+  await page.getByRole('button', { name: 'Set', exact: true }).click();
+  await expect(second).toHaveCSS('counter-set', 'n0 7');
+  // A boxed, shaded paragraph after the list.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Boxed');
+  const boxed = page.locator('.note-editor .blk').nth(2);
+  await expect(boxed).not.toHaveClass(/blk-list/);
+  await (await toolButton(page, 'Borders')).click();
+  await page.getByRole('button', { name: 'Box (all sides)' }).click();
+  await expect(boxed).toHaveCSS('border-top-style', 'solid');
+  await (await toolButton(page, 'Shading')).click();
+  await page.getByRole('button', { name: 'Light gold' }).click();
+  await expect(boxed).toHaveCSS('background-color', 'rgb(255, 242, 204)');
+});

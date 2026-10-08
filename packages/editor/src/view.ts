@@ -3,7 +3,7 @@
 // changed are rebuilt; the rest of the DOM is left alone.
 
 import type { Block, Doc, Mark, Pos, Selection } from './model';
-import { isHeading, isList, runsLength } from './model';
+import { BULLETS, MAX_INDENT, isHeading, isList, runsLength } from './model';
 
 const TAGS: Record<Block['type'], string> = {
   paragraph: 'p',
@@ -225,6 +225,17 @@ function buildBlock(block: Block): HTMLElement {
     if (p.pageBefore) el.dataset.pageBefore = '';
     if (p.keepNext) el.dataset.keepNext = '';
     if (p.keepLines) el.dataset.keepLines = '';
+    if (block.type === 'numbered' && p.num) el.dataset.num = p.num;
+    if (block.type === 'numbered' && p.start !== undefined) el.style.counterSet = `n${Math.min(MAX_INDENT, block.indent ?? 0)} ${p.start}`;
+    if (block.type === 'bullet' && p.bullet) el.dataset.bullet = BULLETS[p.bullet];
+    if (p.border) {
+      el.dataset.border = p.border;
+      for (const [c, side] of [['t', 'Top'], ['b', 'Bottom'], ['l', 'Left'], ['r', 'Right']] as const) if (p.border.includes(c)) el.style.setProperty(`border-${side.toLowerCase()}`, '1px solid currentColor');
+    }
+    if (p.shade) {
+      el.dataset.shade = '';
+      el.style.backgroundColor = p.shade;
+    }
   }
   if (block.type === 'todo') {
     el.classList.toggle('checked', !!block.checked);
