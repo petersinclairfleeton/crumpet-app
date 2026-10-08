@@ -12,6 +12,7 @@ import { matchIds } from '@crumpet/editor/diff';
 import type { Tree } from '../sync/tree';
 import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
+import { attachmentsIn, forgetFiles } from './files';
 import { relinkDoc, sameTitle } from './links';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
@@ -137,11 +138,22 @@ export class AppStore {
     const expired = new Set(data.notes.filter((n) => n.trashedAt !== null && n.trashedAt < cutoff).map((n) => n.id));
     for (const id of expired) this.save(this.storage.deleteNote(id));
     const notes = data.notes.filter((n) => !expired.has(n.id));
+    const expiredDocs = data.notes.filter((n) => expired.has(n.id)).map((n) => n.doc);
     const settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}), dataVersion: DATA_VERSION };
     const projects = [...(data.projects ?? [])].sort((a, b) => a.createdAt - b.createdAt);
     this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, projects, chapters: data.chapters ?? [], settings });
     if (data.settings?.dataVersion !== DATA_VERSION) this.save(this.storage.putSettings(settings));
     this.set({ selectedId: visibleIn(this.state, this.state.view)[0]?.id ?? null });
+    this.forgetUnused(expiredDocs);
+  }
+
+  /** Pictures and files only the deleted documents used are deleted too. */
+  private forgetUnused(docs: Doc[]): void {
+    const candidates = docs.flatMap((d) => attachmentsIn(d.blocks));
+    if (!candidates.length) return;
+    const used = new Set([...this.state.notes.map((n) => n.doc), ...this.state.chapters.map((c) => c.doc)].flatMap((d) => attachmentsIn(d.blocks)));
+    const unused = candidates.filter((p) => !used.has(p));
+    if (unused.length) this.save(forgetFiles(this.storage, unused));
   }
 
   /**
@@ -383,10 +395,12 @@ export class AppStore {
   }
 
   deleteForever(id: string): void {
+    const note = this.note(id);
     this.cancelSave(id);
     this.set({ notes: this.state.notes.filter((n) => n.id !== id) });
     this.save(this.storage.deleteNote(id));
     this.selectNeighbourIfHidden(id);
+    if (note) this.forgetUnused([note.doc]);
   }
 
   emptyTrash(): void {
@@ -802,6 +816,7 @@ export class AppStore {
     this.set({ projects: this.state.projects.filter((p) => p.id !== id), chapters: this.state.chapters.filter((c) => c.projectId !== id), view });
     this.save(this.storage.deleteProject(id));
     if (view.kind === 'all') this.reselectIfHidden();
+    this.forgetUnused(gone.map((c) => c.doc));
   }
 
   private makeChapter(projectId: string, title: string, t = this.now()): Chapter {
@@ -901,6 +916,7 @@ export class AppStore {
     this.set({ chapters: this.state.chapters.filter((c) => c.id !== id), chapterId: this.state.chapterId === id ? next : this.state.chapterId });
     this.save(this.storage.deleteChapter(id));
     if (project) this.updateProject(project.id, { outline: project.outline.filter((x) => x.id !== id) });
+    this.forgetUnused([chapter.doc]);
   }
 }
 

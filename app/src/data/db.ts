@@ -25,14 +25,18 @@ export interface StoredFile {
   blob: Blob;
   /** Copied to the notes folder in the cloud. */
   synced: boolean;
+  /** No note uses it any more: it's still to be removed from the cloud folder, then forgotten. */
+  gone?: boolean;
 }
 
 export interface Storage {
   load(): Promise<Persisted>;
   getFile(path: string): Promise<StoredFile | null>;
   putFile(f: StoredFile): Promise<void>;
-  /** Files not yet copied to the cloud. */
+  /** Files not yet copied to the cloud, and files still to be removed from it. */
   unsyncedFiles(): Promise<StoredFile[]>;
+  goneFiles(): Promise<StoredFile[]>;
+  deleteFile(path: string): Promise<void>;
   putNote(note: Note): Promise<void>;
   deleteNote(id: string): Promise<void>;
   putNotebook(nb: Notebook): Promise<void>;
@@ -119,7 +123,15 @@ class IdbStorage implements Storage {
   async unsyncedFiles(): Promise<StoredFile[]> {
     const tx = this.db.transaction('files', 'readonly');
     const all = (await request(tx.objectStore('files').getAll())) as StoredFile[];
-    return all.filter((f) => !f.synced);
+    return all.filter((f) => !f.synced && !f.gone);
+  }
+  async goneFiles(): Promise<StoredFile[]> {
+    const tx = this.db.transaction('files', 'readonly');
+    const all = (await request(tx.objectStore('files').getAll())) as StoredFile[];
+    return all.filter((f) => f.gone);
+  }
+  deleteFile(path: string) {
+    return this.write('files', (s) => s.delete(path));
   }
   deleteNote(id: string) {
     return this.write('notes', (s) => s.delete(id));
@@ -180,7 +192,13 @@ export class MemoryStorage implements Storage {
     this.files.set(f.path, f);
   }
   async unsyncedFiles() {
-    return [...this.files.values()].filter((f) => !f.synced);
+    return [...this.files.values()].filter((f) => !f.synced && !f.gone);
+  }
+  async goneFiles() {
+    return [...this.files.values()].filter((f) => f.gone);
+  }
+  async deleteFile(path: string) {
+    this.files.delete(path);
   }
   async load(): Promise<Persisted> {
     return {

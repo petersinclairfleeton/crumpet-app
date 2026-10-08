@@ -413,6 +413,11 @@ test('projects: chapters and parts, status, synopsis, goals, reordering and the 
   await ms.getByLabel('Text of chapter 2').click();
   await page.keyboard.type('At the top, the glass was furred with salt.');
   await expect(outline.locator('.list-sub')).toContainText('18 words');
+  // The formatting bar floats above selected text here too.
+  await expect(ms.locator('.note-toolbar').getByRole('button', { name: 'Bold' })).toHaveCount(0);
+  await page.keyboard.press('Shift+Home');
+  await page.locator('.selection-bar').getByRole('button', { name: 'Bold' }).click();
+  await expect(ms.getByLabel('Text of chapter 2').locator('strong')).toHaveText('At the top, the glass was furred with salt.');
 
   // Everything is still there after a reload.
   await page.reload();
