@@ -15,6 +15,7 @@ import { goToLater } from './booktoc';
 import { SLASH_ITEMS } from './slash';
 import { THEMES } from './themes';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
+import { REVISIONS, hasRevisions } from '../data/revisions';
 import type { Tab } from '../data/panes';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -142,6 +143,8 @@ function useCommands(actions: Actions): Item[] {
     cmd(state.settings.toolbar === 'always' ? 'Formatting bar only over selected text' : 'Always show the formatting bar', () => store.updateSettings({ toolbar: state.settings.toolbar === 'always' ? 'selection' : 'always' })),
     cmd(state.settings.typewriter?.scroll ? 'Typewriter mode off' : 'Typewriter mode', () => store.updateSettings({ typewriter: { ...state.settings.typewriter, scroll: !state.settings.typewriter?.scroll, fade: !state.settings.typewriter?.scroll } })),
     cmd('Settings', actions.openSettings),
+    ...REVISIONS.map((r, i) => cmd(`Revision mode: ${r.name.toLowerCase()} round`, () => store.updateSettings({ revision: i + 1 }))),
+    ...(state.settings.revision ? [cmd('Revision mode off', () => store.updateSettings({ revision: 0 }))] : []),
     ...THEMES.map((t) => cmd(`Theme: ${t.name}`, () => store.updateSettings({ theme: t.id }))),
   ];
   if (here.doc) {
@@ -154,6 +157,7 @@ function useCommands(actions: Actions): Item[] {
       set({ right: true, rightTab: 'snapshots' });
     }, `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}S`));
   }
+  if (here.doc && helped && hasRevisions(helped.editor.state.doc)) list.push(cmd('Remove revision colours', () => store.removeRevisions(helped.docId)));
   if (here.heading) {
     const on = marks.some((m) => m.kind === 'heading' && m.id === here.heading!.id && m.block === here.heading!.block);
     list.push(cmd(on ? 'Remove bookmark: this heading' : 'Bookmark this heading', () => store.updateSettings({ bookmarks: toggleBookmark(marks, here.heading!) })));

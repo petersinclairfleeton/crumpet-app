@@ -9,6 +9,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { runsText } from '@crumpet/editor/model';
 import { useAppState, useAppStore } from './hooks';
 import { useTodayWords } from './stats-ui';
+import { REVISIONS, hasRevisions } from '../data/revisions';
 import { FOCUS_LABELS, type Focus, findFocus, textStats, wordFrequency } from '../data/textstats';
 
 // ---------------------------------------------------------------- this session
@@ -177,6 +178,26 @@ export function WritingTab({ editor, docId }: { editor: Editor; docId: string })
           </p>
         )}
         {!canHighlight && <p className="right-empty">This browser can’t highlight text this way.</p>}
+      </section>
+
+      <section aria-label="Revision colours">
+        <h3>Revision colours</h3>
+        <div className="focus-choices" role="group" aria-label="Revision round">
+          <button type="button" aria-pressed={!state.settings.revision} onClick={() => store.updateSettings({ revision: 0 })}>
+            Off
+          </button>
+          {REVISIONS.map((r, i) => (
+            <button key={r.name} type="button" aria-pressed={state.settings.revision === i + 1} title={`${r.name} revision: what you type is in this colour`} onClick={() => store.updateSettings({ revision: i + 1 })}>
+              <span className="rev-swatch" style={{ background: r.color }} aria-hidden="true" />
+              {r.name}
+            </button>
+          ))}
+        </div>
+        {hasRevisions(editor.state.doc) && (
+          <button type="button" className="link-btn rev-remove" onClick={() => store.removeRevisions(docId)}>
+            Remove revision colours from this {state.notes.some((x) => x.id === docId) ? 'note' : 'chapter'}
+          </button>
+        )}
       </section>
 
       <section aria-label="Words used most">

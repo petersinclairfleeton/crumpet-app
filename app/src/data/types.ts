@@ -135,6 +135,8 @@ export interface Settings {
   statsElsewhere?: StatsElsewhere;
   /** Words to write each day, for streaks; 0 or unset: any writing counts. */
   dailyGoal?: number;
+  /** Revision mode: the round being revised (1 to 5), whose colour typing takes; 0 or unset when off. */
+  revision?: number;
   /** Words to write in a session (since Crumpet was opened today); 0 or unset for none. */
   sessionTarget?: number;
   /** When the note styles or page setup (shared with other devices) last changed. */

@@ -12,7 +12,7 @@ import { useSheetClass } from './styles-ui';
 import { SlashMenu } from './slash';
 import { FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
-import { ChangeCard, ChangesBar, TrackToggle, useTracking } from './changes';
+import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from './changes';
 import { useTypewriter } from './typewriter';
 import { useDocFontsLoaded, useFontKeys } from './fonttools';
 import { useParaKeys } from './paratools';
@@ -112,6 +112,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
         {lead}
         {!floating && !narrow && <FormatTools fit editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}
         <span className="grow" />
+        {!readOnly && !reading && <RevisionChip />}
         {!readOnly && !reading && <TrackToggle />}
         {!narrow && !readOnly && !reading && (
           <button

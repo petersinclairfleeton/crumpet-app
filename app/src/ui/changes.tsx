@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
 import { type Change, type Doc, changes } from '@crumpet/editor/model';
+import { REVISIONS, revisionColor } from '../data/revisions';
 import { useAppState, useAppStore } from './hooks';
 
 interface Open {
@@ -28,6 +29,11 @@ export function useTracking(editor: Editor | null): void {
   useEffect(() => {
     editor?.setTracking(on ? author : null);
   }, [editor, on, author]);
+  // Revision mode: typing in the round's colour.
+  const color = revisionColor(state.settings.revision);
+  useEffect(() => {
+    if (editor) editor.revisionColor = color;
+  }, [editor, color]);
 }
 
 /** The button that turns tracking on and off. */
@@ -42,6 +48,20 @@ export function TrackToggle() {
         <path d="M13 7l4 4" />
       </svg>
       {on ? 'Tracking changes' : 'Track changes'}
+    </button>
+  );
+}
+
+/** While revising: which round, in its colour; click to stop. */
+export function RevisionChip() {
+  const state = useAppState();
+  const store = useAppStore();
+  const round = state.settings.revision ?? 0;
+  const r = REVISIONS[round - 1];
+  if (!r) return null;
+  return (
+    <button type="button" className="revision-chip" style={{ '--rev': r.color } as React.CSSProperties} data-tip="Revision mode: what you type is in this colour. Click to stop." onClick={() => store.updateSettings({ revision: 0 })}>
+      {r.name} revision
     </button>
   );
 }

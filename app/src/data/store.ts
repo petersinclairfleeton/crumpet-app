@@ -18,6 +18,7 @@ import { relinkDoc, sameTitle } from './links';
 import { type Snapshot, snapshotAttachments } from './snapshots';
 import { tidyKeywords } from './keywords';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
+import { removeRevisionColors } from './revisions';
 import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
 
 export interface AppState {
@@ -1065,6 +1066,17 @@ export class AppStore {
 
   setKeywordFilter(word: string | null): void {
     if (this.state.keywordFilter !== word) this.set({ keywordFilter: word });
+  }
+
+  /** Takes revision colours off a note's or chapter's text (all rounds, or one). */
+  removeRevisions(docId: string, round?: number): void {
+    const note = this.note(docId);
+    const doc = note?.doc ?? this.chapter(docId)?.doc;
+    if (!doc) return;
+    const next = removeRevisionColors(doc, round);
+    if (next === doc) return;
+    if (note) this.setDoc(docId, next);
+    else this.setChapterDoc(docId, next);
   }
 
   // ---------- snapshots ----------
