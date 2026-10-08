@@ -6,7 +6,7 @@
 import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { type TableLook, mergeAt, tidyTable } from '@crumpet/editor/table';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
-import { PAGE_SIZES, type PageSetup } from './styles';
+import { type PageSetup, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
 
 export const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -119,6 +119,8 @@ class Writer {
   private nextComment = 0;
   private commentNum = new Map<string, { id: number; replies: number[] }>();
   private commentLeft = new Map<string, number>();
+  /** The headings a table of contents lists (written in ahead of Word filling in the page numbers). */
+  tocEntries: { level: number; text: string }[] = [];
   /** Each list gets its own numbering (numId = index + 1), with its levels' number or bullet styles. */
   lists: ListDef[] = [];
   private nextRel = 1;
@@ -258,6 +260,16 @@ class Writer {
     return this.paragraph(null, drawing, `<w:keepNext/>${jc}`);
   }
 
+  /** Word's own Table of Contents field: Word fills in the page numbers when it updates the field (it asks on opening). */
+  toc(): string {
+    const tab = `<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="${Math.round((this.contentWidth / 96) * TWIPS)}"/></w:tabs>`;
+    const field = '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>';
+    const end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>';
+    const entries = this.tocEntries.length ? this.tocEntries : [{ level: 1, text: '' }];
+    const lines = entries.map((e, i) => this.paragraph(`TOC${e.level}`, (i === 0 ? field : '') + (e.text ? `<w:r><w:t xml:space="preserve">${esc(e.text)}</w:t></w:r>` : '') + (i === entries.length - 1 ? end : ''), tab)).join('');
+    return `<w:sdt><w:sdtPr><w:docPartObj><w:docPartGallery w:val="Table of Contents"/><w:docPartUnique/></w:docPartObj></w:sdtPr><w:sdtContent>${this.paragraph('TOCHeading', '<w:r><w:t>Contents</w:t></w:r>')}${lines}</w:sdtContent></w:sdt>`;
+  }
+
   table(b: Block): string {
     const rows = tidyRows(b.rows);
     const cols = rows[0].length;
@@ -345,6 +357,10 @@ class Writer {
           if (lead) out += this.paragraph(null, '', lead);
           out += this.table(b);
           continue;
+        case 'toc':
+          if (lead) out += this.paragraph(null, '', lead);
+          out += this.toc();
+          continue;
         case 'heading1':
         case 'heading2':
         case 'heading3':
@@ -430,6 +446,8 @@ function stylesXml(font: string, size: number): string {
     para('Caption', 'caption', '<w:spacing w:after="200"/>', `<w:i/><w:sz w:val="${Math.round(hp * 0.85)}"/>`) +
     para('SceneBreak', 'Scene Break', '<w:spacing w:before="240" w:after="240"/><w:jc w:val="center"/>', '') +
     para('ListParagraph', 'List Paragraph', '<w:spacing w:after="60"/><w:contextualSpacing/>', '') +
+    `<w:style w:type="paragraph" w:styleId="TOCHeading"><w:name w:val="TOC Heading"/><w:basedOn w:val="Heading1"/><w:next w:val="Normal"/><w:uiPriority w:val="39"/><w:unhideWhenUsed/><w:qFormat/><w:pPr><w:pageBreakBefore w:val="0"/><w:outlineLvl w:val="9"/></w:pPr></w:style>` +
+    [1, 2, 3].map((l) => `<w:style w:type="paragraph" w:styleId="TOC${l}"><w:name w:val="toc ${l}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="39"/><w:unhideWhenUsed/><w:pPr><w:spacing w:after="100"/><w:ind w:left="${(l - 1) * 220}" w:firstLine="0"/></w:pPr></w:style>`).join('') +
     para('TableText', 'Table Text', '<w:spacing w:before="40" w:after="40" w:line="240" w:lineRule="auto"/>', '') +
     para('Header', 'header', '<w:spacing w:after="0"/>', `<w:sz w:val="${Math.round(hp * 0.85)}"/>`) +
     para('Footer', 'footer', '<w:spacing w:after="0"/>', `<w:sz w:val="${Math.round(hp * 0.85)}"/>`) +
@@ -521,11 +539,15 @@ function footnotesXml(notes: string[]): string {
 /** A Word document holding `parts` (a note is one part; a manuscript has a part per chapter). */
 export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint8Array> {
   const page = opts.page;
-  const size = PAGE_SIZES.find((s) => s.id === page?.size) ?? PAGE_SIZES[0];
+  const size = paperInches(page);
   const m = page?.margins ?? { top: 1, right: 1, bottom: 1, left: 1 };
   const contentIn = size.width - m.left - m.right;
   const w = new Writer(opts, contentIn * 96);
   w.countComments(parts);
+  w.tocEntries = parts.flatMap((part) => [
+    ...(part.heading ? [{ level: 1, text: part.heading }] : []),
+    ...part.doc.blocks.filter((b) => b.type === 'heading1' || b.type === 'heading2' || b.type === 'heading3').map((b) => ({ level: Math.min(3, Number(b.type.slice(-1)) + (part.heading !== undefined ? 1 : 0)), text: b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote).map((r) => r.text).join('').trim() })),
+  ]).filter((e) => e.text);
   let body = opts.titleParagraph ? w.paragraph('Title', `<w:r><w:t xml:space="preserve">${esc(opts.titleParagraph)}</w:t></w:r>`) : '';
   for (const [i, part] of parts.entries()) {
     const breakBefore = i > 0 ? '<w:pageBreakBefore/>' : '';
@@ -560,7 +582,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const pgNum = hf ? `<w:pgNumType${hf.numberFormat !== '1' ? ` w:fmt="${{ i: 'lowerRoman', I: 'upperRoman', a: 'lowerLetter', A: 'upperLetter' }[hf.numberFormat]}"` : ''}${hf.startAt !== 1 ? ` w:start="${hf.startAt}"` : ''}/>` : '';
   const tw = (inches: number) => Math.round(inches * TWIPS);
   const titlePg = refs.includes('<w:titlePg/>');
-  const sect = `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr><w:pgSz w:w="${tw(size.width)}" w:h="${tw(size.height)}"/><w:pgMar w:top="${tw(m.top)}" w:right="${tw(m.right)}" w:bottom="${tw(m.bottom)}" w:left="${tw(m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${pgNum}${titlePg ? '<w:titlePg/>' : ''}</w:sectPr>`;
+  const sect = `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr><w:pgSz w:w="${tw(size.width)}" w:h="${tw(size.height)}"${page?.landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(m.top)}" w:right="${tw(m.right)}" w:bottom="${tw(m.bottom)}" w:left="${tw(m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${pgNum}${titlePg ? '<w:titlePg/>' : ''}</w:sectPr>`;
   const documentXml = `${XML}<w:document ${NS}><w:body>${body}${sect}</w:body></w:document>`;
 
   w.rel(`${REL}/styles`, 'styles.xml');
@@ -574,7 +596,8 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     files.push({ name: 'word/commentsExtended.xml', data: utf8(commentsExtendedXml(w.comments)) });
   }
   const docRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${w.rels.map((r) => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"${r.external ? ' TargetMode="External"' : ''}/>`).join('')}</Relationships>`;
-  const settings = `${XML}<w:settings ${NS}>${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/><w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+  const hasToc = parts.some((part) => part.doc.blocks.some((b) => b.type === 'toc'));
+  const settings = `${XML}<w:settings ${NS}>${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const core = `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(opts.title)}</dc:title><dc:creator>${esc(opts.author ?? '')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
   const types =
@@ -935,6 +958,11 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const startAt = blocks.length;
     const styleId = attr(child(ppr, 'pStyle'), 'val') ?? '';
     const name = styleName.get(styleId) ?? styleId.toLowerCase();
+    // The lines of a table of contents not in its own box.
+    if (/^toc \d$/.test(name)) {
+      if (blocks[blocks.length - 1]?.type !== 'toc') blocks.push(makeBlock('toc'));
+      return;
+    }
     const runs: Run[] = [];
     const pics: Block[] = [];
     await readRuns(p, runs, pics);
@@ -1090,7 +1118,13 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
         const k = openComments.lastIndexOf(attr(c, 'id') ?? '');
         if (k >= 0) openComments.splice(k, 1);
       }
-      else if (c.localName === 'sdt') await walk(child(c, 'sdtContent') ?? c);
+      else if (c.localName === 'sdt') {
+        // Word's Table of Contents is a box of its own: it becomes one, and its lines aren't kept as text.
+        const gallery = attr(child(child(child(c, 'sdtPr'), 'docPartObj'), 'docPartGallery'), 'val');
+        if (gallery === 'Table of Contents') {
+          if (blocks[blocks.length - 1]?.type !== 'toc') blocks.push(makeBlock('toc'));
+        } else await walk(child(c, 'sdtContent') ?? c);
+      }
       else if (c.localName === 'customXml') await walk(c);
     }
   };

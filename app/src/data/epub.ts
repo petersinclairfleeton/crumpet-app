@@ -152,6 +152,9 @@ class Book {
         case 'file':
           out += `<p>${runs(b.runs) || esc((b.src ?? '').replace(/^.*\//, ''))}</p>`;
           break;
+        case 'toc':
+          // E-book readers show their own contents (the book's is written for them).
+          break;
         case 'table': {
           const rows = tidyRows(b.rows);
           const t = b.tbl;

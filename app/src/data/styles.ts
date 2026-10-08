@@ -288,6 +288,8 @@ export interface PageSetup {
   /** Older setups only: a page number in the footer. Headers and footers are in `hf`. */
   pageNumbers: boolean;
   hf?: HeadersFooters;
+  /** Turned on its side (Word's Orientation: Landscape). */
+  landscape?: boolean;
 }
 
 /** A page setup's headers and footers. */
@@ -312,6 +314,12 @@ export const PX_PER_IN = 96;
 export const PAGE_GAP = 24;
 
 export function pageSize(p: PageSetup): { width: number; height: number } {
-  const s = PAGE_SIZES.find((x) => x.id === p.size) ?? PAGE_SIZES[0];
+  const s = paperInches(p);
   return { width: s.width * PX_PER_IN, height: s.height * PX_PER_IN };
+}
+
+/** The paper's width and height in inches, turned for landscape. */
+export function paperInches(p: Pick<PageSetup, 'size' | 'landscape'> | undefined): { width: number; height: number } {
+  const s = PAGE_SIZES.find((x) => x.id === p?.size) ?? PAGE_SIZES[0];
+  return p?.landscape ? { width: s.height, height: s.width } : { width: s.width, height: s.height };
 }

@@ -52,6 +52,8 @@ export function toMarkdown(doc: Doc): string {
 }
 
 function blockLine(b: Block, number: number): string {
+  // A table of contents is [TOC] on a line of its own, as in several Markdown tools.
+  if (b.type === 'toc') return '[TOC]';
   // Tables are GitHub-style pipe tables; the first row is the header.
   if (b.type === 'table') {
     const rows = tidyRows(b.rows);
@@ -499,6 +501,12 @@ export function fromMarkdown(md: string): Doc {
       flushPara();
       listIndents = [];
       blocks.push(applyAttrs(makeBlock('paragraph', '', [], { style: 'scenebreak' }), classes));
+      continue;
+    }
+    if (!para.length && /^ {0,3}\[TOC\][ \t]*$/i.test(line)) {
+      flushPara();
+      listIndents = [];
+      blocks.push(makeBlock('toc'));
       continue;
     }
     // A pipe table: a header row, then a row of dashes.

@@ -350,6 +350,16 @@ export function PageSetupForm({ page, onChange, chapters = false }: { page: Page
         </select>
       </label>
       <div className="field">
+        <span>Orientation</span>
+        <div className="segmented small" role="group" aria-label="Orientation">
+          {([false, true] as const).map((land) => (
+            <button key={String(land)} type="button" aria-pressed={!!page.landscape === land} onClick={() => onChange({ ...page, landscape: land || undefined })}>
+              {land ? 'Landscape' : 'Portrait'}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="field">
         <span>Margins</span>
         <div className="style-row">
           {margin('top', 'Top')}

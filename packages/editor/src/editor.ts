@@ -86,6 +86,7 @@ import {
   insertPageBreak,
   setListStyle,
   setListStart,
+  insertToc,
 } from './commands';
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
@@ -218,6 +219,19 @@ export class Editor {
   // ---------- tables ----------
 
   private tableTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** Puts a table of contents at the caret. */
+  insertToc(): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(insertToc(this.state), 'command');
+  }
+
+  /** Puts the caret at the start of a block and brings it into view. */
+  goToBlock(id: string): void {
+    this.focusPos({ block: id, offset: 0 });
+    this.view.blockElement(id)?.scrollIntoView({ block: 'center' });
+  }
 
   /** Puts a table at the caret. */
   insertTable(rows = 2, cols = 3): void {
@@ -968,6 +982,13 @@ export class Editor {
       // ⌘/Ctrl-click opens a link; a plain click just places the caret, so links stay editable.
       e.preventDefault();
       window.open(link.href, '_blank', 'noopener');
+      return;
+    }
+    const entry = (e.target as Element).closest?.<HTMLElement>('[data-toc-target]');
+    if (entry) {
+      // A line in the table of contents goes to its heading.
+      e.preventDefault();
+      this.goToBlock(entry.dataset.tocTarget!);
       return;
     }
     const action = (e.target as Element).closest?.<HTMLElement>('[data-table-action]');

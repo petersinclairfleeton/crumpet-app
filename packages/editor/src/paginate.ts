@@ -45,6 +45,8 @@ export class Paginator {
       s.remove();
     }
     for (const p of parents) p.normalize();
+    // Out of page view, a table of contents has no page numbers.
+    this.root.querySelectorAll('.toc-page').forEach((el) => el.textContent && (el.textContent = ''));
   }
 
   /** Lays the text out in pages again. Returns the number of pages. */
@@ -158,6 +160,17 @@ export class Paginator {
     const last = blocks[blocks.length - 1];
     const end = last ? y(last.getBoundingClientRect().bottom) : 0;
     this.pages = Math.max(1, Math.floor(Math.max(0, end - 1) / pitch) + 1);
+    // A table of contents shows the page each heading is on.
+    for (const entry of this.root.querySelectorAll<HTMLElement>('[data-toc-target]')) {
+      const target = this.root.querySelector(`[data-block="${entry.dataset.tocTarget}"]`);
+      const page = entry.querySelector('.toc-page');
+      if (!target || !page) continue;
+      // A heading moved to the next page has a spacer before its text: it's on the page after that.
+      const lead = target.querySelector<HTMLElement>(`.${SPACER}`);
+      const first = lead && !(lead.previousSibling?.textContent ?? '') ? lead.getBoundingClientRect().bottom : target.getBoundingClientRect().top;
+      // (A few px of leeway: measurements of a zoomed page are a little off, and no line starts that close to a page's end.)
+      page.textContent = String(Math.floor((Math.max(0, y(first)) + 10) / pitch) + 1);
+    }
     return this.pages;
   }
 }

@@ -19,6 +19,7 @@ const TAGS: Record<Block['type'], string> = {
   image: 'figure',
   file: 'div',
   table: 'div',
+  toc: 'nav',
 };
 
 /**
@@ -109,6 +110,11 @@ export class View {
       if (hideBelow && level <= hideBelow) hideBelow = 0;
       el.toggleAttribute('data-folded-away', !!hideBelow);
       if (!hideBelow && block.folded) hideBelow = level;
+    }
+    // A table of contents lists the headings as they are now.
+    if (doc.blocks.some((b) => b.type === 'toc')) {
+      const entries = tocEntries(doc);
+      for (const block of doc.blocks) if (block.type === 'toc') fillToc(this.rendered.get(block.id)!.el, entries);
     }
     // Footnotes are numbered in order through the whole note.
     this.root.querySelectorAll<HTMLElement>('sup.fn').forEach((el, i) => {
@@ -250,6 +256,14 @@ function buildBlock(block: Block): HTMLElement {
   }
   if (block.type === 'image' || block.type === 'file') el.appendChild(buildMedia(block));
   if (block.type === 'table') el.appendChild(buildTable(block));
+  if (block.type === 'toc') {
+    const box = document.createElement('div');
+    box.className = 'toc-box';
+    box.contentEditable = 'false';
+    box.dataset.widget = 'toc';
+    el.setAttribute('aria-label', 'Table of contents');
+    el.appendChild(box);
+  }
   if (isHeading(block.type)) {
     // The arrow that folds the section away (shown on hover, and always when folded).
     el.toggleAttribute('data-folded', !!block.folded);
@@ -369,6 +383,49 @@ function buildMedia(block: Block): HTMLElement {
     box.appendChild(a);
   }
   return box;
+}
+
+// ---------------------------------------------------------------- table of contents
+
+/** The headings a table of contents lists (Heading 1 to 3, as Word's own does). */
+export function tocEntries(doc: Doc): { id: string; level: number; text: string }[] {
+  return doc.blocks
+    .filter((b) => (b.type === 'heading1' || b.type === 'heading2' || b.type === 'heading3') && b.runs.some((r) => r.text.trim() && r.change?.kind !== 'del'))
+    .map((b) => ({ id: b.id, level: Number(b.type.slice(-1)), text: b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote).map((r) => r.text).join('').trim() }));
+}
+
+function fillToc(el: HTMLElement, entries: { id: string; level: number; text: string }[]): void {
+  const box = el.querySelector<HTMLElement>('.toc-box');
+  if (!box) return;
+  const key = JSON.stringify(entries);
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  box.textContent = '';
+  const head = document.createElement('div');
+  head.className = 'toc-title';
+  head.textContent = 'Contents';
+  box.appendChild(head);
+  if (!entries.length) {
+    const none = document.createElement('div');
+    none.className = 'toc-none';
+    none.textContent = 'Headings you add (Heading 1 to 3) are listed here.';
+    box.appendChild(none);
+  }
+  for (const e of entries) {
+    const row = document.createElement('a');
+    row.className = `toc-entry toc-${e.level}`;
+    row.href = `#${e.id}`;
+    row.dataset.tocTarget = e.id;
+    const text = document.createElement('span');
+    text.className = 'toc-text';
+    text.textContent = e.text;
+    const dots = document.createElement('span');
+    dots.className = 'toc-dots';
+    const page = document.createElement('span');
+    page.className = 'toc-page';
+    row.append(text, dots, page);
+    box.appendChild(row);
+  }
 }
 
 // ---------------------------------------------------------------- tables

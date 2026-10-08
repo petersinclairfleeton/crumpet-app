@@ -95,9 +95,33 @@ function DateTool({ ed, off }: { ed: Editor | null; off: boolean }) {
   );
 }
 
+const ICON_TOC = (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+    <path d="M4 6h10M4 12h10M7 18h7M18 6h2M18 12h2M18 18h2" />
+  </svg>
+);
+
 export function insertItems(ed: Editor | null, off: boolean): ToolItem[] {
+  const toc = () => {
+    ed?.focus();
+    ed?.insertToc();
+  };
   return [
     { key: 'symbol', pri: 1, sep: true, node: <SymbolTool ed={ed} off={off} /> },
     { key: 'date', pri: 1, node: <DateTool ed={ed} off={off} /> },
+    {
+      key: 'toc',
+      pri: 1,
+      node: (
+        <button type="button" aria-label="Table of contents" title="Table of contents" disabled={off} onClick={toc}>
+          {ICON_TOC}
+        </button>
+      ),
+      menu: (
+        <button type="button" className="menu-item" disabled={off} onClick={toc}>
+          <span className="menu-glyph">{ICON_TOC}</span> Table of contents
+        </button>
+      ),
+    },
   ];
 }
