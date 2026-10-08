@@ -1,5 +1,8 @@
 // Spotting a book's characters and places in its text, by their names and
-// nicknames, as whole words ("Mara" in "Mara's", not in "Marathon").
+// nicknames, as whole words ("Mara" in "Mara's", not in "Marathon"), in any
+// mix of capitals ("the Hollow", "THE HOLLOW") - except that a one-word name
+// written all in small letters is left alone, so a Rose or a Will isn't
+// spotted in every "rose" and "will".
 
 import type { Doc } from '@crumpet/editor/model';
 import type { CastMember, Chapter } from './types';
@@ -23,14 +26,14 @@ export function castMatcher(cast: CastMember[] | undefined): CastMatcher | null 
   const owner = new Map<string, string>();
   for (const m of cast ?? []) {
     for (const n of [m.name, ...m.aliases]) {
-      const name = n.trim();
+      const name = n.trim().toLowerCase();
       if (name.length >= 2 && !owner.has(name)) owner.set(name, m.id);
     }
   }
   if (!owner.size) return null;
   // Longest first, so "Old Tam" wins over "Tam".
   const names = [...owner.keys()].sort((a, b) => b.length - a.length).map(escapeRe);
-  return { re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${names.join('|')})(?![\\p{L}\\p{N}])`, 'gu'), owner };
+  return { re: new RegExp(`(?<![\\p{L}\\p{N}])(?:${names.join('|')})(?![\\p{L}\\p{N}])`, 'giu'), owner };
 }
 
 /** Where the cast is mentioned in some text. */
@@ -38,7 +41,13 @@ export function findMentions(text: string, matcher: CastMatcher | null): Mention
   if (!matcher) return [];
   const out: Mention[] = [];
   matcher.re.lastIndex = 0;
-  for (const m of text.matchAll(matcher.re)) out.push({ from: m.index!, to: m.index! + m[0].length, id: matcher.owner.get(m[0])! });
+  for (const m of text.matchAll(matcher.re)) {
+    const found = m[0];
+    // "rose" isn't Rose; "the hollow" is still The Hollow.
+    if (!/\s/.test(found) && found === found.toLowerCase() && found !== found.toUpperCase()) continue;
+    const id = matcher.owner.get(found.toLowerCase());
+    if (id) out.push({ from: m.index!, to: m.index! + found.length, id });
+  }
   return out;
 }
 
