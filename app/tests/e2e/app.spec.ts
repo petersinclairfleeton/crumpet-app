@@ -2366,3 +2366,21 @@ test('chapter keywords: add them, see them in the outline and cards, and show on
   await outline.getByLabel('Show chapters with keyword').selectOption('');
   await expect(page.locator('.cork-title')).toHaveText(['Arrival', 'Storm']);
 });
+
+test('the Writing tab: session words and target, text statistics, highlighting and words used most', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1440, height: 880 });
+  await newNote(page, 'Scene', '“Is it lit?” she asked. It was just really dark. The lamp, the lamp.');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'writing' }));
+  const tab = page.getByRole('tabpanel', { name: 'Writing' });
+  await expect(tab.locator('.target-line b')).toHaveText('14');
+  await expect(tab.locator('.text-stats dd').first()).toHaveText('14');
+  await tab.getByLabel('Session target in words').fill('20');
+  await expect(tab.getByRole('progressbar', { name: 'Session target' })).toHaveAttribute('aria-valuenow', '14');
+  await tab.getByRole('button', { name: 'Filler words' }).click();
+  await expect(tab.locator('.focus-found')).toContainText('2 found');
+  await expect(page.locator('.note-editor.ling-dim')).toHaveCount(1);
+  await tab.getByRole('button', { name: 'Stop highlighting' }).click();
+  await expect(page.locator('.note-editor.ling-dim')).toHaveCount(0);
+  await expect(tab.locator('.word-freq li').first()).toContainText('lamp');
+});

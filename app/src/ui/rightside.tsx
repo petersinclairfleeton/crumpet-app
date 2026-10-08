@@ -12,15 +12,17 @@ import { FoldButton } from './fold';
 import { SnapshotsPanel } from './snapshots';
 import { backlinks, findByTitle, linkedTitles } from '../data/links';
 import { displayTitle } from '../data/selectors';
+import { WritingTab } from './writingtab';
 import { sameBookmark, toggleBookmark } from '../data/bookmarks';
 
-export type RightTab = 'outline' | 'styles' | 'comments' | 'links' | 'snapshots';
+export type RightTab = 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing';
 const TABS: { key: RightTab; label: string }[] = [
   { key: 'outline', label: 'Outline' },
   { key: 'styles', label: 'Styles' },
   { key: 'comments', label: 'Comments' },
   { key: 'links', label: 'Links' },
   { key: 'snapshots', label: 'Snapshots' },
+  { key: 'writing', label: 'Writing' },
 ];
 
 /** Redraws when the editor's text changes. */
@@ -51,7 +53,7 @@ export function RightSidebar() {
         <FoldButton what="right" />
       </header>
       <div className="right-body" role="tabpanel" aria-label={TABS.find((t) => t.key === tab)!.label}>
-        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <Comments editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : <Links docId={helped.docId} />}
+        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <Comments editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : <Links docId={helped.docId} />}
       </div>
     </aside>
   );

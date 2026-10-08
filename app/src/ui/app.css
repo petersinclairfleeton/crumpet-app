@@ -1413,3 +1413,30 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .outline-filter-empty { margin: 8px 16px; color: var(--muted); font-size: 13px; }
 .ms-filter { margin: 0 0 1em; padding: 8px 12px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; font-family: var(--ui-font, inherit); }
 .cork-card .keyword-chips { padding: 0 12px; }
+
+/* The right sidebar's Writing tab: session target, statistics, highlighting, words used most. */
+.writing-tab { padding: 4px 14px 16px; }
+.writing-tab h3 { margin: 14px 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.target-line { font-size: 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; }
+.target-line b { font-size: 20px; }
+.target-met { margin-left: auto; padding: 1px 8px; border-radius: 10px; background: color-mix(in srgb, #2e9d4f 18%, transparent); color: #2e7d44; font-size: 12px; font-weight: 600; }
+.target-bar { height: 6px; margin: 6px 0; border-radius: 3px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+.target-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.target-set { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.target-set input { width: 90px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; }
+.target-today { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
+.text-stats { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin: 0; font-size: 13px; }
+.text-stats dt { color: var(--muted); }
+.text-stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.focus-choices { display: flex; flex-wrap: wrap; gap: 5px; }
+.focus-choices button { padding: 4px 9px; border: 1px solid var(--line); border-radius: 14px; background: var(--page); color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; }
+.focus-choices button[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.focus-found { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+.word-freq { list-style: none; margin: 0; padding: 0; }
+.word-freq button { position: relative; display: flex; width: 100%; gap: 8px; padding: 3px 6px; border: none; border-radius: 4px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; overflow: hidden; }
+.word-freq button:hover, .word-freq button[aria-pressed='true'] { background: var(--accent-soft); }
+.word-freq i { position: absolute; left: 0; bottom: 0; height: 2px; background: color-mix(in srgb, var(--accent) 50%, transparent); }
+.word-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Highlighting: the rest of the text fades. */
+.ling-dim [data-block] > .text { color: color-mix(in srgb, var(--text) 38%, transparent); }
+::highlight(crumpet-focus) { color: var(--text); background-color: color-mix(in srgb, var(--accent) 30%, transparent); }

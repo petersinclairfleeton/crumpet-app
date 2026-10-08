@@ -16,6 +16,8 @@ import { Finder } from './finder';
 import { currentHelped } from './helpers';
 import { SettingsDialog } from './Settings';
 import { applyTheme } from './theme';
+import { startSession } from './writingtab';
+import { useTodayWords } from './stats-ui';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -235,6 +237,12 @@ export function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // The session target counts from when Crumpet opened.
+  const todayAtStart = useTodayWords();
+  useEffect(() => {
+    if (state.ready) startSession(todayAtStart);
+  }, [state.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A search shows matching notes, even from inside a project.
   const project = state.view.kind === 'project' && !state.query.trim() ? store.project(state.view.id) : undefined;

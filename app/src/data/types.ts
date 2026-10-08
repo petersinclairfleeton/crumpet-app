@@ -135,6 +135,8 @@ export interface Settings {
   statsElsewhere?: StatsElsewhere;
   /** Words to write each day, for streaks; 0 or unset: any writing counts. */
   dailyGoal?: number;
+  /** Words to write in a session (since Crumpet was opened today); 0 or unset for none. */
+  sessionTarget?: number;
   /** When the note styles or page setup (shared with other devices) last changed. */
   sharedAt?: number;
   /** Track changes: typing is marked as added, deleting strikes text through. */
@@ -172,7 +174,7 @@ export interface LayoutPrefs {
   listWidth?: number;
   /** The right sidebar (outline, styles, comments, links): shown, which tab, and its width. */
   right?: boolean;
-  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots';
+  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing';
   rightWidth?: number;
   /** The writing area's panes and their tabs (a `Workspace` from `panes.ts`, checked when read). */
   panes?: unknown;
