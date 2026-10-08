@@ -13,6 +13,7 @@ import type { Tree } from '../sync/tree';
 import type { PageSetup, StyleSheet } from './styles';
 import type { Persisted, Storage } from './db';
 import { attachmentsIn, forgetFiles } from './files';
+import { recordEdit, wordsIn } from './stats';
 import { relinkDoc, sameTitle } from './links';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
@@ -355,7 +356,38 @@ export class AppStore {
   }
 
   setDoc(id: string, doc: Doc): void {
+    const before = this.note(id)?.doc;
     this.updateNote(id, { doc }, { delaySave: true });
+    if (before) this.countWords(id, before, doc);
+  }
+
+  // ---------- writing stats ----------
+
+  private wordCache = new Map<string, number>();
+  private statsTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Adds an edit to today's words written. */
+  private countWords(id: string, before: Doc, after: Doc): void {
+    const was = this.wordCache.get(id) ?? wordsIn(before);
+    const now = wordsIn(after);
+    this.wordCache.set(id, now);
+    const stats = recordEdit(this.state.settings.stats, id, was, now, this.now());
+    if (stats === this.state.settings.stats) return;
+    this.set({ settings: { ...this.state.settings, stats } });
+    // Saved a few seconds later, not on every key.
+    if (!this.statsTimer) {
+      this.statsTimer = setTimeout(() => {
+        this.statsTimer = null;
+        this.save(this.storage.putSettings(this.state.settings));
+      }, 3000);
+    }
+  }
+
+  private flushStats(): void {
+    if (!this.statsTimer) return;
+    clearTimeout(this.statsTimer);
+    this.statsTimer = null;
+    this.save(this.storage.putSettings(this.state.settings));
   }
 
   /** Files a note in a notebook, or takes it out of any with null. */
@@ -757,6 +789,7 @@ export class AppStore {
 
   /** Saves anything waiting for typing to pause. Called when switching notes and when the page is hidden. */
   flush(): void {
+    this.flushStats();
     for (const id of [...this.pendingDocs.keys()]) {
       this.cancelSave(id);
       this.saveNow(id);
@@ -909,7 +942,9 @@ export class AppStore {
   }
 
   setChapterDoc(id: string, doc: Doc): void {
+    const before = this.chapter(id)?.doc;
     this.updateChapter(id, { doc }, true);
+    if (before) this.countWords(id, before, doc);
   }
 
   setChapterTitle(id: string, title: string): void {

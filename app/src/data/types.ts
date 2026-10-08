@@ -1,3 +1,4 @@
+import type { WritingStats } from './stats';
 import type { Doc } from '@crumpet/editor/model';
 import type { PageSetup, StyleSheet } from './styles';
 
@@ -95,6 +96,10 @@ export interface Settings {
   /** The named styles notes use; Crumpet's own when unset. */
   noteStyles?: StyleSheet;
   notePage?: PageSetup;
+  /** Words written each day (kept on this device). */
+  stats?: WritingStats;
+  /** Words to write each day, for streaks; 0 or unset: any writing counts. */
+  dailyGoal?: number;
   /** When the note styles or page setup (shared with other devices) last changed. */
   sharedAt?: number;
   /** Track changes: typing is marked as added, deleting strikes text through. */

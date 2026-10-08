@@ -9,7 +9,8 @@ import { tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectW
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
 import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from '../data/templates';
 import { toMarkdown } from '@crumpet/editor/markdown';
-import { IconBook, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { StatsDialog, useTodayWords } from './stats-ui';
+import { IconBook, IconChart, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenView(view: View): void;
@@ -31,6 +32,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   // A link ending in #connect opens straight to connecting Google Drive.
   const [settingsOpen, setSettingsOpen] = useState(() => typeof location !== 'undefined' && location.hash === '#connect');
   const { state: sync } = useSync();
+  const [statsOpen, setStatsOpen] = useState(false);
+  const todayWords = useTodayWords();
   useEffect(() => {
     const onHash = () => location.hash === '#connect' && setSettingsOpen(true);
     window.addEventListener('hashchange', onHash);
@@ -65,6 +68,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         </button>
       </div>
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {statsOpen && <StatsDialog onClose={() => setStatsOpen(false)} />}
 
       <div className="new-note-row">
         <button type="button" className="new-note" onClick={onNewNote}>
@@ -91,6 +95,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
       <section className="side-section">
         <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
         <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
+        <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
         <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
 
         {(state.settings.savedSearches ?? []).length > 0 && (

@@ -1284,3 +1284,35 @@ test('nested tags: a tree in the sidebar, the parent shows everything inside it,
   await side.getByRole('button', { name: 'Show tags in #novel' }).click();
   await expect(side.getByRole('button', { name: /^#characters/ })).toBeVisible();
 });
+
+test('writing stats: words today, a daily goal, streaks and a calendar', async ({ page }) => {
+  await open(page);
+  // Some history: the last few days (kept on this device).
+  await page.evaluate(() => {
+    const day = (n: number) => {
+      const d = new Date(Date.now() - n * 86400000);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const history: Record<string, number> = {};
+    for (const [n, w] of [[1, 420], [2, 650], [3, 300], [10, 800], [11, 120]]) history[day(n)] = w;
+    (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ stats: { day: day(1), base: {}, now: {}, history } });
+  });
+  await newNote(page, 'Draft', 'One two three four five six seven eight nine ten.');
+  const row = sidebar(page).getByRole('button', { name: /Writing stats/ });
+  await expect(row).toContainText('10');
+  await row.click();
+  const dialog = page.getByRole('dialog', { name: 'Writing stats' });
+  await expect(dialog.locator('.stat-tile').first()).toContainText('10');
+  await expect(dialog.locator('.stat-tile').nth(1)).toContainText('4');
+  await dialog.getByLabel('Daily goal in words').fill('400');
+  await expect(dialog.locator('.stat-tile').first()).toContainText('390 to go');
+  // With a goal of 400, only yesterday counts toward the streak (the day before had 300... no, 650): 2 days.
+  await expect(dialog.locator('.stat-tile').nth(1)).toContainText('2');
+  await expect(dialog.locator('.goal-line')).toContainText('Goal 400');
+  await expect(dialog.locator('.bar')).toHaveCount(30);
+  await expect(dialog.getByRole('gridcell').last()).toHaveAttribute('aria-label', /10 words/);
+  await dialog.locator('.bar-slot').nth(28).hover();
+  await expect(page.getByRole('tooltip')).toContainText('420 words · goal met');
+  await dialog.getByRole('button', { name: 'Show as table' }).click();
+  await expect(dialog.getByRole('table')).toContainText('650');
+});
