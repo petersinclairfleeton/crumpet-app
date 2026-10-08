@@ -83,6 +83,12 @@ export function mediaUrl(src: string): string | Promise<string> {
   return p;
 }
 
+/** A file's contents, if it's on this device. */
+export async function fileBlob(path: string): Promise<Blob | null> {
+  const f = await storage?.getFile(path);
+  return f && !f.gone ? f.blob : null;
+}
+
 /** Copies files added on this device to the cloud folder, and removes those no note uses any more. */
 export async function uploadFiles(provider: Provider): Promise<number> {
   if (!storage || !provider.writeBytes) return 0;

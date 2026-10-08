@@ -20,6 +20,7 @@ import { startSession } from './writingtab';
 import { useTodayWords } from './stats-ui';
 import { SpeechBar, startReading, toggleDictation } from './speech';
 import { CompareDocs } from './comparedocs';
+import { useFileIndex } from './fileindex';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -35,6 +36,7 @@ export function App() {
   const [pane, setPane] = useState<Pane>('list');
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const panes = usePanesState();
+  useFileIndex();
 
   useEffect(() => {
     const mq = window.matchMedia(NARROW);

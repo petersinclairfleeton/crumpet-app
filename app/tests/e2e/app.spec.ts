@@ -2598,3 +2598,55 @@ test('maths and diagrams: typed as text, drawn on the page, and saved as fenced 
   expect(md).toContain('```math\nE = mc^2\n```');
   expect(md).toContain('```mermaid\ngraph LR\n  A[Start] --> B[End]\n```');
 });
+
+test('search finds words inside attached PDFs and pictures', async ({ page }) => {
+  test.setTimeout(90_000);
+  await open(page);
+  await page.setViewportSize({ width: 1400, height: 860 });
+  // A small PDF saying "Fresnel lens timetable".
+  const objs = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>', '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>', '', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+  const stream = 'BT /F1 18 Tf 40 100 Td (Fresnel lens timetable) Tj ET';
+  objs[3] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+  let pdf = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objs.forEach((o, i) => {
+    offsets.push(pdf.length);
+    pdf += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')}trailer\n<< /Size ${objs.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  // A picture of the words "LANTERN ROOM", drawn here.
+  const pngBase64 = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 900;
+    c.height = 220;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#fff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#000';
+    g.font = 'bold 96px Arial, sans-serif';
+    g.fillText('LANTERN ROOM', 30, 140);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  const Bytes = (globalThis as unknown as { Buffer: { from(s: string, encoding?: string): never } }).Buffer;
+  await newNote(page, 'Attachments', 'See the files:');
+  await page.keyboard.press('Enter');
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'Add a picture or file…' }).click();
+  await (await chooser).setFiles([
+    { name: 'sign.png', mimeType: 'image/png', buffer: Bytes.from(pngBase64, 'base64') },
+    { name: 'timetable.pdf', mimeType: 'application/pdf', buffer: Bytes.from(pdf) },
+  ]);
+  await newNote(page, 'Other', 'Nothing here.');
+  // Once read (in the background), a search finds the note by words only in its files.
+  const read = () => page.evaluate(() => Object.values((window as unknown as { crumpet: { getState(): { fileText: Record<string, string> } } }).crumpet.getState().fileText).join(' | '));
+  await expect.poll(read, { timeout: 60_000 }).toContain('Fresnel lens timetable');
+  await expect.poll(read, { timeout: 60_000 }).toMatch(/LANTERN/i);
+  const search = page.locator('#search');
+  await search.fill('fresnel');
+  await expect(list(page).locator('.card')).toHaveText([/Attachments/]);
+  await expect(list(page).locator('.card mark')).toHaveText(['Fresnel']);
+  await search.fill('lantern');
+  await expect(list(page).locator('.card')).toHaveText([/Attachments/]);
+});

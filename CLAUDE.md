@@ -134,6 +134,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     colour is set on the editor (`editor.revisionColor`, via `useTracking`)
     and typed text takes it as an ordinary text colour; `removeRevisions`
     takes the colours off.
+  - `src/data/filetext.ts`: the words in attached PDFs (pdf.js) and pictures
+    (Tesseract OCR, shipped with the app under `/ocr/` by `app/ocr.plugin.ts`),
+    read in the background by `ui/fileindex.ts` into the store's `fileText`,
+    and searched with `noteText(note, fileText)`.
   - `src/data/snapshots.ts`: snapshots of notes and chapters (Scrivener's):
     kept in the store (`takeSnapshot`, `restoreSnapshot`), compared with
     diff-match-patch; the right sidebar's Snapshots tab is `ui/snapshots.tsx`.

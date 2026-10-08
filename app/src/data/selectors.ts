@@ -15,11 +15,12 @@ export function blockText(b: Doc['blocks'][number]): string {
   return b.runs.some((r) => r.footnote !== undefined || r.change?.kind === 'del') ? runsText(b.runs.filter((r) => r.footnote === undefined && r.change?.kind !== 'del')) : runsText(b.runs);
 }
 
-/** Plain text of a note's body, one line per block. */
-export function noteText(note: Note): string {
+/** Plain text of a note's body, one line per block; with `files`, the words in its PDFs and pictures too. */
+export function noteText(note: Note, files?: Record<string, string>): string {
   // Footnotes and comments are searched too, after the text.
   const remarks = comments(note.doc).flatMap(({ comment: c }) => [c.text, ...(c.replies ?? []).map((r) => r.text)]);
-  return [...note.doc.blocks.map(blockText), ...footnotes(note.doc).map((f) => f.text), ...remarks].join('\n');
+  const inFiles = files ? note.doc.blocks.flatMap((b) => (b.src && files[b.src] ? [files[b.src]] : [])) : [];
+  return [...note.doc.blocks.map(blockText), ...footnotes(note.doc).map((f) => f.text), ...remarks, ...inFiles].join('\n');
 }
 
 export function preview(note: Note, max = 160): string {
@@ -57,7 +58,7 @@ export function listedNotes(state: AppState): Note[] {
   return visibleIn(state, { kind: 'all' }, true).filter((n) => {
     const nb = books.get(n.notebookId ?? '');
     const places = nb ? [nb.name, stacks.get(nb.stackId ?? '') ?? ''] : [];
-    return matchesFilters(n, filters, `${n.title}\n${noteText(n)}\n${n.tags.map((t) => '#' + t).join(' ')}\n${nb?.name ?? ''}`, places);
+    return matchesFilters(n, filters, `${n.title}\n${noteText(n, state.fileText)}\n${n.tags.map((t) => '#' + t).join(' ')}\n${nb?.name ?? ''}`, places);
   });
 }
 
