@@ -20,6 +20,7 @@ import {
   runsLength,
   tidyRows,
   sectionLook,
+  type SectionLook,
   runsText,
   sliceRuns,
   footnotes,
@@ -91,6 +92,8 @@ import {
   insertColumnBreak,
   insertSectionBreak,
   setSection,
+  setAllSections,
+  type SectionPatch,
 } from './commands';
 import { History } from './history';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
@@ -647,13 +650,18 @@ export class Editor {
   }
 
   /** Columns and orientation for the section the caret is in. */
-  setSection(patch: { cols?: number; orient?: 'portrait' | 'landscape' }): void {
+  setSection(patch: SectionPatch): void {
     this.syncSelectionFromDom();
     this.dispatch(setSection(this.state, patch), 'command');
   }
 
-  /** The columns and orientation of the section the caret is in (no orientation: the page setup's). */
-  sectionLook(): { cols: number; orient?: 'portrait' | 'landscape' } {
+  /** Page Setup's "Whole document": no section has its own margins or orientation, and they all have `cols` columns. */
+  setAllSections(cols: number): void {
+    this.dispatch(setAllSections(this.state, cols), 'command');
+  }
+
+  /** How the section the caret is in is set up (no orientation or margins: the page setup's). */
+  sectionLook(): SectionLook {
     return sectionLook(this.state.doc.blocks, this.state.doc.blocks.findIndex((b) => b.id === this.state.selection.focus.block));
   }
 

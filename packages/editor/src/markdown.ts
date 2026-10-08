@@ -100,7 +100,7 @@ function blockLine(b: Block, number: number): string {
   // Styles, alignment and paragraph settings Markdown has no syntax for go at the end of the line, as {.title .center line=2}.
   const p = b.para;
   const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.colBefore ? 'colbreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined].filter(Boolean);
-  const values = p ? (['sect', 'cols', 'orient', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'shade'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
+  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'shade'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
   const attrs = [...classes.map((c) => `.${c}`), ...values];
   return attrs.length ? `${line} {${attrs.join(' ')}}` : line;
 }
@@ -135,7 +135,7 @@ const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
 const KNOWN_STYLES = new Set<string>([...Object.values(BLOCK_STYLES).flat(), 'folded']);
 const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=(?:-?[\d.]+|[a-z][a-z-]*|#[0-9a-fA-F]{6}))[ \t]*)+)\}[ \t]*$/;
 const PARA_FLAGS: Record<string, 'pageBefore' | 'colBefore' | 'keepNext' | 'keepLines'> = { pagebreak: 'pageBefore', colbreak: 'colBefore', keepnext: 'keepNext', keeplines: 'keepLines' };
-const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'cols']);
+const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'cols', 'mt', 'mb', 'ml', 'mr']);
 const PARA_WORDS = new Set(['num', 'bullet', 'border', 'shade', 'sect', 'orient']);
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */

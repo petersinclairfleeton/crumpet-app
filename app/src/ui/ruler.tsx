@@ -8,7 +8,7 @@ import { PX_PER_IN, type StyleSheet, styleKeyOf } from '../data/styles';
 
 type Marker = 'first' | 'left' | 'right';
 
-export function Ruler({ editor, width: baseWidth, boxes, margins, scale, sheet }: { editor: Editor; width: number; boxes?: { width: number }[]; margins: { left: number; right: number }; scale: number; sheet?: StyleSheet }) {
+export function Ruler({ editor, width: baseWidth, boxes, margins: baseMargins, scale, sheet }: { editor: Editor; width: number; boxes?: { width: number; margins?: { left: number; right: number } }[]; margins: { left: number; right: number }; scale: number; sheet?: StyleSheet }) {
   const [, setTick] = useState(0);
   const [drag, setDrag] = useState<{ which: Marker; at: number } | null>(null);
   const bar = useRef<HTMLDivElement>(null);
@@ -27,7 +27,10 @@ export function Ruler({ editor, width: baseWidth, boxes, margins, scale, sheet }
   const ppi = PX_PER_IN * scale;
   // The page the caret is on (a landscape page is wider).
   const onPage = editor.pageOfBlock(editor.currentBlock().id);
-  const width = (onPage !== undefined ? boxes?.[onPage]?.width : undefined) ?? baseWidth;
+  const box = onPage !== undefined ? boxes?.[onPage] : undefined;
+  const width = box?.width ?? baseWidth;
+  // That page's margins (a section can have its own), in inches.
+  const margins = box?.margins ? { left: box.margins.left / PX_PER_IN, right: box.margins.right / PX_PER_IN } : baseMargins;
   const inches = width / PX_PER_IN;
   const blk = editor.currentBlock();
   const def = sheet?.styles[styleKeyOf(blk)];

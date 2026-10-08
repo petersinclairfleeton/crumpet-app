@@ -271,6 +271,11 @@ function buildBlock(block: Block): HTMLElement {
       el.dataset.sect = p.sect;
       if (p.cols) el.dataset.cols = String(p.cols);
       if (p.orient) el.dataset.orient = p.orient;
+      // The section's own margins, in inches.
+      if (p.mt !== undefined) el.dataset.mt = String(p.mt);
+      if (p.mb !== undefined) el.dataset.mb = String(p.mb);
+      if (p.ml !== undefined) el.dataset.ml = String(p.ml);
+      if (p.mr !== undefined) el.dataset.mr = String(p.mr);
     }
     if (block.type === 'numbered' && p.num) el.dataset.num = p.num;
     if (block.type === 'bullet' && p.bullet) el.dataset.bullet = BULLETS[p.bullet];

@@ -14,7 +14,8 @@ import { OverflowRow, type ToolItem } from './toolbar';
 import { useFontItems } from './fonttools';
 import { useParaItems } from './paratools';
 import { borderItems, listItems } from './listtools';
-import { layoutItems } from './layouttools';
+import { useLayoutItems } from './layouttools';
+import type { PageSetup } from '../data/styles';
 import { insertItems } from './inserttools';
 import { addFile } from '../data/files';
 import { NOTE_LINK, noteLinkTitle } from '@crumpet/editor/markdown';
@@ -166,11 +167,12 @@ export function chooseFiles(ed: Editor): void {
 }
 
 /** The formatting buttons, acting on whichever editor is given. */
-export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true, fit = false }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean; fit?: boolean }) {
+export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true, fit = false, page, onPage, chapters }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean; fit?: boolean; page?: PageSetup | null; onPage?(p: PageSetup): void; chapters?: boolean }) {
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
   const fontItems = useFontItems(ed, off, sheet);
   const para = useParaItems(ed, off);
+  const layout = useLayoutItems(ed, off, { page, onPage, chapters });
   /** A button for the bar, and the same as a named line in the More menu. */
   const tool = (key: string, pri: number, label: string, title: string, glyph: ReactNode, onClick: () => void, opts: { active?: boolean; disabled?: boolean; sep?: boolean; extra?: Record<string, string> } = {}): ToolItem => ({
     key,
@@ -218,7 +220,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     ...listItems(ed, off),
     tool('todo', 1, 'Checklist', 'Checklist', '☐', () => ed?.setBlockType('todo'), { active: type === 'todo' }),
     ...borderItems(ed, off),
-    ...layoutItems(ed, off),
+    ...layout.items,
   ];
   items.push(...insertItems(ed, off));
   if (attach)
@@ -245,6 +247,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     <>
       <OverflowRow items={items} fit={fit} />
       {para.dialog}
+      {layout.dialog}
     </>
   );
 }

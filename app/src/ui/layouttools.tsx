@@ -3,6 +3,8 @@
 
 import { useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
+import type { PageSetup } from '../data/styles';
+import { PageSetupDialog } from './pagesetup';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
 import { isMac } from './editing';
@@ -33,8 +35,32 @@ function Drop({ label, glyph, off, children }: { label: string; glyph: React.Rea
   );
 }
 
+const ICON_SETUP = svg('M6 3h9l4 4v14H6zM9 12h6M9 16h6M12 9v10');
+
+/** Breaks, Columns, Orientation and Page Setup, as toolbar items (and the Page Setup window when it's open). */
+export function useLayoutItems(ed: Editor | null, off: boolean, pageCtx: { page?: PageSetup | null; onPage?(p: PageSetup): void; chapters?: boolean } = {}): { items: ToolItem[]; dialog: React.ReactNode } {
+  const [setup, setSetup] = useState(false);
+  const items = layoutItems(ed, off);
+  const open = () => setSetup(true);
+  items.push({
+    key: 'pagesetup',
+    pri: 1,
+    node: (
+      <button type="button" aria-label="Page setup" title="Page setup" disabled={off} onClick={open}>
+        {ICON_SETUP}
+      </button>
+    ),
+    menu: (
+      <button type="button" className="menu-item" disabled={off} onClick={open}>
+        <span className="menu-glyph">{ICON_SETUP}</span> Page setup…
+      </button>
+    ),
+  });
+  return { items, dialog: setup && ed ? <PageSetupDialog editor={ed} page={pageCtx.page} onPage={pageCtx.onPage} chapters={pageCtx.chapters} onClose={() => setSetup(false)} /> : null };
+}
+
 /** Breaks, Columns and Orientation, as toolbar items. */
-export function layoutItems(ed: Editor | null, off: boolean): ToolItem[] {
+function layoutItems(ed: Editor | null, off: boolean): ToolItem[] {
   const mod = isMac ? '⌘' : 'Ctrl+';
   const act = (close: () => void, f: () => void) => () => {
     close();
