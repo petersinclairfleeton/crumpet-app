@@ -23,7 +23,9 @@ export function noteText(note: Note): string {
 
 export function preview(note: Note, max = 160): string {
   // Join blocks into one line; list items and other lines without their own punctuation get a separator.
-  const parts = note.doc.blocks.map((b) => blockText(b).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  // A table reads row by row, its cells joined by dashes.
+  const line = (b: Doc['blocks'][number]) => (b.type === 'table' ? (b.rows ?? []).map((r) => r.map((c) => c.trim()).filter(Boolean).join(' – ')).filter(Boolean).join(' · ') : blockText(b));
+  const parts = note.doc.blocks.map((b) => line(b).replace(/\s+/g, ' ').trim()).filter(Boolean);
   const text = parts.reduce((acc, p) => (!acc ? p : /[.!?:;…,]$/.test(acc) ? `${acc} ${p}` : `${acc} · ${p}`), '');
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
@@ -104,14 +106,14 @@ export function shortTime(t: number, now: number): string {
   const d = new Date(t);
   const n = new Date(now);
   const sameDay = d.toDateString() === n.toDateString();
-  if (sameDay) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   if (now - t < 6 * 86_400_000) return d.toLocaleDateString([], { weekday: 'short' });
   if (d.getFullYear() === n.getFullYear()) return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
   return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export function longTime(t: number): string {
-  return new Date(t).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return new Date(t).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 export interface StackNode {
@@ -249,4 +251,51 @@ export function projectGoal(project: Project, chapters: Chapter[]): number | nul
   if (project.goal) return project.goal;
   const goals = chapters.filter((c) => c.projectId === project.id && c.goal).map((c) => c.goal!);
   return goals.length ? goals.reduce((a, b) => a + b, 0) : null;
+}
+
+/** A piece of a search snippet; `hit` marks a searched-for word. */
+export interface SnippetPart {
+  text: string;
+  hit: boolean;
+}
+
+/**
+ * A short stretch of text around the first searched-for word, split so the
+ * words can be highlighted. Null when none of the words is in the text.
+ */
+export function snippet(text: string, words: string[], max = 150): SnippetPart[] | null {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  const lower = flat.toLowerCase();
+  const found = words.filter(Boolean).map((w) => lower.indexOf(w.toLowerCase())).filter((i) => i >= 0);
+  if (!found.length) return null;
+  const first = Math.min(...found);
+  // Start a little before the word, at a word boundary.
+  let start = max === Infinity ? 0 : Math.max(0, first - 40);
+  if (start > 0) start = flat.indexOf(' ', start) + 1 || start;
+  const end = Math.min(flat.length, start + max);
+  const piece = `${start > 0 ? '…' : ''}${flat.slice(start, end)}${end < flat.length ? '…' : ''}`;
+  const escaped = words.filter(Boolean).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return piece
+    .split(new RegExp(`(${escaped.join('|')})`, 'gi'))
+    .filter(Boolean)
+    .map((t) => ({ text: t, hit: escaped.length > 0 && words.some((w) => w.toLowerCase() === t.toLowerCase()) }));
+}
+
+/** A chapter's searchable text: its title, synopsis and writing. */
+export function chapterText(c: Chapter, withTitle = true): string {
+  return [...(withTitle ? [c.title] : []), c.synopsis, ...c.doc.blocks.map(blockText)].join('\n');
+}
+
+/** Chapters whose text has every searched-for word, for a plain word search (filters only apply to notes). */
+export function matchingChapters(state: Pick<AppState, 'query' | 'projects' | 'chapters'>): { chapter: Chapter; project: Project }[] {
+  const { filters: f } = parseQuery(state.query);
+  if (!f.words.length || f.tags.length || f.places.length || f.favorite || f.has.length || f.after !== undefined || f.before !== undefined) return [];
+  const out: { chapter: Chapter; project: Project }[] = [];
+  for (const project of state.projects) {
+    for (const { chapter } of projectChapters(project, state.chapters)) {
+      const hay = chapterText(chapter).toLowerCase();
+      if (f.words.every((w) => hay.includes(w))) out.push({ chapter, project });
+    }
+  }
+  return out;
 }

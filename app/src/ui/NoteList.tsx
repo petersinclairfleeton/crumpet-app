@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { mediaUrl } from '../data/files';
 import { useAppState, useAppStore } from './hooks';
-import { type Group, displayTitle, groupByDate, listedNotes, matchingNotebooks, preview, shortTime, viewTitle } from '../data/selectors';
+import { type Group, type SnippetPart, chapterText, displayTitle, groupByDate, listedNotes, matchingChapters, matchingNotebooks, noteText, preview, shortTime, snippet, viewTitle } from '../data/selectors';
 import type { Note, View } from '../data/types';
 import { type SortBy, parseQuery, quoted, sortNotes, withToken, withoutToken } from '../data/search';
 import { allTags } from '../data/selectors';
@@ -24,7 +24,10 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
   const notes = sortNotes(listedNotes(state), sort);
   const now = Date.now();
   const groups = sort === 'title' ? byLetter(notes) : groupByDate(notes, now, trash ? (n) => n.trashedAt ?? n.updatedAt : sort === 'created' ? (n) => n.createdAt : undefined);
-  const { tokens } = parseQuery(state.query);
+  const { tokens, filters } = parseQuery(state.query);
+  const words = searching ? filters.words : [];
+  // A plain word search looks in projects' chapters too.
+  const chapters = searching ? matchingChapters(state) : [];
   const [saving, setSaving] = useState(false);
   // Several notes picked (Ctrl/Cmd-click, Shift-click) to move, tag, star or trash together.
   const [picked, setPicked] = useState<string[]>([]);
@@ -71,6 +74,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
         <div className="list-sub">
           <span>
             {notes.length} note{notes.length === 1 ? '' : 's'}
+            {chapters.length > 0 && ` · ${chapters.length} chapter${chapters.length === 1 ? '' : 's'}`}
           </span>
           {state.view.kind === 'tag' && !searching && (
             <button type="button" className="link-btn" onClick={() => setRenamingTag(true)}>
@@ -156,14 +160,14 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
       )}
 
       {notes.length === 0 ? (
-        <Empty view={state.view} searching={searching} query={state.query} onNewNote={onNewNote} />
+        chapters.length === 0 && <Empty view={state.view} searching={searching} query={state.query} onNewNote={onNewNote} />
       ) : style === 'table' ? (
-        <div className="table-wrap">
+        <div className="list-table">
           <table className="note-table">
             <thead>
               <tr>
                 <th scope="col">Title</th>
-                <th scope="col">Notebook</th>
+                <th scope="col" className="col-nb">Notebook</th>
                 <th scope="col">{trash ? 'Trashed' : 'Updated'}</th>
               </tr>
             </thead>
@@ -175,7 +179,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
                       {displayTitle(n)}
                     </button>
                   </td>
-                  <td className="muted">{store.notebook(n.notebookId)?.name ?? '—'}</td>
+                  <td className="muted col-nb">{store.notebook(n.notebookId)?.name ?? '—'}</td>
                   <td className="muted nowrap">{shortTime(trash ? (n.trashedAt ?? n.updatedAt) : n.updatedAt, now)}</td>
                 </tr>
               ))}
@@ -188,9 +192,28 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
             <div key={g.label} className="group" role="group" aria-label={g.label}>
               <h2 className="group-label">{g.label}</h2>
               {g.notes.map((n) => (
-                <Card key={n.id} note={n} selected={pickedNow.length ? pickedNow.includes(n.id) : n.id === state.selectedId} now={now} trash={trash} showNotebook={state.view.kind !== 'notebook' || searching} onOpen={(e) => open(n.id, e)} />
+                <Card key={n.id} note={n} words={words} selected={pickedNow.length ? pickedNow.includes(n.id) : n.id === state.selectedId} now={now} trash={trash} showNotebook={state.view.kind !== 'notebook' || searching} onOpen={(e) => open(n.id, e)} />
               ))}
             </div>
+          ))}
+        </div>
+      )}
+      {chapters.length > 0 && (
+        <div className="cards chapter-hits" role="group" aria-label="In your projects">
+          <h2 className="group-label">In your projects</h2>
+          {chapters.map(({ chapter, project }) => (
+            <button key={chapter.id} type="button" className="card" onClick={() => store.openProject(project.id, chapter.id)}>
+              <span className="card-top">
+                <span className="card-title ellipsis">
+                  <Marked text={chapter.title.trim() || 'Untitled chapter'} words={words} />
+                </span>
+                <span className="card-time">{shortTime(chapter.updatedAt, now)}</span>
+              </span>
+              <Snippet parts={snippet(chapterText(chapter, false), words)} fallback={chapter.synopsis} />
+              <span className="card-meta">
+                <span className="card-nb">{project.name}</span>
+              </span>
+            </button>
           ))}
         </div>
       )}
@@ -198,16 +221,31 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
   );
 }
 
-function Card({ note, selected, now, trash, showNotebook, onOpen }: { note: Note; selected: boolean; now: number; trash: boolean; showNotebook: boolean; onOpen(e: React.MouseEvent): void }) {
+/** Text with the searched-for words highlighted (a title). */
+function Marked({ text, words }: { text: string; words: string[] }) {
+  const parts = words.length ? snippet(text, words, Infinity) : null;
+  return <>{parts ? parts.map((p, i) => (p.hit ? <mark key={i}>{p.text}</mark> : p.text)) : text}</>;
+}
+
+/** A preview line with the searched-for words highlighted. */
+function Snippet({ parts, fallback }: { parts: SnippetPart[] | null; fallback: string }) {
+  if (!parts) return <span className={`card-preview${fallback ? '' : ' no-text'}`}>{fallback || 'No text yet'}</span>;
+  return <span className="card-preview">{parts.map((p, i) => (p.hit ? <mark key={i}>{p.text}</mark> : p.text))}</span>;
+}
+
+function Card({ note, words, selected, now, trash, showNotebook, onOpen }: { note: Note; words: string[]; selected: boolean; now: number; trash: boolean; showNotebook: boolean; onOpen(e: React.MouseEvent): void }) {
   const store = useAppStore();
   const nb = store.notebook(note.notebookId);
   const text = preview(note);
+  const hits = words.length ? snippet(noteText(note), words) : null;
   const picture = note.doc.blocks.find((b) => b.type === 'image' && b.src)?.src;
   return (
     <button type="button" className={`card${selected ? ' selected' : ''}${picture ? ' has-thumb' : ''}`} aria-current={selected ? 'true' : undefined} onClick={(e) => onOpen(e)}>
       {picture && <Thumb src={picture} />}
       <span className="card-top">
-        <span className="card-title ellipsis">{displayTitle(note)}</span>
+        <span className="card-title ellipsis">
+          <Marked text={displayTitle(note)} words={words} />
+        </span>
         {note.favorite && !trash && (
           <span className="pin" title="In Favorites">
             <IconStar size={11} />
@@ -215,7 +253,7 @@ function Card({ note, selected, now, trash, showNotebook, onOpen }: { note: Note
         )}
         <span className="card-time">{shortTime(trash ? (note.trashedAt ?? note.updatedAt) : note.updatedAt, now)}</span>
       </span>
-      <span className={`card-preview${text ? '' : ' no-text'}`}>{text || 'No text yet'}</span>
+      <Snippet parts={hits} fallback={text} />
       {(showNotebook || note.tags.length > 0) && (
         <span className="card-meta">
           {showNotebook && nb && (

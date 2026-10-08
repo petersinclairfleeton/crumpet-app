@@ -1458,3 +1458,20 @@ test('characters and places: a card for each, names spotted in the chapters, and
   await sidebar(page).getByRole('button', { name: /The Lighthouse/ }).click();
   await expect(page.getByRole('region', { name: 'Outline' }).locator('.research-item')).toHaveText(['TTam', 'GGull Rock']);
 });
+
+test('search finds words in chapters too, highlighted, and opens the chapter', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Mara notes', 'Ideas for her voice.');
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.getByLabel('Chapter title').fill('The Keeper');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The lamp had not been lit. Mara climbed the stairs anyway.');
+  await page.getByPlaceholder('Search notes').first().fill('mara');
+  await expect(list(page).locator('.list-sub')).toContainText('1 note · 1 chapter');
+  const hits = list(page).getByRole('group', { name: 'In your projects' });
+  await expect(hits.locator('mark')).toHaveText(['Mara']);
+  await hits.getByRole('button', { name: /The Keeper/ }).click();
+  await expect(page.getByLabel('Chapter title')).toHaveValue('The Keeper');
+});
