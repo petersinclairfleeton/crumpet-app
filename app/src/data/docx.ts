@@ -290,13 +290,15 @@ class Writer {
     const fill = !flat && s.fill ? `<a:solidFill><a:srgbClr val="${hex(s.fill)}"/></a:solidFill>` : '<a:noFill/>';
     const line = s.line || flat ? `<a:ln w="19050"><a:solidFill><a:srgbClr val="${hex(s.line ?? '#333333')}"/></a:solidFill>${s.kind === 'arrow' ? '<a:tailEnd type="triangle"/>' : ''}</a:ln>` : '<a:ln><a:noFill/></a:ln>';
     const text = !flat && s.text ? `<wps:txbx><w:txbxContent>${this.paragraph(null, this.runs(cellRuns(s.text)), '<w:jc w:val="center"/>')}</w:txbxContent></wps:txbx>` : '';
-    const wsp = `<wps:wsp><wps:cNvSpPr${s.text ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${flat ? '' : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</wps:spPr>${text}<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
+    const wsp = `<wps:wsp><wps:cNvSpPr${s.text ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${s.rot ? ` rot="${s.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</wps:spPr>${text}<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
     const graphic = `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">${wsp}</a:graphicData></a:graphic>`;
     const name = `<wp:docPr id="${n}" name="${s.text ? 'Text Box' : 'Shape'} ${n}"/><wp:cNvGraphicFramePr/>`;
     const drawing =
       s.wrap === 'inline'
         ? `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${name}${graphic}</wp:inline>`
-        : `<wp:anchor distT="45720" distB="45720" distL="114300" distR="114300" simplePos="0" relativeHeight="${251659264 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:align>${s.wrap}</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapSquare wrapText="bothSides"/>${name}${graphic}</wp:anchor>`;
+        : s.wrap === 'free'
+          ? `<wp:anchor distT="0" distB="0" distL="114300" distR="114300" simplePos="0" relativeHeight="${251659264 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>${Math.round((s.x ?? 0) * EMU)}</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>${Math.round((s.y ?? 0) * EMU)}</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>${name}${graphic}</wp:anchor>`
+          : `<wp:anchor distT="45720" distB="45720" distL="114300" distR="114300" simplePos="0" relativeHeight="${251659264 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:align>${s.wrap}</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapSquare wrapText="bothSides"/>${name}${graphic}</wp:anchor>`;
     const jc = b.align && b.align !== 'left' && s.wrap === 'inline' ? `<w:jc w:val="${JC[b.align] ?? b.align}"/>` : '';
     return this.paragraph(null, `<w:r><w:drawing>${drawing}</w:drawing></w:r>`, lead + jc);
   }
@@ -1014,7 +1016,15 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const anchor = all.find((x) => x.localName === 'anchor');
     const wraps = anchor && Array.from(anchor.children).some((x) => /^wrap(Square|Tight|Through)$/.test(x.localName));
     const side = find(all.find((x) => x.localName === 'positionH'), 'align')?.textContent ?? 'left';
-    const shape = tidyShape({ kind, w: w || undefined, h: h || undefined, fill, line, wrap: wraps ? (side === 'right' ? 'right' : 'left') : 'inline', text });
+    // In front of (or behind) the text, where it was put: from the column and paragraph, as we place it.
+    const free = !!anchor && !wraps && Array.from(anchor.children).some((x) => x.localName === 'wrapNone');
+    const offset = (axis: string) => {
+      const pos = all.find((x) => x.localName === axis);
+      return Number(find(pos, 'posOffset')?.textContent ?? 0) / EMU || 0;
+    };
+    const xfrm = spPr && kids(spPr).find((x) => x.localName === 'xfrm');
+    const rot = Number(plain(xfrm ?? null, 'rot') ?? 0) / 60000;
+    const shape = tidyShape({ kind, w: w || undefined, h: h || undefined, fill, line, wrap: free ? 'free' : wraps ? (side === 'right' ? 'right' : 'left') : 'inline', text, rot, ...(free ? { x: offset('positionH'), y: offset('positionV') } : {}) });
     return makeBlock('shape', '', [], { shape });
   };
 

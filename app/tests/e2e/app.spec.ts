@@ -2252,6 +2252,58 @@ test('a text box: typing in it, its fill and wrapping, resizing, and saving it',
   expect(md).toMatch(/\{shape rect w=[\d.]+ h=[\d.]+ fill=#[0-9a-f]{6} line=#333333 wrap=right\} Key \*\*fact\*\*/);
 });
 
+test('shapes: turned with the handle or the menu, and moved anywhere in front of the text', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Placed', 'A line of text under the shape.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/textbox');
+  await page.keyboard.press('Enter');
+  const shape = page.locator('.note-editor .blk-shape');
+  const box = shape.locator('.shape-box');
+  const look = () =>
+    page.evaluate(() => {
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { shape?: { rot?: number; wrap: string; x?: number; y?: number } }[] } }[] } } }).crumpet.getState();
+      return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.find((b) => b.shape)?.shape;
+    });
+  // The menu turns it a quarter.
+  await shape.hover();
+  await shape.getByRole('button', { name: 'Shape ▾' }).click();
+  await shape.getByRole('button', { name: 'Right 90°' }).click();
+  await expect.poll(async () => (await look())?.rot).toBe(90);
+  await shape.hover();
+  await shape.getByRole('button', { name: 'Shape ▾' }).click();
+  await shape.getByRole('button', { name: 'Straight' }).click();
+  await expect.poll(async () => (await look())?.rot).toBeUndefined();
+  // The handle above it turns it to any angle (Shift: steps of 15°): dragging to the right of the middle is 90°.
+  await shape.hover();
+  const handle = (await shape.locator('.shape-rot').boundingBox())!;
+  const b = (await box.boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.keyboard.down('Shift');
+  await page.mouse.move(b.x + b.width / 2 + 200, b.y + b.height / 2 + 8, { steps: 6 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  await expect.poll(async () => (await look())?.rot).toBe(90);
+  await expect(box).toHaveCSS('transform', /matrix/);
+  // In front of the text, it takes no room and can be dragged anywhere.
+  await shape.hover();
+  await shape.getByRole('button', { name: 'Shape ▾' }).click();
+  await shape.getByRole('button', { name: 'In front of text' }).click();
+  await expect(shape).toHaveAttribute('data-wrap', 'free');
+  const start = (await box.boundingBox())!;
+  await shape.locator('.shape-wrap').hover();
+  const mover = (await shape.locator('.shape-move').boundingBox())!;
+  await page.mouse.move(mover.x + mover.width / 2, mover.y + mover.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(mover.x + mover.width / 2 + 96, mover.y + mover.height / 2 - 48, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(async () => (await look())?.x).toBeCloseTo(1, 1);
+  expect((await look())?.y).toBeCloseTo(-0.5, 1);
+  const end = (await box.boundingBox())!;
+  expect(end.x - start.x).toBeGreaterThan(80);
+});
+
 test('the sidebar and note list fold away with «, peek out at the edge, and come back', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1400, height: 860 });
