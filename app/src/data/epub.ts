@@ -177,7 +177,7 @@ class Book {
             const c = sh.line ?? '#000000';
             const W = Math.round(w * 96), H = Math.max(Math.round(sh.h * 96), 4);
             const head = sh.kind === 'arrow' ? `<polygon points="${W},${H / 2} ${W - 10},${H / 2 - 5} ${W - 10},${H / 2 + 5}" fill="${c}"/>` : '';
-            out += `<div class="shape" style="text-align: center"><svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="0" y1="${H / 2}" x2="${sh.kind === 'arrow' ? W - 8 : W}" y2="${H / 2}" stroke="${c}" stroke-width="1.5"/>${head}</svg></div>`;
+            out += `<div class="shape" style="text-align: center${sh.rot ? `; transform: rotate(${sh.rot}deg)` : ''}"><svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><line x1="0" y1="${H / 2}" x2="${sh.kind === 'arrow' ? W - 8 : W}" y2="${H / 2}" stroke="${c}" stroke-width="1.5"/>${head}</svg></div>`;
             break;
           }
           // A box, rounded box or oval with its text in the middle.
@@ -191,6 +191,8 @@ class Book {
             'padding: 0.5em',
             'box-sizing: border-box',
             'text-align: center',
+            // E-readers lay pages out themselves: a shape placed in front of the text sits in line instead, still turned.
+            sh.rot ? `transform: rotate(${sh.rot}deg)` : '',
           ].filter(Boolean);
           out += `<div class="shape" style="${css.join('; ')}"><p>${runs(cellRuns(sh.text)) || '&#160;'}</p></div>`;
           break;

@@ -77,9 +77,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     Markdown (bold, fonts, colours), drawn into and read from its box, and
     formatting applied there (the toolbar goes to the cell being typed in).
   - `shape.ts`: text boxes and shapes (`shape` blocks: rectangle, rounded,
-    oval, line, arrow; size in inches, fill, line, wrapping left/right, and
-    one line of inline Markdown text). Saved as
-    `{shape ellipse w=2 h=1 fill=#cfe2f3 line=none wrap=left} Text`.
+    oval, line, arrow; size in inches, fill, line, wrapping left/right or
+    in front of the text at `x`,`y` inches from its paragraph (`wrap=free`,
+    dragged by its ✥ handle), turned by `rot` degrees, and one line of
+    inline Markdown text). Saved as
+    `{shape ellipse w=2 h=1 fill=#cfe2f3 line=none wrap=left rot=15} Text`.
   - `ops.ts`: small invertible operations (insert, remove, split, join,
     setAttrs, format). Everything is built from these, so undo and sync just
     work. `attrsOf` always includes `brk`; a `setAttrs` whose `to` has no
@@ -217,8 +219,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
 - The web clipper doesn't work on sites with strict security settings
   (pasting keeps formatting instead) or in the single-file build.
 - Word features not built: Word's own built-in table styles (ours go to Word as
-  styles of their own), paper size per section; shapes hold one paragraph of text and can't be rotated
-  or placed freely on the page. Printing turns landscape pages only
+  styles of their own), paper size per section; shapes hold one paragraph of text, can't go behind the
+  text, and are placed from their paragraph (not the page's corner). Printing turns landscape pages only
   in browsers that support named pages (Chrome, Edge, Firefox). A book's table of contents
   guesses the pages of headings in chapters not laid out yet (from their
   words) until they have been.

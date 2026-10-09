@@ -383,6 +383,30 @@ describe('Word text boxes and shapes', () => {
   });
 });
 
+describe('Word shapes turned, and in front of the text', () => {
+  it('keeps the angle and the place', async () => {
+    const free = { ...makeBlock('shape', ''), shape: { kind: 'rect' as const, w: 2, h: 1, fill: '#fff2cc', line: '#333333', wrap: 'free' as const, text: 'Note', rot: 30, x: 1.5, y: -0.25 } };
+    const bytes = await toDocx([{ doc: { blocks: [makeBlock('paragraph', 'Text'), free] } }], { title: 'T', page: defaultPage() });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<a:xfrm rot="1800000">');
+    expect(xml).toContain('<wp:wrapNone/>');
+    expect(xml).toContain('<wp:positionH relativeFrom="column"><wp:posOffset>1371600</wp:posOffset></wp:positionH>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks.find((b) => b.type === 'shape')?.shape).toEqual(free.shape);
+  });
+
+  it('is kept in the file', async () => {
+    const { readShapeLine, shapeLine, tidyShape } = await import('@crumpet/editor/shape');
+    const s = tidyShape({ kind: 'ellipse', w: 2, h: 1, wrap: 'free', x: 1, y: 0.5, rot: -45, text: 'Hi' });
+    expect(s.rot).toBe(315);
+    const line = shapeLine(s);
+    expect(line).toBe('{shape ellipse w=2 h=1 fill=#cfe2f3 line=#333333 wrap=free x=1 y=0.5 rot=315} Hi');
+    expect(readShapeLine(line)?.shape).toEqual(s);
+    // Not in front of the text: no place kept; not turned: no angle.
+    expect(tidyShape({ ...s, wrap: 'left', rot: 360 })).toEqual({ kind: 'ellipse', w: 2, h: 1, fill: '#cfe2f3', line: '#333333', wrap: 'left', text: 'Hi' });
+  });
+});
+
 describe('Word callouts', () => {
   it('writes a callout as a Quote with a coloured bar and background', async () => {
     const blocks = [makeBlock('quote', 'Mind the gap.', [], { style: 'warning' })];

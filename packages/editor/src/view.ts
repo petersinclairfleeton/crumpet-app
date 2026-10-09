@@ -591,7 +591,17 @@ function buildShape(block: Block): HTMLElement {
   grip.className = 'shape-grip';
   grip.dataset.shapeAction = 'resize';
   grip.title = 'Drag to resize';
-  box.appendChild(grip);
+  // A handle above it to turn it (Shift: in steps of 15°), and, in front of the text, one to move it.
+  const turn = document.createElement('span');
+  turn.className = 'shape-rot';
+  turn.dataset.shapeAction = 'rotate';
+  turn.title = 'Drag to turn (Shift: in steps of 15°)';
+  const move = document.createElement('span');
+  move.className = 'shape-move';
+  move.dataset.shapeAction = 'move';
+  move.title = 'Drag to move';
+  move.textContent = '✥';
+  box.append(grip, turn, move);
   const tools = document.createElement('div');
   tools.className = 'table-tools shape-tools';
   const button = (action: string, label: string, title = label, value?: string) => {
@@ -631,17 +641,28 @@ function buildShape(block: Block): HTMLElement {
   };
   group('Fill', [swatches('fill', 'Fill'), button('fill', 'No fill', 'No fill', '')]);
   group('Line', [swatches('line', 'Line'), button('line', 'No line', 'No line', '')]);
-  group('Wrap text', [button('wrap', 'In line with text', 'In line with text', 'inline'), button('wrap', 'Square, on the left', 'Text wraps round it, on the left', 'left'), button('wrap', 'Square, on the right', 'Text wraps round it, on the right', 'right')]);
+  group('Wrap text', [
+    button('wrap', 'In line with text', 'In line with text', 'inline'),
+    button('wrap', 'Square, on the left', 'Text wraps round it, on the left', 'left'),
+    button('wrap', 'Square, on the right', 'Text wraps round it, on the right', 'right'),
+    button('wrap', 'In front of text', 'In front of the text, anywhere: drag ✥ to move it', 'free'),
+  ]);
+  group('Rotate', [button('rot', 'Left 90°', 'Turn left 90°', '-90'), button('rot', 'Right 90°', 'Turn right 90°', '90'), button('rot', 'Straight', 'Not turned', '0')]);
   group('', [button('delete', 'Delete shape')]);
   tools.appendChild(menu);
   wrap.append(box, tools);
+  // (Its block isn't built yet: markShape marks it once it's in.)
   markShape(wrap, s);
   return wrap;
 }
 
-/** Shows the shape's wrapping and colours as chosen in its menu. */
+/** Shows the shape's wrapping, turn and place, and its choices in the menu. */
 function markShape(wrap: HTMLElement, s: ShapeLook): void {
   wrap.closest<HTMLElement>('.blk')?.setAttribute('data-wrap', s.wrap);
+  const box = wrap.querySelector<HTMLElement>('.shape-box');
+  if (box) box.style.transform = s.rot ? `rotate(${s.rot}deg)` : '';
+  wrap.style.left = s.wrap === 'free' ? `${s.x ?? 0}in` : '';
+  wrap.style.top = s.wrap === 'free' ? `${s.y ?? 0}in` : '';
   wrap.querySelectorAll<HTMLElement>('[data-shape-action="wrap"]').forEach((b) => b.classList.toggle('on', b.dataset.value === s.wrap));
 }
 

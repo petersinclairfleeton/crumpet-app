@@ -211,9 +211,18 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
 .shape-box[data-kind='ellipse'] .shape-text { padding: 12% 16%; }
 .shape-grip { position: absolute; right: -5px; bottom: -5px; width: 10px; height: 10px; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); cursor: nwse-resize; opacity: 0; }
 .shape-wrap:hover .shape-grip, .shape-wrap:focus-within .shape-grip { opacity: 1; }
+.shape-rot { position: absolute; left: 50%; top: -22px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); cursor: grab; opacity: 0; }
+.shape-rot::after { content: ''; position: absolute; left: 3px; top: 9px; width: 1.5px; height: 11px; background: var(--accent, #4a7); }
+.shape-move { display: none; position: absolute; left: -11px; top: -11px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); color: var(--accent-ink, var(--accent, #4a7)); font-size: 12px; line-height: 17px; text-align: center; cursor: move; opacity: 0; user-select: none; }
+.shape-wrap:hover :is(.shape-rot, .shape-move), .shape-wrap:focus-within :is(.shape-rot, .shape-move) { opacity: 1; }
+/* In front of the text: placed from the top left of its paragraph, taking no room in the text. */
+.blk-shape[data-wrap='free'] { height: 0; margin: 0; z-index: 3; }
+.blk-shape[data-wrap='free'] .shape-wrap { position: absolute; left: 0; top: 0; }
+.blk-shape[data-wrap='free'] .shape-move { display: block; }
+.blk-shape[data-wrap='free'] .shape-box { max-width: none; }
 .shape-tools { justify-content: flex-start; }
 .shape-wrap:hover .shape-tools { visibility: visible; opacity: 1; }
-@media print { .shape-grip, .shape-tools { display: none !important; } }
+@media print { .shape-grip, .shape-rot, .shape-move, .shape-tools { display: none !important; } }
 
 /* Toggles: a line whose content folds away under it (the arrow is always shown). */
 .blk[data-style='toggle'] { position: relative; font-weight: 600; }

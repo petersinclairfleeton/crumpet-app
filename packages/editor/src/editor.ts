@@ -605,11 +605,15 @@ export class Editor {
     const blk = this.state.doc.blocks.find((b) => b.id === id);
     const box = grip.closest<HTMLElement>('.shape-box');
     if (!id || !blk?.shape || !box || this.isReadOnly) return;
-    const scale = box.getBoundingClientRect().width / (box.offsetWidth || 1) || 1;
+    const scale = zoomOf(box);
     const { w, h } = blk.shape;
+    // A turned shape grows along its own sides.
+    const a = ((blk.shape.rot ?? 0) * Math.PI) / 180;
     let size = { w, h };
     const move = (ev: PointerEvent) => {
-      size = { w: Math.max(0.2, w + (ev.clientX - startX) / scale / 96), h: Math.max(0.1, h + (ev.clientY - startY) / scale / 96) };
+      const dx = (ev.clientX - startX) / scale / 96;
+      const dy = (ev.clientY - startY) / scale / 96;
+      size = { w: Math.max(0.2, w + dx * Math.cos(a) + dy * Math.sin(a)), h: Math.max(0.1, h - dx * Math.sin(a) + dy * Math.cos(a)) };
       box.style.width = `${size.w}in`;
       box.style.height = `${size.h}in`;
     };
@@ -617,6 +621,55 @@ export class Editor {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       if (size.w !== w || size.h !== h) this.setShapeLook(id, { w: Math.round(size.w * 100) / 100, h: Math.round(size.h * 100) / 100 });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Drags a shape's handle above it round to turn it (Shift: in steps of 15°). */
+  private rotateShape(handle: HTMLElement): void {
+    const id = handle.closest<HTMLElement>('[data-block]')?.dataset.block;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    const box = handle.closest<HTMLElement>('.shape-box');
+    if (!id || !blk?.shape || !box || this.isReadOnly) return;
+    const r = box.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let rot = blk.shape.rot ?? 0;
+    const move = (ev: PointerEvent) => {
+      // Straight up from the middle is 0°.
+      const a = (Math.atan2(ev.clientX - cx, cy - ev.clientY) * 180) / Math.PI;
+      rot = ((Math.round(ev.shiftKey ? Math.round(a / 15) * 15 : a) % 360) + 360) % 360;
+      box.style.transform = rot ? `rotate(${rot}deg)` : '';
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (rot !== (blk.shape!.rot ?? 0)) this.setShapeLook(id, { rot });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Drags a shape that's in front of the text to anywhere on the page. */
+  private moveShape(handle: HTMLElement, startX: number, startY: number): void {
+    const id = handle.closest<HTMLElement>('[data-block]')?.dataset.block;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    const wrap = handle.closest<HTMLElement>('.shape-wrap');
+    const box = handle.closest<HTMLElement>('.shape-box');
+    if (!id || !blk?.shape || !wrap || !box || this.isReadOnly) return;
+    const scale = zoomOf(wrap);
+    const { x = 0, y = 0 } = blk.shape;
+    let at = { x, y };
+    const move = (ev: PointerEvent) => {
+      at = { x: x + (ev.clientX - startX) / scale / 96, y: y + (ev.clientY - startY) / scale / 96 };
+      wrap.style.left = `${at.x}in`;
+      wrap.style.top = `${at.y}in`;
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (at.x !== x || at.y !== y) this.setShapeLook(id, { x: at.x, y: at.y });
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -1410,6 +1463,8 @@ export class Editor {
       const action = shapeAction.dataset.shapeAction!;
       const tools = shapeAction.closest<HTMLElement>('.shape-tools');
       if (action === 'resize') return this.resizeShape(shapeAction, e.clientX, e.clientY);
+      if (action === 'rotate') return this.rotateShape(shapeAction);
+      if (action === 'move') return this.moveShape(shapeAction, e.clientX, e.clientY);
       if (action === 'menu') {
         tools?.classList.toggle('open');
         return;
@@ -1419,6 +1474,10 @@ export class Editor {
       if (action === 'fill') this.setShapeLook(id, { fill: value || null });
       else if (action === 'line') this.setShapeLook(id, { line: value || null });
       else if (action === 'wrap') this.setShapeLook(id, { wrap: value as ShapeLook['wrap'] });
+      else if (action === 'rot') {
+        const now = this.state.doc.blocks.find((b) => b.id === id)?.shape?.rot ?? 0;
+        this.setShapeLook(id, { rot: value === '0' ? 0 : now + Number(value) });
+      }
       else if (action === 'delete') {
         const blk = this.state.doc.blocks.find((b) => b.id === id)!;
         this.dispatch({ ops: [{ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('paragraph') }], selectionBefore: this.state.selection, selectionAfter: caret({ block: id, offset: 0 }) }, 'command');
@@ -1608,4 +1667,10 @@ function pastePlain(e: ClipboardEvent): void {
   e.preventDefault();
   const text = (e.clipboardData?.getData('text/plain') ?? '').replace(/\s*[\r\n]+\s*/g, ' ');
   e.target && (e.target as HTMLElement).ownerDocument.execCommand('insertText', false, text);
+}
+
+/** How much an element is scaled on screen (page view's zoom), from its unturned frame. */
+function zoomOf(el: HTMLElement): number {
+  const frame = el.closest<HTMLElement>('.shape-wrap') ?? el;
+  return frame.getBoundingClientRect().width / (frame.offsetWidth || 1) || 1;
 }
