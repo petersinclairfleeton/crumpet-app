@@ -192,7 +192,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     themselves with `useOfferHelped`). `booktoc.ts`: in a project, a table of contents
     lists the whole book (chapters with their start pages, and their
     headings), given to each chapter's editor (`setTocEntries`,
-    `setPageOffset`). Page view has `ruler.tsx` and `statusbar.tsx` (page,
+    `setPageOffset`), and footnote numbers run on from the chapters before
+    (`footnotesBefore`, `editor.setFootnoteStart`; also in printing and e-books).
+    Page view has `ruler.tsx` and `statusbar.tsx` (page,
     words, headings, zoom).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
@@ -211,7 +213,6 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   written all in small letters (so Rose isn't found in "rose").
 - Comment replies go to Word as Word's own threaded replies
   (`commentsExtended.xml`); checked by tests, not yet in real Word.
-- Footnotes restart in each chapter of a manuscript.
 - The web clipper doesn't work on sites with strict security settings
   (pasting keeps formatting instead) or in the single-file build.
 - Word features not built: styles of tables beyond the Table menu, paper

@@ -2760,3 +2760,40 @@ test('boards: cards and arrows, saved as JSON Canvas in the note', async ({ page
     .toBe('text,file 1');
   await expect(list(page).locator('.card').first()).toContainText('Board · 2 cards');
 });
+
+test('footnotes in a book: numbers run on from chapter to chapter', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('Book');
+  await page.keyboard.press('Enter');
+  await page.getByLabel('Chapter title').fill('One');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('First');
+  await page.keyboard.press('Control+Alt+f');
+  await page.keyboard.type('A note.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type(' and second');
+  await page.keyboard.press('Control+Alt+f');
+  await page.keyboard.type('Another.');
+  await page.keyboard.press('Enter');
+  await page.evaluate(() => {
+    const s = (window as unknown as { crumpet: { getState(): { projects: { id: string }[] }; addChapter(id: string): { id: string }; selectChapter(id: string): void } }).crumpet;
+    s.selectChapter(s.addChapter(s.getState().projects[0].id).id);
+  });
+  await page.getByLabel('Chapter title').fill('Two');
+  await page.getByLabel('Chapter text').click();
+  await page.keyboard.type('Third');
+  await page.keyboard.press('Control+Alt+f');
+  // The card, the number in the text and the page's footnotes all say 3.
+  await expect(page.getByRole('dialog', { name: 'Footnote 3' })).toBeVisible();
+  await page.keyboard.type('The last.');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.note-editor sup.fn')).toHaveAttribute('data-n', '3');
+  await expect(page.locator('.page-note sup')).toHaveText(['3']);
+  // In the manuscript, each chapter carries on.
+  await page.getByRole('button', { name: 'Manuscript', exact: true }).click();
+  await expect(page.locator('.ms-chapter sup.fn')).toHaveCount(3);
+  const numbers = await page.locator('.ms-chapter sup.fn').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.n));
+  expect(numbers).toEqual(['1', '2', '3']);
+  await expect(page.locator('.page-note sup')).toHaveText(['1', '2', '3']);
+});

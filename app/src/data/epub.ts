@@ -40,6 +40,8 @@ const IMAGE_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 
 class Book {
   images: { href: string; type: string; data: Uint8Array }[] = [];
   private seen = new Map<string, string | null>();
+  /** Footnotes in the chapters before: numbers run on through the book. */
+  private footnotes = 0;
 
   constructor(private opts: BookOptions) {}
 
@@ -64,7 +66,7 @@ class Book {
       for (const r of list) {
         if (r.change?.kind === 'del') continue;
         if (r.footnote !== undefined) {
-          const k = notes.length + 1;
+          const k = this.footnotes + notes.length + 1;
           notes.push(`<aside epub:type="footnote" id="fn${n}-${k}" class="footnote"><p><a href="#ref${n}-${k}">${k}.</a> ${esc(r.footnote)}</p></aside>`);
           out += `<a epub:type="noteref" href="#fn${n}-${k}" id="ref${n}-${k}" class="noteref">${k}</a>`;
           continue;
@@ -214,6 +216,7 @@ class Book {
           else out += `<p${b.style ? ` class="${b.style}"` : ''}${style(b)}>${runs(b.runs) || '&#160;'}</p>`;
       }
     }
+    this.footnotes += notes.length;
     if (notes.length) out += `<section epub:type="footnotes" class="footnotes"><hr/>${notes.join('')}</section>`;
     return out;
   }

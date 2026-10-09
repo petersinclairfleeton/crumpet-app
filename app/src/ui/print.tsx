@@ -9,6 +9,8 @@ import type { Doc } from '@crumpet/editor/model';
 import { paperInches, type PageSetup, type StyleSheet } from '../data/styles';
 import { type PageFields, PageView } from './pages';
 import { useDocEditor } from './editing';
+import { useFootnoteStart } from './booktoc';
+import { footnotes } from '@crumpet/editor/model';
 import { useSheetClass } from './styles-ui';
 
 export interface PrintPart {
@@ -17,8 +19,9 @@ export interface PrintPart {
   fields: PageFields;
 }
 
-function Part({ part, page, sheetClass, offset, total, chapters, onPages }: { part: PrintPart; page: PageSetup; sheetClass: string; offset: number; total?: number; chapters: boolean; onPages(id: string, n: number): void }) {
+function Part({ part, page, sheetClass, offset, total, chapters, onPages, footnoteStart }: { part: PrintPart; page: PageSetup; sheetClass: string; offset: number; total?: number; chapters: boolean; onPages(id: string, n: number): void; footnoteStart: number }) {
   const { host, editor } = useDocEditor({ docId: `print-${part.id}`, doc: part.doc, readOnly: true, onDoc: () => {} });
+  useFootnoteStart(editor, footnoteStart);
   const report = useCallback((n: number) => onPages(part.id, n), [onPages, part.id]);
   return (
     <div className="print-part">
@@ -146,7 +149,7 @@ export function PrintJob({ title, parts, page, sheet, chapters = false, onDone }
   return createPortal(
     <div ref={root} className={`print-root ${sheetClass}`} aria-hidden="true">
       {parts.map((p, i) => (
-        <Part key={p.id} part={p} page={page} sheetClass={sheetClass} offset={offsets[i]} total={ready ? total : undefined} chapters={chapters} onPages={onPages} />
+        <Part key={p.id} part={p} page={page} sheetClass={sheetClass} offset={offsets[i]} total={ready ? total : undefined} chapters={chapters} onPages={onPages} footnoteStart={parts.slice(0, i).reduce((n, x) => n + footnotes(x.doc).length, 0)} />
       ))}
     </div>,
     document.body,

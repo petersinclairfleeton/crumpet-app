@@ -247,7 +247,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
                 <div className="page-notes" role="list" aria-label={`Footnotes on page ${offset + i + 1}`}>
                   {list.map((n) => (
                     <p key={n} className="page-note" role="listitem" onMouseDown={(e) => e.preventDefault()} onClick={() => openNote(n)}>
-                      <sup>{n + 1}</sup> {notes[n]?.text || <em>Empty footnote</em>}
+                      <sup>{n + 1 + (editor?.footnoteStart ?? 0)}</sup> {notes[n]?.text || <em>Empty footnote</em>}
                     </p>
                   ))}
                 </div>

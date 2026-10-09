@@ -169,6 +169,18 @@ export class Editor {
     if (this.paged && this.state.doc.blocks.some((b) => b.type === 'toc')) this.repaginate();
   }
 
+  /** Footnotes before this document's first, so a book's footnote numbers run on from chapter to chapter. */
+  get footnoteStart(): number {
+    return this.view.footnoteStart;
+  }
+
+  setFootnoteStart(n: number): void {
+    if (this.view.footnoteStart === n) return;
+    this.view.footnoteStart = n;
+    this.view.numberFootnotes();
+    this.emit(null);
+  }
+
   /** A line of the table of contents for something not in this document (another chapter) was clicked. */
   onTocTarget: ((target: { chapter: string; block?: string }) => void) | null = null;
 
