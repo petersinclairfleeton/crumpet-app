@@ -148,6 +148,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - `src/data/snapshots.ts`: snapshots of notes and chapters (Scrivener's):
     kept in the store (`takeSnapshot`, `restoreSnapshot`), compared with
     diff-match-patch; the right sidebar's Snapshots tab is `ui/snapshots.tsx`.
+    Version history: `setDoc`/`setChapterDoc` keep the text as it was as an
+    automatic snapshot (`auto`), at most every ten minutes (`keepVersion`),
+    thinned by `pruneVersions`; off with `settings.autoVersions = false`.
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), the
     web clipper (`clip.ts`), writing stats, search, templates, attachments.
   - `src/data/panes.ts`: the writing area's panes, like Obsidian's: a tree of
@@ -218,4 +221,4 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   guesses the pages of headings in chapters not laid out yet (from their
   words) until they have been.
 - Not built yet: native Mac/iPhone/iPad apps, other storage (local folder,
-  Dropbox, OneDrive, iCloud), version history, reminders, sharing.
+  Dropbox, OneDrive, iCloud), reminders, sharing.

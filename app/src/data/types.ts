@@ -137,6 +137,8 @@ export interface Settings {
   dailyGoal?: number;
   /** Read aloud: speed (1 = normal) and the voice chosen (its voiceURI). */
   speech?: { rate?: number; voice?: string | null };
+  /** Keep versions of notes and chapters automatically while writing (on unless turned off). */
+  autoVersions?: boolean;
   /** Revision mode: the round being revised (1 to 5), whose colour typing takes; 0 or unset when off. */
   revision?: number;
   /** Words to write in a session (since Crumpet was opened today); 0 or unset for none. */

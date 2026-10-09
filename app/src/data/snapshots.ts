@@ -2,6 +2,10 @@
 // before a big rewrite, to compare with or go back to. Each is a Markdown file
 // of its own in the notes folder (`.crumpet/snapshots/<id>.md`), so they reach
 // every device; none is ever changed after it's taken.
+//
+// Version history: while someone writes, a version of the text as it was is
+// kept automatically (at most every ten minutes), and older ones are thinned
+// out (`pruneVersions`), like Google Docs' version history.
 
 import { diff_match_patch } from 'diff-match-patch';
 
@@ -17,6 +21,30 @@ export interface Snapshot {
   words: number;
   /** The text, as Markdown. */
   md: string;
+  /** Kept automatically while writing (thinned out over time), not taken by hand. */
+  auto?: boolean;
+}
+
+/** The least time between automatic versions of the same text. */
+export const VERSION_GAP = 10 * 60 * 1000;
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+
+/**
+ * Automatic versions to let go: all from the last day are kept, then one a
+ * day for a month, then one a week for three months, and none older. (Taken
+ * snapshots are always kept.)
+ */
+export function pruneVersions(list: Snapshot[], now: number): string[] {
+  const drop: string[] = [];
+  const kept = new Set<string>();
+  for (const s of [...list].filter((x) => x.auto).sort((a, b) => b.at - a.at)) {
+    const age = now - s.at;
+    const bucket = age < DAY ? `${s.docId} ${s.id}` : age < 30 * DAY ? `${s.docId} d${Math.floor(s.at / DAY)}` : age < 90 * DAY ? `${s.docId} w${Math.floor(s.at / (7 * DAY))}` : null;
+    if (bucket && !kept.has(bucket)) kept.add(bucket);
+    else drop.push(s.id);
+  }
+  return drop;
 }
 
 export const SNAPSHOT_DIR = '.crumpet/snapshots';
@@ -27,7 +55,7 @@ export function snapshotPath(id: string): string {
 
 /** The file for a snapshot: a few lines about it, then its text. */
 export function writeSnapshot(s: Snapshot): string {
-  const meta = { id: s.id, doc: s.docId, kind: s.kind, title: s.title, name: s.name, at: new Date(s.at).toISOString(), words: s.words };
+  const meta = { id: s.id, doc: s.docId, kind: s.kind, title: s.title, name: s.name, at: new Date(s.at).toISOString(), words: s.words, ...(s.auto ? { auto: true } : {}) };
   return `---\n${Object.entries(meta)
     .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
     .join('\n')}\n---\n${s.md}`;
@@ -57,6 +85,7 @@ export function readSnapshot(text: string): Snapshot | null {
     at: time,
     words: typeof meta.words === 'number' ? meta.words : 0,
     md: m[2],
+    ...(meta.auto === true ? { auto: true } : {}),
   };
 }
 

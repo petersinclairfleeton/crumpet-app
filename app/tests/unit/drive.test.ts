@@ -56,7 +56,8 @@ describe('Google Drive', () => {
     // The phone wrote two words, so it has a stats file of its own.
     const stats = drive.paths(root).filter((p) => p.startsWith('.crumpet/stats/'));
     expect(stats.length).toBe(2);
-    expect(drive.paths(root).filter((p) => !p.startsWith('.crumpet/stats/'))).toEqual(['.crumpet/', '.crumpet/vault.json', 'Writing/', 'Writing/Book/', 'Writing/Book/Chapter 1.md']);
+    // (and a version of the text before the phone's edit).
+    expect(drive.paths(root).filter((p) => !p.startsWith('.crumpet/stats/'))).toEqual(['.crumpet/', '.crumpet/snapshots/', expect.stringMatching(/^\.crumpet\/snapshots\/.+\.md$/), '.crumpet/vault.json', 'Writing/', 'Writing/Book/', 'Writing/Book/Chapter 1.md']);
 
     mac.store.deleteForever(n.id);
     await mac.engine.sync();

@@ -2328,19 +2328,52 @@ test('snapshots: take one, compare with the text now, and go back to it', async 
   await page.keyboard.press('Control+Alt+s');
   const right = page.getByRole('complementary', { name: 'Right sidebar' });
   await expect(right.getByRole('tab', { name: 'Snapshots' })).toHaveAttribute('aria-selected', 'true');
-  await expect(right.locator('.snapshot-list li')).toHaveCount(1);
+  // (Versions kept automatically while typing are listed too.)
+  const taken = right.locator('.snapshot-list li:not(.auto)');
+  await expect(taken).toHaveCount(1);
   // Change the text, then compare.
   await page.keyboard.type(' It lit itself.');
-  await right.getByRole('button', { name: 'Compare' }).click();
+  await taken.getByRole('button', { name: 'Compare' }).click();
   const compare = page.getByRole('dialog', { name: 'Compare with snapshot' });
   await expect(compare.locator('ins')).toHaveText([' It lit itself.']);
   await compare.getByRole('button', { name: 'Close' }).click();
   // Go back: the text as it was, and the rewrite kept as a snapshot.
-  await right.getByRole('button', { name: 'Go back to this' }).click();
-  await right.getByRole('button', { name: 'Go back', exact: true }).click();
+  await taken.getByRole('button', { name: 'Go back to this' }).click();
+  await taken.getByRole('button', { name: 'Go back', exact: true }).click();
   await expect(page.locator('.note-editor')).toHaveText('The lamp was dark.');
-  await expect(right.locator('.snapshot-list li')).toHaveCount(2);
-  await expect(right.locator('.snapshot-name').first()).toHaveText('Before going back to the snapshot');
+  await expect(taken).toHaveCount(2);
+  await expect(taken.locator('.snapshot-name').first()).toHaveText('Before going back to the snapshot');
+});
+
+test('version history: versions kept while writing, compared and gone back to', async ({ page }) => {
+  await page.clock.install();
+  await open(page);
+  await page.setViewportSize({ width: 1440, height: 880 });
+  await newNote(page, 'Draft', 'The lamp was dark.');
+  await page.clock.runFor(2000);
+  await page.keyboard.press('Control+Alt+s');
+  const right = page.getByRole('complementary', { name: 'Right sidebar' });
+  const versions = right.locator('.snapshot-list li.auto');
+  const count = await versions.count();
+  // Eleven minutes later, more writing: the text as it was is kept.
+  await page.clock.runFor(11 * 60_000);
+  await page.keyboard.type(' It lit itself.');
+  await page.clock.runFor(2000);
+  await expect(versions).toHaveCount(count + 1);
+  await expect(versions.first().locator('.snapshot-name')).toContainText('Version');
+  await expect(right.locator('.snapshot-day').first()).toHaveText('Today');
+  await versions.first().getByRole('button', { name: 'Compare' }).click();
+  const compare = page.getByRole('dialog', { name: 'Compare with snapshot' });
+  await expect(compare.locator('ins')).toHaveText([' It lit itself.']);
+  await compare.getByRole('button', { name: 'Close' }).click();
+  await versions.first().getByRole('button', { name: 'Go back to this' }).click();
+  await versions.first().getByRole('button', { name: 'Go back', exact: true }).click();
+  await expect(page.locator('.note-editor')).toHaveText('The lamp was dark.');
+  // Hiding versions, and turning them off.
+  await right.getByLabel(/Show \d+ automatic version/).uncheck();
+  await expect(versions).toHaveCount(0);
+  await right.getByLabel('Keep versions while I write').uncheck();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { autoVersions?: boolean } } } }).crumpet.getState().settings.autoVersions)).toBe(false);
 });
 
 test('chapter keywords: add them, see them in the outline and cards, and show only the chapters with one', async ({ page }) => {
