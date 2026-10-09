@@ -15,6 +15,7 @@ import { tabDrag } from './tabdrag';
 import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
+import { boardDoc, emptyBoard } from '../data/board';
 import { IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
@@ -682,6 +683,16 @@ function TemplateMenu({ onTemplate, onImport }: { onTemplate(t: { title: string;
             }}
           >
             Open a Word document…
+          </button>
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false);
+              onImport({ title: '', doc: boardDoc(emptyBoard()) });
+            }}
+          >
+            New board (cards and arrows)
           </button>
         </Popover>
       )}

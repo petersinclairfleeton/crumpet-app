@@ -140,6 +140,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     and searched with `noteText(note, fileText)`.
   - `src/data/graph.ts`: the graph view's notes, links and force layout;
     `ui/graph.tsx` draws it on a canvas, in a pane tab of kind `graph`.
+  - `src/data/board.ts`: boards (like Obsidian's Canvas): a note whose only
+    block is a ```` ```canvas ```` code block holding JSON Canvas (text,
+    note and group cards, arrows). `NotePane` shows `ui/board.tsx`
+    (`BoardView`) for such notes instead of the editor; made from the
+    sidebar's template menu ("New board").
   - `src/data/snapshots.ts`: snapshots of notes and chapters (Scrivener's):
     kept in the store (`takeSnapshot`, `restoreSnapshot`), compared with
     diff-match-patch; the right sidebar's Snapshots tab is `ui/snapshots.tsx`.

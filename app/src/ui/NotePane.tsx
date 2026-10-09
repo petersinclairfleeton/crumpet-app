@@ -15,6 +15,8 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { BoardView } from './board';
+import { isBoard } from '../data/board';
 import { InlineInput, Popover } from './Sidebar';
 
 interface PaneProps {
@@ -335,6 +337,17 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   );
 
   return (
+    isBoard(note) ? (
+      <section className="pane board-pane" aria-label="Board">
+        <div className="note-toolbar" role="toolbar" aria-label="Board options">
+          {lead}
+          <span className="grow" />
+          {trail}
+        </div>
+        <div className="board-header">{header}</div>
+        <BoardView key={note.id} note={note} />
+      </section>
+    ) :
     <section className="pane find-host" aria-label="Note" onKeyDown={trashed ? undefined : onFindKey}>
       {finding && !trashed && (
         <FindBar

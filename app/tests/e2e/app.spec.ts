@@ -2681,3 +2681,49 @@ test('graph view: notes and their links, all of them or just near the open note'
   await graph.getByLabel('Notes without links').check();
   await expect(graph.locator('.graph-count')).toHaveText('5 notes · 2 links');
 });
+
+test('boards: cards and arrows, saved as JSON Canvas in the note', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Mara', 'She keeps the lamp.');
+  await sidebar(page).getByRole('button', { name: 'New from a template' }).click();
+  await page.getByRole('button', { name: /New board/ }).click();
+  const surface = page.getByLabel('Board surface');
+  await expect(surface).toBeVisible();
+  await expect(surface).toContainText('Double-click anywhere');
+  // Double-click an empty spot: a text card, ready to type in.
+  const box = (await surface.boundingBox())!;
+  await surface.dblclick({ position: { x: box.width / 3, y: box.height / 2 } });
+  await page.getByLabel('Card text').fill('# Opening\nThe lamp goes **dark**.');
+  await page.keyboard.press('Escape');
+  const text = page.locator('.board-card.text');
+  await expect(text).toContainText('Opening');
+  await expect(text.locator('strong')).toHaveText('dark');
+  // A note from the picker.
+  await page.getByRole('button', { name: '+ Note' }).click();
+  await page.getByLabel('Find a note').fill('Mar');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.board-card.file')).toContainText('She keeps the lamp.');
+  // Draw an arrow from the text card to the note card.
+  await text.click();
+  const port = text.locator('.card-port.right');
+  const target = (await page.locator('.board-card.file').boundingBox())!;
+  const p = (await port.boundingBox())!;
+  await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator('.board path.arrow-line:not(.drawing)')).toHaveCount(1);
+  // Saved in the note as a ```canvas block.
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { code?: { lang: string; text: string } }[] } }[] } } }).crumpet.getState();
+        const code = s.notes.find((n) => n.id === s.selectedId)?.doc.blocks[0].code;
+        if (code?.lang !== 'canvas') return null;
+        const b = JSON.parse(code.text) as { nodes: { type: string }[]; edges: unknown[] };
+        return `${b.nodes.map((n) => n.type).join(',')} ${b.edges.length}`;
+      }),
+    )
+    .toBe('text,file 1');
+  await expect(list(page).locator('.card').first()).toContainText('Board · 2 cards');
+});
