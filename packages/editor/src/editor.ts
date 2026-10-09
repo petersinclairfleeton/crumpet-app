@@ -40,7 +40,7 @@ import {
   lookAt,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
-import { type CellAlign, type TableBorders, type TableShape, addCol, addRow, alignCol, deleteCol, deleteRow, mergeAt, mergeCells, setTableLook, setWidths, shadeCell, splitCell } from './table';
+import { type CellAlign, type TableBorders, type TableShape, isTableStyle, addCol, addRow, alignCol, deleteCol, deleteRow, mergeAt, mergeCells, setTableLook, setWidths, shadeCell, splitCell } from './table';
 import {
   type EditorState,
   type Transaction,
@@ -424,6 +424,8 @@ export class Editor {
     else if (action === 'header') next = setTableLook(now, { noHeader: !now.tbl?.noHeader });
     else if (action === 'banded') next = setTableLook(now, { banded: !now.tbl?.banded });
     else if (action === 'borders') next = setTableLook(now, { borders: (value || undefined) as TableBorders | undefined });
+    // A style from the gallery comes with banded rows, as in Word.
+    else if (action === 'style') next = setTableLook(now, isTableStyle(value) ? { style: value, banded: true } : { style: undefined });
     else if (action === 'delete' || (action === 'del-col' && width === 1)) {
       // The table goes; an empty line takes its place.
       this.dispatch({ ops: [{ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('paragraph') }], selectionBefore: this.state.selection, selectionAfter: caret({ block: id, offset: 0 }) }, 'command');

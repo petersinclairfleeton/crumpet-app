@@ -4,7 +4,7 @@
 // tracked changes are shown as if accepted.
 
 import { type Block, type Doc, type Run, BULLETS, isList, tidyRows } from '@crumpet/editor/model';
-import { isCovered, mergeAt } from '@crumpet/editor/table';
+import { isCovered, mergeAt, tableStyleColors } from '@crumpet/editor/table';
 import { cellRuns } from '@crumpet/editor/cells';
 import { NOTE_LINK } from '@crumpet/editor/markdown';
 import { type ZipEntry, utf8, writeZip } from './zip';
@@ -199,11 +199,21 @@ class Book {
           const rows = tidyRows(b.rows);
           const t = b.tbl;
           const head = !t?.noHeader;
+          const st = t?.style ? tableStyleColors(t.style) : null;
           // Merged cells span; shading, alignment, banding and lines as inline styles.
           const cell = (r: number, c: number, tag: string) => {
             if (isCovered(t, r, c)) return '';
             const m = mergeAt(t, r, c);
-            const css = [t?.shades?.[`${r},${c}`] ? `background-color: ${t.shades[`${r},${c}`]}` : t?.banded && (head ? r % 2 === 0 && r > 0 : r % 2 === 1) ? 'background-color: #f2f2f2' : '', t?.aligns?.[c] ? `text-align: ${t.aligns[c]}` : '', t?.borders === 'none' || t?.borders === 'outside' ? 'border: none' : t?.borders === 'rows' ? 'border-left: none; border-right: none' : ''].filter(Boolean);
+            const headCell = head && r === 0;
+            const fill = t?.shades?.[`${r},${c}`] ?? (headCell ? st?.head : t?.banded && !headCell && (head ? r % 2 === 1 : r % 2 === 0) ? (st?.band ?? '#f2f2f2') : null);
+            const css = [
+              fill ? `background-color: ${fill}` : '',
+              headCell && st?.headText ? `color: ${st.headText}` : '',
+              headCell && st && !st.head ? `border-bottom: 2px solid ${st.line}` : '',
+              t?.aligns?.[c] ? `text-align: ${t.aligns[c]}` : '',
+              t?.borders === 'none' || t?.borders === 'outside' ? 'border: none' : t?.borders === 'rows' ? 'border-left: none; border-right: none' : '',
+              st && t?.borders !== 'none' && t?.borders !== 'outside' ? `border-color: ${st.line}` : '',
+            ].filter(Boolean);
             return `<${tag}${m && m[2] > 1 ? ` rowspan="${m[2]}"` : ''}${m && m[3] > 1 ? ` colspan="${m[3]}"` : ''}${css.length ? ` style="${css.join('; ')}"` : ''}>${runs(cellRuns(rows[r][c]))}</${tag}>`;
           };
           const row = (r: number, tag: string) => `<tr>${rows[r].map((_, c) => cell(r, c, tag)).join('')}</tr>`;

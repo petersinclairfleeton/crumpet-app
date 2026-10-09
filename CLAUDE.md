@@ -71,7 +71,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     Mermaid loaded when first needed); saved as ```` ```math ```` /
     ```` ```mermaid ```` fences.
   - `table.ts`: table formatting (merged cells, shading, column alignment
-    and widths, heading row, banding, lines) and keeping it in step as rows and
+    and widths, heading row, banding, lines, and the gallery's styles,
+    `TABLE_STYLES`, which go to Word as table styles "Crumpet Blue" and so on) and keeping it in step as rows and
     columns change. `cells.ts`: a cell's text is a line of inline
     Markdown (bold, fonts, colours), drawn into and read from its box, and
     formatting applied there (the toolbar goes to the cell being typed in).
@@ -215,8 +216,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   (`commentsExtended.xml`); checked by tests, not yet in real Word.
 - The web clipper doesn't work on sites with strict security settings
   (pasting keeps formatting instead) or in the single-file build.
-- Word features not built: styles of tables beyond the Table menu, paper
-  size per section; shapes hold one paragraph of text and can't be rotated
+- Word features not built: Word's own built-in table styles (ours go to Word as
+  styles of their own), paper size per section; shapes hold one paragraph of text and can't be rotated
   or placed freely on the page. Printing turns landscape pages only
   in browsers that support named pages (Chrome, Edge, Firefox). A book's table of contents
   guesses the pages of headings in chapters not laid out yet (from their

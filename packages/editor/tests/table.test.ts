@@ -3,7 +3,7 @@ import { caret, makeBlock } from '../src/model';
 import { applyOps, invertOps } from '../src/ops';
 import { setTableRows } from '../src/commands';
 import { fromMarkdown, toMarkdown } from '../src/markdown';
-import { addCol, addRow, alignCol, deleteCol, deleteRow, isCovered, mergeCells, setTableLook, shadeCell, splitCell } from '../src/table';
+import { addCol, addRow, alignCol, deleteCol, deleteRow, isCovered, mergeCells, paler, setTableLook, shadeCell, splitCell, tableStyleColors } from '../src/table';
 
 const grid = () => [
   ['A', 'B', 'C'],
@@ -49,6 +49,16 @@ describe('table formatting', () => {
     const back = fromMarkdown(md).blocks;
     expect(back[0].tbl).toEqual(t.tbl);
     expect(back[1].runs[0].text).toBe('After');
+  });
+
+  it('keeps a gallery style in the file, and drops one it doesn’t know', () => {
+    const t = setTableLook({ rows: grid() }, { style: 'blue', banded: true });
+    const md = toMarkdown({ blocks: [makeBlock('table', '', [], { rows: t.rows, tbl: t.tbl })] });
+    expect(md).toContain('{table .banded style=blue}');
+    expect(fromMarkdown(md).blocks[0].tbl).toEqual({ banded: true, style: 'blue' });
+    expect(fromMarkdown(md.replace('style=blue', 'style=plaid')).blocks[0].tbl).toEqual({ banded: true });
+    expect(tableStyleColors('blue')).toEqual({ head: '#4472c4', headText: '#ffffff', band: paler('#4472c4', 0.2), line: paler('#4472c4', 0.6) });
+    expect(paler('#000000', 0.5)).toBe('#808080');
   });
 
   it('changes with undo, and reading a plain table has no look', () => {
