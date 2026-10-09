@@ -6,6 +6,7 @@ import { comments, footnotes, runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
 import type { Doc } from '@crumpet/editor/model';
 import type { Chapter, Note, Notebook, OutlineItem, Project, Stack, View } from './types';
+import { boardOf, boardPreview, boardText, isBoard } from './board';
 import { cellPlain } from '@crumpet/editor/cells';
 
 /** A block's plain text; a table's cells are its text. */
@@ -17,6 +18,7 @@ export function blockText(b: Doc['blocks'][number]): string {
 
 /** Plain text of a note's body, one line per block; with `files`, the words in its PDFs and pictures too. */
 export function noteText(note: Note, files?: Record<string, string>): string {
+  if (isBoard(note)) return boardText(boardOf(note));
   // Footnotes and comments are searched too, after the text.
   const remarks = comments(note.doc).flatMap(({ comment: c }) => [c.text, ...(c.replies ?? []).map((r) => r.text)]);
   const inFiles = files ? note.doc.blocks.flatMap((b) => (b.src && files[b.src] ? [files[b.src]] : [])) : [];
@@ -24,6 +26,10 @@ export function noteText(note: Note, files?: Record<string, string>): string {
 }
 
 export function preview(note: Note, max = 160): string {
+  if (isBoard(note)) {
+    const p = boardPreview(boardOf(note));
+    return p.length > max ? `${p.slice(0, max - 1).trimEnd()}…` : p;
+  }
   // Join blocks into one line; list items and other lines without their own punctuation get a separator.
   // A table reads row by row, its cells joined by dashes.
   const line = (b: Doc['blocks'][number]) => (b.type === 'table' ? (b.rows ?? []).map((r) => r.map((c) => cellPlain(c).trim()).filter(Boolean).join(' – ')).filter(Boolean).join(' · ') : blockText(b));

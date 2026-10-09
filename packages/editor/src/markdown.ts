@@ -495,11 +495,11 @@ export function fromMarkdown(md: string): Doc {
       } else code.lines.push(raw);
       continue;
     }
-    const codeOpen = !fence && !para.length ? /^ {0,3}(`{3,}|~{3,})[ \t]*(math|latex|tex|mermaid)[ \t]*$/i.exec(raw) : null;
+    const codeOpen = !fence && !para.length ? /^ {0,3}(`{3,}|~{3,})[ \t]*(math|latex|tex|mermaid|canvas)[ \t]*$/i.exec(raw) : null;
     if (codeOpen) {
       flushPara();
       listIndents = [];
-      code = { char: codeOpen[1][0], length: codeOpen[1].length, lang: /mermaid/i.test(codeOpen[2]) ? 'mermaid' : 'math', lines: [] };
+      code = { char: codeOpen[1][0], length: codeOpen[1].length, lang: /mermaid/i.test(codeOpen[2]) ? 'mermaid' : /canvas/i.test(codeOpen[2]) ? 'canvas' : 'math', lines: [] };
       continue;
     }
     if (fence) {

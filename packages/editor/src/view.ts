@@ -664,14 +664,14 @@ export function setCodeRenderer(f: CodeRenderer | null): void {
   codeRenderer = f;
 }
 
-const CODE_NAMES: Record<CodeLang, string> = { math: 'Maths', mermaid: 'Diagram' };
+const CODE_NAMES: Partial<Record<CodeLang, string>> = { math: 'Maths', mermaid: 'Diagram' };
 
 function drawCode(preview: HTMLElement, c: CodeLook): void {
   if (preview.dataset.drawn === `${c.lang}\n${c.text}`) return;
   preview.dataset.drawn = `${c.lang}\n${c.text}`;
   preview.textContent = '';
   if (!c.text.trim()) {
-    preview.textContent = c.lang === 'math' ? 'Type maths (LaTeX), like E = mc^2 or \\frac{a}{b}' : 'Type a diagram (Mermaid), like graph LR; A --> B';
+    preview.textContent = c.lang === 'math' ? 'Type maths (LaTeX), like E = mc^2 or \\frac{a}{b}' : c.lang === 'mermaid' ? 'Type a diagram (Mermaid), like graph LR; A --> B' : 'An empty board';
     preview.classList.add('code-empty');
     return;
   }
@@ -696,7 +696,7 @@ function buildCode(block: Block): HTMLElement {
   for (const k of Object.keys(CODE_NAMES) as CodeLang[]) {
     const o = document.createElement('option');
     o.value = k;
-    o.textContent = CODE_NAMES[k];
+    o.textContent = CODE_NAMES[k] ?? k;
     kind.appendChild(o);
   }
   kind.value = c.lang;

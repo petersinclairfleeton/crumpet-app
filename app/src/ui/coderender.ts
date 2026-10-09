@@ -38,6 +38,10 @@ const showError = (out: HTMLElement, message: string) => {
 export function renderCode(lang: CodeLang, text: string, out: HTMLElement): void {
   const ticket = String(++count);
   out.dataset.ticket = ticket;
+  if (lang === 'canvas') {
+    out.textContent = 'A board: it shows as cards and arrows in a note of its own.';
+    return;
+  }
   if (lang === 'math') {
     void loadKatex().then((k) => {
       if (out.dataset.ticket !== ticket) return;
