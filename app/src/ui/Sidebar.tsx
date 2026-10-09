@@ -4,6 +4,7 @@ import { readWordFile } from '../data/wordfiles';
 import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
 import { statusText } from './SyncSettings';
 import { SettingsDialog } from './Settings';
+import { canUseFolder } from '../sync/folder';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
 import { tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectWords, recentNotes, sameView } from '../data/selectors';
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
@@ -258,9 +259,14 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
       <div className="side-foot">
         <Logo size={16} />
         <span role="status">{footText(state.temporary, sync)}</span>
-        {!state.temporary && !sync.config && BUILT_IN_CLIENT_ID && (
+        {!state.temporary && !sync.config && (BUILT_IN_CLIENT_ID || canUseFolder) && (
           <button type="button" className="link-btn foot-link" onClick={() => setSettingsOpen(true)}>
-            Connect Google Drive
+            {BUILT_IN_CLIENT_ID ? 'Connect Google Drive' : 'Save to a folder'}
+          </button>
+        )}
+        {sync.config && sync.status?.phase === 'error' && sync.status.error?.kind !== 'offline' && (
+          <button type="button" className="link-btn foot-link" onClick={() => setSettingsOpen(true)}>
+            Fix…
           </button>
         )}
       </div>
@@ -623,7 +629,7 @@ function footText(temporary: boolean, sync: ReturnType<typeof useSync>['state'])
   const s = sync.status;
   if (s?.phase === 'syncing') return 'Syncing…';
   if (s?.phase === 'error') return s.error?.kind === 'offline' ? 'Offline · saved on this device' : 'Sync needs attention';
-  return statusText(s).replace(/\.$/, '').replace(/^Synced/, 'Google Drive · synced');
+  return statusText(s).replace(/\.$/, '').replace(/^Synced/, `${sync.config.kind === 'folder' ? 'Folder' : 'Google Drive'} · synced`);
 }
 
 /** 1234 → "1.2k", for word counts in narrow places. */

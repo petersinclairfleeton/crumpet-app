@@ -118,7 +118,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - `src/data/store.ts`: all app state and actions. `types.ts`: notes,
     notebooks, projects, chapters, characters and places, settings.
     `db.ts`: IndexedDB.
-  - `src/sync/`: syncing with a folder the person owns (Google Drive). Notes
+  - `src/sync/`: syncing with a folder the person owns: Google Drive
+    (`drive.ts`) or a folder on the computer (`folder.ts`, the File System
+    Access API in Chrome and Edge; its handle is kept in IndexedDB, and the
+    browser may ask again after a restart: "Allow access to the folder"). Notes
     are Markdown files with front matter; projects are folders with
     `project.json` (outline, styles, characters and places) and numbered
     chapter files, plus `Research/`; pictures are in `Attachments/`; shared
@@ -224,5 +227,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   in browsers that support named pages (Chrome, Edge, Firefox). A book's table of contents
   guesses the pages of headings in chapters not laid out yet (from their
   words) until they have been.
-- Not built yet: native Mac/iPhone/iPad apps, other storage (local folder,
-  Dropbox, OneDrive, iCloud), reminders, sharing.
+- Not built yet: native Mac/iPhone/iPad apps, Dropbox/OneDrive/iCloud as
+  services of their own (they need app keys from their makers; on a computer,
+  a folder they keep in step works instead), reminders, sharing. A folder on
+  the computer needs Chrome or Edge on a computer.
