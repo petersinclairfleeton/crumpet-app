@@ -3,6 +3,8 @@ import { mediaUrl } from '../data/files';
 import { useAppState, useAppStore } from './hooks';
 import { type Group, type SnippetPart, chapterText, displayTitle, groupByDate, listedNotes, matchingChapters, matchingNotebooks, noteText, preview, shortTime, snippet, viewTitle } from '../data/selectors';
 import type { Note, View } from '../data/types';
+import { reminderGroups } from '../data/reminders';
+import { ReminderTag } from './reminders';
 import { type SortBy, parseQuery, quoted, sortNotes, withToken, withoutToken } from '../data/search';
 import { allTags } from '../data/selectors';
 import { InlineInput, Popover } from './Sidebar';
@@ -24,9 +26,10 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
   const searching = !!state.query.trim();
   const trash = state.view.kind === 'trash' && !searching;
   const sort: SortBy = trash ? 'edited' : (state.settings.sort ?? 'edited');
-  const notes = sortNotes(listedNotes(state), sort);
+  const notes = state.view.kind === 'reminders' && !searching ? listedNotes(state) : sortNotes(listedNotes(state), sort);
   const now = Date.now();
-  const groups = sort === 'title' ? byLetter(notes) : groupByDate(notes, now, trash ? (n) => n.trashedAt ?? n.updatedAt : sort === 'created' ? (n) => n.createdAt : undefined);
+  const reminders = state.view.kind === 'reminders' && !searching;
+  const groups = reminders ? reminderGroups(notes, now) : sort === 'title' ? byLetter(notes) : groupByDate(notes, now, trash ? (n) => n.trashedAt ?? n.updatedAt : sort === 'created' ? (n) => n.createdAt : undefined);
   const { tokens, filters } = parseQuery(state.query);
   const words = searching ? filters.words : [];
   // A plain word search looks in projects' chapters too.
@@ -92,7 +95,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
             </button>
           )}
           <span className="grow" />
-          {!trash && (
+          {!trash && !reminders && (
             <label className="sort-pick">
               <span className="visually-hidden">Sort by</span>
               <select aria-label="Sort by" value={sort} onChange={(e) => store.updateSettings({ sort: e.target.value as SortBy })}>
@@ -268,6 +271,7 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen }: { not
         <span className="card-time">{shortTime(trash ? (note.trashedAt ?? note.updatedAt) : note.updatedAt, now)}</span>
       </span>
       <Snippet parts={hits} fallback={text} />
+      {!trash && <ReminderTag note={note} now={now} />}
       {(showNotebook || note.tags.length > 0) && (
         <span className="card-meta">
           {showNotebook && nb && (
@@ -297,6 +301,10 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
     text = 'The Trash is empty.';
     action = false;
   } else if (view.kind === 'favorites') text = 'Star a note to keep it in Favorites.';
+  else if (view.kind === 'reminders') {
+    text = 'No reminders yet. Click the bell at the top of a note to be reminded about it.';
+    action = false;
+  }
   else if (view.kind === 'stack') text = 'No notes in this stack’s notebooks yet.';
   else if (view.kind === 'tag') text = 'No notes have this tag any more.';
   else if (view.kind === 'all') text = 'No notes yet. Write your first one, then file it in a notebook whenever you like.';

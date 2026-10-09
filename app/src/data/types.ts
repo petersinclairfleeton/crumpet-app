@@ -35,6 +35,8 @@ export interface Note {
   projectId?: string | null;
   /** Front matter from the note's file that Crumpet doesn't use, kept so syncing never drops it. */
   extra?: string;
+  /** A reminder: when, and whether it's been dealt with. */
+  reminder?: { at: number; done?: boolean };
 }
 
 /** Crumpet's own looks follow the device (system) or are fixed light or dark; the rest are styles of their own. */
@@ -190,6 +192,7 @@ export interface LayoutPrefs {
 export type View =
   | { kind: 'all' }
   | { kind: 'favorites' }
+  | { kind: 'reminders' }
   | { kind: 'notebook'; id: string }
   | { kind: 'stack'; id: string }
   | { kind: 'tag'; tag: string }

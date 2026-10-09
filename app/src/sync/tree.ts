@@ -3,6 +3,7 @@
 // Sync works by merging three trees, so everything here is simple values that
 // compare and store easily. Note bodies are Markdown.
 
+import { encodeReminder } from '../data/reminders';
 import { toMarkdown } from '@crumpet/editor/markdown';
 import type { AppState } from '../data/store';
 import type { CastMember, ChapterStatus, Deadline, OutlineItem } from '../data/types';
@@ -28,6 +29,8 @@ export interface TNote {
   notebookId: string | null;
   tags: string[];
   favorite: boolean;
+  /** A reminder, as one string ("ISO date", " done" once dealt with). */
+  reminder?: string;
   created: number;
   updated: number;
   trashed: number | null;
@@ -112,6 +115,7 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
       notebookId: n.notebookId && tree.notebooks[n.notebookId] ? n.notebookId : null,
       tags: n.tags,
       favorite: n.favorite,
+      ...(n.reminder ? { reminder: encodeReminder(n.reminder) } : {}),
       created: n.createdAt,
       updated: n.updatedAt,
       trashed: n.trashedAt,
@@ -180,6 +184,7 @@ export function sameNote(a: TNote | undefined, b: TNote | undefined): boolean {
       a.notebookId === b.notebookId &&
       sameTags(a.tags, b.tags) &&
       a.favorite === b.favorite &&
+      (a.reminder ?? null) === (b.reminder ?? null) &&
       a.created === b.created &&
       a.updated === b.updated &&
       a.trashed === b.trashed &&

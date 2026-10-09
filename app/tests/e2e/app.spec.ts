@@ -2872,3 +2872,33 @@ test('footnotes in a book: numbers run on from chapter to chapter', async ({ pag
   expect(numbers).toEqual(['1', '2', '3']);
   await expect(page.locator('.page-note sup')).toHaveText(['1', '2', '3']);
 });
+
+test('reminders: set from the bell, listed under Reminders, and a message when one comes due', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 9, 9, 10, 0) });
+  await open(page);
+  await newNote(page, 'Call Ann', 'About the boat.');
+  const bell = page.getByRole('button', { name: 'Add a reminder' });
+  await bell.click();
+  await page.getByRole('dialog', { name: 'Reminder' }).getByRole('button', { name: /^Later today/ }).click();
+  await expect(page.getByRole('button', { name: /^Reminder: Today, 1:00/ })).toBeVisible();
+  // The sidebar's Reminders, grouped by when.
+  await sidebar(page).getByRole('button', { name: /^Reminders/ }).click();
+  await expect(list(page)).toContainText('Today');
+  await expect(list(page).locator('.card-reminder')).toContainText('Today, 1:00');
+  // Three hours on, it comes due: a message, with Done.
+  await page.clock.runFor(3 * 60 * 60_000 + 20_000);
+  const alerts = page.getByRole('region', { name: 'Reminders due' });
+  await expect(alerts).toContainText('Call Ann');
+  await alerts.getByRole('button', { name: 'Done' }).click();
+  await expect(alerts).toHaveCount(0);
+  await expect(list(page)).toContainText('Done');
+  await expect(list(page).locator('.card-reminder')).toHaveClass(/done/);
+  // A date and time of your own, then off again.
+  await page.getByRole('button', { name: /^Reminder: / }).click();
+  await page.getByLabel('Reminder date and time').fill('2026-12-24T18:30');
+  await page.getByRole('dialog', { name: 'Reminder' }).getByRole('button', { name: 'Set' }).click();
+  await expect(page.getByRole('button', { name: /^Reminder: Thu,? 24 Dec|^Reminder: Thu,? Dec 24/ })).toBeVisible();
+  await page.getByRole('button', { name: /^Reminder: / }).click();
+  await page.getByRole('button', { name: 'Remove reminder' }).click();
+  await expect(page.getByRole('button', { name: 'Add a reminder' })).toBeVisible();
+});

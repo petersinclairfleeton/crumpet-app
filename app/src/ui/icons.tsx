@@ -31,6 +31,7 @@ export const IconNote = icon(<path d="M6 3h9l4 4v14H6zM9 11h7M9 15h7" />);
 export const IconNotebook = icon(<path d="M6 3h11a2 2 0 0 1 2 2v16H8a2 2 0 0 1-2-2zM10 3v18" />);
 export const IconStack = icon(<path d="M4 7h13v13H4zM7 4h13v13" />);
 export const IconStar = icon(<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />);
+export const IconBell = icon(<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0" />);
 export const IconStarFilled = icon(<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />, true);
 export const IconTag = icon(
   <>

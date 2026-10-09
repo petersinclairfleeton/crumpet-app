@@ -1512,8 +1512,8 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .card-note.gone { color: var(--muted); font-style: italic; }
 .board-group { border: 1.5px dashed color-mix(in srgb, var(--card) 60%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--card) 5%, transparent); z-index: 0; }
 .board-group.on { border-color: var(--accent); }
-.group-label, .group-label-edit { position: absolute; left: 10px; top: -24px; font-size: 13px; font-weight: 700; color: color-mix(in srgb, var(--card) 70%, var(--text)); }
-.group-label-edit { padding: 1px 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--page); font: inherit; font-size: 13px; }
+.board-group :is(.group-label, .group-label-edit) { position: absolute; left: 10px; top: -24px; font-size: 13px; font-weight: 700; color: color-mix(in srgb, var(--card) 70%, var(--text)); }
+.board-group .group-label-edit { padding: 1px 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--page); font: inherit; font-size: 13px; }
 .board-arrows { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; z-index: 1; color: var(--muted); }
 .board-arrow .arrow-line { fill: none; stroke: currentColor; stroke-width: 2; }
 .board-arrow.on { color: var(--accent); }
@@ -1529,3 +1529,18 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .board-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--muted); font-size: 14px; pointer-events: none; }
 .board-picker { position: absolute; z-index: 20; left: 0; right: auto; top: 100%; min-width: 240px; padding: 6px; }
 .board-picker input { width: 100%; box-sizing: border-box; margin-bottom: 4px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--page); color: var(--text); font: inherit; }
+
+/* Reminders: the bell's popover, the time on a card, and the message when one comes due. */
+.menu-item .menu-time { margin-left: auto; padding-left: 12px; color: var(--muted); font-size: 12px; }
+.reminder-now { text-transform: none; letter-spacing: 0; font-size: 12.5px; color: var(--text); }
+.reminder-pick { display: flex; gap: 6px; padding: 6px 10px; }
+.reminder-pick input { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line2); border-radius: 6px; background: var(--field); color: var(--text); }
+.icon-btn.due { color: #c0392b; }
+.card-reminder { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 11.5px; color: var(--accent-ink, var(--muted)); }
+.card-reminder.due { color: #c0392b; font-weight: 600; }
+.card-reminder.done { color: var(--muted); text-decoration: line-through; }
+.reminder-alerts { position: fixed; right: 16px; bottom: 16px; z-index: 80; display: grid; gap: 8px; width: min(360px, calc(100vw - 32px)); }
+.reminder-alert { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--paper, var(--bg)); color: var(--text); border: 1px solid var(--line2); border-left: 3px solid var(--accent); border-radius: 10px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16); }
+.reminder-alert .grow { display: grid; min-width: 0; }
+.reminder-alert b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.reminder-alert small { color: var(--muted); font-size: 12px; }

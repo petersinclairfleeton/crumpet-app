@@ -144,6 +144,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     (Tesseract OCR, shipped with the app under `/ocr/` by `app/ocr.plugin.ts`),
     read in the background by `ui/fileindex.ts` into the store's `fileText`,
     and searched with `noteText(note, fileText)`.
+  - `src/data/reminders.ts` (+ `ui/reminders.tsx`): reminders on notes
+    (`note.reminder`, the bell beside the star, the sidebar's Reminders view,
+    `ReminderAlerts` while the app is open; in the file as `reminder:` and
+    `reminder-done:`, and as one string while syncing).
   - `src/data/graph.ts`: the graph view's notes, links and force layout;
     `ui/graph.tsx` draws it on a canvas, in a pane tab of kind `graph`.
   - `src/data/board.ts`: boards (like Obsidian's Canvas): a note whose only
@@ -229,5 +233,6 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   words) until they have been.
 - Not built yet: native Mac/iPhone/iPad apps, Dropbox/OneDrive/iCloud as
   services of their own (they need app keys from their makers; on a computer,
-  a folder they keep in step works instead), reminders, sharing. A folder on
+  a folder they keep in step works instead), sharing. Reminders only nudge
+  while Crumpet is open (no push from a server). A folder on
   the computer needs Chrome or Edge on a computer.

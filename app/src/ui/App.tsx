@@ -21,6 +21,7 @@ import { useTodayWords } from './stats-ui';
 import { SpeechBar, startReading, toggleDictation } from './speech';
 import { CompareDocs } from './comparedocs';
 import { useFileIndex } from './fileindex';
+import { ReminderAlerts } from './reminders';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -334,6 +335,7 @@ export function App() {
       {compare && <CompareDocs a={compare.a} b={compare.b} onSwap={() => setCompare({ a: compare.b, b: compare.a })} onClose={() => setCompare(null)} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
       <SpeechBar />
+      <ReminderAlerts onOpen={openNote} />
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.

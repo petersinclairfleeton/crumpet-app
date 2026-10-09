@@ -77,6 +77,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
         notebookId: field(b?.notebookId, l.notebookId, r.notebookId, newer.notebookId),
         tags: mergeTags(b?.tags ?? [], l.tags, r.tags),
         favorite: field(b?.favorite, l.favorite, r.favorite, newer.favorite),
+        ...withValue('reminder', field(b ? (b.reminder ?? null) : undefined, l.reminder ?? null, r.reminder ?? null, newer.reminder ?? null) ?? undefined),
         created: Math.min(l.created, r.created),
         updated: Math.max(l.updated, r.updated),
         trashed: field(b?.trashed, l.trashed, r.trashed, newer.trashed),
