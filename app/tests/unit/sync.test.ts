@@ -509,7 +509,7 @@ describe('syncing projects', () => {
     await mac.engine.sync();
     await phone.engine.sync();
     await mac.engine.sync();
-    expect([...cloud.files.keys()].filter((k) => k.endsWith('.md')).sort()).toEqual(['Projects/Book/01 B.md', 'Projects/Book/02 A.md']);
+    expect([...cloud.files.keys()].filter((k) => k.endsWith('.md') && !k.startsWith('.crumpet/')).sort()).toEqual(['Projects/Book/01 B.md', 'Projects/Book/02 A.md']);
     expect(outline(mac.store, p.id)).toEqual(['B', 'A']);
     expect(toMarkdown(mac.store.chapter(a.id)!.doc)).toBe('First.\n\nSecond, from the phone.\n');
     expect(shape(phone.store)).toEqual(shape(mac.store));

@@ -454,3 +454,31 @@ describe('project views', () => {
   });
 });
 
+
+describe('version history', () => {
+  it('keeps the text as it was before writing, at most every ten minutes, and drops versions with the note', async () => {
+    let t = 1_700_000_000_000;
+    const { store } = await fresh(() => t);
+    const note = store.createNote({ title: 'Lamp' });
+    // An empty note has nothing to keep.
+    store.setDoc(note.id, fromMarkdown('The lamp.\n'));
+    expect(store.getState().snapshots).toHaveLength(0);
+    store.setDoc(note.id, fromMarkdown('The lamp was lit.\n'));
+    expect(store.getState().snapshots.map((s) => [s.auto, s.md])).toEqual([[true, 'The lamp.\n']]);
+    t += 5 * 60_000;
+    store.setDoc(note.id, fromMarkdown('The lamp was dark.\n'));
+    expect(store.getState().snapshots).toHaveLength(1);
+    t += 6 * 60_000;
+    store.setDoc(note.id, fromMarkdown('The lamp was out.\n'));
+    expect(store.getState().snapshots.map((s) => s.md)).toEqual(['The lamp was dark.\n', 'The lamp.\n']);
+    // Turned off: none.
+    store.updateSettings({ autoVersions: false });
+    t += 20 * 60_000;
+    store.setDoc(note.id, fromMarkdown('Gone.\n'));
+    expect(store.getState().snapshots).toHaveLength(2);
+    // A snapshot by hand stays when the note is deleted for good; versions go.
+    store.takeSnapshot(note.id, 'Keep');
+    store.deleteForever(note.id);
+    expect(store.getState().snapshots.map((s) => s.name)).toEqual(['Keep']);
+  });
+});

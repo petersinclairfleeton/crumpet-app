@@ -15,7 +15,7 @@ import type { Persisted, Storage } from './db';
 import { attachmentsIn, forgetFiles } from './files';
 import { type StatsElsewhere, dayKey, recordEdit, wordsIn, wordsToday } from './stats';
 import { relinkDoc, sameTitle } from './links';
-import { type Snapshot, snapshotAttachments } from './snapshots';
+import { type Snapshot, VERSION_GAP, pruneVersions, snapshotAttachments } from './snapshots';
 import { tidyKeywords } from './keywords';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { removeRevisionColors } from './revisions';
@@ -374,7 +374,10 @@ export class AppStore {
   setDoc(id: string, doc: Doc): void {
     const before = this.note(id)?.doc;
     this.updateNote(id, { doc }, { delaySave: true });
-    if (before) this.countWords(id, before, doc);
+    if (before) {
+      this.countWords(id, before, doc);
+      this.keepVersion(id, before);
+    }
   }
 
   // ---------- writing stats ----------
@@ -465,6 +468,7 @@ export class AppStore {
     this.set({ notes: this.state.notes.filter((n) => n.id !== id) });
     this.save(this.storage.deleteNote(id));
     this.selectNeighbourIfHidden(id);
+    this.dropVersions(id);
     if (note) this.forgetUnused([note.doc]);
   }
 
@@ -1108,7 +1112,48 @@ export class AppStore {
   deleteSnapshot(id: string): void {
     if (!this.state.snapshots.some((x) => x.id === id)) return;
     this.setSnapshots(this.state.snapshots.filter((x) => x.id !== id));
-    void this.storage.getSync<string[]>(SNAPSHOTS_GONE_KEY).then((gone) => this.save(this.storage.putSync(SNAPSHOTS_GONE_KEY, [...(gone ?? []), id])));
+    this.forgetSnapshots([id]);
+  }
+
+  private goneChain: Promise<void> = Promise.resolve();
+  /** Notes snapshots deleted here, to be removed from the folder at the next sync (one after another, so none is lost). */
+  private forgetSnapshots(ids: string[]): void {
+    const next = this.goneChain.then(async () => {
+      const gone = (await this.storage.getSync<string[]>(SNAPSHOTS_GONE_KEY)) ?? [];
+      await this.storage.putSync(SNAPSHOTS_GONE_KEY, [...gone, ...ids]);
+    });
+    this.save(next);
+    this.goneChain = next.catch(() => undefined);
+  }
+
+  /** A note or chapter has gone for good: its automatic versions go too (snapshots taken by hand stay). */
+  private dropVersions(docId: string): void {
+    const drop = this.state.snapshots.filter((x) => x.docId === docId && x.auto).map((x) => x.id);
+    if (!drop.length) return;
+    this.setSnapshots(this.state.snapshots.filter((x) => !drop.includes(x.id)));
+    this.forgetSnapshots(drop);
+  }
+
+  /**
+   * Version history: as a note or chapter is edited, the text as it was before
+   * is kept, if there's no version of it from the last ten minutes. Older
+   * versions are thinned out.
+   */
+  private keepVersion(docId: string, before: Doc): void {
+    if (this.state.settings.autoVersions === false) return;
+    const now = this.now();
+    const latest = this.state.snapshots.find((x) => x.docId === docId);
+    if (latest && now - latest.at < VERSION_GAP) return;
+    const words = wordsIn(before);
+    const md = toMarkdown(before);
+    if (!md.trim() || latest?.md === md) return;
+    const note = this.note(docId);
+    const chapter = note ? undefined : this.chapter(docId);
+    const snap: Snapshot = { id: newId(), docId, kind: note ? 'note' : 'chapter', title: (note?.title ?? chapter?.title ?? '').trim(), name: '', at: now, words, md, auto: true };
+    const list = [snap, ...this.state.snapshots];
+    const drop = new Set(pruneVersions(list.filter((x) => x.docId === docId), now));
+    this.setSnapshots(drop.size ? list.filter((x) => !drop.has(x.id)) : list);
+    if (drop.size) this.forgetSnapshots([...drop]);
   }
 
   /** Puts a snapshot's text back, keeping a snapshot of what it replaces first. */
@@ -1117,7 +1162,7 @@ export class AppStore {
     if (!snap) return;
     const doc = this.note(snap.docId)?.doc ?? this.chapter(snap.docId)?.doc;
     if (!doc) return;
-    this.takeSnapshot(snap.docId, `Before going back to ${snap.name || 'the snapshot'}`);
+    this.takeSnapshot(snap.docId, `Before going back to ${snap.auto ? `the version of ${new Date(snap.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : snap.name || 'the snapshot'}`);
     const restored = matchIds(doc, fromMarkdown(snap.md));
     if (this.note(snap.docId)) this.setDoc(snap.docId, restored);
     else this.setChapterDoc(snap.docId, restored);
@@ -1148,7 +1193,10 @@ export class AppStore {
   setChapterDoc(id: string, doc: Doc): void {
     const before = this.chapter(id)?.doc;
     this.updateChapter(id, { doc }, true);
-    if (before) this.countWords(id, before, doc);
+    if (before) {
+      this.countWords(id, before, doc);
+      this.keepVersion(id, before);
+    }
   }
 
   setChapterTitle(id: string, title: string): void {
@@ -1179,6 +1227,7 @@ export class AppStore {
     this.set({ chapters: this.state.chapters.filter((c) => c.id !== id), chapterId: this.state.chapterId === id ? next : this.state.chapterId });
     this.save(this.storage.deleteChapter(id));
     if (project) this.updateProject(project.id, { outline: project.outline.filter((x) => x.id !== id) });
+    this.dropVersions(id);
     this.forgetUnused([chapter.doc]);
   }
 }

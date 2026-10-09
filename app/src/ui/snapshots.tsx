@@ -1,6 +1,7 @@
 // The right sidebar's Snapshots tab, like Scrivener's: take a snapshot of the
 // note or chapter before a big change, compare it with the text now, or go
-// back to it (the text it replaces is kept as a snapshot too).
+// back to it (the text it replaces is kept as a snapshot too). It also lists
+// the versions kept automatically while writing (version history), by day.
 
 import { useMemo, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
@@ -16,6 +17,14 @@ const docText = (doc: Doc) =>
     .join('\n\n');
 
 const plural = (n: number) => `${n.toLocaleString()} word${n === 1 ? '' : 's'}`;
+const dayOf = (t: number) => {
+  const d = new Date(t);
+  const today = new Date();
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
+};
 const when = (t: number) => new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
 export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Editor }) {
@@ -24,7 +33,11 @@ export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Edito
   const [name, setName] = useState('');
   const [asking, setAsking] = useState<null | { id: string; what: 'restore' | 'delete' }>(null);
   const [comparing, setComparing] = useState<Snapshot | null>(null);
-  const list = state.snapshots.filter((s) => s.docId === docId);
+  const [showAuto, setShowAuto] = useState(true);
+  const all = state.snapshots.filter((s) => s.docId === docId);
+  const list = all.filter((s) => showAuto || !s.auto);
+  const versions = all.filter((s) => s.auto).length;
+  const keeping = state.settings.autoVersions !== false;
   const known = state.notes.some((n) => n.id === docId) || state.chapters.some((c) => c.id === docId);
   if (!known) return <p className="right-empty">Snapshots are for notes and chapters.</p>;
   return (
@@ -42,11 +55,22 @@ export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Edito
           Take snapshot
         </button>
       </form>
-      {list.length === 0 && <p className="right-empty">No snapshots yet. Take one before a big rewrite, to compare with or go back to later.</p>}
+      <div className="snapshot-options">
+        <label className="check-row">
+          <input type="checkbox" checked={keeping} onChange={(e) => store.updateSettings({ autoVersions: e.target.checked })} /> Keep versions while I write
+        </label>
+        {versions > 0 && (
+          <label className="check-row">
+            <input type="checkbox" checked={showAuto} onChange={(e) => setShowAuto(e.target.checked)} /> Show {versions} automatic version{versions === 1 ? '' : 's'}
+          </label>
+        )}
+      </div>
+      {list.length === 0 && <p className="right-empty">No snapshots yet. Take one before a big rewrite, to compare with or go back to later.{keeping ? ' Versions are also kept as you write (every ten minutes or so).' : ''}</p>}
       <ul className="snapshot-list">
-        {list.map((s) => (
-          <li key={s.id}>
-            <div className="snapshot-name">{s.name || 'Snapshot'}</div>
+        {list.map((s, i) => (
+          <li key={s.id} className={s.auto ? 'auto' : undefined}>
+            {(i === 0 || dayOf(list[i - 1].at) !== dayOf(s.at)) && <h4 className="snapshot-day">{dayOf(s.at)}</h4>}
+            <div className="snapshot-name">{s.auto ? <>Version <span className="snapshot-tag">automatic</span></> : s.name || 'Snapshot'}</div>
             <div className="snapshot-meta">
               {when(s.at)} · {s.words.toLocaleString()} word{s.words === 1 ? '' : 's'}
             </div>
@@ -89,7 +113,7 @@ export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Edito
           label="Compare with snapshot"
           title={
             <>
-              Since “{comparing.name || 'Snapshot'}” <small>{when(comparing.at)}</small>
+              Since {comparing.auto ? 'the version' : `“${comparing.name || 'Snapshot'}”`} <small>{when(comparing.at)}</small>
             </>
           }
           before={docText(fromMarkdown(comparing.md))}
