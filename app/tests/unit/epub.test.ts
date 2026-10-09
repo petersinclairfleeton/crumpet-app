@@ -27,7 +27,7 @@ describe('e-books', () => {
           ],
         },
       },
-      { title: 'Two', doc: { blocks: [makeBlock('paragraph', 'Second.')] } },
+      { title: 'Two', doc: { blocks: [makeBlock('paragraph', 'Second.', [], { runs: [{ text: 'Second.', marks: [] }, { text: FOOTNOTE, marks: [], footnote: 'Again.' }] })] } },
     ];
     const bytes = await toEpub(chapters, { title: 'My Book', author: 'Me', language: 'en-GB', id: 'p1', media: async () => ({ bytes: PNG, type: 'image/png' }) });
     // "mimetype" first, stored as it is.
@@ -51,5 +51,7 @@ describe('e-books', () => {
     expect(opf).toContain('<dc:title>My Book</dc:title>');
     expect(opf).toContain('<item id="img1" href="images/image1.png" media-type="image/png"/>');
     expect(new TextDecoder().decode(files.get('OEBPS/nav.xhtml'))).toContain('<a href="chapter2.xhtml">Two</a>');
+    // Footnote numbers run on through the book.
+    expect(new TextDecoder().decode(files.get('OEBPS/chapter2.xhtml'))).toContain('<a href="#ref2-2">2.</a> Again.');
   });
 });

@@ -73,7 +73,7 @@ export function FootnoteCard({ editor }: { editor: Editor | null }) {
   });
 
   if (!open) return null;
-  const n = (editor ? footnotes(editor.state.doc).findIndex((f) => f.block === open.at.block && f.offset === open.at.offset) : -1) + 1;
+  const n = (editor ? footnotes(editor.state.doc).findIndex((f) => f.block === open.at.block && f.offset === open.at.offset) + editor.footnoteStart : -1) + 1;
   return createPortal(
     <div ref={card} className="footnote-card" role="dialog" aria-label={`Footnote ${n}`} style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }}>
       <label className="footnote-head">
@@ -124,7 +124,7 @@ export function FootnoteList({ doc, editor }: { doc: Doc; editor: Editor | null 
   if (!list.length) return null;
   return (
     <section className="footnote-list" aria-label="Footnotes">
-      <ol>
+      <ol start={(editor?.footnoteStart ?? 0) + 1}>
         {list.map((f) => (
           <li key={`${f.block}:${f.offset}`}>
             <button

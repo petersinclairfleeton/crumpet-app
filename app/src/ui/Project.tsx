@@ -13,7 +13,7 @@ import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
 import type { PageSetup, StyleKey, StyleSheet } from '../data/styles';
 import { useOfferHelped } from './helpers';
-import { bookEntries, goToLater, useBookToc } from './booktoc';
+import { bookEntries, footnotesBefore, goToLater, useBookToc, useFootnoteStart } from './booktoc';
 import type { TocEntry } from '@crumpet/editor/view';
 import { EditorHost } from './EditorHost';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, isMac, useDocEditor } from './editing';
@@ -712,7 +712,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         }}
       />
       <CastSpotting editor={chapterEditor} project={project} />
-      <BookToc editor={chapterEditor} chapterId={chapter.id} entries={tocEntries} offset={offset} onTarget={onTocTarget} />
+      <BookToc editor={chapterEditor} chapterId={chapter.id} entries={tocEntries} offset={offset} onTarget={onTocTarget} footnoteStart={footnotesBefore(list, chapter.id)} />
     </section>
   );
 }
@@ -894,6 +894,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
                   onEditor={onEditor}
                   onLinkKey={() => setLinkOpen(true)}
                   toc={bookEntries(numbered, c.id, startOf, pagesOf)}
+                  footnoteStart={footnotesBefore(numbered, c.id)}
                   onTocTarget={onTocTarget}
                 />
               );
@@ -920,6 +921,8 @@ interface ManuscriptChapterProps {
   onEditor(id: string, ed: Editor | null): void;
   toc: TocEntry[];
   onTocTarget(t: { chapter: string; block?: string }): void;
+  /** Footnotes in the chapters before, so the numbers run on. */
+  footnoteStart: number;
   onLinkKey(): void;
   onPage(p: PageSetup): void;
   fields: PageFields;
@@ -929,7 +932,7 @@ interface ManuscriptChapterProps {
   onPages(chapterId: string, n: number): void;
 }
 
-function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEditor, onLinkKey, onPage, fields, offset, total, onPages, toc, onTocTarget }: ManuscriptChapterProps) {
+function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEditor, onLinkKey, onPage, fields, offset, total, onPages, toc, onTocTarget, footnoteStart }: ManuscriptChapterProps) {
   const store = useAppStore();
   const reportPages = useCallback((n: number) => onPages(chapter.id, n), [onPages, chapter.id]);
   const nav = useNav();
@@ -950,6 +953,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
   useDocFontsLoaded(editor);
   useParaKeys(editor);
   useBookToc(editor, chapter.id, toc, offset, onTocTarget);
+  useFootnoteStart(editor, footnoteStart);
   useEffect(() => {
     if (!editor) return;
     onEditor(chapter.id, editor);
@@ -986,7 +990,8 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
 }
 
 /** The book's contents for a chapter's editor (a component, so the chapter view can use the hook beside its editor). */
-function BookToc({ editor, chapterId, entries, offset, onTarget }: { editor: Editor | null; chapterId: string; entries: TocEntry[]; offset: number; onTarget(t: { chapter: string; block?: string }): void }) {
+function BookToc({ editor, chapterId, entries, offset, onTarget, footnoteStart }: { editor: Editor | null; chapterId: string; entries: TocEntry[]; offset: number; onTarget(t: { chapter: string; block?: string }): void; footnoteStart: number }) {
   useBookToc(editor, chapterId, entries, offset, onTarget);
+  useFootnoteStart(editor, footnoteStart);
   return null;
 }

@@ -5,6 +5,7 @@
 import { useEffect } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import type { TocEntry } from '@crumpet/editor/view';
+import { footnotes } from '@crumpet/editor/model';
 import type { Chapter } from '../data/types';
 
 /** Where each chapter's headings were last laid out: block → page within the chapter (from 0). */
@@ -92,4 +93,21 @@ export function useBookToc(editor: Editor | null, chapterId: string, entries: To
     }
     return off;
   }, [editor, chapterId]);
+}
+
+/** How many footnotes come before a chapter in the book, so its numbers run on from the chapters before. */
+export function footnotesBefore(list: { chapter: Chapter }[], chapterId: string): number {
+  let n = 0;
+  for (const { chapter } of list) {
+    if (chapter.id === chapterId) return n;
+    n += footnotes(chapter.doc).length;
+  }
+  return 0;
+}
+
+/** Gives a chapter's editor the number of footnotes before it. */
+export function useFootnoteStart(editor: Editor | null, start: number): void {
+  useEffect(() => {
+    editor?.setFootnoteStart(start);
+  }, [editor, start]);
 }

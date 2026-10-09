@@ -62,6 +62,8 @@ export class View {
 
   /** Entries for a table of contents other than this document's headings (a book's, set by the app). */
   tocOverride: TocEntry[] | null = null;
+  /** Footnotes before this document's first (a book's earlier chapters), so its numbers run on. */
+  footnoteStart = 0;
 
   constructor(public root: HTMLElement) {
     root.contentEditable = 'true';
@@ -145,12 +147,17 @@ export class View {
       const entries = this.tocOverride ?? tocEntries(doc);
       for (const block of doc.blocks) if (block.type === 'toc') fillToc(this.rendered.get(block.id)!.el, entries);
     }
-    // Footnotes are numbered in order through the whole note.
-    this.root.querySelectorAll<HTMLElement>('sup.fn').forEach((el, i) => {
-      if (el.dataset.n !== String(i + 1)) el.dataset.n = String(i + 1);
-    });
+    this.numberFootnotes();
     const empty = doc.blocks.length === 1 && runsLength(doc.blocks[0].runs) === 0 && doc.blocks[0].type === 'paragraph';
     this.root.toggleAttribute('data-empty', empty);
+  }
+
+  /** Footnotes are numbered in order through the whole note (or book). */
+  numberFootnotes(): void {
+    this.root.querySelectorAll<HTMLElement>('sup.fn').forEach((el, i) => {
+      const n = String(i + 1 + this.footnoteStart);
+      if (el.dataset.n !== n) el.dataset.n = n;
+    });
   }
 
   blockElement(id: string): HTMLElement | null {
