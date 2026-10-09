@@ -15,6 +15,7 @@ import type { Persisted, Storage } from './db';
 import { attachmentsIn, forgetFiles } from './files';
 import { type StatsElsewhere, dayKey, recordEdit, wordsIn, wordsToday } from './stats';
 import { relinkDoc, sameTitle } from './links';
+import { decodeReminder, tidyReminder } from './reminders';
 import { type Snapshot, VERSION_GAP, pruneVersions, snapshotAttachments } from './snapshots';
 import { tidyKeywords } from './keywords';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
@@ -442,6 +443,15 @@ export class AppStore {
     if (note) this.updateNote(id, { tags: note.tags.filter((t) => t !== tag) });
   }
 
+  /** Sets a note's reminder (null takes it off). Asking for notifications is up to the caller (it needs a click). */
+  setReminder(id: string, reminder: { at: number; done?: boolean } | null): void {
+    const note = this.note(id);
+    if (!note) return;
+    const r = reminder ? tidyReminder(reminder) : undefined;
+    if (JSON.stringify(r ?? null) === JSON.stringify(note.reminder ?? null)) return;
+    this.updateNote(id, { reminder: r }, { touch: false });
+  }
+
   toggleFavorite(id: string): void {
     const note = this.note(id);
     if (note) this.updateNote(id, { favorite: !note.favorite }, { touch: false });
@@ -605,6 +615,7 @@ export class AppStore {
         doc,
         tags: t.tags,
         favorite: t.favorite,
+        ...(decodeReminder(t.reminder) ? { reminder: decodeReminder(t.reminder) } : {}),
         createdAt: t.created,
         updatedAt: t.updated,
         trashedAt: t.trashed,
@@ -1240,6 +1251,7 @@ function sameNoteRecord(a: Note, b: Note): boolean {
     a.tags.length === b.tags.length &&
     a.tags.every((t, i) => t === b.tags[i]) &&
     a.favorite === b.favorite &&
+    JSON.stringify(a.reminder ?? null) === JSON.stringify(b.reminder ?? null) &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt &&
     a.trashedAt === b.trashedAt &&
@@ -1278,6 +1290,9 @@ export function visibleIn(state: Pick<AppState, 'notes' | 'notebooks'>, view: Vi
     case 'favorites':
       out = live.filter((n) => n.favorite);
       break;
+    case 'reminders':
+      // Soonest first (the list groups them: overdue, today, coming up, done).
+      return live.filter((n) => n.reminder).sort((a, b) => a.reminder!.at - b.reminder!.at);
     case 'notebook':
       out = live.filter((n) => n.notebookId === view.id);
       break;

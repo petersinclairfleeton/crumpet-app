@@ -14,6 +14,7 @@ import { Tour } from './Tour';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
+import { ReminderButton } from './reminders';
 import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 import { BoardView } from './board';
 import { isBoard } from '../data/board';
@@ -115,6 +116,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           <IconPen size={16} />
         </button>
       )}
+      {!note.projectId && <ReminderButton note={note} />}
       <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} data-tip={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} onClick={() => store.toggleFavorite(note.id)}>
         {note.favorite ? <IconStarFilled size={16} /> : <IconStar size={16} />}
       </button>

@@ -6,6 +6,7 @@
 //   title: Opening scene
 //   tags: [draft, chapter-1]
 //   favorite: true
+//   reminder: 2026-10-10T09:00:00.000Z
 //   created: 2026-10-05T09:12:00.000Z
 //   updated: 2026-10-05T10:40:12.000Z
 //   ---
@@ -30,13 +31,15 @@ export interface NoteFile {
   /** Front matter lines Crumpet doesn't use, kept as written. */
   extra: string;
   body: string;
+  /** A reminder ("ISO date", with " done" once dealt with), as the sync keeps it. */
+  reminder?: string;
   /** Chapters only: status, synopsis and word goal. */
   status?: string;
   synopsis?: string;
   goal?: number | null;
 }
 
-const KNOWN = new Set(['id', 'title', 'tags', 'favorite', 'created', 'updated', 'trashed', 'from', 'status', 'synopsis', 'goal']);
+const KNOWN = new Set(['id', 'title', 'tags', 'favorite', 'reminder', 'reminder-done', 'created', 'updated', 'trashed', 'from', 'status', 'synopsis', 'goal']);
 
 export function writeNoteFile(f: NoteFile): string {
   const lines = ['---'];
@@ -44,6 +47,11 @@ export function writeNoteFile(f: NoteFile): string {
   if (f.title !== null) lines.push(`title: ${scalar(f.title)}`);
   if (f.tags.length) lines.push(`tags: [${f.tags.map((t) => (/^[\p{L}\p{N}_./-]+$/u.test(t) ? scalar(t) : JSON.stringify(t))).join(', ')}]`);
   if (f.favorite) lines.push('favorite: true');
+  if (f.reminder) {
+    const [at, done] = f.reminder.split(' ');
+    lines.push(`reminder: ${at}`);
+    if (done) lines.push('reminder-done: true');
+  }
   if (f.created !== null) lines.push(`created: ${date(f.created)}`);
   if (f.updated !== null) lines.push(`updated: ${date(f.updated)}`);
   if (f.trashed !== null) lines.push(`trashed: ${date(f.trashed)}`);
@@ -122,6 +130,14 @@ export function parseNoteFile(text: string): NoteFile {
       case 'favorite':
         f.favorite = /^(true|yes|on)$/i.test(parseScalar(raw));
         break;
+      case 'reminder': {
+        const at = parseDate(parseScalar(raw));
+        if (at !== null) f.reminder = new Date(at).toISOString() + (f.reminder?.endsWith(' done') ? ' done' : '');
+        break;
+      }
+      case 'reminder-done':
+        if (/^(true|yes|on)$/i.test(parseScalar(raw))) f.reminder = f.reminder ? `${f.reminder.split(' ')[0]} done` : ' done';
+        break;
       case 'created':
       case 'updated':
       case 'trashed':
@@ -135,6 +151,8 @@ export function parseNoteFile(text: string): NoteFile {
     }
   }
   f.extra = extra.join('\n');
+  // "Done" with no date isn't a reminder.
+  if (f.reminder?.startsWith(' ')) delete f.reminder;
   return f;
 }
 

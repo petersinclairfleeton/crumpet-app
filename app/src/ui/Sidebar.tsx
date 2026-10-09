@@ -5,6 +5,7 @@ import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
 import { statusText } from './SyncSettings';
 import { SettingsDialog } from './Settings';
 import { canUseFolder } from '../sync/folder';
+import { openReminders } from '../data/reminders';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
 import { tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectWords, recentNotes, sameView } from '../data/selectors';
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
@@ -17,7 +18,7 @@ import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
 import { boardDoc, emptyBoard } from '../data/board';
-import { IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { IconBell, IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenView(view: View): void;
@@ -109,6 +110,9 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
         <SideRow icon={<IconGraph size={13} />} label="Graph" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
         <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
+        {state.notes.some((n) => n.reminder && n.trashedAt === null) && (
+          <SideRow icon={<IconBell size={13} />} label="Reminders" count={openReminders(state.notes) || undefined} active={active({ kind: 'reminders' })} onClick={() => onOpenView({ kind: 'reminders' })} strong />
+        )}
 
         {(state.settings.savedSearches ?? []).length > 0 && (
           <>
