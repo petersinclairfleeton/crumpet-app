@@ -292,6 +292,17 @@ describe('Word tables', () => {
     expect(back.doc.blocks[0].tbl).toEqual(tbl);
   });
 
+  it('a gallery style goes to Word as a table style of its own, and comes back', async () => {
+    const tbl = { banded: true, style: 'green' as const };
+    const bytes = await toDocx([{ doc: { blocks: [makeBlock('table', '', [], { rows: [['A', 'B'], ['1', '2'], ['3', '4']], tbl })] } }], { title: 'T' });
+    const files = await readZip(bytes);
+    expect(new TextDecoder().decode(files.get('word/document.xml'))).toContain('<w:tblStyle w:val="CrumpetGreen"/>');
+    const styles = new TextDecoder().decode(files.get('word/styles.xml'));
+    expect(styles).toContain('<w:name w:val="Crumpet Green"/>');
+    expect(styles).toMatch(/w:styleId="CrumpetGreen">.*<w:tblStylePr w:type="firstRow"><w:rPr><w:b\/><w:color w:val="FFFFFF"\/><\/w:rPr><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="70AD47"\/>/);
+    expect((await fromDocx(bytes)).doc.blocks[0].tbl).toEqual(tbl);
+  });
+
   it('a table without a heading row, and with no lines', async () => {
     const tbl = { noHeader: true, borders: 'none' as const };
     const bytes = await toDocx([{ doc: { blocks: [makeBlock('table', '', [], { rows: [['a', 'b'], ['c', 'd']], tbl })] } }], { title: 'T' });

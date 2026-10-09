@@ -20,6 +20,42 @@ export interface TableLook {
   aligns?: (CellAlign | null)[];
   /** Each column's share of the table's width, in percent (unset: shared out by the browser). */
   widths?: number[];
+  /** A style from the gallery (TABLE_STYLES): coloured heading row, bands and lines. */
+  style?: TableStyleKey;
+}
+
+/**
+ * The Table menu's gallery, like Word's table styles: a colour for the
+ * heading row (its text white or black), with bands and lines in paler
+ * shades of it. "Light" keeps the heading row unfilled, with a line under it.
+ */
+export const TABLE_STYLES = {
+  light: { name: 'Light', color: '#404040', text: '', fill: false },
+  dark: { name: 'Dark', color: '#404040', text: '#ffffff', fill: true },
+  blue: { name: 'Blue', color: '#4472c4', text: '#ffffff', fill: true },
+  teal: { name: 'Teal', color: '#3d9bb3', text: '#ffffff', fill: true },
+  green: { name: 'Green', color: '#70ad47', text: '#ffffff', fill: true },
+  gold: { name: 'Gold', color: '#ffc000', text: '#000000', fill: true },
+  orange: { name: 'Orange', color: '#ed7d31', text: '#ffffff', fill: true },
+  purple: { name: 'Purple', color: '#8064a2', text: '#ffffff', fill: true },
+} as const;
+export type TableStyleKey = keyof typeof TABLE_STYLES;
+
+export function isTableStyle(v: unknown): v is TableStyleKey {
+  return typeof v === 'string' && Object.prototype.hasOwnProperty.call(TABLE_STYLES, v);
+}
+
+/** A colour mixed with white (amount of the colour, 0 to 1), as #rrggbb: a table style's bands and lines on paper. */
+export function paler(hex: string, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c: number) => Math.round(c * amount + 255 * (1 - amount)).toString(16).padStart(2, '0');
+  return `#${mix(n >> 16)}${mix((n >> 8) & 255)}${mix(n & 255)}`;
+}
+
+/** A table style's colours: heading row fill and text, bands, lines. */
+export function tableStyleColors(key: TableStyleKey): { head: string | null; headText: string | null; band: string; line: string } {
+  const st = TABLE_STYLES[key];
+  return { head: st.fill ? st.color : null, headText: st.text || null, band: paler(st.color, st.fill ? 0.2 : 0.1), line: paler(st.color, st.fill ? 0.6 : 0.75) };
 }
 
 const BORDERS: TableBorders[] = ['outside', 'rows', 'none'];
@@ -30,6 +66,7 @@ export function tidyTable(t: TableLook | undefined, rows: number, cols: number):
   const out: TableLook = {};
   if (t.noHeader) out.noHeader = true;
   if (t.banded) out.banded = true;
+  if (isTableStyle(t.style)) out.style = t.style;
   if (t.borders && BORDERS.includes(t.borders)) out.borders = t.borders;
   const merges: [number, number, number, number][] = [];
   const taken = new Set<string>();
@@ -206,8 +243,8 @@ export function setWidths({ rows, tbl }: TableShape, widths: number[] | undefine
   return { rows, tbl: tidyTable({ ...tbl, widths }, rows.length, rows[0].length) };
 }
 
-/** Sets the heading row, banded rows or lines. */
-export function setTableLook({ rows, tbl }: TableShape, patch: Pick<TableLook, 'noHeader' | 'banded' | 'borders'>): TableShape {
+/** Sets the heading row, banded rows, lines or style. */
+export function setTableLook({ rows, tbl }: TableShape, patch: Pick<TableLook, 'noHeader' | 'banded' | 'borders' | 'style'>): TableShape {
   return { rows, tbl: tidyTable({ ...tbl, ...patch }, rows.length, rows[0].length) };
 }
 
@@ -215,7 +252,7 @@ export function setTableLook({ rows, tbl }: TableShape, patch: Pick<TableLook, '
 
 /**
  * The look as the line written under a pipe table, e.g.
- * `{table .noheader .banded borders=rows merge=0-0-1-2 shade=1-2-#fff2cc}`.
+ * `{table .noheader .banded style=blue borders=rows merge=0-0-1-2 shade=1-2-#fff2cc}`.
  * Column alignment goes in the table's own rule row instead.
  */
 export function tableAttrs(t: TableLook | undefined): string {
@@ -223,6 +260,7 @@ export function tableAttrs(t: TableLook | undefined): string {
   const parts = [
     t.noHeader ? '.noheader' : '',
     t.banded ? '.banded' : '',
+    t.style ? `style=${t.style}` : '',
     t.borders ? `borders=${t.borders}` : '',
     ...(t.merges ?? []).map((m) => `merge=${m.join('-')}`),
     ...Object.entries(t.shades ?? {}).map(([k, v]) => `shade=${k.replace(',', '-')}-${v}`),
@@ -231,7 +269,7 @@ export function tableAttrs(t: TableLook | undefined): string {
   return parts.length ? `{table ${parts.join(' ')}}` : '';
 }
 
-export const TABLE_ATTRS = /^[ \t]*\{table((?:[ \t]+(?:\.noheader|\.banded|borders=[a-z]+|merge=\d+-\d+-\d+-\d+|shade=\d+-\d+-#[0-9a-fA-F]{6}|widths=[\d.]+(?:-[\d.]+)*))*)[ \t]*\}[ \t]*$/;
+export const TABLE_ATTRS = /^[ \t]*\{table((?:[ \t]+(?:\.noheader|\.banded|style=[a-z]+|borders=[a-z]+|merge=\d+-\d+-\d+-\d+|shade=\d+-\d+-#[0-9a-fA-F]{6}|widths=[\d.]+(?:-[\d.]+)*))*)[ \t]*\}[ \t]*$/;
 
 /** Reads the line written by tableAttrs (aligns come from the rule row). */
 export function readTableAttrs(line: string): TableLook | null {
@@ -241,7 +279,10 @@ export function readTableAttrs(line: string): TableLook | null {
   for (const tok of m[1].trim().split(/\s+/).filter(Boolean)) {
     if (tok === '.noheader') t.noHeader = true;
     else if (tok === '.banded') t.banded = true;
-    else if (tok.startsWith('borders=')) t.borders = tok.slice(8) as TableBorders;
+    else if (tok.startsWith('style=')) {
+      const v = tok.slice(6);
+      if (isTableStyle(v)) t.style = v;
+    } else if (tok.startsWith('borders=')) t.borders = tok.slice(8) as TableBorders;
     else if (tok.startsWith('merge=')) (t.merges ??= []).push(tok.slice(6).split('-').map(Number) as [number, number, number, number]);
     else if (tok.startsWith('widths=')) t.widths = tok.slice(7).split('-').map(Number);
     else if (tok.startsWith('shade=')) {

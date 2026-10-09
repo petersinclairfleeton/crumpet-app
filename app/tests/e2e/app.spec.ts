@@ -1885,6 +1885,29 @@ test('table layout and design: merge and split cells, shade a cell, align a colu
   expect(md).toContain('{table .noheader .banded borders=outside shade=1-2-#fff2cc}');
 });
 
+test('table styles: pick one from the gallery, and take it off again', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Cast', 'Who is who:');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+  for (const text of ['Name', 'Role', 'Age', 'Mara', 'Daughter', '32']) {
+    await page.keyboard.type(text);
+    await page.keyboard.press('Tab');
+  }
+  const table = page.locator('.note-editor .blk-table table');
+  await page.getByRole('button', { name: 'Table ▾' }).click();
+  await page.getByRole('button', { name: 'Table style: Blue' }).click();
+  await expect(table).toHaveAttribute('data-style', 'blue');
+  await expect(table).toHaveClass(/banded/);
+  await expect(table.locator('th').first()).toHaveCSS('background-color', 'rgb(68, 114, 196)');
+  await expect(table.locator('th').first()).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await page.getByRole('button', { name: 'Table ▾' }).click();
+  await expect(page.getByRole('button', { name: 'Table style: Blue' })).toHaveClass(/on/);
+  await page.getByRole('button', { name: 'Table style: none' }).click();
+  await expect(table).not.toHaveAttribute('data-style', /.+/);
+});
+
 test('table of contents: from the / menu, lists the headings with their pages, and goes to one; landscape pages', async ({ page }) => {
   await open(page);
   await sidebar(page).getByRole('button', { name: 'New project' }).click();

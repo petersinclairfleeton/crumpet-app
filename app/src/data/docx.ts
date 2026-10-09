@@ -4,7 +4,7 @@
 // back what Crumpet can show.
 
 import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
-import { type TableLook, mergeAt, tidyTable } from '@crumpet/editor/table';
+import { TABLE_STYLES, type TableLook, type TableStyleKey, mergeAt, tableStyleColors, tidyTable } from '@crumpet/editor/table';
 import { cellRuns, cellText } from '@crumpet/editor/cells';
 import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
@@ -344,13 +344,15 @@ class Writer {
         return `<w:tr>${r === 0 && head ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}${cells}</w:tr>`;
       })
       .join('');
-    const line = (side: string, on: boolean) => `<w:${side} w:val="${on ? 'single' : 'none'}" w:sz="4" w:space="0" w:color="auto"/>`;
+    const lineColor = t?.style ? tableStyleColors(t.style).line.slice(1).toUpperCase() : 'auto';
+    const line = (side: string, on: boolean) => `<w:${side} w:val="${on ? 'single' : 'none'}" w:sz="4" w:space="0" w:color="${lineColor}"/>`;
     // Lines other than Table Grid's every line: which of top, left, bottom, right, between rows, between columns are drawn.
     const ON: Record<string, string> = { outside: 'tlbr', rows: 'tbh', none: '' };
     const on = t?.borders ? ON[t.borders] : null;
     const borders = on === null ? '' : `<w:tblBorders>${(['t:top', 'l:left', 'b:bottom', 'r:right', 'h:insideH', 'v:insideV'] as const).map((x) => line(x.slice(2), on.includes(x[0]))).join('')}</w:tblBorders>`;
     const look = `<w:tblLook w:val="${head ? '04A0' : '0480'}" w:firstRow="${head ? 1 : 0}" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="${t?.banded ? 0 : 1}" w:noVBand="1"/>`;
-    return `<w:tbl><w:tblPr><w:tblStyle w:val="${t?.banded ? 'TableGridBanded' : 'TableGrid'}"/>${t?.widths ? `<w:tblW w:w="${Math.round(full)}" w:type="dxa"/>` : '<w:tblW w:w="0" w:type="auto"/>'}${borders}${t?.widths ? '<w:tblLayout w:type="fixed"/>' : ''}${look}</w:tblPr>${grid}${tr}</w:tbl>`;
+    const styleId = t?.style ? wordTableStyle(t.style) : t?.banded ? 'TableGridBanded' : 'TableGrid';
+    return `<w:tbl><w:tblPr><w:tblStyle w:val="${styleId}"/>${t?.widths ? `<w:tblW w:w="${Math.round(full)}" w:type="dxa"/>` : '<w:tblW w:w="0" w:type="auto"/>'}${borders}${t?.widths ? '<w:tblLayout w:type="fixed"/>' : ''}${look}</w:tblPr>${grid}${tr}</w:tbl>`;
   }
 
   /** A section's settings where they go (filled in once the page setup is written; see sectionXml in toDocx). */
@@ -547,6 +549,7 @@ function stylesXml(font: string, size: number): string {
     `<w:style w:type="character" w:styleId="CommentReference"><w:name w:val="annotation reference"/><w:rPr><w:sz w:val="16"/></w:rPr></w:style>` +
     `<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>` +
     `<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:color="auto"/><w:left w:val="single" w:sz="4" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:color="auto"/><w:right w:val="single" w:sz="4" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:color="auto"/></w:tblBorders><w:tblCellMar><w:left w:w="108" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style>` +
+    tableStylesXml() +
     `<w:style w:type="table" w:styleId="TableGridBanded"><w:name w:val="Table Grid Banded"/><w:basedOn w:val="TableGrid"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/></w:tblPr><w:tblStylePr w:type="band1Horz"><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/></w:tcPr></w:tblStylePr></w:style>` +
     `</w:styles>`
   );
@@ -1300,6 +1303,9 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     });
     const pr = child(t, 'tblPr');
     const lookEl = child(pr, 'tblLook');
+    // One of our gallery's styles, written as Word's table style "Crumpet Blue" and so on.
+    const styleVal = attr(child(pr, 'tblStyle'), 'val');
+    const galleryStyle = (Object.keys(TABLE_STYLES) as TableStyleKey[]).find((k) => wordTableStyle(k) === styleVal);
     const first = attr(lookEl, 'firstRow') ?? (attr(lookEl, 'val') ? String((parseInt(attr(lookEl, 'val')!, 16) & 0x20) >> 5) : '1');
     // A heading row is bold anyway: its own bold isn't kept.
     if (first !== '0') tidy[0] = tidy[0].map((cell) => cellText(cellRuns(cell).map((x) => ({ ...x, marks: x.marks.filter((m) => m !== 'bold') }))));
@@ -1316,7 +1322,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     // Column widths, when they aren't all the same.
     const grid = kids(child(t, 'tblGrid') ?? t).filter((x) => x.localName === 'gridCol').map((g) => Number(attr(g, 'w') ?? 0));
     const even = grid.length !== tidy[0].length || grid.some((x) => !(x > 0)) || Math.max(...grid) - Math.min(...grid) <= Math.max(...grid) * 0.02;
-    const tbl = tidyTable({ widths: even ? undefined : grid, noHeader: first === '0', banded: attr(child(pr, 'tblStyle'), 'val') === 'TableGridBanded', borders, merges, shades, aligns }, tidy.length, tidy[0].length);
+    const tbl = tidyTable({ widths: even ? undefined : grid, noHeader: first === '0', banded: styleVal === 'TableGridBanded' || (!!galleryStyle && attr(lookEl, 'noHBand') === '0'), style: galleryStyle, borders, merges, shades, aligns }, tidy.length, tidy[0].length);
     blocks.push(makeBlock('table', '', [], { rows: tidy, ...(tbl ? { tbl } : {}) }));
   };
 
@@ -1386,4 +1392,24 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   // Trailing empty paragraphs aren't wanted.
   while (blocks.length > 1 && blocks[blocks.length - 1].type === 'paragraph' && !blocks[blocks.length - 1].runs.length && !blocks[blocks.length - 1].style) blocks.pop();
   return { title: title || coreTitle, doc: { blocks: blocks.length ? blocks : [makeBlock('paragraph')] } };
+}
+
+/** The id of a gallery table style in Word ("CrumpetBlue", shown as "Crumpet Blue"). */
+function wordTableStyle(key: TableStyleKey): string {
+  return `Crumpet${key[0].toUpperCase()}${key.slice(1)}`;
+}
+
+/** The gallery's table styles as Word table styles: the heading row filled (bold, its text white or black), bands and lines paler. */
+function tableStylesXml(): string {
+  return (Object.keys(TABLE_STYLES) as TableStyleKey[])
+    .map((key) => {
+      const c = tableStyleColors(key);
+      const hex = (x: string) => x.slice(1).toUpperCase();
+      const side = (name: string, sz = 4, color = c.line) => `<w:${name} w:val="single" w:sz="${sz}" w:space="0" w:color="${hex(color)}"/>`;
+      const borders = `<w:tblBorders>${['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map((n) => side(n)).join('')}</w:tblBorders>`;
+      const headCell = c.head ? `<w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="${hex(c.head)}"/></w:tcPr>` : `<w:tcPr><w:tcBorders>${side('bottom', 12, TABLE_STYLES[key].color)}</w:tcBorders></w:tcPr>`;
+      const headRun = `<w:rPr><w:b/>${c.headText ? `<w:color w:val="${hex(c.headText)}"/>` : ''}</w:rPr>`;
+      return `<w:style w:type="table" w:customStyle="1" w:styleId="${wordTableStyle(key)}"><w:name w:val="Crumpet ${TABLE_STYLES[key].name}"/><w:basedOn w:val="TableGrid"/><w:tblPr><w:tblStyleRowBandSize w:val="1"/>${borders}</w:tblPr><w:tblStylePr w:type="firstRow">${headRun}${headCell}</w:tblStylePr><w:tblStylePr w:type="band1Horz"><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="${hex(c.band)}"/></w:tcPr></w:tblStylePr></w:style>`;
+    })
+    .join('');
 }

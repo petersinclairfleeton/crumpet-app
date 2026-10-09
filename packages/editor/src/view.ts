@@ -3,7 +3,7 @@
 // changed are rebuilt; the rest of the DOM is left alone.
 
 import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection } from './model';
-import { isCovered, mergeAt } from './table';
+import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
 import { type ShapeLook, tidyShape } from './shape';
 import { fillCell, readCell } from './cells';
 import { BULLETS, foldedUnder, isHeading, isList, isToggle, listLabels, runsLength, tidyCode } from './model';
@@ -790,7 +790,21 @@ function buildTable(block: Block): HTMLElement {
     b.setAttribute('role', 'menuitemcheckbox');
     return b;
   };
-  group('Style', [toggle('header', 'Heading row'), toggle('banded', 'Banded rows')]);
+  // Word's table styles: each button a little picture of the table in that style.
+  const gallery = document.createElement('div');
+  gallery.className = 'table-gallery';
+  const none = button('style', '', 'No style', '');
+  none.setAttribute('aria-label', 'Table style: none');
+  none.appendChild(stylePreview(null));
+  gallery.appendChild(none);
+  for (const key of Object.keys(TABLE_STYLES) as TableStyleKey[]) {
+    const b = button('style', '', `Table style: ${TABLE_STYLES[key].name}`, key);
+    b.setAttribute('aria-label', `Table style: ${TABLE_STYLES[key].name}`);
+    b.appendChild(stylePreview(key));
+    gallery.appendChild(b);
+  }
+  group('Table style', [gallery]);
+  group('Style options', [toggle('header', 'Heading row'), toggle('banded', 'Banded rows')]);
   group('Lines', [button('borders', 'All lines', 'All lines', ''), button('borders', 'Outside only', 'Outside only', 'outside'), button('borders', 'Between rows', 'Lines between rows', 'rows'), button('borders', 'No lines', 'No lines', 'none')]);
   const swatches = document.createElement('div');
   swatches.className = 'table-swatches';
@@ -813,6 +827,24 @@ function buildTable(block: Block): HTMLElement {
   return wrap;
 }
 
+/** A little table drawn in a style, for the gallery. */
+function stylePreview(key: TableStyleKey | null): HTMLElement {
+  const box = document.createElement('span');
+  box.className = 'tbl-preview';
+  if (key) {
+    box.dataset.style = key;
+    const st = TABLE_STYLES[key];
+    box.style.setProperty('--tbl-color', st.color);
+    if (st.text) box.style.setProperty('--tbl-text', st.text);
+  }
+  for (let i = 0; i < 4; i++) {
+    const row = document.createElement('span');
+    row.className = 'tbl-preview-row';
+    box.appendChild(row);
+  }
+  return box;
+}
+
 const CELL_SHADES = [
   ['#f2f2f2', 'Light grey'], ['#d9d9d9', 'Grey'], ['#fff2cc', 'Light gold'], ['#fce5cd', 'Light orange'], ['#f4cccc', 'Light red'],
   ['#d9d2e9', 'Light purple'], ['#cfe2f3', 'Light blue'], ['#d0e0e3', 'Light teal'], ['#d9ead3', 'Light green'], ['#ffff00', 'Yellow'],
@@ -833,6 +865,18 @@ function fillTable(table: HTMLTableElement, block: Block): void {
   else delete table.dataset.borders;
   table.classList.toggle('banded', !!t?.banded);
   table.classList.toggle('no-header', !!t?.noHeader);
+  // A gallery style: its colour (bands and lines are paler mixes of it, so they suit dark mode too).
+  const st = t?.style ? TABLE_STYLES[t.style] : null;
+  if (st && t?.style) {
+    table.dataset.style = t.style;
+    table.style.setProperty('--tbl-color', st.color);
+    if (st.text) table.style.setProperty('--tbl-text', st.text);
+    else table.style.removeProperty('--tbl-text');
+  } else {
+    delete table.dataset.style;
+    table.style.removeProperty('--tbl-color');
+    table.style.removeProperty('--tbl-text');
+  }
   // Column widths set by dragging; otherwise the browser shares the width out.
   if (t?.widths) {
     table.style.tableLayout = 'fixed';
@@ -849,6 +893,7 @@ function fillTable(table: HTMLTableElement, block: Block): void {
   check('[data-table-action="header"]', !t?.noHeader);
   check('[data-table-action="banded"]', !!t?.banded);
   wrap?.querySelectorAll<HTMLElement>('[data-table-action="borders"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (t?.borders ?? '')));
+  wrap?.querySelectorAll<HTMLElement>('[data-table-action="style"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (t?.style ?? '')));
   rows.forEach((row, r) => {
     const tr = table.insertRow();
     row.forEach((text, c) => {
