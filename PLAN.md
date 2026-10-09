@@ -45,22 +45,19 @@ Live at https://petersinclairfleeton.github.io/crumpet-app/ and installable as a
 - **Writing**: projects with parts and chapters (one at a time, as a manuscript, or as corkboard cards), research notes and files beside the writing, characters and places spotted in the text.
 - **Word features**: page view, styles, headers and footers, footnotes, comments, tracked changes, `.docx` export and import, print or save as PDF, ePub e-books.
 - **Look**: themes including Paper and ink, writing fonts, layout you control, focus mode, phone and tablet layouts, a first-visit tour.
-- **Your files, your cloud**: notes sync as Markdown files to a folder the person owns (Google Drive; setup in `docs/google-drive-setup.md`). No Crumpet server or account.
+- **Your files, your cloud**: notes sync as Markdown files to a folder the person owns (Google Drive, setup in `docs/google-drive-setup.md`, or a folder on the computer). No Crumpet server or account.
 - **Web clipper**: a "Clip to Crumpet" bookmark, and pasting from web pages keeps formatting.
 - **Writing tools** (second October batch): find and replace (in a note, a chapter or the whole book), deadlines with a daily target and "on track", a name generator for characters and places, typewriter mode with typing sounds, writing stats added up across devices.
 - **Design pass**: tables, previews and times tidied; search finds chapters and highlights matches; labelled icon buttons and a grouped … menu; character cards that make room and work on phones; Settings in sections; a clearer tablet sidebar.
+- **Panes and helpers** (October, third batch): panes side by side with tabs in each (drag anything into one), fold-away sidebars with a peek, a right sidebar of helpers (outline, styles, comments, links, snapshots, writing, thesaurus).
+- **Speed and power** (October, fourth batch): quick switcher and command palette, bookmarks, snapshots and automatic version history, chapter keywords, writing focus tools, revision colours, read aloud and dictation, thesaurus, format painter, comparing documents, callouts and toggles, maths and diagrams, search inside PDFs and pictures, graph view, boards (cards and arrows).
+- **Finishing the to-dos** (October): footnotes numbered through the whole book, a table styles gallery, shapes turned and placed anywhere, a folder on the computer as a place to keep notes (so a Dropbox, OneDrive or iCloud Drive folder works), reminders.
 
-Next possibilities: native Mac and iPhone/iPad apps, more storage choices (a folder on the computer, Dropbox, OneDrive, iCloud), version history, reminders, sharing. See `CLAUDE.md` for how we work and known gaps.
+Next possibilities: native Mac and iPhone/iPad apps, Dropbox and OneDrive as services of their own (they need app keys), reminders that arrive when the app is closed (needs a server), sharing. See `CLAUDE.md` for how we work and known gaps.
 
 ## Later to-dos
 
-Saved for later (October 2026), not scheduled yet:
-
-1. Shapes you can drag anywhere on the page and rotate.
-2. Version history: see and restore earlier drafts. (Snapshots you take yourself are built; automatic history isn't yet.)
-3. Footnotes numbered through the whole book, not restarting in each chapter.
-4. Table styles: Word's gallery of ready-made table looks.
-5. Saving to a folder on the computer, Dropbox or OneDrive as well as Google Drive.
+All five saved in October are done: shapes dragged anywhere and turned, automatic version history, footnotes through the whole book, table styles, and keeping notes in a folder on the computer. Still open from that list: Dropbox and OneDrive as their own connections (a folder they keep in step works today on a computer).
 
 ## v1 scope: Notes
 
