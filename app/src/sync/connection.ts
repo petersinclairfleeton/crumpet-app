@@ -1,13 +1,14 @@
 // Where this device's notes live, and keeping them synced there.
 //
 // Without a connection, notes stay in this browser only. Connected to Google
-// Drive, they're also Markdown files in a Drive folder: synced a moment after
-// each change, every minute while the app is open, and when it comes back
-// online or into view.
+// Drive (or a folder on this computer), they're also Markdown files there:
+// synced a moment after each change, every minute while the app is open, and
+// when it comes back online or into view.
 
 import type { Storage } from '../data/db';
 import type { AppStore } from '../data/store';
 import { DriveProvider, findFolder, findOrCreateFolder } from './drive';
+import { FolderProvider, chooseFolder, folderAllowed } from './folder';
 import { pickFolder } from './google-picker';
 import { SyncEngine, type SyncState, type SyncStatus } from './engine';
 import { GoogleAuth, SignInNeeded } from './google-auth';
@@ -21,7 +22,14 @@ export interface DriveConfig {
   folderId: string;
 }
 
-export type SyncConfig = DriveConfig;
+/** A folder on this computer (the browser keeps the handle to it). */
+export interface FolderConfig {
+  kind: 'folder';
+  folderName: string;
+  handle: FileSystemDirectoryHandle;
+}
+
+export type SyncConfig = DriveConfig | FolderConfig;
 
 export interface ConnectionState {
   config: SyncConfig | null;
@@ -103,7 +111,27 @@ export class SyncConnection {
       const config: DriveConfig = { kind: 'drive', clientId: auth.clientId, folderName: chosen.name, folderId: chosen.id };
       // A different folder means starting fresh: nothing agreed with it yet.
       const old = await this.storage.getSync<SyncConfig>(CONFIG);
-      if (!old || old.folderId !== chosen.id) await this.storage.deleteSync(STATE);
+      if (!old || old.kind !== 'drive' || old.folderId !== chosen.id) await this.storage.deleteSync(STATE);
+      await this.storage.putSync(CONFIG, config);
+      this.set({ choosing: null });
+      this.start(config);
+    } finally {
+      this.set({ connecting: false });
+    }
+  }
+
+  /** Keeps the notes in a folder on this computer, chosen now (call from a click). */
+  async useLocalFolder(): Promise<void> {
+    const handle = await chooseFolder();
+    if (!handle) return;
+    this.set({ connecting: true });
+    try {
+      const old = await this.storage.getSync<SyncConfig>(CONFIG);
+      const same = old?.kind === 'folder' && (await old.handle.isSameEntry(handle).catch(() => false));
+      if (!same) await this.storage.deleteSync(STATE);
+      this.auth?.signOut();
+      this.auth = null;
+      const config: FolderConfig = { kind: 'folder', folderName: handle.name, handle };
       await this.storage.putSync(CONFIG, config);
       this.set({ choosing: null });
       this.start(config);
@@ -130,8 +158,14 @@ export class SyncConnection {
 
   /** Signs in again after Google asked (call from a click), then syncs. */
   async reconnect(): Promise<void> {
-    if (!this.auth) return;
-    await this.auth.signIn();
+    const config = this.state.config;
+    if (config?.kind === 'folder') {
+      // The browser asks again for the folder.
+      if (!(await folderAllowed(config.handle, true))) throw new ProviderError('Crumpet still can’t use the folder. Choose it again to carry on.', 'auth');
+    } else {
+      if (!this.auth) return;
+      await this.auth.signIn();
+    }
     await this.syncNow();
   }
 
@@ -156,6 +190,7 @@ export class SyncConnection {
     this.stop();
     let provider: Provider;
     if (this.makeProvider) provider = this.makeProvider(config);
+    else if (config.kind === 'folder') provider = new FolderProvider(config.handle);
     else {
       this.auth ??= new GoogleAuth(config.clientId);
       provider = new DriveProvider({ getToken: this.tokenFn(this.auth), rootId: config.folderId });

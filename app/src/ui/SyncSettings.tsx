@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
 import type { SyncStatus } from '../sync/engine';
 import { canPickFolder } from '../sync/google-picker';
+import { canUseFolder } from '../sync/folder';
 import { useSync } from './hooks';
 
-/** Settings: where notes are kept, and connecting Google Drive. */
+/** Settings: where notes are kept: Google Drive, or a folder on this computer. */
 export function SyncSettings() {
   const { sync, state } = useSync();
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +22,15 @@ export function SyncSettings() {
       <div className="field sync-settings" role="group" aria-label="Where your notes live">
         <span>Where your notes live</span>
         <p className="sync-where">
-          In your Google Drive, in the folder <b>{config.folderName}</b>, as Markdown files you can open with any app.
+          {config.kind === 'folder' ? (
+            <>
+              In the folder <b>{config.folderName}</b> on this computer, as Markdown files you can open with any app.
+            </>
+          ) : (
+            <>
+              In your Google Drive, in the folder <b>{config.folderName}</b>, as Markdown files you can open with any app.
+            </>
+          )}
         </p>
         <p className={`sync-line${s?.phase === 'error' ? ' bad' : ''}`} role="status">
           {statusText(s)}
@@ -29,7 +38,7 @@ export function SyncSettings() {
         <div className="sync-actions">
           {s?.error?.kind === 'auth' ? (
             <button type="button" className="btn primary" onClick={() => run(() => sync.reconnect())}>
-              Sign in again
+              {config.kind === 'folder' ? 'Allow access to the folder' : 'Sign in again'}
             </button>
           ) : (
             <button type="button" className="btn" disabled={s?.phase === 'syncing'} onClick={() => sync.syncNow()}>
@@ -82,11 +91,19 @@ export function SyncSettings() {
           <GoogleMark />
           {state.connecting ? 'Opening Google…' : 'Continue with Google'}
         </button>
+        {canUseFolder && (
+          <button type="button" className="btn" disabled={state.connecting} onClick={() => run(() => sync.useLocalFolder())}>
+            Use a folder on this computer…
+          </button>
+        )}
       </div>
       <p className="sync-hint">
         {BUILT_IN_CLIENT_ID
           ? 'Keep your notes as Markdown files in a folder in your Google Drive, and see them on all your devices. Crumpet can only see that folder.'
           : 'Google Drive isn’t set up in this copy of Crumpet yet.'}
+        {canUseFolder
+          ? ' Or keep them in a folder on this computer: pick one that Dropbox, OneDrive or iCloud Drive keeps in step to have them on your other devices too.'
+          : ' (Keeping notes in a folder on this computer needs Chrome or Edge on a computer.)'}
       </p>
       {error && <p className="sync-line bad">{error}</p>}
     </div>

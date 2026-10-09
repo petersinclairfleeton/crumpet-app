@@ -90,3 +90,62 @@ test('or choose any folder in Drive with Google’s picker', async ({ browser })
   await expect(where(page)).toContainText('in the folder Writing');
   await expect.poll(() => drive.paths(writing.id), { timeout: 15_000 }).toContain('.crumpet/vault.json');
 });
+
+// A folder on this computer: the browser's folder picker is faked with a
+// folder in the browser's own private file storage (which works the same way).
+const FAKE_FOLDER_PICKER = `window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('My notes', { create: true });`;
+
+test('keep notes in a folder on this computer: files written there, changes made outside come in, and it’s remembered', async ({ browser }) => {
+  const context = await browser.newContext();
+  await context.addInitScript(FAKE_FOLDER_PICKER);
+  const page = await context.newPage();
+  await page.goto('/');
+  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await sidebar(page).getByRole('button', { name: 'New Note', exact: true }).click();
+  await page.keyboard.type('Harbour');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The boats come in at dusk.');
+  await sidebar(page).getByRole('button', { name: 'Connect Google Drive' }).click();
+  await where(page).getByRole('button', { name: 'Use a folder on this computer…' }).click();
+  await expect(where(page)).toContainText('In the folder My notes on this computer');
+  await expect(where(page).getByRole('status')).toHaveText(/Synced/);
+  const files = () =>
+    page.evaluate(async () => {
+      const out: Record<string, string> = {};
+      const walk = async (dir: FileSystemDirectoryHandle, prefix: string) => {
+        for await (const h of (dir as unknown as { values(): AsyncIterable<FileSystemHandle> }).values()) {
+          if (h.kind === 'directory') await walk(h as FileSystemDirectoryHandle, `${prefix}${h.name}/`);
+          else out[prefix + h.name] = await (await (h as FileSystemFileHandle).getFile()).text();
+        }
+      };
+      await walk(await (await navigator.storage.getDirectory()).getDirectoryHandle('My notes'), '');
+      return out;
+    });
+  await expect.poll(async () => Object.entries(await files()).find(([k]) => k.endsWith('Harbour.md'))?.[1] ?? '').toContain('The boats come in at dusk.');
+  // A note written in the folder by another app comes in at the next sync.
+  await page.evaluate(async () => {
+    const dir = await (await navigator.storage.getDirectory()).getDirectoryHandle('My notes');
+    const out = await (await dir.getFileHandle('Lighthouse.md', { create: true })).createWritable();
+    await out.write('The lamp is lit at dusk.\n');
+    await out.close();
+  });
+  await where(page).getByRole('button', { name: 'Sync now' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('region', { name: 'Notes', exact: true }).locator('.card', { hasText: 'Lighthouse' })).toBeVisible();
+  // After a reload the folder is still the place.
+  await page.reload();
+  await expect(page.locator('.side-foot')).toContainText('Folder · synced');
+  // When the browser wants to ask again before Crumpet uses the folder, one click allows it.
+  await page.evaluate(() => {
+    const proto = FileSystemHandle.prototype as unknown as { queryPermission(): Promise<string>; requestPermission(): Promise<string> };
+    let allowed = false;
+    proto.queryPermission = async () => (allowed ? 'granted' : 'prompt');
+    proto.requestPermission = async () => ((allowed = true), 'granted');
+  });
+  await page.evaluate(() => (window as unknown as { crumpet: { createNote(n: object): unknown } }).crumpet.createNote({ title: 'Later' }));
+  await expect(page.locator('.side-foot')).toContainText('Sync needs attention');
+  await sidebar(page).getByRole('button', { name: 'Fix…' }).click();
+  await where(page).getByRole('button', { name: 'Allow access to the folder' }).click();
+  await expect(where(page).getByRole('status')).toHaveText(/Synced/);
+  await context.close();
+});
