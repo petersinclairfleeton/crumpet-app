@@ -2,10 +2,14 @@
 // page, opens Crumpet with that page (or just the part selected) ready to be
 // saved as a note.
 //
-// The bookmark opens Crumpet at #clip. Crumpet says it's ready to its opener;
-// the bookmark answers with the page's title, address and HTML. Short clips
-// also travel in the address itself (#clip=…), for pages that cut the link
-// between windows.
+// The bookmark tidies the page down to its words, links and pictures, and
+// opens Crumpet at #clip=… with the clip in the address itself, so it arrives
+// even from sites that cut the link between windows (many big sites do).
+// A page too big for an address opens Crumpet at #clip, which says it's
+// ready to its opener; the bookmark answers with the clip by message.
+//
+// The Mac app has no web address: its bookmark opens crumpet://clip#clip=…,
+// which macOS hands to the app (see desktop/main.cjs).
 
 import { type Block, type BlockType, type Doc, type Look, type Mark, type Run, makeBlock, normalizeRuns, sortMarks, tidyLook, tidyRows } from '@crumpet/editor/model';
 import { cellText, domRuns, hexColor, lookOfStyle } from '@crumpet/editor/cells';
@@ -18,20 +22,34 @@ export interface Clip {
   selection: boolean;
 }
 
-/** Clips longer than this go by message only, not in the address. */
-const MAX_IN_URL = 6000;
+/** Clips longer than this (as an address) go by message only. Browsers take addresses of a megabyte or two. */
+const MAX_IN_URL = 1_500_000;
 
-/** The bookmark's code, for a Crumpet at `appUrl`. */
+/** What the bookmark takes out of a page before sending it: everything the note leaves out anyway. */
+const DROP = 'script,style,noscript,template,link,meta,nav,footer,aside,form,button,select,input:not([type=checkbox]),textarea,svg,iframe,object,embed,canvas,dialog,menu,header,video,audio,picture source';
+/** The attributes the note needs (all others go): links, pictures, table cells, checkboxes, list starts, hidden things. */
+const KEEP = 'href,src,data-src,alt,colspan,rowspan,type,checked,start,hidden,aria-hidden';
+
+/** The bookmark's code, for a Crumpet at `appUrl` (`crumpet://clip` for the Mac app). */
 export function bookmarklet(appUrl: string): string {
+  const app = appUrl.startsWith('crumpet:');
   const code = `(function(){
-var A=${JSON.stringify(appUrl)},O=new URL(A).origin,s=getSelection(),h='',sel=!!(s&&s.rangeCount&&!s.isCollapsed);
-if(sel){var d=document.createElement('div');for(var i=0;i<s.rangeCount;i++)d.appendChild(s.getRangeAt(i).cloneContents());h=d.innerHTML}
-else{var e=document.querySelector('article')||document.querySelector('main')||document.querySelector('[role=main]')||document.body;h=e.innerHTML}
+var A=${JSON.stringify(appUrl)},s=getSelection(),r,sel=!!(s&&s.rangeCount&&!s.isCollapsed);
+if(sel){r=document.createElement('div');for(var i=0;i<s.rangeCount;i++)r.appendChild(s.getRangeAt(i).cloneContents())}
+else r=(document.querySelector('article')||document.querySelector('main')||document.querySelector('[role=main]')||document.body).cloneNode(true);
+var x=r.querySelectorAll(${JSON.stringify(DROP)});for(i=0;i<x.length;i++)x[i].remove();
+var K=${JSON.stringify(KEEP)}.split(','),all=r.querySelectorAll('*');
+for(i=0;i<all.length;i++)for(var a=all[i].attributes,j=a.length-1;j>=0;j--){var n=a[j].name;if(n=='style'?!/font-weight|font-style|text-decoration/.test(a[j].value):K.indexOf(n)<0)all[i].removeAttribute(n)}
+var h=r.innerHTML.replace(/<!--[^]*?-->/g,'');
 var p={type:'crumpet-clip',title:document.title,url:location.href,html:h,selection:sel};
-var j=JSON.stringify({title:p.title,url:p.url,html:h,selection:sel});
-var w=window.open(A+'#clip'+(j.length<${MAX_IN_URL}?'='+encodeURIComponent(j):''),'_blank');
+var q=encodeURIComponent(JSON.stringify({title:p.title,url:p.url,html:h,selection:sel}));
+${
+  app
+    ? `location.href=A+'#clip='+q})();`
+    : `var w=window.open(A+'#clip'+(q.length<${MAX_IN_URL}?'='+q:''),'_blank'),O=new URL(A).origin;
 function f(m){if(m.source===w&&m.data&&m.data.type==='crumpet-ready'){w.postMessage(p,O);removeEventListener('message',f)}}
-addEventListener('message',f);setTimeout(function(){removeEventListener('message',f)},60000)})();`;
+addEventListener('message',f);setTimeout(function(){removeEventListener('message',f)},60000)})();`
+}`;
   return `javascript:${encodeURIComponent(code.replace(/\n/g, ''))}`;
 }
 
@@ -53,20 +71,23 @@ function isClip(x: unknown): x is Clip {
  * clip (from the address, or a message from the page that opened it).
  */
 export function startClipListener(): void {
+  // The Mac app: macOS hands it clips while it's open (crumpet://clip#clip=…).
+  const fromApp = (window as unknown as { crumpetDesktop?: { onClip?(fn: (data: string) => void): void } }).crumpetDesktop;
+  fromApp?.onClip?.((data) => {
+    const c = readClip(data);
+    if (c) deliver(c);
+  });
   const hash = location.hash;
   if (!hash.startsWith('#clip')) return;
   const clear = () => history.replaceState(null, '', location.pathname + location.search);
   if (hash.startsWith('#clip=')) {
-    try {
-      const c = JSON.parse(decodeURIComponent(hash.slice(6)));
-      if (isClip(c)) {
-        clear();
-        deliver({ ...c, selection: !!c.selection });
-        return;
-      }
-    } catch {
-      // Fall through to waiting for the message.
+    const c = readClip(hash.slice(6));
+    if (c) {
+      clear();
+      deliver(c);
+      return;
     }
+    // Otherwise wait for the message.
   }
   const opener = window.opener as Window | null;
   if (!opener) return clear();
@@ -94,6 +115,16 @@ export function startClipListener(): void {
   };
   window.addEventListener('message', onMessage);
   ask();
+}
+
+/** A clip as it travels in an address (JSON, URI-encoded), or null if it isn't one. */
+function readClip(data: string): Clip | null {
+  try {
+    const c = JSON.parse(decodeURIComponent(data));
+    return isClip(c) ? { title: c.title, url: c.url, html: c.html, selection: !!c.selection } : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Calls `fn` with the clip waiting to be saved (now, and whenever one arrives). */

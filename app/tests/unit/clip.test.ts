@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { bookmarklet, clipDoc, htmlToDoc } from '../../src/data/clip';
 
 const shape = (html: string) => htmlToDoc(html, 'https://example.com/post/1').blocks.map((b) => [b.type, b.runs.map((r) => r.text).join(''), ...(b.indent ? [b.indent] : [])]);
@@ -57,6 +57,34 @@ describe('clipping a web page', () => {
     expect(b.startsWith('javascript:')).toBe(true);
     const code = decodeURIComponent(b.slice('javascript:'.length));
     expect(code).toContain('"https://crumpet.example/app/"');
+    expect(() => new Function(code)).not.toThrow();
+  });
+
+  it('the bookmark sends a tidied page in the address, so it arrives even when the site cuts the link between windows', () => {
+    const filler = Array.from({ length: 300 }, (_, i) => `<p class="para p${i}" data-track="x${i}" onclick="go()">Paragraph ${i + 1} about the keeper's day.</p>`).join('');
+    document.title = 'The last lighthouse';
+    document.body.innerHTML = `<nav>Menu</nav><article><h1 class="big">The last lighthouse</h1><script>evil()</script><style>p{}</style><p>It stands <span style="font-weight:700;color:red">alone</span>. <a href="/more" class="x">More</a></p><svg><path d="M0"/></svg><!-- ad -->${filler}</article>`;
+    const opened: string[] = [];
+    const open = vi.spyOn(window, 'open').mockImplementation((u) => (opened.push(String(u)), null));
+    const code = decodeURIComponent(bookmarklet('https://crumpet.example/app/').slice('javascript:'.length));
+    new Function(code)();
+    open.mockRestore();
+    expect(opened).toHaveLength(1);
+    const [base, data] = opened[0].split('#clip=');
+    expect(base).toBe('https://crumpet.example/app/');
+    const clip = JSON.parse(decodeURIComponent(data));
+    expect(clip.title).toBe('The last lighthouse');
+    expect(clip.html).toContain('<span style="font-weight:700;color:red">alone</span>');
+    expect(clip.html).toContain('<a href="/more">More</a>');
+    expect(clip.html).toContain('<h1>The last lighthouse</h1>');
+    expect(clip.html).toContain('Paragraph 300');
+    expect(clip.html).not.toMatch(/evil|<style|<svg|ad -->|class=|data-track|onclick|Menu/);
+  });
+
+  it('the Mac app’s bookmark opens crumpet://clip with the page in the address', () => {
+    const code = decodeURIComponent(bookmarklet('crumpet://clip').slice('javascript:'.length));
+    expect(code).toContain('location.href=A+\'#clip=\'+q');
+    expect(code).not.toContain('window.open');
     expect(() => new Function(code)).not.toThrow();
   });
 });

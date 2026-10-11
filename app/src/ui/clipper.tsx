@@ -5,12 +5,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { type Clip, bookmarklet, clipDoc, dismissClip, onClip } from '../data/clip';
 import { preview } from '../data/selectors';
+import { desktop } from '../data/desktop';
 import { useAppState, useAppStore } from './hooks';
 import { IconClose } from './icons';
 
-/** Where this Crumpet lives, for the bookmark to open. */
+/** Where this Crumpet lives, for the bookmark to open (the Mac app has an address of its own for clips). */
 function appUrl(): string {
-  return `${location.origin}${location.pathname}`;
+  return desktop ? 'crumpet://clip' : `${location.origin}${location.pathname}`;
 }
 
 export function ClipperSettings() {
@@ -20,11 +21,14 @@ export function ClipperSettings() {
   useEffect(() => {
     link.current?.setAttribute('href', href);
   }, [href]);
-  const local = location.protocol === 'file:';
+  const local = location.protocol === 'file:' && !desktop;
   return (
     <div className="field clipper" role="group" aria-label="Web clipper">
       <span>Web clipper</span>
-      <p className="sync-hint">Save web pages as notes. Drag this button to your browser’s bookmarks bar, then click it on any page. Select part of a page first to keep just that part.</p>
+      <p className="sync-hint">
+        Save web pages as notes. Drag this button to your browser’s bookmarks bar, then click it on any page. Select part of a page first to keep just that part.
+        {desktop && ' The page comes to this app (your browser may ask once whether to open Crumpet).'}
+      </p>
       <a ref={link} className="clip-bookmark" draggable onClick={(e) => e.preventDefault()} title="Drag me to your bookmarks bar">
         ✂ Clip to Crumpet
       </a>

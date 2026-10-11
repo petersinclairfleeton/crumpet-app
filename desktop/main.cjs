@@ -32,6 +32,31 @@ function savedBounds() {
 }
 
 let win = null;
+let loaded = false;
+
+// The web clipper's bookmark opens crumpet://clip#clip=… (the page, in the
+// address); macOS hands that to the app, which shows it, ready to save.
+const SCHEME = 'crumpet';
+let pendingClip = null;
+function openClip(url) {
+  if (typeof url !== 'string' || !url.startsWith(`${SCHEME}:`)) return;
+  const at = url.indexOf('#clip=');
+  if (at < 0) return;
+  const data = url.slice(at + '#clip='.length);
+  if (win && loaded) {
+    win.webContents.send('crumpet-clip', data);
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  } else pendingClip = data;
+}
+// (Before the app is ready: a click on the bookmark may be what started it.)
+app.on('open-url', (e, url) => {
+  e.preventDefault();
+  openClip(url);
+});
+// Windows and Linux pass the address on the command line.
+process.argv.forEach(openClip);
 
 function createWindow() {
   const bounds = savedBounds();
@@ -83,8 +108,15 @@ function createWindow() {
 
   win.webContents.on('context-menu', (_e, params) => contextMenu(params));
 
-  void win.loadURL(`${ORIGIN}/`);
-  win.on('closed', () => (win = null));
+  win.webContents.on('did-finish-load', () => (loaded = true));
+  win.webContents.on('did-start-loading', () => (loaded = false));
+  // Started by a clip: the app opens with it.
+  void win.loadURL(`${ORIGIN}/${pendingClip ? `#clip=${pendingClip}` : ''}`);
+  pendingClip = null;
+  win.on('closed', () => {
+    win = null;
+    loaded = false;
+  });
 }
 
 /**
@@ -138,12 +170,14 @@ function menu() {
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_e, argv) => {
+    argv.forEach(openClip);
     if (!win) return;
     if (win.isMinimized()) win.restore();
     win.focus();
   });
 
+  app.setAsDefaultProtocolClient(SCHEME);
   app.whenReady().then(() => {
     // The app's own files; any other path is the app itself (it finds its way from the address).
     protocol.handle('app', (req) => {

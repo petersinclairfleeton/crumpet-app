@@ -1258,10 +1258,11 @@ test('web clipper: the bookmark on another site opens Crumpet with the page, to 
   const href = await page.locator('.clip-bookmark').getAttribute('href');
   expect(href).toMatch(/^javascript:/);
   const code = decodeURIComponent(href!.slice('javascript:'.length));
-  // A pretend article somewhere else on the web; long, so it travels by message rather than in the address.
-  const filler = Array.from({ length: 80 }, (_, i) => `<p>Paragraph ${i + 1} about the lighthouse keeper's day.</p>`).join('');
+  // A pretend article somewhere else on the web: long, and on a site that cuts the link between windows
+  // (Cross-Origin-Opener-Policy, as GitHub and many big sites do), so it has to travel in the address.
+  const filler = Array.from({ length: 400 }, (_, i) => `<p class="para" data-id="p${i}">Paragraph ${i + 1} about the lighthouse keeper's day.</p>`).join('');
   await context.route('https://news.example/story', (route) =>
-    route.fulfill({ contentType: 'text/html', body: `<html><head><title>The last lighthouse</title></head><body><nav>Home · News</nav><article><h1>The last lighthouse</h1><p>It stands <b>alone</b> on the rock. <a href="/more">More</a></p><img src="/lamp.png" alt="The lamp">${filler}</article><footer>© News</footer></body></html>` }),
+    route.fulfill({ contentType: 'text/html', headers: { 'Cross-Origin-Opener-Policy': 'same-origin' }, body: `<html><head><title>The last lighthouse</title></head><body><nav>Home · News</nav><article><h1>The last lighthouse</h1><p>It stands <b>alone</b> on the rock. <a href="/more">More</a></p><img src="/lamp.png" alt="The lamp">${filler}</article><footer>© News</footer></body></html>` }),
   );
   const site = await context.newPage();
   await site.goto('https://news.example/story');
@@ -1280,7 +1281,7 @@ test('web clipper: the bookmark on another site opens Crumpet with the page, to 
   await expect(body.locator('a[href="https://news.example/more"]')).toHaveText('More');
   await expect(body.locator('.blk-image img')).toHaveAttribute('src', 'https://news.example/lamp.png');
   await expect(body).not.toContainText('Home · News');
-  await expect(body).toContainText('Paragraph 80');
+  await expect(body).toContainText('Paragraph 400');
   // The address no longer says #clip.
   expect(clipper.url()).not.toContain('#clip');
 

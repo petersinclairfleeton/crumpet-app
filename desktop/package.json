@@ -33,6 +33,14 @@
         "to": "web"
       }
     ],
+    "protocols": [
+      {
+        "name": "Crumpet clip",
+        "schemes": [
+          "crumpet"
+        ]
+      }
+    ],
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/icon.png",
