@@ -291,6 +291,12 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, ch
                 {num('First line indent', toUnit(d.firstIndent), (v) => set({ firstIndent: fromUnit(v) }), 0.1, unit)}
                 {num('Left indent', toUnit(d.leftIndent), (v) => set({ leftIndent: fromUnit(v) }), 0.1, unit)}
               </div>}
+              {key === 'normal' && d.firstIndent > 0 && (
+                <label className="check-row">
+                  <input type="checkbox" checked={!!sheet.indentFirst} onChange={(e) => onChange({ ...sheet, indentFirst: e.target.checked || undefined })} />
+                  Indent opening paragraphs too (a chapter’s first, and the first after a heading, scene break or blank line)
+                </label>
+              )}
               <div className={`style-preview ${cls}`} aria-label="Preview">
                 {band ? (
                   <div className={`hf-band hf-${key}`}>
