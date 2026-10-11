@@ -96,8 +96,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     (`.pg` > `.pg-band` > `.pg-col`) of each section's size and columns; a
     paragraph running past a column is split into its element plus
     continuation elements (`data-cont`, `data-from` = offset in the text).
-    Before every redraw the pages are taken apart (`clear()`), so the view
-    always draws one flat flow. Handles footnote room, page breaks, keeps,
+    Before a redraw the pages are taken apart (`clear()`), so the view
+    always draws one flat flow; but typing inside a paragraph that stays
+    the same height redraws it where it stands (`Editor.drawInPlace`), and
+    a full layout holds the text's height so the scroll box can't jump.
+    After typing, `revealCaret` scrolls the caret into sight. Handles footnote room, page breaks, keeps,
     widows and orphans, balanced columns before a continuous section break,
     and the contents' page numbers. The app draws sheets, headers, footers
     and footnotes from `editor.pageBoxes`.
@@ -162,7 +165,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     automatic snapshot (`auto`), at most every ten minutes (`keepVersion`),
     thinned by `pruneVersions`; off with `settings.autoVersions = false`.
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), the
-    web clipper (`clip.ts`), writing stats, search, templates, attachments.
+    web clipper (`clip.ts`: the bookmark tidies the page and sends it in the
+    address, `#clip=…`; the Mac app's opens `crumpet://clip#clip=…`), writing stats, search, templates, attachments.
   - `src/data/panes.ts`: the writing area's panes, like Obsidian's: a tree of
     rows and columns of tab groups (`Workspace`, saved in
     `settings.layout.panes`), with pure functions to open, split, drop, move
@@ -171,7 +175,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - `src/ui/`: screens. `panes.tsx` draws the panes (tab bars, drop zones
     while dragging, resizable edges) and keeps them in step with the note
     list and outline (`usePanesState`, `usePanes().open/split`); things are
-    made draggable into panes with `tabDrag`/`startTabDrag` (`tabdrag.ts`).
+    made draggable into panes with `tabDrag`/`startTabDrag` (`tabdrag.ts`);
+    notes dropped on the sidebar (Trash, a notebook, Favorites, a tag) are
+    taken by `useNoteDrop`. `notemenu.tsx`: the right-click menu on notes.
     Phones show one thing at a time instead. `finder.tsx`: the quick
     switcher (Ctrl+O) and command palette (Ctrl+P, or > in the switcher),
     matching with `data/fuzzy.ts`; `useOpener` opens things in place, in a
@@ -211,7 +217,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - Looks: `ui/theme.ts` sets `data-theme` and `data-look` on the page: Crumpet's
     own themes (`system`, `light`, `dark`) get `data-look='crumpet'` (the frosted
     window over a wash, Onest), `paper` gets `data-look='paper'` (Paper and ink);
-    the rest keep the classic frame. Tokens and look rules are in `app.css`;
+    the rest keep the classic frame. The paper colour (`settings.paper`,
+    `data/paper.ts`, `ui/paper.tsx`) sets `--paper`/`--paper-ink` and
+    `data-paper` on the page. Tokens and look rules are in `app.css`;
     the theme list (names, previews) in `ui/themes.ts`.
 - iPhone and iPad: the app added to the Home Screen from Safari (no App Store
   app). `index.html` has the launch screens (`public/splash/`, made per iPhone
@@ -224,7 +232,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
 - `desktop/`: Crumpet for Mac (Electron). `main.cjs` serves the built web app
   (`app/dist`, packed inside as `resources/web`) from `app://crumpet/`, with a
   Mac window (hidden title bar, the window buttons over the sidebar, the
-  sidebar's `vibrancy`); links to other sites open in the browser.
+  sidebar's `vibrancy`); links to other sites open in the browser. It makes its own right-click
+  menu (spelling suggestions, cut/copy/paste) and takes `crumpet://clip`
+  links from the web clipper (passed to the page by `preload.cjs`'s `onClip`).
   `preload.cjs` tells the page (`window.crumpetDesktop`, read by
   `app/src/data/desktop.ts`), which sets `data-shell='mac'` on the page for the
   window's styles (`app.css`, "The Mac app") and leaves out Google sign-in
@@ -250,8 +260,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   written all in small letters (so Rose isn't found in "rose").
 - Comment replies go to Word as Word's own threaded replies
   (`commentsExtended.xml`); checked by tests, not yet in real Word.
-- The web clipper doesn't work on sites with strict security settings
-  (pasting keeps formatting instead) or in the single-file build.
+- The web clipper may still be blocked by a few sites' security settings
+  (pasting keeps formatting instead), and doesn't work in the single-file
+  build. Bookmarks dragged to the bar before the clipper changed need dragging
+  again.
 - Word features not built: Word's own built-in table styles (ours go to Word as
   styles of their own), paper size per section; shapes hold one paragraph of text, can't go behind the
   text, and are placed from their paragraph (not the page's corner). Printing turns landscape pages only
