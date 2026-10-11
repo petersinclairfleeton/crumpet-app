@@ -119,6 +119,26 @@ type Listener = (state: EditorState, change: ChangeEvent | null) => void;
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
+/** Changes made by typing (or undoing it): the caret is kept in sight after them. */
+const REVEALING = new Set<ChangeEvent['source']>(['input', 'native', 'undo', 'redo']);
+
+/** The box that scrolls the text: the nearest one around it that can scroll. */
+function scrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+}
+
+/** Blocks that are a line of text (no table, picture or other box inside). */
+const INLINE_TYPES = new Set<string>(['paragraph', 'heading1', 'heading2', 'heading3', 'heading4', 'quote', 'bullet', 'numbered', 'todo']);
+
+/** Two versions of a block that differ only in their text (and its formatting). */
+function sameButText(a: Block, b: Block): boolean {
+  return JSON.stringify({ ...a, runs: null }) === JSON.stringify({ ...b, runs: null });
+}
+
 export class Editor {
   state: EditorState;
   readonly view: View;
@@ -205,7 +225,7 @@ export class Editor {
     if (this.paged && !this.isComposing) {
       const before = this.layoutKey();
       const sel = this.keepSelection();
-      this.paginator.update();
+      this.holdingHeight(() => this.paginator.update());
       sel();
       if (this.layoutKey() !== before) this.emit(null);
     }
@@ -233,14 +253,69 @@ export class Editor {
   private draw(doc: Doc, force?: Set<string>): void {
     if (this.paged && this.isComposing) return;
     if (this.paged) {
+      if (!force?.size && this.drawInPlace(doc)) return;
       const sel = this.keepSelection();
-      this.paginator.clear();
-      this.view.render(doc, force);
-      this.paginator.update();
+      // The text is briefly one flow (shorter than its pages): hold the
+      // height, so the scroll box doesn't jump up while it's laid out again.
+      this.holdingHeight(() => {
+        this.paginator.clear();
+        this.view.render(doc, force);
+        this.paginator.update();
+      });
       sel();
+      this.drawnIds = doc.blocks.map((b) => b.id);
       return;
     }
     this.view.render(doc, force);
+  }
+
+  /**
+   * Page view: while the pages are laid out again the text is briefly one
+   * flow, shorter than its pages; its height is held meanwhile, so the box
+   * scrolling it doesn't jump up.
+   */
+  private holdingHeight(fn: () => void): void {
+    const root = this.view.root;
+    root.style.minHeight = `${root.offsetHeight}px`;
+    try {
+      fn();
+    } finally {
+      root.style.minHeight = '';
+    }
+  }
+
+  /** The blocks in the order last laid out on pages. */
+  private drawnIds: string[] = [];
+
+  /**
+   * Page view, typing inside paragraphs: when each one changed is just as
+   * tall afterwards (most keys), it's redrawn where it stands on its page and
+   * the pages stay as they are, instead of every page being taken apart and
+   * laid out again (slow on a long text, and the page flickered). Returns
+   * false when the pages do need laying out again.
+   */
+  private drawInPlace(doc: Doc): boolean {
+    if (doc.blocks.length !== this.drawnIds.length || !this.paginator.active) return false;
+    const changed: { id: string; height: number }[] = [];
+    for (let i = 0; i < doc.blocks.length; i++) {
+      const b = doc.blocks[i];
+      if (b.id !== this.drawnIds[i]) return false;
+      const before = this.view.drawnBlock(b.id);
+      if (!before) return false;
+      if (before === b) continue;
+      if (!INLINE_TYPES.has(b.type) || !sameButText(before, b)) return false;
+      // An empty line changing (or becoming one) changes the paragraphs around it; footnotes take room at the page's foot.
+      if (!runsLength(before.runs) || !runsLength(b.runs) || before.runs.some((r) => r.footnote !== undefined) || b.runs.some((r) => r.footnote !== undefined)) return false;
+      const el = this.view.blockElement(b.id);
+      if (!el?.isConnected || el.hasAttribute('data-split') || !el.closest('.pg-col')) return false;
+      changed.push({ id: b.id, height: el.offsetHeight });
+    }
+    const sel = this.keepSelection();
+    this.view.render(doc, undefined, true);
+    // Taller or shorter: the text after it moves on the pages.
+    if (changed.some((c) => this.view.blockElement(c.id)?.offsetHeight !== c.height)) this.holdingHeight(() => this.paginator.update());
+    sel();
+    return true;
   }
 
   constructor(root: HTMLElement, doc: Doc) {
@@ -975,6 +1050,57 @@ export class Editor {
 
   private emit(change: ChangeEvent | null): void {
     for (const fn of this.listeners) fn(this.state, change);
+    if (change && REVEALING.has(change.source)) this.revealSoon();
+  }
+
+  private revealPending = false;
+
+  /** After typing: the caret is brought into sight once the page has settled (next frame). */
+  private revealSoon(): void {
+    if (this.revealPending) return;
+    this.revealPending = true;
+    requestAnimationFrame(() => {
+      this.revealPending = false;
+      this.revealCaret();
+    });
+  }
+
+  /**
+   * Scrolls just enough to keep the caret in sight, with a little room below
+   * it, as a word processor does while you type. (The browser doesn't do it
+   * itself here, as the editor draws the text.) Also above the phone's
+   * keyboard, which covers part of the screen.
+   */
+  revealCaret(): void {
+    const root = this.view.root;
+    const doc = root.ownerDocument;
+    const win = doc.defaultView;
+    const sel = doc.getSelection();
+    if (!win || !root.contains(doc.activeElement) || !sel?.rangeCount || !sel.focusNode || !root.contains(sel.focusNode)) return;
+    const range = doc.createRange();
+    range.setStart(sel.focusNode, sel.focusOffset);
+    range.collapse(true);
+    let box: DOMRect | null = range.getClientRects()[0] ?? null;
+    if (!box?.height) {
+      // A caret on an empty line has no box of its own: use its line's.
+      const n = sel.focusNode;
+      box = (n.nodeType === Node.ELEMENT_NODE ? (n as Element) : n.parentElement)?.getBoundingClientRect() ?? null;
+    }
+    if (!box) return;
+    const scroller = scrollParent(root);
+    const vv = win.visualViewport;
+    let top = vv ? vv.offsetTop : 0;
+    let bottom = vv ? vv.offsetTop + vv.height : win.innerHeight;
+    if (scroller) {
+      const r = scroller.getBoundingClientRect();
+      top = Math.max(top, r.top);
+      bottom = Math.min(bottom, r.bottom);
+    }
+    const room = Math.min(60, Math.max(0, (bottom - top) / 4));
+    const delta = box.bottom > bottom - room ? box.bottom - (bottom - room) : box.top < top + room ? box.top - (top + room) : 0;
+    if (Math.abs(delta) < 1) return;
+    if (scroller) scroller.scrollTop += delta;
+    else win.scrollBy(0, delta);
   }
 
   // ---------- selection ----------

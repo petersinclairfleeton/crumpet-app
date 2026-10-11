@@ -699,6 +699,58 @@ test('page view: text flows onto pages, splitting paragraphs, and typing across 
   await expect(page.locator('.sheet')).toHaveCount(0);
 });
 
+test('the page scrolls to follow the typing, in normal view and page view', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Long', '');
+  const caretInSight = () =>
+    page.evaluate(() => {
+      const r = getSelection()!.getRangeAt(0).getBoundingClientRect();
+      const box = document.querySelector('.note-scroll')!.getBoundingClientRect();
+      return r.bottom <= box.bottom && r.top >= box.top;
+    });
+  for (let i = 0; i < 40; i++) {
+    await page.keyboard.insertText(`Line ${i + 1} of a long note.`);
+    await page.keyboard.press('Enter');
+  }
+  await page.keyboard.type('Still in sight');
+  await expect.poll(caretInSight).toBe(true);
+  expect(await page.locator('.note-scroll').evaluate((el) => el.scrollTop)).toBeGreaterThan(200);
+
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true } }));
+  await expect(page.locator('.pg').first()).toBeVisible();
+  await page.locator('.note-scroll').evaluate((el) => (el.scrollTop = 0));
+  await page.keyboard.press('Control+End');
+  for (let i = 0; i < 25; i++) {
+    await page.keyboard.press('Enter');
+    await page.keyboard.insertText(`More ${i + 1}`);
+  }
+  await expect.poll(caretInSight).toBe(true);
+});
+
+test('page view: typing inside a paragraph redraws just that paragraph, not every page', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true } }));
+  await newNote(page, 'Pages', '');
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.insertText(`Paragraph ${i + 1}: the lamp had not been lit for eleven years, and the stairs were slick with salt.`);
+    await page.keyboard.press('Enter');
+  }
+  await expect.poll(() => page.locator('.pg').count()).toBeGreaterThan(1);
+  const pages = await page.locator('.pg').count();
+  // Mark the pages; a full redraw would replace them.
+  await page.evaluate(() => document.querySelectorAll('.pg').forEach((el) => ((el as HTMLElement).dataset.mark = 'kept')));
+  await page.locator('.note-editor .blk', { hasText: 'Paragraph 3:' }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Quietly');
+  await expect(page.locator('.note-editor .blk', { hasText: 'Paragraph 3:' })).toContainText('salt. Quietly');
+  await expect(page.locator('.pg[data-mark="kept"]')).toHaveCount(pages);
+  // Enough to need another line: the pages are laid out again, and nothing is lost.
+  await page.keyboard.type(' the keeper climbed, counting every step as her father had taught her, all the way up to the lamp room');
+  await expect(page.locator('.pg[data-mark="kept"]')).toHaveCount(0);
+  await expect(page.locator('.note-editor')).toContainText('up to the lamp room');
+  await expect(page.locator('.note-editor')).toContainText('Paragraph 30:');
+});
+
 test('page view: typing and deleting right at a page break', async ({ page }) => {
   await open(page);
   await newNote(page, 'Break', 'Intro.');
