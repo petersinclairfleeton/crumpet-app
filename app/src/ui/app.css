@@ -1,9 +1,99 @@
 @import '@crumpet/editor/editor.css';
 
-/* ---- Tokens (from the Crumpet design: calm neutrals, one accent) ---- */
-/* Crumpet's own look, "Paper and ink": warm paper around a white sheet,
-   serif titles and writing. The other themes below keep the classic frame. */
+/* ---- Tokens ----
+   Crumpet's own look: a frosted window floating over a soft wash, light or
+   dark with the device. "Paper and ink" (warm paper around a white sheet,
+   serif titles) is a theme of its own; the other themes keep the classic frame. */
 :root {
+  --ui-font: Onest, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --title-font: Onest, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --shell: #e7eaf0;
+  --wash: radial-gradient(circle at 6% 0%, color-mix(in srgb, var(--accent) 34%, transparent) 0, transparent 38%), radial-gradient(circle at 96% 100%, rgba(143, 179, 232, 0.42) 0, transparent 42%), #e7eaf0;
+  --side-bg: rgba(246, 247, 250, 0.66);
+  --side-text: #1c1e23;
+  --side-muted: #6b7080;
+  --side-sel: #ffffff;
+  --side-hover: rgba(255, 255, 255, 0.6);
+  --page: #ffffff;
+  --list-bg: rgba(255, 255, 255, 0.74);
+  --field: #f2f3f6;
+  --chip: #f2f3f6;
+  --text: #1c1e23;
+  --text2: #3e424b;
+  --muted: #6b7080;
+  --line: #e9ebef;
+  --line2: #d6d9e0;
+  --danger: #c2362f;
+  --accent: #d4a257;
+  --accent-ink: var(--accent-ink-light, #6a5130);
+  --accent-soft: var(--accent-soft-light, #f9f1e6);
+  --on-accent: #2a1f0e;
+  --code-bg: var(--field);
+  --edge: rgba(255, 255, 255, 0.7);
+  --lift: 0 2px 8px rgba(20, 30, 50, 0.08);
+  --shadow: 0 2px 6px rgba(28, 36, 56, 0.06), 0 18px 44px rgba(28, 36, 56, 0.16);
+  --sheet-shadow: 0 1px 2px rgba(28, 36, 56, 0.05), 0 8px 26px rgba(28, 36, 56, 0.07);
+  --window-shadow: 0 30px 80px rgba(28, 36, 56, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.6);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --shell: #0e1014;
+    --wash: radial-gradient(circle at 6% 0%, color-mix(in srgb, var(--accent) 20%, transparent) 0, transparent 38%), radial-gradient(circle at 96% 100%, rgba(70, 100, 170, 0.3) 0, transparent 42%), #0e1014;
+    --side-bg: rgba(26, 28, 34, 0.62);
+    --side-text: #ecedf0;
+    --side-muted: #8f94a0;
+    --side-sel: rgba(255, 255, 255, 0.1);
+    --side-hover: rgba(255, 255, 255, 0.06);
+    --page: #191b20;
+    --list-bg: rgba(24, 26, 31, 0.72);
+    --field: #24262d;
+    --chip: #24262d;
+    --text: #ecedf0;
+    --text2: #c9ccd3;
+    --muted: #8f94a0;
+    --line: #272a31;
+    --line2: #3a3e47;
+    --danger: #ff8a80;
+    --accent-ink: var(--accent-ink-dark, #ddb978);
+    --accent-soft: var(--accent-soft-dark, #3a3227);
+    --edge: rgba(255, 255, 255, 0.06);
+    --lift: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.45);
+    --sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
+    --window-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --shell: #0e1014;
+  --wash: radial-gradient(circle at 6% 0%, color-mix(in srgb, var(--accent) 20%, transparent) 0, transparent 38%), radial-gradient(circle at 96% 100%, rgba(70, 100, 170, 0.3) 0, transparent 42%), #0e1014;
+  --side-bg: rgba(26, 28, 34, 0.62);
+  --side-text: #ecedf0;
+  --side-muted: #8f94a0;
+  --side-sel: rgba(255, 255, 255, 0.1);
+  --side-hover: rgba(255, 255, 255, 0.06);
+  --page: #191b20;
+  --list-bg: rgba(24, 26, 31, 0.72);
+  --field: #24262d;
+  --chip: #24262d;
+  --text: #ecedf0;
+  --text2: #c9ccd3;
+  --muted: #8f94a0;
+  --line: #272a31;
+  --line2: #3a3e47;
+  --danger: #ff8a80;
+  --accent-ink: var(--accent-ink-dark, #ddb978);
+  --accent-soft: var(--accent-soft-dark, #3a3227);
+  --edge: rgba(255, 255, 255, 0.06);
+  --lift: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.45);
+  --sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
+  --window-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  color-scheme: dark;
+}
+:root[data-theme='paper'] {
+  --ui-font: Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --shell: #faf7f1;
   --side-bg: #faf7f1;
   --side-text: #2a2623;
@@ -30,7 +120,7 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) {
+  :root[data-theme='paper'] {
     --shell: #1b1916;
     --side-bg: #1b1916;
     --side-text: #ede6dc;
@@ -53,29 +143,6 @@
     --sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
     color-scheme: dark;
   }
-}
-:root[data-theme='dark'] {
-  --shell: #1b1916;
-  --side-bg: #1b1916;
-  --side-text: #ede6dc;
-  --side-muted: #9a9087;
-  --side-sel: #2c2824;
-  --side-hover: #24211e;
-  --page: #24211e;
-  --list-bg: #1b1916;
-  --field: #2e2a26;
-  --chip: #2e2a26;
-  --text: #ede6dc;
-  --text2: #d3cac0;
-  --muted: #a39a90;
-  --line: #322d28;
-  --line2: #4a433d;
-  --danger: #f0a0a8;
-  --accent-ink: var(--accent-ink-dark, #ddb978);
-  --accent-soft: var(--accent-soft-dark, #3a3227);
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.45);
-  --sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
-  color-scheme: dark;
 }
 
 /* ---- Themes ----
@@ -126,6 +193,7 @@
   --code-bg: #e6d9bb;
 }
 :root[data-theme='midnight'] {
+  --ui-font: Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --side-bg: #000000; --side-text: #e6e6e6; --side-muted: #8c8c8c; --side-sel: #1c1c1e; --side-hover: #121212;
   --page: #000000; --list-bg: #050505; --field: #151515; --chip: #151515;
   --text: #e8e8e8; --text2: #c4c4c4; --muted: #8c8c8c; --line: #1f1f1f; --line2: #333333;
@@ -599,6 +667,76 @@ input, select { font: inherit; color: inherit; }
 [data-look='paper'] .dialog-head h2 { font-family: var(--title-font); font-size: 22px; font-weight: 500; }
 [data-look='paper'] .popover { border-radius: 12px; }
 
+/* ---- Crumpet's own look: a frosted window floating over a soft wash ----
+   The sidebar and list are see-through and blurred; notes sit on white
+   sheets with rounded corners; buttons, chips and menus are soft and round. */
+[data-look='crumpet'] body { background: var(--wash); background-attachment: fixed; }
+[data-look='crumpet'] .app { padding: 14px; }
+[data-look='crumpet'] .frame { border-radius: 20px; overflow: hidden; box-shadow: var(--window-shadow); }
+/* The window stands in from the screen's edges, so the edges that peek the folded sidebar out reach them. */
+[data-look='crumpet'] .peek-edge { position: fixed; width: 24px; }
+[data-look='crumpet'] :is(.sidebar, .rail) { background: var(--side-bg); -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6); border-right: 1px solid var(--edge); }
+[data-look='crumpet'] .sidebar { padding: 14px 10px 12px; gap: 14px; }
+/* (No blur here: what's behind is the soft wash already, and blurring this much of the screen costs drawing time.) */
+[data-look='crumpet'] .workspace { background: var(--list-bg); }
+[data-look='crumpet'] .account { min-height: 38px; border-radius: 12px; padding: 0 8px; }
+[data-look='crumpet'] .account-name { font-size: 14.5px; }
+[data-look='crumpet'] .avatar { width: 28px; height: 28px; flex-basis: 28px; background: var(--accent); color: var(--on-accent); }
+[data-look='crumpet'] .new-note { min-height: 38px; border-radius: 12px; padding: 0 8px; background: var(--side-sel); box-shadow: var(--lift); font-weight: 600; }
+[data-look='crumpet'] .new-note:hover { background: var(--side-sel); box-shadow: var(--lift), 0 0 0 1.5px var(--accent); }
+[data-look='crumpet'] .side-row, [data-look='crumpet'] .side-row .row-main { min-height: 32px; font-size: 13.5px; }
+[data-look='crumpet'] .side-row { border-radius: 10px; padding: 0 10px; gap: 9px; }
+[data-look='crumpet'] .side-row.indent { padding-left: 30px; }
+[data-look='crumpet'] .side-row.active { background: var(--side-sel); box-shadow: var(--lift); font-weight: 600; }
+[data-look='crumpet'] .side-row .count { font-size: 11.5px; }
+[data-look='crumpet'] :is(.side-heading, .side-label) { font-size: 11.5px; font-weight: 600; padding-left: 10px; }
+[data-look='crumpet'] .side-foot { padding: 6px 10px 0; font-size: 11.5px; }
+[data-look='crumpet'] .rail-btn { border-radius: 12px; }
+[data-look='crumpet'] .rail-btn.active { box-shadow: var(--lift); }
+[data-look='crumpet'] .topbar { background: transparent; border-bottom: none; min-height: 56px; padding: 0 16px; }
+[data-look='crumpet'] .search { height: 36px; border-radius: 12px; background: var(--page); box-shadow: var(--lift), inset 0 0 0 1px var(--line); }
+[data-look='crumpet'] .search kbd { background: var(--field); border-color: transparent; border-radius: 6px; }
+[data-look='crumpet'] .list { background: transparent; border-right: none; }
+[data-look='crumpet'] .list-head { padding: 4px 20px 10px; }
+[data-look='crumpet'] .list-title h1 { font-family: var(--title-font); font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+[data-look='crumpet'] .cards { padding: 0 10px 20px; }
+[data-look='crumpet'] .group-label { padding: 12px 10px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+[data-look='crumpet'] .card { gap: 4px; padding: 13px 14px; margin-bottom: 4px; border-radius: 16px; }
+[data-look='crumpet'] .card:hover { background: var(--side-hover); }
+[data-look='crumpet'] .card.selected { background: var(--page); box-shadow: 0 6px 20px rgba(20, 30, 50, 0.08), 0 0 0 1.5px var(--accent); }
+[data-look='crumpet'] .card-title { font-size: 14.5px; font-weight: 600; }
+[data-look='crumpet'] .card-preview { font-size: 13px; line-height: 1.5; color: var(--muted); }
+[data-look='crumpet'] .card-thumb { border-radius: 12px; }
+[data-look='crumpet'] .chip { border-radius: 10px; }
+[data-look='crumpet'] :is(.pane, .pane-empty) { margin: 0 12px 12px 0; border-radius: 18px; box-shadow: var(--sheet-shadow); overflow: hidden; }
+[data-look='crumpet'] .pane-tabs { background: transparent; border-bottom: none; padding: 4px 12px 8px 0; gap: 4px; align-items: center; }
+[data-look='crumpet'] .pane-tab { height: 30px; border: none; border-radius: 10px; }
+[data-look='crumpet'] .pane-tab.on { height: 30px; margin-bottom: 0; background: var(--page); box-shadow: var(--lift); }
+[data-look='crumpet'] .pane-group.active .pane-tab.on { box-shadow: var(--lift), inset 0 -2px 0 var(--accent); }
+[data-look='crumpet'] .note-toolbar { border-bottom: none; padding: 12px 16px 6px; }
+[data-look='crumpet'] .note-toolbar .tools { padding: 3px; border-radius: 13px; background: var(--field); }
+[data-look='crumpet'] .tools button { border-radius: 9px; }
+[data-look='crumpet'] .tools button:hover:not(:disabled) { background: var(--page); }
+[data-look='crumpet'] .tools button.active { background: var(--page); box-shadow: var(--lift); }
+[data-look='crumpet'] .note-body { max-width: 720px; padding: 30px 48px 80px; gap: 14px; }
+[data-look='crumpet'] .note-title { font-family: var(--title-font); font-size: 40px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+[data-look='crumpet'] :is(.nb-picker, .tag-chip, .add-tag, .status-pick) { height: 28px; border-radius: 10px; }
+[data-look='crumpet'] .nb-picker { padding-left: 10px; }
+[data-look='crumpet'] .note-foot { border-top-color: var(--line); }
+[data-look='crumpet'] .note-scroll:has(.paged), [data-look='crumpet'] .pane:has(.page-view) .note-scroll { background: var(--field); }
+[data-look='crumpet'] :is(.btn, .icon-btn, .menu-item, .style-current, .segmented) { border-radius: 10px; }
+[data-look='crumpet'] .segmented button { border-radius: 8px; }
+[data-look='crumpet'] .popover { border-radius: 14px; border-color: var(--line); }
+[data-look='crumpet'] .dialog { border-radius: 20px; border-color: var(--edge); }
+[data-look='crumpet'] .dialog-head h2 { font-family: var(--title-font); font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+[data-look='crumpet'] :is(.field input, .inline-input input, .linkbar input, .font-search, .goal-form input) { border-radius: 10px; }
+[data-look='crumpet'] .outline-items li { border-radius: 12px; }
+[data-look='crumpet'] .outline-title { font-weight: 600; }
+[data-look='crumpet'] .synopsis { border-radius: 12px; }
+[data-look='crumpet'] .manuscript-title { font-family: var(--title-font); font-weight: 700; letter-spacing: -0.03em; }
+[data-look='crumpet'] .welcome h2 { font-family: var(--title-font); font-weight: 700; letter-spacing: -0.03em; }
+[data-look='crumpet'] .welcome .lede { font-family: var(--ui-font); font-style: normal; font-size: 18px; }
+
 /* A first visit: a welcome with three ways to start. */
 .welcome { max-width: 560px; margin: auto; padding: 48px 32px; display: flex; flex-direction: column; gap: 28px; text-align: left; color: var(--text); }
 .welcome h2 { margin: 0; font-family: var(--title-font, inherit); font-size: 46px; font-weight: 400; line-height: 1.08; letter-spacing: -0.6px; }
@@ -802,6 +940,18 @@ body.pane-resizing iframe { pointer-events: none; }
   [data-look='paper'] .note-title { font-size: 32px; }
   [data-look='paper'] .topbar { padding: env(safe-area-inset-top, 0px) 8px 0; }
   [data-look='paper'] .sidebar { background: var(--shell); }
+}
+
+/* Crumpet on phones: one thing at a time, filling the screen. */
+@media (max-width: 759px) {
+  [data-look='crumpet'] .app { padding: 0; }
+  [data-look='crumpet'] .frame { border-radius: 0; box-shadow: none; overflow: visible; }
+  [data-look='crumpet'] :is(.pane, .pane-empty) { margin: 0; border-radius: 0; box-shadow: none; }
+  [data-look='crumpet'] .sidebar { background: color-mix(in srgb, var(--shell) 92%, var(--page)); }
+  [data-look='crumpet'] .note-body { padding: 20px 20px 56px; }
+  [data-look='crumpet'] .note-title { font-size: 32px; }
+  [data-look='crumpet'] .topbar { padding: env(safe-area-inset-top, 0px) 8px 0; }
+  [data-look='crumpet'] .tab-bar { -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6); background: color-mix(in srgb, var(--page) 82%, transparent); }
 }
 
 /* ---- Phones: tab bar, new-note button, and the bar above the keyboard ---- */

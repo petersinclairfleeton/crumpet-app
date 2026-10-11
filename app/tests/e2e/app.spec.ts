@@ -212,7 +212,7 @@ test('settings: dark appearance and a different accent', async ({ page }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
   await page.getByRole('tab', { name: 'Look' }).click();
-  await page.getByRole('button', { name: 'Ink', exact: true }).click();
+  await page.getByRole('button', { name: 'Crumpet dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Blueberry' }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
@@ -361,7 +361,7 @@ test('themes: pick one, and accents follow themes that have none of their own', 
   await settings.getByRole('button', { name: 'Sepia', exact: true }).click();
   await settings.getByRole('button', { name: 'Blueberry' }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
-  await settings.getByRole('button', { name: 'Glass', exact: true }).click();
+  await settings.getByRole('button', { name: 'Liquid glass', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'glass');
   await page.keyboard.press('Escape');
   await expect(settings).toBeHidden();

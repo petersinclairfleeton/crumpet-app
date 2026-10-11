@@ -44,7 +44,7 @@ Live at https://petersinclairfleeton.github.io/crumpet-app/ and installable as a
 - **Notes**: notebooks and stacks, nested tags, Favorites, Trash, search with filters and saved searches, templates, today's note, links between notes with backlinks, pictures and files, tables, fold-away sections, the "/" menu, writing stats and streaks.
 - **Writing**: projects with parts and chapters (one at a time, as a manuscript, or as corkboard cards), research notes and files beside the writing, characters and places spotted in the text.
 - **Word features**: page view, styles, headers and footers, footnotes, comments, tracked changes, `.docx` export and import, print or save as PDF, ePub e-books.
-- **Look**: themes including Paper and ink, writing fonts, layout you control, focus mode, phone and tablet layouts, a first-visit tour.
+- **Look**: Crumpet's own frosted-glass look (October redesign), themes including Paper and ink, writing fonts, layout you control, focus mode, phone and tablet layouts, a first-visit tour.
 - **Your files, your cloud**: notes sync as Markdown files to a folder the person owns (Google Drive, setup in `docs/google-drive-setup.md`, or a folder on the computer). No Crumpet server or account.
 - **Web clipper**: a "Clip to Crumpet" bookmark, and pasting from web pages keeps formatting.
 - **Writing tools** (second October batch): find and replace (in a note, a chapter or the whole book), deadlines with a daily target and "on track", a name generator for characters and places, typewriter mode with typing sounds, writing stats added up across devices.
@@ -74,7 +74,9 @@ Out of v1: documents, pages, .docx, comments, sharing, AI.
 
 ## Visual design
 
-Mockups: Claude design canvas "Crumpet visual identity" (identity sheet, Mac/web light and dark, iPhone list and note).
+**October 2026 redesign: "Glass"** (chosen from ten directions on the Claude design canvas "Crumpet redesigns"). The app is a frosted window floating over a soft wash (a honey glow top left, a cool blue bottom right): a see-through, blurred sidebar; rounded white sheets for notes; soft cards with an accent ring for the selected note; pill-shaped search, tabs, chips and formatting bar; Onest for the interface and titles. Light or dark with the device; on phones it fills the screen. The earlier look below lives on as the "Paper and ink" theme.
+
+Mockups (original look): Claude design canvas "Crumpet visual identity" (identity sheet, Mac/web light and dark, iPhone list and note).
 
 **Direction:** the structure of classic Evernote (dense three-pane layout, dark notebook sidebar), the picture-first note list of Bear, and a cleaner, more modern note page. Its own identity comes from the honey accent, notebook colours, the ⌘K jump bar, date-grouped cards and the crumpet logo.
 
