@@ -73,8 +73,12 @@ export class View {
     root.classList.add('editor');
   }
 
-  /** Draws the doc. Blocks whose model object is unchanged keep their DOM. */
-  render(doc: Doc, force: Set<string> = new Set()): void {
+  /**
+   * Draws the doc. Blocks whose model object is unchanged keep their DOM. `inPlace`: each changed block's element is
+   * swapped where it stands (in page view, inside its page) and nothing is
+   * moved; only for edits that keep the same blocks in the same order.
+   */
+  render(doc: Doc, force: Set<string> = new Set(), inPlace = false): void {
     const live = new Set<string>();
     for (const block of doc.blocks) {
       live.add(block.id);
@@ -105,6 +109,11 @@ export class View {
       }
     }
     // Put elements in document order, moving only what is out of place.
+    if (!inPlace) this.order(doc);
+    this.decorate(doc);
+  }
+
+  private order(doc: Doc): void {
     let cursor: ChildNode | null = this.root.firstChild;
     for (const block of doc.blocks) {
       const el = this.rendered.get(block.id)!.el;
@@ -120,6 +129,10 @@ export class View {
       cursor.remove();
       cursor = next;
     }
+  }
+
+  /** What depends on the blocks around each one: folding, list numbers, contents, footnote numbers, opening paragraphs. */
+  private decorate(doc: Doc): void {
     // Sections under folded headings, and folded toggles' content, are hidden (kept in the text, just not shown).
     let hideBelow = 0;
     const inToggle = new Map<string, boolean>();
@@ -171,6 +184,11 @@ export class View {
 
   blockElement(id: string): HTMLElement | null {
     return this.rendered.get(id)?.el ?? null;
+  }
+
+  /** The block as last drawn. */
+  drawnBlock(id: string): Block | undefined {
+    return this.rendered.get(id)?.block;
   }
 
   /** A block's element and, in page view, the continuations of it on later columns and pages, in order. */
