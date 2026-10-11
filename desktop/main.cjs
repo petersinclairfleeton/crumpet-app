@@ -6,7 +6,7 @@
 // The window is Mac-native: the sidebar shows the real see-through blur of
 // the desktop behind it, and the red, yellow and green buttons sit in it.
 
-const { app, BrowserWindow, Menu, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, net, protocol, shell } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -81,8 +81,38 @@ function createWindow() {
     if (/^https?:/.test(url)) void shell.openExternal(url);
   });
 
+  win.webContents.on('context-menu', (_e, params) => contextMenu(params));
+
   void win.loadURL(`${ORIGIN}/`);
   win.on('closed', () => (win = null));
+}
+
+/**
+ * A right click: spelling suggestions for a word underlined in red (as in
+ * Word or TextEdit), then cut, copy and paste, and a link's choices. (Notes,
+ * notebooks and tabs have menus of their own, made by the app.)
+ */
+function contextMenu(params) {
+  if (!win) return;
+  const wc = win.webContents;
+  const items = [];
+  if (params.misspelledWord) {
+    for (const word of params.dictionarySuggestions.slice(0, 6)) items.push({ label: word, click: () => wc.replaceMisspelling(word) });
+    if (!params.dictionarySuggestions.length) items.push({ label: 'No guesses found', enabled: false });
+    items.push({ type: 'separator' }, { label: 'Learn Spelling', click: () => wc.session.addWordToSpellCheckerDictionary(params.misspelledWord) }, { type: 'separator' });
+  }
+  if (/^https?:/.test(params.linkURL)) {
+    items.push({ label: 'Open Link in Browser', click: () => void shell.openExternal(params.linkURL) }, { label: 'Copy Link', click: () => clipboard.writeText(params.linkURL) }, { type: 'separator' });
+  }
+  const f = params.editFlags;
+  if (params.isEditable) {
+    items.push({ role: 'cut', enabled: f.canCut }, { role: 'copy', enabled: f.canCopy }, { role: 'paste', enabled: f.canPaste }, { type: 'separator' }, { role: 'selectAll', enabled: f.canSelectAll });
+  } else if (params.selectionText.trim()) {
+    items.push({ role: 'copy', enabled: f.canCopy });
+    if (isMac) items.push({ label: `Look Up “${params.selectionText.trim().slice(0, 24)}”`, click: () => wc.showDefinitionForSelection() });
+  }
+  while (items.length && items[items.length - 1].type === 'separator') items.pop();
+  if (items.length) Menu.buildFromTemplate(items).popup({ window: win });
 }
 
 function menu() {
