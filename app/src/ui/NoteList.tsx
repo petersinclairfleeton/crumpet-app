@@ -11,6 +11,7 @@ import { InlineInput, Popover } from './Sidebar';
 import { IconStarFilled, IconTag, IconTrash } from './icons';
 import { FoldButton } from './fold';
 import { tabDrag } from './tabdrag';
+import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import { usePanes } from './panes';
 import { IconCards, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
 
@@ -64,6 +65,9 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [pickedNow.length]);
+  // A right click: the note's menu (for all the picked notes, if it's one of them).
+  const [menuAt, setMenuAt] = useState<NoteMenuAt | null>(null);
+  const onMenu = (id: string) => (e: React.MouseEvent) => setMenuAt(noteMenuAt(e, pickedNow.includes(id) ? pickedNow : [id]));
   const nb = state.view.kind === 'notebook' ? store.notebook(state.view.id) : undefined;
   const [renamingTag, setRenamingTag] = useState(false);
   const style = state.settings.listStyle;
@@ -155,6 +159,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
         )}
       </header>
       {pickedNow.length > 0 && <PickedBar ids={pickedNow} onDone={() => setPicked([])} />}
+      {menuAt && <NoteMenu at={menuAt} onClose={() => setMenuAt(null)} />}
 
       {jumps.length > 0 && (
         <div className="jumps" aria-label="Notebooks matching your search">
@@ -183,7 +188,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
               {notes.map((n) => (
                 <tr key={n.id} className={(pickedNow.length ? pickedNow.includes(n.id) : n.id === state.selectedId) ? 'selected' : ''}>
                   <td>
-                    <button type="button" className="row-link" onClick={(e) => open(n.id, e)} aria-current={n.id === state.selectedId ? 'true' : undefined}>
+                    <button type="button" className="row-link" onClick={(e) => open(n.id, e)} aria-current={n.id === state.selectedId ? 'true' : undefined} onContextMenu={onMenu(n.id)} {...tabDrag({ kind: 'note', id: n.id }, pickedNow.includes(n.id) ? pickedNow : undefined)}>
                       {displayTitle(n)}
                     </button>
                   </td>
@@ -200,7 +205,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
             <div key={g.label} className="group" role="group" aria-label={g.label}>
               <h2 className="group-label">{g.label}</h2>
               {g.notes.map((n) => (
-                <Card key={n.id} note={n} words={words} selected={pickedNow.length ? pickedNow.includes(n.id) : n.id === state.selectedId} now={now} trash={trash} showNotebook={state.view.kind !== 'notebook' || searching} onOpen={(e) => open(n.id, e)} />
+                <Card key={n.id} note={n} words={words} selected={pickedNow.length ? pickedNow.includes(n.id) : n.id === state.selectedId} now={now} trash={trash} showNotebook={state.view.kind !== 'notebook' || searching} onOpen={(e) => open(n.id, e)} onMenu={onMenu(n.id)} carries={pickedNow.includes(n.id) ? pickedNow : undefined} />
               ))}
             </div>
           ))}
@@ -241,7 +246,7 @@ function Snippet({ parts, fallback }: { parts: SnippetPart[] | null; fallback: s
   return <span className="card-preview">{parts.map((p, i) => (p.hit ? <mark key={i}>{p.text}</mark> : p.text))}</span>;
 }
 
-function Card({ note, words, selected, now, trash, showNotebook, onOpen }: { note: Note; words: string[]; selected: boolean; now: number; trash: boolean; showNotebook: boolean; onOpen(e: React.MouseEvent): void }) {
+function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu, carries }: { note: Note; words: string[]; selected: boolean; now: number; trash: boolean; showNotebook: boolean; onOpen(e: React.MouseEvent): void; onMenu(e: React.MouseEvent): void; carries?: string[] }) {
   const store = useAppStore();
   const panes = usePanes();
   const nb = store.notebook(note.notebookId);
@@ -254,7 +259,9 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen }: { not
       className={`card${selected ? ' selected' : ''}${picture ? ' has-thumb' : ''}`}
       aria-current={selected ? 'true' : undefined}
       onClick={(e) => onOpen(e)}
-      {...tabDrag({ kind: 'note', id: note.id })}
+      onContextMenu={onMenu}
+      // Dragged to a pane, or to the sidebar's Trash, a notebook, Favorites or a tag (with the other picked notes).
+      {...tabDrag({ kind: 'note', id: note.id }, carries)}
       // A middle click opens it in a new tab.
       onAuxClick={(e) => e.button === 1 && panes.open({ kind: 'note', id: note.id }, 'tab')}
     >
