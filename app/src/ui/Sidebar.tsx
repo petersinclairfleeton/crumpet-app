@@ -13,7 +13,8 @@ import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from
 import { toMarkdown } from '@crumpet/editor/markdown';
 import { StatsDialog, useTodayWords } from './stats-ui';
 import { FoldButton } from './fold';
-import { tabDrag } from './tabdrag';
+import { tabDrag, useNoteDrop } from './tabdrag';
+import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
@@ -41,6 +42,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const [settingsOpen, setSettingsOpen] = useState(() => typeof location !== 'undefined' && location.hash === '#connect');
   const { state: sync } = useSync();
   const [statsOpen, setStatsOpen] = useState(false);
+  const [menuAt, setMenuAt] = useState<NoteMenuAt | null>(null);
   const todayWords = useTodayWords();
   const panes = usePanes();
   useEffect(() => {
@@ -57,6 +59,12 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const nothingYet = !state.notebooks.length && !state.stacks.length;
   const daily = state.notebooks.find((n) => n.name.toLowerCase() === DAILY_NOTEBOOK.toLowerCase());
   const todayOpen = !!daily && !state.query && state.view.kind === 'notebook' && state.view.id === daily.id && store.note(state.selectedId)?.title === longDate();
+
+  // Notes dragged from the list (or Recent Notes) and dropped on the sidebar.
+  const live = (ids: string[]) => ids.map((id) => store.note(id)).filter((n) => !!n);
+  const toTrash = (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && store.trashNote(n.id));
+  const toFavorites = (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && !n.favorite && store.toggleFavorite(n.id));
+  const toTag = (tag: string) => (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && store.addTag(n.id, tag));
 
   const toggleStack = (id: string) => {
     const next = collapsed.includes(id) ? collapsed.filter((n) => n !== id) : [...collapsed, id];
@@ -79,6 +87,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
       </div>
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
       {statsOpen && <StatsDialog onClose={() => setStatsOpen(false)} />}
+      {menuAt && <NoteMenu at={menuAt} onClose={() => setMenuAt(null)} />}
 
       <div className="new-note-row">
         <button type="button" className="new-note" onClick={onNewNote}>
@@ -96,7 +105,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         <section className="side-section" aria-label="Recent notes">
           <h2 className="side-label">Recent Notes</h2>
           {recent.map((n) => (
-            <button key={n.id} type="button" className="side-row recent" onClick={() => onOpenNote(n.id)} {...tabDrag({ kind: 'note', id: n.id })}>
+            <button key={n.id} type="button" className="side-row recent" onClick={() => onOpenNote(n.id)} onContextMenu={(e) => setMenuAt(noteMenuAt(e, [n.id]))} {...tabDrag({ kind: 'note', id: n.id })}>
               <IconNote size={12} />
               <span className="ellipsis">{displayTitle(n)}</span>
             </button>
@@ -109,7 +118,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
         <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
         <SideRow icon={<IconGraph size={13} />} label="Graph" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
-        <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong />
+        <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong drop={toFavorites} />
         {state.notes.some((n) => n.reminder && n.trashedAt === null) && (
           <SideRow icon={<IconBell size={13} />} label="Reminders" count={openReminders(state.notes) || undefined} active={active({ kind: 'reminders' })} onClick={() => onOpenView({ kind: 'reminders' })} strong />
         )}
@@ -254,10 +263,10 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         {tagsOpen && (
           <div className="tag-list">
             {tags.length === 0 && <p className="side-empty indent">Tags you add to notes show up here.</p>}
-            <TagRows nodes={tags} depth={0} active={active} onOpenView={onOpenView} />
+            <TagRows nodes={tags} depth={0} active={active} onOpenView={onOpenView} onDropTag={toTag} />
           </div>
         )}
-        <SideRow icon={<IconTrash size={13} />} label="Trash" count={trashCount || undefined} active={active({ kind: 'trash' })} onClick={() => onOpenView({ kind: 'trash' })} strong />
+        <SideRow icon={<IconTrash size={13} />} label="Trash" count={trashCount || undefined} active={active({ kind: 'trash' })} onClick={() => onOpenView({ kind: 'trash' })} strong drop={toTrash} />
       </section>
 
       <div className="side-foot">
@@ -285,7 +294,7 @@ export function initials(name: string): string {
 }
 
 /** Tags as a tree: tags nested in another ("book/characters") fold away under it. */
-function TagRows({ nodes, depth, active, onOpenView }: { nodes: TagNode[]; depth: number; active(v: View): boolean; onOpenView(v: View): void }) {
+function TagRows({ nodes, depth, active, onOpenView, onDropTag }: { nodes: TagNode[]; depth: number; active(v: View): boolean; onOpenView(v: View): void; onDropTag(tag: string): (ids: string[]) => void }) {
   const [open, setOpen] = useState<string[]>(() => remember('openTags', []));
   const toggle = (path: string) => {
     const next = open.includes(path) ? open.filter((p) => p !== path) : [...open, path];
@@ -305,7 +314,7 @@ function TagRows({ nodes, depth, active, onOpenView }: { nodes: TagNode[]; depth
           ) : (
             <span className="tag-fold" />
           )}
-          <SideRow label={`#${t.name}`} count={t.count} active={active(view)} onClick={() => onOpenView(view)} />
+          <SideRow label={`#${t.name}`} count={t.count} active={active(view)} onClick={() => onOpenView(view)} drop={onDropTag(t.path)} />
         </div>
       );
       return isOpen ? [row, ...rows(t.children, level + 1)] : [row];
@@ -313,9 +322,17 @@ function TagRows({ nodes, depth, active, onOpenView }: { nodes: TagNode[]; depth
   return <>{rows(nodes, depth)}</>;
 }
 
-function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean; drag?: Tab }) {
+function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean; drag?: Tab; drop?(ids: string[]): void }) {
+  const drop = useNoteDrop(props.drop);
   return (
-    <button type="button" className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}`} aria-current={props.active ? 'page' : undefined} onClick={props.onClick} {...(props.drag ? tabDrag(props.drag) : {})}>
+    <button
+      type="button"
+      className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}${drop.over ? ' drop-over' : ''}`}
+      aria-current={props.active ? 'page' : undefined}
+      onClick={props.onClick}
+      {...(props.drag ? tabDrag(props.drag) : {})}
+      {...drop.props}
+    >
       {props.icon}
       <span className="grow ellipsis">{props.label}</span>
       {props.count !== undefined && (
@@ -350,7 +367,13 @@ function StackGroup({
   const close = () => setMenu(null);
   return (
     <div className="stack">
-      <div className={`side-row stack-row${active({ kind: 'stack', id: stack.id }) ? ' active' : ''}`}>
+      <div
+        className={`side-row stack-row${active({ kind: 'stack', id: stack.id }) ? ' active' : ''}`}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMenu('menu');
+        }}
+      >
         <button type="button" className="disclosure" aria-label={open ? `Collapse ${stack.name}` : `Expand ${stack.name}`} aria-expanded={open} onClick={onToggle}>
           <IconChevron size={10} className={open ? 'rot90' : ''} />
         </button>
@@ -456,9 +479,25 @@ function NotebookRow({ nb, count, depth, active, onOpen }: { nb: Notebook; count
     setMode('menu');
   };
   const current = store.stack(nb.stackId);
+  // Notes dropped here are filed in this notebook (from the Trash, they come back into it).
+  const drop = useNoteDrop((ids) => {
+    for (const id of ids) {
+      const n = store.note(id);
+      if (!n || n.projectId) continue;
+      if (n.trashedAt !== null) store.restoreNote(id);
+      if (n.notebookId !== nb.id) store.moveNote(id, nb.id);
+    }
+  });
   return (
     <div className="nb">
-      <div className={`side-row nb-row${active ? ' active' : ''}`} style={{ paddingLeft: 8 + depth * 18 }}>
+      <div className={`side-row nb-row${active ? ' active' : ''}${drop.over ? ' drop-over' : ''}`} style={{ paddingLeft: 8 + depth * 18 }}
+        {...drop.props}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setMode('menu');
+          setMenu(true);
+        }}
+      >
         <button type="button" className="row-main" aria-current={active ? 'page' : undefined} onClick={onOpen}>
           <NotebookIcon color={nb.color} cut={active ? 'var(--side-sel)' : 'var(--side-bg)'} />
           <span className="ellipsis">{nb.name}</span>

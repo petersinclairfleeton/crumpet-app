@@ -196,6 +196,101 @@ test('Trash: move a note there, restore it, then delete it forever', async ({ pa
   await expect(list(page)).toContainText('The Trash is empty');
 });
 
+test('drag and drop: notes onto a notebook, Favorites, a tag and the Trash, and back out of the Trash', async ({ page }) => {
+  await open(page);
+  await newNotebook(page, 'Recipes');
+  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await newNote(page, 'Soda bread', 'Buttermilk and flour.');
+  await page.getByRole('button', { name: 'Add tag' }).click();
+  await page.keyboard.type('baking');
+  await page.keyboard.press('Enter');
+  await newNote(page, 'Scones', 'Cream first.');
+  const card = (title: string) => list(page).locator('.card', { hasText: title });
+  const recipes = sidebar(page).locator('.nb-row', { hasText: 'Recipes' });
+
+  // Onto a notebook: filed in it.
+  await card('Scones').dragTo(recipes);
+  await expect(recipes.locator('.count')).toHaveText('1');
+  // Onto Favorites: starred.
+  await card('Scones').dragTo(sidebar(page).getByRole('button', { name: /^Favorites/ }));
+  await expect(card('Scones').locator('.pin')).toBeVisible();
+  // Onto a tag: tagged.
+  await sidebar(page).getByRole('button', { name: 'Tags' }).click();
+  await card('Scones').dragTo(sidebar(page).getByRole('button', { name: /^#baking/ }));
+  await expect(card('Scones')).toContainText('#baking');
+
+  // Two picked notes onto the Trash together.
+  await card('Soda bread').click();
+  await card('Scones').click({ modifiers: ['Control'] });
+  await card('Scones').dragTo(sidebar(page).getByRole('button', { name: /^Trash/ }));
+  await expect(list(page).locator('.card')).toHaveCount(0);
+  await expect(sidebar(page).getByRole('button', { name: /^Trash/ })).toContainText('2');
+
+  // Out of the Trash onto a notebook: back, and filed there.
+  await sidebar(page).getByRole('button', { name: /^Trash/ }).click();
+  await card('Soda bread').dragTo(recipes);
+  await expect(card('Soda bread')).toHaveCount(0);
+  await recipes.getByRole('button', { name: 'Recipes', exact: true }).click();
+  await expect(card('Soda bread')).toBeVisible();
+});
+
+test('right click on a note: rename, favourite, move, tag, duplicate, trash, and restore or delete from the Trash', async ({ page }) => {
+  await open(page);
+  await newNotebook(page, 'Ideas');
+  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await newNote(page, 'Plot twist', 'The butler was right.');
+  const card = (title: string) => list(page).locator('.card', { hasText: title });
+  const menu = page.locator('.context-menu');
+
+  await card('Plot twist').click({ button: 'right' });
+  await menu.getByRole('button', { name: 'Rename…' }).click();
+  await page.keyboard.type('Big twist');
+  await page.keyboard.press('Enter');
+  await expect(card('Big twist')).toBeVisible();
+  await expect(menu).toHaveCount(0);
+
+  await card('Big twist').click({ button: 'right' });
+  await menu.getByRole('button', { name: 'Add to Favorites' }).click();
+  await expect(card('Big twist').locator('.pin')).toBeVisible();
+
+  await card('Big twist').click({ button: 'right' });
+  await menu.getByRole('button', { name: 'Move to notebook…' }).click();
+  await menu.getByRole('button', { name: 'Ideas' }).click();
+  await expect(card('Big twist')).toContainText('Ideas');
+
+  await card('Big twist').click({ button: 'right' });
+  await menu.getByRole('button', { name: 'Add tag…' }).click();
+  await page.keyboard.type('plot');
+  await page.keyboard.press('Enter');
+  await expect(card('Big twist')).toContainText('#plot');
+
+  await card('Big twist').click({ button: 'right' });
+  await menu.getByRole('button', { name: 'Duplicate' }).click();
+  await expect(card('Big twist (copy)')).toContainText('The butler was right.');
+
+  await card('Big twist (copy)').click({ button: 'right' });
+  await menu.getByRole('button', { name: 'Move to Trash' }).click();
+  await expect(card('Big twist (copy)')).toHaveCount(0);
+
+  // In the Trash: restore, or delete for good.
+  await sidebar(page).getByRole('button', { name: /^Trash/ }).click();
+  await card('Big twist (copy)').click({ button: 'right' });
+  await expect(menu.getByRole('button', { name: 'Rename…' })).toHaveCount(0);
+  await menu.getByRole('button', { name: 'Delete forever' }).click();
+  await expect(list(page)).toContainText('The Trash is empty');
+
+  // Escape closes it; Recent Notes have it too, and notebooks open their own menu.
+  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await card('Big twist').click({ button: 'right' });
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await sidebar(page).getByRole('region', { name: 'Recent notes' }).getByRole('button', { name: 'Big twist' }).click({ button: 'right' });
+  await expect(menu.getByRole('button', { name: 'Open to the side' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await sidebar(page).locator('.nb-row', { hasText: 'Ideas' }).click({ button: 'right' });
+  await expect(page.getByRole('button', { name: 'Delete notebook…' })).toBeVisible();
+});
+
 test('Favorites: starring a note keeps it there', async ({ page }) => {
   await open(page);
   await newNote(page, 'Weekly review', 'Empty the inbox.');
