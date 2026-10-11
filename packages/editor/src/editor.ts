@@ -290,6 +290,15 @@ export class Editor {
     }, { signal });
     root.addEventListener('mousedown', (e) => this.onMouseDown(e), { signal });
     root.ownerDocument.addEventListener('selectionchange', () => (this.trackCell(), this.onSelectionChange()), { signal });
+    // Leaving a cell (for the font or size box, say) notes it and its selection
+    // there and then, not when the selection change arrives a moment later.
+    root.addEventListener('focusout', (e) => {
+      const cell = e.target as HTMLElement;
+      if (cell.classList?.contains('cell')) {
+        this.lastCell = cell;
+        rememberCellSelection(cell);
+      }
+    }, { signal });
   }
 
   private listening = new AbortController();

@@ -208,6 +208,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     words, headings, zoom).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
+  - Looks: `ui/theme.ts` sets `data-theme` and `data-look` on the page: Crumpet's
+    own themes (`system`, `light`, `dark`) get `data-look='crumpet'` (the frosted
+    window over a wash, Onest), `paper` gets `data-look='paper'` (Paper and ink);
+    the rest keep the classic frame. Tokens and look rules are in `app.css`;
+    the theme list (names, previews) in `ui/themes.ts`.
 - `docs/google-drive-setup.md`: one-off Google setup. The Google client id
   and API key in `app/.env` are public by design. Never ask for or store a
   client secret.

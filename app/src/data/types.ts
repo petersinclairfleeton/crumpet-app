@@ -104,7 +104,7 @@ export interface Chapter {
   updatedAt: number;
 }
 
-export type Theme = 'system' | 'light' | 'dark' | 'classic' | 'vapor' | 'console' | 'mac' | 'glass' | 'sepia' | 'midnight';
+export type Theme = 'system' | 'light' | 'dark' | 'paper' | 'classic' | 'vapor' | 'console' | 'mac' | 'glass' | 'sepia' | 'midnight';
 
 /** The font notes are written in. */
 export interface NoteFont {
