@@ -8,6 +8,7 @@ import { PageSetupDialog } from './pagesetup';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
 import { isMac } from './editing';
+import { PaperSwatches } from './paper';
 
 const svg = (d: string) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -35,6 +36,14 @@ function Drop({ label, glyph, off, children }: { label: string; glyph: React.Rea
   );
 }
 
+/** A sheet of paper in the colour chosen. */
+const ICON_PAPER = (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 3h9l4 4v14H6z" fill="var(--paper, transparent)" />
+    <path d="M15 3v4h4" />
+  </svg>
+);
+
 const ICON_SETUP = svg('M6 3h9l4 4v14H6zM9 12h6M9 16h6M12 9v10');
 
 /** Breaks, Columns, Orientation and Page Setup, as toolbar items (and the Page Setup window when it's open). */
@@ -42,6 +51,22 @@ export function useLayoutItems(ed: Editor | null, off: boolean, pageCtx: { page?
   const [setup, setSetup] = useState(false);
   const items = layoutItems(ed, off);
   const open = () => setSetup(true);
+  items.push({
+    key: 'paper',
+    label: 'Page colour',
+    pri: 2,
+    node: (
+      <Drop label="Page colour" glyph={ICON_PAPER} off={false}>
+        {(close) => (
+          <div className="menu-list">
+            <span className="menu-head">Page colour</span>
+            <PaperSwatches onPicked={close} />
+            <p className="menu-note">For every note and chapter. Printing stays white.</p>
+          </div>
+        )}
+      </Drop>
+    ),
+  });
   items.push({
     key: 'pagesetup',
     pri: 1,

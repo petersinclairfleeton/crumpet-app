@@ -8,6 +8,7 @@ import { useAppState, useAppStore } from './hooks';
 import { IconClose } from './icons';
 import { SyncSettings } from './SyncSettings';
 import { THEMES, themeInfo } from './themes';
+import { PaperSwatches } from './paper';
 
 const SECTIONS = [
   { id: 'account', label: 'Account & sync' },
@@ -100,6 +101,12 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="field" role="group" aria-label="Paper">
+                <span>Paper</span>
+                <p className="sync-hint">The colour of the page you write on, in notes and chapters (printing stays white).</p>
+                <PaperSwatches />
               </div>
             </>
           )}

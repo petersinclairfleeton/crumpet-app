@@ -1,6 +1,7 @@
 import { ACCENTS, DEFAULT_NOTE_SIZE, type Settings } from '../data/types';
 import { fontStack, loadGoogleFont } from './fonts';
 import { themeInfo } from './themes';
+import { inkFor, isHex, luminance } from '../data/paper';
 
 function mix(hex: string, toward: string, amt: number): string {
   const a = parseInt(hex.slice(1), 16);
@@ -8,15 +9,6 @@ function mix(hex: string, toward: string, amt: number): string {
   const ch = (v: number, s: number) => (v >> s) & 255;
   const m = (s: number) => Math.round(ch(a, s) + (ch(b, s) - ch(a, s)) * amt);
   return '#' + [16, 8, 0].map((s) => m(s).toString(16).padStart(2, '0')).join('');
-}
-
-function luminance(hex: string): number {
-  const n = parseInt(hex.slice(1), 16);
-  const c = [16, 8, 0].map((s) => {
-    const v = ((n >> s) & 255) / 255;
-    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 }
 
 /** Sets the theme, accent colour tokens and note font on the page root. */
@@ -41,6 +33,16 @@ export function applyTheme(settings: Settings): void {
   root.style.setProperty('--accent-soft-light', mix(accent, '#FFFFFF', 0.85));
   root.style.setProperty('--accent-soft-dark', mix(accent, '#1E1F21', 0.78));
   root.style.setProperty('--accent-sheet-dark', mix(accent, '#24211E', 0.8));
+  // The paper the writing sits on, with ink to match.
+  if (isHex(settings.paper)) {
+    root.setAttribute('data-paper', '');
+    root.style.setProperty('--paper', settings.paper);
+    root.style.setProperty('--paper-ink', inkFor(settings.paper));
+  } else {
+    root.removeAttribute('data-paper');
+    root.style.removeProperty('--paper');
+    root.style.removeProperty('--paper-ink');
+  }
   // The font notes are written in.
   const font = settings.noteFont;
   if (font?.source === 'google') loadGoogleFont(font.family, font.styles);
