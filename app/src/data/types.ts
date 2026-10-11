@@ -167,6 +167,8 @@ export interface Settings {
   zoom?: number;
   /** Show the ruler above the pages. */
   ruler?: boolean;
+  /** The colour of the paper notes and chapters are written on (#rrggbb); unset: the theme's own. */
+  paper?: string;
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
 }

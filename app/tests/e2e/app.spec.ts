@@ -322,6 +322,33 @@ test('settings: dark appearance and a different accent', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
 
+test('paper colour: picked from the formatting bar or Settings, with ink to match, in normal and page view', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Paper', 'Written on sepia.');
+  const scroll = page.locator('.note-scroll');
+  const bg = () => scroll.evaluate((el) => getComputedStyle(el).backgroundColor);
+  await (await toolButton(page, 'Page colour')).click();
+  await page.getByRole('group', { name: 'Paper colour' }).getByRole('button', { name: 'Sepia paper' }).click();
+  await expect.poll(bg).toBe('rgb(239, 224, 194)');
+  await page.reload();
+  await expect.poll(bg).toBe('rgb(239, 224, 194)');
+
+  // Dark paper gets light ink; in page view it's the sheets that change.
+  await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Look' }).click();
+  await page.getByRole('group', { name: 'Paper', exact: true }).getByRole('button', { name: 'Night paper' }).click();
+  await page.keyboard.press('Escape');
+  await expect.poll(() => page.locator('.note-editor').evaluate((el) => getComputedStyle(el).color)).toBe('rgb(232, 230, 225)');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true } }));
+  await expect.poll(() => page.locator('.sheet').first().evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(27, 28, 32)');
+
+  // Back to the theme's own.
+  await (await toolButton(page, 'Page colour')).click();
+  await page.getByRole('group', { name: 'Paper colour' }).getByRole('button', { name: 'The theme’s own' }).click();
+  await expect.poll(() => page.locator('.sheet').first().evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe('rgb(27, 28, 32)');
+});
+
 test('example notes from the first version are cleared on upgrade, but your own stay', async ({ page }) => {
   // Put version-1 data in the browser's database from a page that doesn't run the app, then open the app.
   await page.goto('/src/ui/theme.ts'); // any same-site page that isn't the app
