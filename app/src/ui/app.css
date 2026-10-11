@@ -1714,3 +1714,30 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .reminder-alert b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
 .reminder-alert small { color: var(--muted); font-size: 12px; }
 a.btn { text-decoration: none; }
+
+/* ---- iPhone and iPad: feeling like an app, not a web page ---- */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media (pointer: coarse) {
+  html, body { overscroll-behavior: none; }
+  :is(button, a, [role='button'], [role='tab'], label, summary) { touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+  :is(.tab-bar, .fab, .side-row, .card, .rail, .topbar, .note-toolbar, .pane-tabs, .list-head, .group-label) { -webkit-user-select: none; user-select: none; }
+  :is(.list, .note-scroll, .sidebar) { overscroll-behavior: contain; }
+}
+/* Phones: a note slides in from the side, and the list settles back in. */
+@media (max-width: 759px) and (prefers-reduced-motion: no-preference) {
+  .app[data-pane='note'] .pane { animation: slide-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .app[data-pane='list'] .list { animation: settle-in 0.24s ease-out; }
+}
+@keyframes slide-in { from { transform: translateX(40%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes settle-in { from { transform: translateX(-24px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+/* While a note is swiped away, the list waits underneath. */
+@media (max-width: 759px) {
+  .app.swiping[data-pane='note'] .panes > .list { display: flex; position: absolute; inset: 0; z-index: 0; animation: none; }
+  .app.swiping[data-pane='note'] .pane { position: relative; z-index: 1; }
+}
+/* In Safari on an iPhone: how to add Crumpet to the Home Screen. */
+.home-guide { position: fixed; z-index: 26; left: 12px; right: 12px; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: 20px; background: color-mix(in srgb, var(--page) 88%, transparent); -webkit-backdrop-filter: blur(24px) saturate(1.6); backdrop-filter: blur(24px) saturate(1.6); box-shadow: var(--shadow); color: var(--text); }
+.home-guide img { flex: none; border-radius: 12px; }
+.home-guide-text { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: 13.5px; line-height: 1.4; }
+.home-guide-text span { color: var(--text2); }
+.home-guide-text svg { vertical-align: -2px; color: var(--accent-ink); }
