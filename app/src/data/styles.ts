@@ -49,6 +49,12 @@ export interface StyleSheet {
   /** The preset it started from. */
   preset: PresetId;
   styles: Record<StyleKey, StyleDef>;
+  /**
+   * Indent the first line of paragraphs that open a passage too (a chapter's
+   * first, and the first after a heading, scene break or blank line). Off,
+   * as in printed books: only the paragraphs after them are indented.
+   */
+  indentFirst?: boolean;
 }
 
 /** The styles in the order Word's style menu shows them, and the block each one makes. */
@@ -207,7 +213,7 @@ export function fullSheet(sheet: StyleSheet | undefined, fallback: PresetId): St
   if (!sheet) return preset;
   const styles = { ...preset.styles };
   for (const key of Object.keys(styles) as StyleKey[]) if (sheet.styles?.[key]) styles[key] = { ...preset.styles[key], ...sheet.styles[key] };
-  return { preset: sheet.preset, styles };
+  return { preset: sheet.preset, styles, ...(sheet.indentFirst ? { indentFirst: true } : {}) };
 }
 
 // ---------------------------------------------------------------- CSS
@@ -257,6 +263,8 @@ export function sheetCss(sheet: StyleSheet, scope: string, stack: (f: NoteFont) 
     if ((key === 'quote' || key === 'intense') && sheet.preset !== 'crumpet') decl.push('background: none', 'padding: 0', 'border: none', 'border-radius: 0');
     rules.push(`${scope} ${SELECTORS[key]} { ${decl.join('; ')}; }`);
   }
+  // A passage's opening paragraph isn't indented (unless the sheet says so).
+  if (!sheet.indentFirst) rules.push(`${scope} ${SELECTORS.normal}[data-opens] { text-indent: 0; }`);
   // Paragraph alignment chosen by hand.
   for (const a of ['left', 'center', 'right', 'justify']) rules.push(`${scope} .blk[data-align='${a}'] { text-align: ${a}; }`);
   return rules.join('\n');

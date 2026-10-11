@@ -134,6 +134,15 @@ export class View {
       el.toggleAttribute('data-in-toggle', inToggle.has(block.id));
       if (!hideBelow && block.folded && isHeading(block.type)) hideBelow = level;
     }
+    // Paragraphs that open a passage (the first, or the first after a heading,
+    // scene break, blank line or anything but body text): style sheets can
+    // leave their first line unindented, as printed books do.
+    doc.blocks.forEach((block, i) => {
+      if (block.type !== 'paragraph') return;
+      const prev = doc.blocks[i - 1];
+      const opens = !prev || prev.type !== 'paragraph' || !!prev.style || runsLength(prev.runs) === 0;
+      this.rendered.get(block.id)!.el.toggleAttribute('data-opens', opens);
+    });
     // List numbers, worked out here (not by CSS counters) so they stay right however the page splits the text.
     const labels = listLabels(doc.blocks);
     for (const block of doc.blocks) {

@@ -594,6 +594,34 @@ test('styles: apply from the menu, align, and modify a style for every paragraph
   await expect.poll(() => page.locator('.note-pane [contenteditable] .blk').nth(1).evaluate((el) => getComputedStyle(el).fontSize)).toBe("26.6667px");
 });
 
+test('a chapter’s first paragraph, and the first after a heading or blank line, aren’t indented; a tick box indents them too', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.getByLabel('Chapter title').fill('The Keeper');
+  await page.keyboard.press('Enter');
+  for (const line of ['The lamp had not been lit for eleven years.', 'Mara climbed anyway.', '', 'Morning came.', 'The gulls returned.']) {
+    if (line) await page.keyboard.type(line);
+    await page.keyboard.press('Enter');
+  }
+  const blk = (n: number) => page.locator('.note-editor .blk').nth(n);
+  const indent = (n: number) => blk(n).evaluate((el) => getComputedStyle(el).textIndent);
+  // Manuscript style: half an inch, but not on the opening paragraphs.
+  await expect.poll(() => indent(0)).toBe('0px');
+  await expect.poll(() => indent(1)).toBe('48px');
+  await expect.poll(() => indent(3)).toBe('0px');
+  await expect.poll(() => indent(4)).toBe('48px');
+
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await blk(1).click();
+  await page.getByRole('button', { name: 'Style', exact: true }).click();
+  await page.getByRole('button', { name: 'Modify styles…' }).click();
+  await page.getByRole('dialog').getByLabel(/Indent opening paragraphs too/).check();
+  await expect.poll(() => indent(0)).toBe('48px');
+  await expect.poll(() => indent(3)).toBe('48px');
+});
+
 test('typing is kept even when the page is closed straight away', async ({ page }) => {
   await open(page);
   await newNote(page, 'Last words', 'Typed right before leaving.');
