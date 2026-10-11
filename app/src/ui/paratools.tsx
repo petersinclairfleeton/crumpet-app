@@ -131,12 +131,15 @@ export function ParagraphDialog({ editor, onClose }: { editor: Editor; onClose()
   const [keepLines, setKeepLines] = useState(!!v('keepLines'));
   const panel = useRef<HTMLFormElement>(null);
 
+  // Focus once, on opening: a redraw mustn't pull the caret back.
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     panel.current?.querySelector('input')?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   const n = (s: string) => (s.trim() === '' || !Number.isFinite(+s) ? undefined : +s);
   const apply = () => {

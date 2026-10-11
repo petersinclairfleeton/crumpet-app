@@ -31,12 +31,15 @@ export function NameGenerator({ initialKind = 'character', taken, onPick, onClos
     }
   }, [region, era, gender]);
 
+  // Focus once, on opening: a redraw mustn't pull the caret back.
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     panel.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   const used = new Set(taken.map((t) => t.toLowerCase()));
   const names = suggestNames(kind, region, era, gender, seed).filter((n) => !used.has(n.toLowerCase()));

@@ -217,7 +217,11 @@ test('settings: dark appearance and a different accent', async ({ page }) => {
   await page.getByRole('button', { name: 'Blueberry' }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
   await page.getByRole('tab', { name: 'Account & sync' }).click();
-  await page.getByLabel('Your name').fill('Peter Sinclair-Fleeton');
+  // Typed a letter at a time: the box keeps the caret while the app saves each one.
+  await page.getByLabel('Your name').click();
+  await page.keyboard.type('Peter Sinclair-Fleeton');
+  await expect(page.getByLabel('Your name')).toHaveValue('Peter Sinclair-Fleeton');
+  await expect(page.getByLabel('Your name')).toBeFocused();
   await expect(sidebar(page).locator('.avatar')).toHaveText('PS');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
