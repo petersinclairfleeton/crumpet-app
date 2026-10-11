@@ -14,6 +14,7 @@ import { SyncEngine, type SyncState, type SyncStatus } from './engine';
 import { GoogleAuth, SignInNeeded } from './google-auth';
 import { type Provider, ProviderError } from './provider';
 import { uploadFiles } from '../data/files';
+import { desktop } from '../data/desktop';
 
 export interface DriveConfig {
   kind: 'drive';
@@ -46,7 +47,8 @@ const POLL_MS = 60_000;
 const DEFAULT_FOLDER = 'Crumpet';
 
 /** Crumpet's Google OAuth client id, set when the app is built (see docs/google-drive-setup.md). Public, not a secret. */
-export const BUILT_IN_CLIENT_ID: string = (import.meta.env?.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '';
+// (Not in the desktop app: Google only signs in on the website's own address. A folder works there instead.)
+export const BUILT_IN_CLIENT_ID: string = desktop ? '' : ((import.meta.env?.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '');
 
 export class SyncConnection {
   private state: ConnectionState = { config: null, status: null, connecting: false, choosing: null };

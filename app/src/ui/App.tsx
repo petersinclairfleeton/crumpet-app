@@ -1,3 +1,4 @@
+import { desktop } from '../data/desktop';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Doc } from '@crumpet/editor/model';
 import { type Nav, NavContext, useAppState, useAppStore } from './hooks';
@@ -347,6 +348,7 @@ export function App() {
         </p>
       )}
       <PeekContext.Provider value={peekValue}>
+      {desktop && <div className="titlebar-drag" aria-hidden="true" />}
       <div className="frame">
         {peekable && sidebarMode === 'hidden' && <div className="peek-edge" aria-hidden="true" onMouseEnter={() => peekCtl.open('sidebar')} onMouseLeave={peekCtl.leave} />}
         {peekable && peek === 'sidebar' && sidebarMode === 'hidden' && (

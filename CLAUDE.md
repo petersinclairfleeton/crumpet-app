@@ -213,6 +213,20 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     window over a wash, Onest), `paper` gets `data-look='paper'` (Paper and ink);
     the rest keep the classic frame. Tokens and look rules are in `app.css`;
     the theme list (names, previews) in `ui/themes.ts`.
+- `desktop/`: Crumpet for Mac (Electron). `main.cjs` serves the built web app
+  (`app/dist`, packed inside as `resources/web`) from `app://crumpet/`, with a
+  Mac window (hidden title bar, the window buttons over the sidebar, the
+  sidebar's `vibrancy`); links to other sites open in the browser.
+  `preload.cjs` tells the page (`window.crumpetDesktop`, read by
+  `app/src/data/desktop.ts`), which sets `data-shell='mac'` on the page for the
+  window's styles (`app.css`, "The Mac app") and leaves out Google sign-in
+  (Google only signs in on the website's address; a folder works instead).
+  `.github/workflows/mac.yml` builds it on GitHub's Macs on every change
+  (one app for Apple silicon and Intel, signed ad hoc, no Apple Developer ID
+  yet) and publishes it as the latest release; Settings → Clipper & app
+  links to `releases/latest/download/Crumpet-Mac.dmg`. Try it here with
+  `cd app && npx vite build`, then `cd desktop && npx electron-builder --linux dir`
+  and run the result under `xvfb-run` (Playwright's `_electron` can drive it).
 - `docs/google-drive-setup.md`: one-off Google setup. The Google client id
   and API key in `app/.env` are public by design. Never ask for or store a
   client secret.
@@ -236,7 +250,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   in browsers that support named pages (Chrome, Edge, Firefox). A book's table of contents
   guesses the pages of headings in chapters not laid out yet (from their
   words) until they have been.
-- Not built yet: native Mac/iPhone/iPad apps, Dropbox/OneDrive/iCloud as
+- The Mac app isn't signed with an Apple Developer ID (macOS asks to confirm it
+  once), and has no Google sign-in (a synced folder instead); its fonts come
+  from the internet (the Mac's own font is used offline).
+- Not built yet: native iPhone/iPad apps, Dropbox/OneDrive/iCloud as
   services of their own (they need app keys from their makers; on a computer,
   a folder they keep in step works instead), sharing. Reminders only nudge
   while Crumpet is open (no push from a server). A folder on

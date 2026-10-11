@@ -1,0 +1,81 @@
+# Builds Crumpet for Mac (desktop/) on one of GitHub's Macs whenever the app
+# changes, and publishes it as the latest release, so this link always gets
+# the newest one:
+# https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Mac.dmg
+#
+# One app for every Mac (Apple silicon and Intel). It's signed "ad hoc", not
+# with an Apple Developer ID, so the first time macOS asks to confirm it in
+# System Settings → Privacy & Security ("Open Anyway").
+
+name: Mac app
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', 'packages/**', 'desktop/**', '.github/workflows/mac.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mac-app
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            desktop/package-lock.json
+
+      - name: Build the web app
+        working-directory: app
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx vite build
+
+      - name: Build the Mac app
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm ci
+          npm version "1.0.${{ github.run_number }}" --no-git-tag-version
+          npx electron-builder --mac dir --universal --publish never
+
+      - name: Sign it (ad hoc) and make the download
+        working-directory: desktop/release
+        run: |
+          APP=mac-universal/Crumpet.app
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
+          mkdir dmg
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname Crumpet -srcfolder dmg -ov -format UDZO Crumpet-Mac.dmg
+          ditto -c -k --keepParent "$APP" Crumpet-Mac.zip
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mac-v1.0.${{ github.run_number }}
+          name: Crumpet for Mac 1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            Crumpet as a Mac app, for every Mac (Apple silicon and Intel).
+
+            1. Download **Crumpet-Mac.dmg**, open it, and drag Crumpet into Applications.
+            2. Open Crumpet. The first time, macOS says it can't check it: open System Settings → Privacy & Security, scroll down, and click **Open Anyway**. (It isn't signed with an Apple Developer ID yet.)
+
+            Your notes are kept on the Mac. To have them on your other devices too, choose Settings → Account & sync → "Use a folder on this computer" and pick a folder that iCloud Drive, Dropbox, OneDrive or Google Drive for desktop keeps in step.
+          files: |
+            desktop/release/Crumpet-Mac.dmg
+            desktop/release/Crumpet-Mac.zip

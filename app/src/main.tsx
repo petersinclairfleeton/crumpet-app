@@ -11,7 +11,10 @@ import { startClipListener } from './data/clip';
 import './ui/coderender';
 import { startPwa } from './data/pwa';
 import './ui/app.css';
+import { desktop } from './data/desktop';
 
+// In the desktop app: the window fits itself to it (see data/desktop.ts).
+if (desktop) document.documentElement.dataset.shell = desktop.platform === 'darwin' ? 'mac' : 'desktop';
 // Opened by the web clipper: start listening before anything else, so its page isn't missed.
 startClipListener();
 // Installable, and working without the internet once it's been opened.

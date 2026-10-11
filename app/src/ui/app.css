@@ -942,6 +942,25 @@ body.pane-resizing iframe { pointer-events: none; }
   [data-look='paper'] .sidebar { background: var(--shell); }
 }
 
+/* ---- The Mac app (desktop/): the window is the window ----
+   No frame floating in a wash: the sidebar lets the Mac's own blur through
+   (the window's vibrancy), with room at the top for the red, yellow and
+   green buttons; the rest is solid. The top edge drags the window. */
+.titlebar-drag { display: none; }
+[data-shell] .titlebar-drag { display: block; position: fixed; z-index: 100; top: 0; left: 0; right: 0; height: 38px; -webkit-app-region: drag; pointer-events: none; }
+[data-shell] :is(button, input, select, textarea, a, [contenteditable='true'], [role='button'], [role='tab'], .resizer, .pane-resizer, .pane-tab-wrap, .search) { -webkit-app-region: no-drag; }
+[data-shell='mac'] body, [data-shell='mac'][data-look='crumpet'] body { background: transparent; }
+[data-shell='mac'][data-look='crumpet'] .app { padding: 0; }
+[data-shell='mac'][data-look='crumpet'] .frame { border-radius: 0; box-shadow: none; }
+[data-shell='mac'][data-look='crumpet'] :is(.sidebar, .rail) { background: color-mix(in srgb, var(--side-bg) 35%, transparent); -webkit-backdrop-filter: none; backdrop-filter: none; border-right-color: var(--line); }
+[data-shell='mac'][data-look='crumpet'] .workspace { background: color-mix(in srgb, var(--shell) 55%, var(--page)); }
+[data-shell='mac'] .sidebar { padding-top: 44px; }
+[data-shell='mac'] .rail { padding-top: 44px; }
+/* Other themes in the Mac app: their own solid colours, with the same room for the window buttons. */
+[data-shell='mac']:not([data-look='crumpet']) body { background: var(--shell, var(--page)); }
+/* With the sidebar folded away, the top bar leaves room for the window buttons. */
+[data-shell='mac'] .frame:not(:has(> .sidebar, > .rail)) .topbar { padding-left: 84px; }
+
 /* Crumpet on phones: one thing at a time, filling the screen. */
 @media (max-width: 759px) {
   [data-look='crumpet'] .app { padding: 0; }
@@ -1694,3 +1713,4 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .reminder-alert .grow { display: grid; min-width: 0; }
 .reminder-alert b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
 .reminder-alert small { color: var(--muted); font-size: 12px; }
+a.btn { text-decoration: none; }

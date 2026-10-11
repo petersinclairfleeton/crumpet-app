@@ -3,6 +3,7 @@ import { BUILT_IN_CLIENT_ID } from '../sync/connection';
 import type { SyncStatus } from '../sync/engine';
 import { canPickFolder } from '../sync/google-picker';
 import { canUseFolder } from '../sync/folder';
+import { desktop } from '../data/desktop';
 import { useSync } from './hooks';
 
 /** Settings: where notes are kept: Google Drive, or a folder on this computer. */
@@ -87,16 +88,23 @@ export function SyncSettings() {
       <span>Where your notes live</span>
       <p className="sync-where">On this device only.</p>
       <div className="sync-actions">
-        <button type="button" className="btn google" disabled={state.connecting || !BUILT_IN_CLIENT_ID} onClick={() => run(() => sync.signInToGoogle())}>
-          <GoogleMark />
-          {state.connecting ? 'Opening Google…' : 'Continue with Google'}
-        </button>
+        {!desktop && (
+          <button type="button" className="btn google" disabled={state.connecting || !BUILT_IN_CLIENT_ID} onClick={() => run(() => sync.signInToGoogle())}>
+            <GoogleMark />
+            {state.connecting ? 'Opening Google…' : 'Continue with Google'}
+          </button>
+        )}
         {canUseFolder && (
           <button type="button" className="btn" disabled={state.connecting} onClick={() => run(() => sync.useLocalFolder())}>
             Use a folder on this computer…
           </button>
         )}
       </div>
+      {desktop ? (
+        <p className="sync-hint">
+          Keep your notes as Markdown files in a folder on this computer. To have them on your other devices too, pick a folder that iCloud Drive, Dropbox, OneDrive or Google Drive for desktop keeps in step (for Google Drive, the folder Crumpet uses on the website).
+        </p>
+      ) : (
       <p className="sync-hint">
         {BUILT_IN_CLIENT_ID
           ? 'Keep your notes as Markdown files in a folder in your Google Drive, and see them on all your devices. Crumpet can only see that folder.'
@@ -105,6 +113,7 @@ export function SyncSettings() {
           ? ' Or keep them in a folder on this computer: pick one that Dropbox, OneDrive or iCloud Drive keeps in step to have them on your other devices too.'
           : ' (Keeping notes in a folder on this computer needs Chrome or Edge on a computer.)'}
       </p>
+      )}
       {error && <p className="sync-line bad">{error}</p>}
     </div>
   );
