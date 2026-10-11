@@ -1,0 +1,52 @@
+{
+  "name": "crumpet-desktop",
+  "productName": "Crumpet",
+  "version": "1.0.0",
+  "description": "Crumpet: notes and writing, as a Mac app.",
+  "private": true,
+  "main": "main.cjs",
+  "author": "Peter Sinclair-Fleeton",
+  "scripts": {
+    "start": "electron .",
+    "pack:mac": "electron-builder --mac dir --universal --publish never"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "app.crumpet.notes",
+    "productName": "Crumpet",
+    "copyright": "Peter Sinclair-Fleeton",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../app/dist",
+        "to": "web"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "identity": null,
+      "darkModeSupport": true,
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Crumpet uses the microphone for dictation.",
+        "NSHumanReadableCopyright": "Crumpet"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/petersinclairfleeton/crumpet-app.git"
+  }
+}
