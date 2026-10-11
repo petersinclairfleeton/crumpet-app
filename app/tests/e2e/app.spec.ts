@@ -2902,3 +2902,31 @@ test('reminders: set from the bell, listed under Reminders, and a message when o
   await page.getByRole('button', { name: 'Remove reminder' }).click();
   await expect(page.getByRole('button', { name: 'Add a reminder' })).toBeVisible();
 });
+
+test('on an iPhone: the Home Screen guide, no zooming into boxes, and swiping in from the edge to go back', async ({ browser }) => {
+  const { devices } = await import('@playwright/test');
+  const { defaultBrowserType: _, ...iphone } = devices['iPhone 14'];
+  const context = await browser.newContext(iphone);
+  const page = await context.newPage();
+  await page.goto('/');
+  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute('content', /maximum-scale=1/);
+  const guide = page.getByRole('dialog', { name: 'Add Crumpet to your Home Screen' });
+  await expect(guide).toContainText('Add to Home Screen');
+  await guide.getByRole('button', { name: 'Got it' }).click();
+  await expect(guide).toHaveCount(0);
+  await page.evaluate(() => (window as unknown as { crumpet: { createNote(n: object): unknown } }).crumpet.createNote({ title: 'Harbour' }));
+  await page.locator('.card', { hasText: 'Harbour' }).click();
+  await expect(page.locator('.app')).toHaveAttribute('data-pane', 'note');
+  const cdp = await context.newCDPSession(page);
+  const touch = (type: string, x: number, y: number) => cdp.send('Input.dispatchTouchEvent', { type: type as 'touchStart', touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  await touch('touchStart', 8, 400);
+  for (let x = 30; x <= 270; x += 30) await touch('touchMove', x, 404);
+  await touch('touchEnd', 270, 404);
+  await expect(page.locator('.app')).toHaveAttribute('data-pane', 'list');
+  // Put away, it stays away.
+  await page.reload();
+  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(guide).toHaveCount(0);
+  await context.close();
+});

@@ -12,9 +12,12 @@ import './ui/coderender';
 import { startPwa } from './data/pwa';
 import './ui/app.css';
 import { desktop } from './data/desktop';
+import { stopFocusZoom } from './ui/iphone';
 
 // In the desktop app: the window fits itself to it (see data/desktop.ts).
 if (desktop) document.documentElement.dataset.shell = desktop.platform === 'darwin' ? 'mac' : 'desktop';
+// On an iPhone: no zooming in when a box is tapped.
+stopFocusZoom();
 // Opened by the web clipper: start listening before anything else, so its page isn't missed.
 startClipListener();
 // Installable, and working without the internet once it's been opened.

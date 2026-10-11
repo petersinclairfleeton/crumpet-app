@@ -213,6 +213,14 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     window over a wash, Onest), `paper` gets `data-look='paper'` (Paper and ink);
     the rest keep the classic frame. Tokens and look rules are in `app.css`;
     the theme list (names, previews) in `ui/themes.ts`.
+- iPhone and iPad: the app added to the Home Screen from Safari (no App Store
+  app). `index.html` has the launch screens (`public/splash/`, made per iPhone
+  size, light and dark) and a status bar in the app's own colour
+  (`theme-color`); `ui/iphone.tsx` stops iOS zooming into boxes
+  (`maximum-scale=1`, iOS only), swipes in from the left edge go back to the
+  list (`useSwipeBack`), and Safari shows a guide to adding it
+  (`HomeScreenGuide`); touch details are in `app.css` ("iPhone and iPad").
+  Note: the Home Screen app keeps its own notes, apart from Safari's.
 - `desktop/`: Crumpet for Mac (Electron). `main.cjs` serves the built web app
   (`app/dist`, packed inside as `resources/web`) from `app://crumpet/`, with a
   Mac window (hidden title bar, the window buttons over the sidebar, the

@@ -1,3 +1,4 @@
+import { HomeScreenGuide, useSwipeBack } from './iphone';
 import { desktop } from '../data/desktop';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Doc } from '@crumpet/editor/model';
@@ -276,6 +277,9 @@ export function App() {
   const project = state.view.kind === 'project' && !state.query.trim() ? store.project(state.view.id) : undefined;
 
   const appRef = useRef<HTMLDivElement>(null);
+  // Phones: swipe in from the left edge to go back to the list.
+  const backToList = useCallback(() => setPane('list'), []);
+  useSwipeBack(appRef, narrow && pane === 'note' && !state.focusMode, backToList);
   const peekValue = useMemo(() => ({ peek, ...peekCtl }), [peek, peekCtl]);
   if (!state.ready) return <div className="loading">Opening your notes…</div>;
 
@@ -397,6 +401,7 @@ export function App() {
         )}
       </div>
       </PeekContext.Provider>
+      {narrow && pane === 'list' && !state.focusMode && <HomeScreenGuide />}
       {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
     </div>
     </PanesContext.Provider>
