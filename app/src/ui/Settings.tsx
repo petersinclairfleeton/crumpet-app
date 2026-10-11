@@ -26,12 +26,17 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
   const [section, setSection] = useState<SettingsSection>(first);
   const size = s.noteSize ?? DEFAULT_NOTE_SIZE;
 
+  // The window takes the focus once, when it opens: the app redraws on every
+  // change (each letter of your name), and taking it again would pull the
+  // caret out of the box being typed in.
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     document.addEventListener('keydown', onKey);
     panel.current?.focus();
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   const ownAccent = themeInfo(s.theme).accent;
 

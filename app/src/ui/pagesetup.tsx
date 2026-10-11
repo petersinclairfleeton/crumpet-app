@@ -36,12 +36,15 @@ export function PageSetupDialog({ editor, page, onPage, chapters = false, onClos
   const [applyTo, setApplyTo] = useState<ApplyTo>(look.first && !hasSections(editor) ? 'all' : 'section');
   const panel = useRef<HTMLFormElement>(null);
 
+  // Focus once, on opening: a redraw mustn't pull the caret back.
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     panel.current?.querySelector('input')?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   const apply = () => {
     const mm = { top: read(margins.top) ?? base.top, bottom: read(margins.bottom) ?? base.bottom, left: read(margins.left) ?? base.left, right: read(margins.right) ?? base.right };

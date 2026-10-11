@@ -46,14 +46,17 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
   const week = last30.slice(-7).reduce((n, d) => n + (days[d] ?? 0), 0);
   const month = last30.reduce((n, d) => n + (days[d] ?? 0), 0);
 
+  // Focus once, on opening: a redraw mustn't pull the caret back.
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
     document.addEventListener('keydown', onKey);
     panel.current?.focus();
     // On a narrow screen the calendar scrolls; start at the latest weeks.
     if (calendar.current) calendar.current.scrollLeft = calendar.current.scrollWidth;
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   const show = (e: React.MouseEvent | React.FocusEvent, text: string) => {
     const r = (e.currentTarget as Element).getBoundingClientRect();
