@@ -1,3 +1,4 @@
+import { AccountSettings } from './account';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ClipperSettings } from './clipper';
@@ -65,6 +66,7 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
                 <span>Your name</span>
                 <input value={s.name} placeholder="Shown at the top of the sidebar, and on manuscripts" onChange={(e) => store.updateSettings({ name: e.target.value })} />
               </label>
+              <AccountSettings />
               <SyncSettings />
             </>
           )}

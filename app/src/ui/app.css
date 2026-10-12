@@ -1865,3 +1865,29 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .word-glyph { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: #2b579a; color: #fff; font-weight: 700; font-size: 11px; }
 /* Files from the computer over the note list. */
 .list.files-over { box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--list-bg, transparent)); }
+
+/* ---------- Signing in (optional accounts) ---------- */
+.signin-backdrop { z-index: 70; background: color-mix(in srgb, var(--bg, #000) 55%, rgba(0, 0, 0, 0.45)); backdrop-filter: blur(6px); }
+.signin { display: flex; flex-direction: column; gap: 14px; width: min(400px, 100%); max-height: 100%; overflow: auto; padding: 28px 28px 20px; background: var(--page); color: var(--text); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); font-family: var(--ui-font, inherit); }
+.signin-brand { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.signin-brand h1 { margin: 6px 0 0; font-size: 22px; }
+.signin-brand p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+.signin .btn { justify-content: center; height: 40px; border-radius: 8px; font-size: 14px; }
+.signin-google { gap: 10px; }
+.signin-google:hover:not(:disabled) { background: var(--field, var(--chip)); }
+.signin-or { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--muted); font-size: 12px; }
+.signin-or::before, .signin-or::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.signin-form { display: flex; flex-direction: column; gap: 12px; }
+.signin-form .field input { height: 38px; border-radius: 8px; padding: 0 10px; font-size: 15px; color: var(--text); }
+.signin-submit { width: 100%; margin-top: 2px; }
+.signin-error { margin: 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); font-size: 13px; }
+.signin-note { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--chip); color: var(--text2); font-size: 13px; }
+.signin-switch { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0; font-size: 13px; }
+.signin-later { align-self: center; margin-top: 4px; color: var(--muted); font-size: 13px; }
+@media (max-width: 759px) {
+  .signin-backdrop { padding: 0; }
+  .signin { width: 100%; height: 100%; border-radius: 0; border: none; justify-content: center; padding: 24px 20px; }
+}
+.account-who { margin: 0; font-size: 13.5px; }
+.account-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.link-btn.danger { color: var(--danger); }

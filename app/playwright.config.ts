@@ -11,6 +11,6 @@ export default defineConfig({
     command: 'npx vite --port 5181 --strictPort',
     url: 'http://localhost:5181',
     reuseExistingServer: false,
-    env: { VITE_GOOGLE_CLIENT_ID: 'e2e-client.apps.googleusercontent.com', VITE_GOOGLE_API_KEY: 'e2e-key', VITE_GOOGLE_APP_ID: '123456789' },
+    env: { VITE_GOOGLE_CLIENT_ID: 'e2e-client.apps.googleusercontent.com', VITE_GOOGLE_API_KEY: 'e2e-key', VITE_GOOGLE_APP_ID: '123456789', VITE_FIREBASE_API_KEY: 'e2e-firebase' },
   },
 });

@@ -119,3 +119,21 @@ export class GoogleAuth {
     });
   }
 }
+
+/**
+ * Asks Google who you are (your name and email, nothing else) for signing in
+ * to a Crumpet account; call from a click so the window isn't blocked.
+ * Returns an access token for that alone.
+ */
+export async function googleIdentity(clientId: string): Promise<string> {
+  const gis = await loadGis();
+  return new Promise<string>((resolve, reject) => {
+    const client = gis.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'openid email profile',
+      callback: (r) => (r.access_token ? resolve(r.access_token) : reject(new SignInNeeded(r.error_description ?? r.error ?? 'Google sign-in was cancelled'))),
+      error_callback: (e) => reject(new SignInNeeded(e.type === 'popup_failed_to_open' ? 'The browser blocked the Google sign-in window.' : (e.message ?? 'Google sign-in was cancelled'))),
+    });
+    client.requestAccessToken({ prompt: 'select_account' });
+  });
+}

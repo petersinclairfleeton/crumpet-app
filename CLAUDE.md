@@ -272,6 +272,17 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   links to `releases/latest/download/Crumpet-Mac.dmg`. Try it here with
   `cd app && npx vite build`, then `cd desktop && npx electron-builder --linux dir`
   and run the result under `xvfb-run` (Playwright's `_electron` can drive it).
+- Accounts (optional): `app/src/data/account.ts` talks to Firebase
+  Authentication's REST API directly (no Firebase library): email and
+  password, password reset, confirming the email, Google (an access token
+  for `openid email profile` from Google's sign-in window, `googleIdentity`
+  in `sync/google-auth.ts`, swapped with `signInWithIdp`), and deleting the
+  account. The account is kept in `localStorage` (`crumpet.account`) and
+  only says who you are: notes never go to it. `ui/account.tsx` is the
+  sign-in screen (on a device's first visit, before the guide, unless
+  skipped or under automation) and Settings → Account. Off unless
+  `VITE_FIREBASE_API_KEY` is set (`docs/accounts-setup.md`); browser tests
+  fake the service (`tests/e2e/account.spec.ts`).
 - `docs/google-drive-setup.md`: one-off Google setup. The Google client id
   and API key in `app/.env` are public by design. Never ask for or store a
   client secret.
@@ -301,6 +312,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   once); its Google sign-in needs `VITE_GOOGLE_MAC_CLIENT_ID` (docs step 4b),
   and was tested on Linux with a stand-in for Google, not on a real Mac; its
   fonts come from the internet (the Mac's own font is used offline).
+- Accounts need Firebase set up once (`docs/accounts-setup.md`); the Mac app
+  offers email sign-in only (no Google there yet).
 - Not built yet: native iPhone/iPad apps, Dropbox/OneDrive/iCloud as
   services of their own (they need app keys from their makers; on a computer,
   a folder they keep in step works instead), sharing. Reminders only nudge
