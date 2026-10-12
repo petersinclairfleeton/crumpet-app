@@ -1032,7 +1032,9 @@ test('a first visit can take a short tour, and N starts a note', async ({ page }
 test('the guide: opens by itself on a first visit, chapter by chapter with pictures and workflows, and again from the ? button', async ({ page }) => {
   // (The guide waits for automated browsers like this one to ask; here it behaves as for a person.)
   await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
-  await open(page);
+  await page.goto('/');
+  // First the sign-in screen (accounts are on in the tests' build); the guide comes after it.
+  await page.getByRole('dialog', { name: 'Sign in to Crumpet' }).getByRole('button', { name: 'Continue without an account' }).click();
   const guide = page.getByRole('dialog', { name: /the guide/ });
   await expect(guide.getByRole('heading', { name: 'Welcome to Crumpet' })).toBeVisible();
   // Its pictures are real files that load.

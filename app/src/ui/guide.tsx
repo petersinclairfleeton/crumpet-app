@@ -4,6 +4,7 @@
 // first time Crumpet is opened on a device, and again from the ? button in
 // the top bar or "Open the guide" in the command palette.
 
+import { accountsReady } from '../data/account';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppState, useAppStore } from './hooks';
@@ -126,6 +127,8 @@ const CHAPTERS: Chapter[] = [
     lede: 'Connect once, and your notes and books follow you, kept as files in your own Google Drive.',
     points: [
       { title: 'Google Drive', text: 'Settings → Account & sync → Continue with Google, then choose a folder (or a new “Crumpet” one). Do the same on each device.' },
+      // Only when this copy of Crumpet offers accounts (docs/accounts-setup.md).
+      ...(accountsReady ? [{ title: 'An account, if you like', text: 'Sign in with Google or an email and password (Settings → Account & sync) to have your name on every device. It’s optional, and your notes never go to it.' }] : []),
       { title: 'Mac, iPhone and iPad', text: 'Crumpet for Mac is a download in Settings → Clipper & app. On iPhone and iPad, open Crumpet in Safari and add it to the Home Screen.' },
       { title: 'Or a folder', text: 'Prefer Dropbox, OneDrive or iCloud Drive? Choose “Use a folder on this computer” and pick a folder they keep in step.' },
       { title: 'Nothing is ever lost', text: 'Crumpet keeps everything on the device too, and works offline; when two devices change the same note, it merges them, or keeps both.' },

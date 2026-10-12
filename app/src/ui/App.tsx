@@ -18,6 +18,7 @@ import { Finder } from './finder';
 import { currentHelped } from './helpers';
 import { SettingsDialog } from './Settings';
 import { Guide, onOpenGuide, shouldOpenGuide } from './guide';
+import { SignInScreen, onOpenSignIn, shouldOpenSignIn } from './account';
 import { Tour } from './Tour';
 import { applyTheme } from './theme';
 import { startSession } from './writingtab';
@@ -257,6 +258,9 @@ export function App() {
   const [guide, setGuide] = useState(false);
   const [touring, setTouring] = useState(false);
   useEffect(() => onOpenGuide(() => setGuide(true)), []);
+  // Signing in: by itself on a first visit (when accounts are set up), before the guide; and from Settings.
+  const [signIn, setSignIn] = useState(() => shouldOpenSignIn());
+  useEffect(() => onOpenSignIn(() => setSignIn(true)), []);
   useEffect(() => {
     if (state.ready && shouldOpenGuide(store.getState())) setGuide(true);
   }, [state.ready]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -350,7 +354,8 @@ export function App() {
       )}
       {compare && <CompareDocs a={compare.a} b={compare.b} onSwap={() => setCompare({ a: compare.b, b: compare.a })} onClose={() => setCompare(null)} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
-      {guide && <Guide onClose={() => setGuide(false)} onNewNote={newNote} onNewProject={newProject} onConnect={() => setSettingsOpen(true)} onTour={() => setTouring(true)} />}
+      {signIn && <SignInScreen onClose={() => setSignIn(false)} />}
+      {guide && !signIn && <Guide onClose={() => setGuide(false)} onNewNote={newNote} onNewProject={newProject} onConnect={() => setSettingsOpen(true)} onTour={() => setTouring(true)} />}
       {touring && <Tour onDone={() => setTouring(false)} />}
       <SpeechBar />
       <ReminderAlerts onOpen={openNote} />
