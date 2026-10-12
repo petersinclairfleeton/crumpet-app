@@ -1452,6 +1452,12 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .combine-list { list-style: none; margin: 0; padding: 4px; max-height: 300px; overflow: auto; border: 1px solid var(--line2); border-radius: 6px; display: flex; flex-direction: column; gap: 4px; }
 .combine-list li { display: flex; flex-direction: column; gap: 4px; }
 .combine-list li > input { margin-left: 26px; height: 28px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); }
+.font-dialog .para-row { flex-wrap: wrap; }
+.font-dialog input[type='color'] { width: 48px; height: 30px; padding: 0 2px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); }
+.font-effects { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 12px; }
+.font-preview { display: flex; align-items: center; justify-content: center; min-height: 64px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper, var(--page)); color: var(--paper-ink, var(--text)); font-family: var(--note-font, serif); font-size: 18px; overflow: hidden; }
+.glyph-fx { font-weight: 800; color: transparent; -webkit-text-stroke: 1px currentColor; text-shadow: 0 0 3px rgba(245, 197, 66, 0.9); }
+.fx-sample { display: inline-block; width: 28px; font-family: var(--note-font, serif); font-size: 16px; font-weight: 700; }
 .review-people { margin-top: 4px; font-size: 11px; font-weight: 700; color: var(--muted); }
 .comment-resolved { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .pic-format-grid { display: flex; gap: 16px; flex-wrap: wrap; }

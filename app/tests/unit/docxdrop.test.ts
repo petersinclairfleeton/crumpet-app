@@ -117,3 +117,15 @@ describe('Word: tracking for everyone, locked', () => {
     expect(back.doc.blocks[0].para).toMatchObject({ track: 'all', lock: 'open' });
   });
 });
+
+describe('Word: the Font window’s settings', () => {
+  it('go to Word as its own run settings and come back', async () => {
+    const p = makeBlock('paragraph', '');
+    p.runs = [{ text: 'Styled', marks: [], look: { caps: 'small', dstrike: 1, hidden: 1, ul: 'wavy', ulc: '#c0392b', sp: 1.5, pos: 3, fx: 'emboss' } }];
+    const bytes = await toDocx([{ doc: { blocks: [p] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:smallCaps/><w:dstrike/><w:emboss/><w:vanish/><w:spacing w:val="30"/><w:position w:val="6"/><w:u w:val="wave" w:color="C0392B"/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks[0].runs[0].look).toEqual(p.runs[0].look);
+  });
+});

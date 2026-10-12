@@ -24,7 +24,7 @@ import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { readShapeLine, shapeLine, tidyShape } from './shape';
 import { isField } from './fields';
 import { picAttrs, readPicAttrs, tidyPic } from './picture';
-import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
+import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, type LookKey, LOOK_KEYS, lookValueOk, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -327,6 +327,8 @@ function lookAttrs(l: Look): string {
   if (l.color) parts.push(`color=${l.color}`);
   if (l.highlight) parts.push(`highlight=${l.highlight}`);
   if (l.va) parts.push(`va=${l.va}`);
+  // Word's Font window: everything else, as key=value, in a fixed order.
+  for (const k of ['caps', 'dstrike', 'hidden', 'ul', 'ulc', 'sp', 'pos', 'nokern', 'lig', 'num', 'nsp', 'ss', 'fx'] as const) if (l[k] !== undefined) parts.push(`${k}=${l[k]}`);
   return parts.join(' ');
 }
 
@@ -343,7 +345,12 @@ function readLookAttrs(raw: string): Look | null {
     else if (m[1] === 'color' && /^#[0-9a-f]{6}$/i.test(v)) look.color = v.toLowerCase();
     else if (m[1] === 'highlight' && /^#[0-9a-f]{6}$/i.test(v)) look.highlight = v.toLowerCase();
     else if (m[1] === 'va' && (v === 'super' || v === 'sub')) look.va = v;
-    else return null;
+    else if ((LOOK_KEYS as string[]).includes(m[1])) {
+      const k = m[1] as LookKey;
+      const val = /^-?\d+(\.\d+)?$/.test(v) ? +v : k === 'ulc' ? v.toLowerCase() : v;
+      if (!lookValueOk(k, val)) return null;
+      (look as Record<string, unknown>)[k] = val;
+    } else return null;
   }
   // Nothing but our settings (and spaces) inside the braces.
   return seen && !raw.replace(re, '').trim() ? (tidyLook(look) ?? null) : null;

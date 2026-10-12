@@ -68,7 +68,7 @@ const CHAPTERS: Chapter[] = [
     lede: 'Everything Word can do, without the clutter: it’s there when you need it.',
     points: [
       { title: 'Type / for anything', text: 'Headings, lists, checklists, tables, pictures, footnotes, maths and diagrams: type / at the start of a line and pick.' },
-      { title: 'Format as you go', text: 'Select text and a formatting bar appears. Click Aa in the corner to keep it on screen, with fonts, colours, styles and more.' },
+      { title: 'Format as you go', text: `Select text and a formatting bar appears. Click Aa in the corner to keep it on screen, with fonts, colours, styles and more; ${mod}D opens the Font window (small caps, underline styles, spacing, effects).` },
       { title: 'Put right as you type', text: `AutoCorrect curls quotes, makes dashes, fixes typos like “teh” and starts sentences with a capital (${mod}Z takes one back). Settings → Writing turns each off and keeps your own dictionary; characters’ names are never marked as misspelt.` },
       { title: 'Link your notes', text: 'Type [[ and a note’s name to link to it. Every note shows the notes that link to it, and the Graph shows them all.' },
       { title: 'Pages, like on paper', text: 'Page view shows your writing on real pages, with headers, footers and page numbers. Focus mode hides everything else.' },

@@ -3,7 +3,7 @@
 // needs (styles, lists, footnotes, pictures, headers and footers) and read
 // back what Crumpet can show.
 
-import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type TabStop, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, FIELD, runsText, sliceRuns, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type TabStop, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, FIELD, runsText, sliceRuns, tidyLook, lookValueOk, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { TABLE_STYLES, type TableLook, type TableStyleKey, mergeAt, tableStyleColors, tidyTable } from '@crumpet/editor/table';
 import { cellRuns, cellText } from '@crumpet/editor/cells';
 import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
@@ -173,12 +173,23 @@ class Writer {
     if (font) p += `<w:rFonts w:ascii="${esc(font)}" w:hAnsi="${esc(font)}" w:eastAsia="${esc(font)}" w:cs="${esc(font)}"/>`;
     if (marks.includes('bold')) p += '<w:b/>';
     if (marks.includes('italic')) p += '<w:i/>';
+    // Word's Font window, each where Word expects it.
+    if (look?.caps === 'all') p += '<w:caps/>';
+    if (look?.caps === 'small') p += '<w:smallCaps/>';
     if (marks.includes('strike')) p += '<w:strike/>';
+    if (look?.dstrike) p += '<w:dstrike/>';
+    const FX: Record<string, string> = { outline: '<w:outline/>', shadow: '<w:shadow/>', emboss: '<w:emboss/>', engrave: '<w:imprint/>' };
+    if (look?.fx && FX[look.fx]) p += FX[look.fx];
+    if (look?.hidden) p += '<w:vanish/>';
     if (look?.color) p += `<w:color w:val="${look.color.slice(1).toUpperCase()}"/>`;
+    if (look?.sp) p += `<w:spacing w:val="${Math.round(look.sp * 20)}"/>`;
+    if (look?.pos && !look.va) p += `<w:position w:val="${Math.round(look.pos * 2)}"/>`;
     if (look?.size) p += `<w:sz w:val="${Math.round(look.size * 2)}"/><w:szCs w:val="${Math.round(look.size * 2)}"/>`;
     const named = look?.highlight ? HIGHLIGHT_NAME[look.highlight.toLowerCase()] : undefined;
     if (named) p += `<w:highlight w:val="${named}"/>`;
-    if (marks.includes('underline')) p += '<w:u w:val="single"/>';
+    const UL: Record<string, string> = { single: 'single', double: 'double', dotted: 'dotted', dashed: 'dash', wavy: 'wave', thick: 'thick' };
+    if (look?.ul) p += `<w:u w:val="${UL[look.ul]}"${look.ulc ? ` w:color="${look.ulc.slice(1).toUpperCase()}"` : ''}/>`;
+    else if (marks.includes('underline')) p += '<w:u w:val="single"/>';
     if (look?.highlight && !named) p += `<w:shd w:val="clear" w:color="auto" w:fill="${look.highlight.slice(1).toUpperCase()}"/>`;
     if (look?.va) p += `<w:vertAlign w:val="${look.va === 'super' ? 'superscript' : 'subscript'}"/>`;
     return p ? `<w:rPr>${p}</w:rPr>` : '';
@@ -900,6 +911,27 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const va = attr(child(rpr, 'vertAlign'), 'val');
     if (va === 'superscript') look.va = 'super';
     else if (va === 'subscript') look.va = 'sub';
+    // Word's Font window.
+    if (on(child(rpr, 'caps'))) look.caps = 'all';
+    else if (on(child(rpr, 'smallCaps'))) look.caps = 'small';
+    if (on(child(rpr, 'dstrike'))) look.dstrike = 1;
+    if (on(child(rpr, 'vanish'))) look.hidden = 1;
+    if (on(child(rpr, 'outline'))) look.fx = 'outline';
+    else if (on(child(rpr, 'shadow'))) look.fx = 'shadow';
+    else if (on(child(rpr, 'emboss'))) look.fx = 'emboss';
+    else if (on(child(rpr, 'imprint'))) look.fx = 'engrave';
+    const u = attr(child(rpr, 'u'), 'val');
+    const UL: Record<string, Look['ul']> = { double: 'double', dotted: 'dotted', dottedHeavy: 'dotted', dash: 'dashed', dashLong: 'dashed', dashedHeavy: 'dashed', wave: 'wavy', wavyHeavy: 'wavy', wavyDouble: 'wavy', thick: 'thick' };
+    const ulc = attr(child(rpr, 'u'), 'color');
+    if (u && UL[u]) look.ul = UL[u];
+    if (u && u !== 'none' && ulc && /^[0-9a-f]{6}$/i.test(ulc)) {
+      look.ulc = `#${ulc.toLowerCase()}`;
+      look.ul ??= 'single';
+    }
+    const spacing = Number(attr(child(rpr, 'spacing'), 'val') ?? 0) / 20;
+    if (spacing && lookValueOk('sp', spacing)) look.sp = Math.round(spacing * 10) / 10;
+    const position = Number(attr(child(rpr, 'position'), 'val') ?? 0) / 2;
+    if (position && !look.va && lookValueOk('pos', position)) look.pos = position;
     return tidyLook(look);
   };
   for (const s of Array.from(stylesXml?.getElementsByTagNameNS(W_NS, 'style') ?? [])) {

@@ -1,11 +1,12 @@
 // Word's Font group for the formatting bar: font, size, grow and shrink,
-// text colour, highlighter, superscript and subscript, change case and clear
-// formatting. They act on the selected text, or on what's typed next.
+// text colour, highlighter, superscript and subscript, change case, clear
+// formatting, text effects and the Font window. They act on the selected text, or on what's typed next.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import type { CaseChange } from '@crumpet/editor/commands';
-import type { Doc } from '@crumpet/editor/model';
+import type { Doc, Look } from '@crumpet/editor/model';
+import { openFontDialog } from './fontdialog';
 import { type StyleSheet, styleKeyOf } from '../data/styles';
 import { DEFAULT_NOTE_SIZE } from '../data/types';
 import { type FontChoice, DEFAULT_FONT, googleFonts, loadGoogleFont, systemFonts } from './fonts';
@@ -267,6 +268,59 @@ function CaseTool({ ed, off }: { ed: Editor | null; off: boolean }) {
   );
 }
 
+const ICON_FONT_WINDOW = (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 4h16v16H4zM10 14l6-6M11 8h5v5" />
+  </svg>
+);
+
+const EFFECTS: [NonNullable<Look['fx']> | '', string, React.CSSProperties][] = [
+  ['', 'No effect', {}],
+  ['outline', 'Outline', { color: 'transparent', WebkitTextStroke: '0.04em currentColor' }],
+  ['shadow', 'Shadow', { textShadow: '0.06em 0.06em 0.08em rgba(0,0,0,0.45)' }],
+  ['glow', 'Glow', { textShadow: '0 0 0.25em rgba(245,197,66,0.95), 0 0 0.5em rgba(245,197,66,0.6)' }],
+  ['reflect', 'Reflection', {}],
+  ['emboss', 'Emboss', { textShadow: '-0.04em -0.04em 0 rgba(255,255,255,0.8), 0.04em 0.04em 0.04em rgba(0,0,0,0.35)' }],
+  ['engrave', 'Engrave', { color: 'rgba(0,0,0,0.55)', textShadow: '0.04em 0.04em 0 rgba(255,255,255,0.8)' }],
+];
+
+/** Word's Text Effects: outline, shadow, glow, reflection, emboss, engrave. */
+function EffectsTool({ ed, off }: { ed: Editor | null; off: boolean }) {
+  const [open, setOpen] = useState(false);
+  const now = ed?.lookValue('fx');
+  return (
+    <span className="tool-drop">
+      <button type="button" aria-label="Text effects" aria-expanded={open} title="Text effects" disabled={off} onClick={() => setOpen(!open)}>
+        <span className="glyph-fx">A</span>
+        <span aria-hidden="true" className="caret">▾</span>
+      </button>
+      {open && (
+        <Popover label="Text effects" onClose={() => setOpen(false)}>
+          {EFFECTS.map(([fx, name, style]) => (
+            <button
+              key={name}
+              type="button"
+              role="menuitemradio"
+              aria-checked={(now ?? '') === fx}
+              className={`menu-item${(now ?? '') === fx ? ' on' : ''}`}
+              onClick={() => {
+                setOpen(false);
+                ed?.setLook('fx', fx || null);
+                ed?.focus();
+              }}
+            >
+              <span className="fx-sample" style={style}>
+                Aa
+              </span>{' '}
+              {name}
+            </button>
+          ))}
+        </Popover>
+      )}
+    </span>
+  );
+}
+
 /** The Font group, as toolbar items (see OverflowRow). */
 export function useFontItems(ed: Editor | null, off: boolean, sheet: StyleSheet): ToolItem[] {
   const base = useBase(ed, sheet);
@@ -296,6 +350,8 @@ export function useFontItems(ed: Editor | null, off: boolean, sheet: StyleSheet)
     simple('sub', 1, 'Subscript (Ctrl+=)', <span>x<sub>2</sub></span>, () => ed?.setLook('va', va === 'sub' ? null : 'sub'), va === 'sub'),
     { key: 'case', pri: 1, label: 'Change case', node: <CaseTool ed={ed} off={off} /> },
     simple('clear', 1, 'Clear formatting (Ctrl+Space)', <span className="glyph-clear">A<small>✕</small></span>, () => ed?.clearFormatting()),
+    { key: 'effects', pri: 1, label: 'Text effects', node: <EffectsTool ed={ed} off={off} /> },
+    simple('fontdlg', 1, 'Font settings… (Ctrl+D)', ICON_FONT_WINDOW, () => ed && openFontDialog(ed)),
   ];
 }
 
@@ -314,6 +370,7 @@ export function useFontKeys(ed: Editor | null, sheet: StyleSheet): void {
       else if (e.shiftKey && (e.key === '+' || e.code === 'Equal')) ed.setLook('va', ed.lookValue('va') === 'super' ? null : 'super');
       else if (!e.shiftKey && (e.key === '=' || e.code === 'Equal')) ed.setLook('va', ed.lookValue('va') === 'sub' ? null : 'sub');
       else if (!e.shiftKey && e.code === 'Space') ed.clearFormatting();
+      else if (!e.shiftKey && e.code === 'KeyD') openFontDialog(ed);
       else done = false;
       if (done) e.preventDefault();
     };

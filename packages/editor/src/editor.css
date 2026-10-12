@@ -155,6 +155,17 @@ span.tb[data-leader='line'] { background-image: linear-gradient(currentColor, cu
 @supports (initial-letter: 2) or (-webkit-initial-letter: 2) {
   .blk[data-drop]::first-letter { float: none; font-size: inherit; line-height: inherit; margin: 0 0.08em 0 0; -webkit-initial-letter: var(--drop); initial-letter: var(--drop); }
 }
+/* Word's Font window: an underline of its own replaces the plain one; hidden text shows only with Show/hide ¶ (dotted underneath); text effects. */
+.lk[data-lines] u { text-decoration: none; }
+.lk[data-hidden] { display: none; }
+.show-marks .lk[data-hidden] { display: inline; text-decoration: underline dotted; text-decoration-color: var(--marks, #6b8fc7); }
+.lk[data-fx='outline'] { color: transparent; -webkit-text-stroke: 0.04em var(--text, #222); }
+.lk[data-fx='shadow'] { text-shadow: 0.06em 0.06em 0.08em rgba(0, 0, 0, 0.45); }
+.lk[data-fx='glow'] { text-shadow: 0 0 0.25em rgba(245, 197, 66, 0.95), 0 0 0.5em rgba(245, 197, 66, 0.6); }
+.lk[data-fx='reflect'] { display: inline-block; -webkit-box-reflect: below -0.25em linear-gradient(transparent 45%, rgba(255, 255, 255, 0.35)); }
+.lk[data-fx='emboss'] { text-shadow: -0.04em -0.04em 0 rgba(255, 255, 255, 0.8), 0.04em 0.04em 0.04em rgba(0, 0, 0, 0.35); }
+.lk[data-fx='engrave'] { color: rgba(0, 0, 0, 0.55); text-shadow: 0.04em 0.04em 0 rgba(255, 255, 255, 0.8), -0.03em -0.03em 0 rgba(0, 0, 0, 0.25); }
+@media print { .lk[data-hidden] { display: none !important; } }
 /* A field (a date that updates…): what it says now, on a light grey like Word's field shading. */
 span.fld::after { content: attr(data-v); background: var(--field-shade, rgba(127, 127, 127, 0.14)); border-radius: 2px; padding: 0 1px; }
 /* Comments: the text they're on is highlighted. */
