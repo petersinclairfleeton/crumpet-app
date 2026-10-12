@@ -57,9 +57,9 @@ At the end there's a suggested order for building what's missing.
 | Cut, copy, paste | ✅ | |
 | Paste keeping formatting | ✅ | Pasting from web pages and Word keeps the formatting. |
 | Paste text only | ✅ | Ctrl+Shift+V. |
-| Paste options menu (keep / merge / text only) after pasting | ❌ | No little menu after pasting; "merge formatting" doesn't exist. |
+| Paste options menu (keep / merge / text only) after pasting | ✅ | A small button by the pasted text: Keep formatting, Merge formatting (lists, bold and italic kept; the look where it goes), Text only. Copying within Crumpet now keeps its formatting too. |
 | Format Painter | ✅ | Including double-click to keep painting. |
-| Clipboard pane (history of copied things) | ❌ | |
+| Clipboard pane (history of copied things) | ✅ | The right sidebar's Clipboard tab: the last 24 things copied or cut while Crumpet is open, to paste again (with their formatting). |
 
 ### Font
 
@@ -84,7 +84,7 @@ At the end there's a suggested order for building what's missing.
 | Bullets, numbering (with libraries, restart and start at) | ✅ | |
 | Multilevel lists | 🟡 | Lists nest, and "1. 1.1 1.1.1" numbering is there. No gallery of multilevel styles, and no "define new multilevel list". |
 | Increase / decrease indent | ✅ | Also on the ruler. |
-| Sort | ❌ | |
+| Sort | ✅ | Sort paragraphs… in the Paragraph group: by text, a number or a date, ascending or descending. |
 | Show/hide ¶ (formatting marks) | ✅ | The ¶ button or Ctrl+Shift+8: dots for spaces, arrows for tabs, ¶ at paragraph ends; page, section and column breaks are labelled outside page view. |
 | Alignment | ✅ | Left, centre, right, justify. |
 | Line and paragraph spacing | ✅ | |
@@ -491,10 +491,10 @@ Where: `model.ts` (`Look`, `Mark`, `ParaLook`), `markdown.ts`, `docx.ts`, `app/s
 - [x] A Font window: character spacing and kerning
 - [x] Ligatures and number styles (OpenType)
 - [x] Text effects (outline, shadow, glow, reflection)
-- [ ] Paste options menu after pasting (keep, merge, text only)
-- [ ] Clipboard history
+- [x] Paste options menu after pasting (keep, merge, text only)
+- [x] Clipboard history
 - [ ] Multilevel list gallery, and defining your own
-- [ ] Sort paragraphs
+- [x] Sort paragraphs
 - [ ] Paragraph border styles (dashed, double, thickness, colour)
 - [ ] Widow/orphan control switch per paragraph
 

@@ -1458,6 +1458,16 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .font-preview { display: flex; align-items: center; justify-content: center; min-height: 64px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper, var(--page)); color: var(--paper-ink, var(--text)); font-family: var(--note-font, serif); font-size: 18px; overflow: hidden; }
 .glyph-fx { font-weight: 800; color: transparent; -webkit-text-stroke: 1px currentColor; text-shadow: 0 0 3px rgba(245, 197, 66, 0.9); }
 .fx-sample { display: inline-block; width: 28px; font-family: var(--note-font, serif); font-size: 16px; font-weight: 700; }
+.paste-options { position: fixed; z-index: 70; }
+.paste-chip { padding: 2px 6px; border: 1px solid var(--line2); border-radius: 6px; background: var(--page); color: var(--text); font-size: 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
+.paste-menu { position: absolute; top: calc(100% + 4px); left: 0; min-width: 170px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--page); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14); }
+.clip-pane { display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text2); }
+.clip-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.clip-list li { display: flex; align-items: flex-start; gap: 4px; }
+.clip-item { all: unset; flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; color: var(--text); white-space: pre-wrap; word-break: break-word; cursor: pointer; }
+.clip-item:hover { background: var(--field); }
+.clip-x { flex: none; }
+.glyph-sort { font-size: 10px; font-weight: 700; letter-spacing: -0.02em; }
 .review-people { margin-top: 4px; font-size: 11px; font-weight: 700; color: var(--muted); }
 .comment-resolved { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .pic-format-grid { display: flex; gap: 16px; flex-wrap: wrap; }

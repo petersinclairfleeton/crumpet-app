@@ -108,6 +108,11 @@ export class History {
     return step.result;
   }
 
+  /** How many steps there are to undo (to undo back to a point, such as before a paste). */
+  get depth(): number {
+    return this.undoStack.length;
+  }
+
   get canUndo(): boolean {
     return this.undoStack.length > 0;
   }

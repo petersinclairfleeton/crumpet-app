@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
 import type { ParaLook } from '@crumpet/editor/model';
+import type { SortBy } from '@crumpet/editor/commands';
 import { IconClose } from './icons';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
@@ -68,6 +69,7 @@ function SpacingTool({ ed, off, onMore }: { ed: Editor | null; off: boolean; onM
 export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem[]; dialog: React.ReactNode } {
   const [open, setOpen] = useState(false);
   const [tabs, setTabs] = useState(false);
+  const [sorting, setSorting] = useState(false);
   const store = useAppStore();
   const marks = !!useAppState().settings.showMarks;
   const toggleMarks = () => store.updateSettings({ showMarks: !marks });
@@ -106,6 +108,7 @@ export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem
           </button>
         ),
       },
+      simple('sort', 1, 'Sort paragraphs…', <span className="glyph-sort">A↓Z</span>, () => setSorting(true)),
       simple('paragraph', 1, 'Paragraph settings…', ICON_PARA_WINDOW, () => setOpen(true)),
     ],
     dialog:
@@ -120,6 +123,8 @@ export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem
         />
       ) : tabs && ed ? (
         <TabsDialog editor={ed} onClose={() => setTabs(false)} />
+      ) : sorting && ed ? (
+        <SortDialog editor={ed} onClose={() => setSorting(false)} />
       ) : null,
   };
 }
@@ -153,6 +158,69 @@ export function useParaKeys(ed: Editor | null): void {
     root.addEventListener('keydown', onKey);
     return () => root.removeEventListener('keydown', onKey);
   }, [ed, store]);
+}
+
+/** Word's Sort Text: the selected paragraphs by their text, a number in them or a date, A to Z or Z to A. */
+function SortDialog({ editor, onClose }: { editor: Editor; onClose(): void }) {
+  const [by, setBy] = useState<SortBy>('text');
+  const [down, setDown] = useState(false);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+  return createPortal(
+    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <form
+        className="dialog para-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Sort paragraphs"
+        onSubmit={(e) => {
+          e.preventDefault();
+          editor.sortParagraphs(by, down);
+          onClose();
+          editor.focus();
+        }}
+      >
+        <header className="dialog-head">
+          <h2>Sort paragraphs</h2>
+          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+            <IconClose size={16} />
+          </button>
+        </header>
+        <div className="settings">
+          <p className="sync-hint">The paragraphs you’ve selected (or the one the caret is in), each with its own formatting. Empty ones go last.</p>
+          <label className="para-field">
+            <span>Sort by</span>
+            <select aria-label="Sort by" value={by} onChange={(e) => setBy(e.target.value as SortBy)}>
+              <option value="text">Text</option>
+              <option value="number">Number (the first in each paragraph)</option>
+              <option value="date">Date (each paragraph starting with one)</option>
+            </select>
+          </label>
+          <label className="check-row">
+            <input type="radio" name="sort-dir" checked={!down} onChange={() => setDown(false)} /> Ascending (A to Z, 1 to 9, oldest first)
+          </label>
+          <label className="check-row">
+            <input type="radio" name="sort-dir" checked={down} onChange={() => setDown(true)} /> Descending
+          </label>
+          <div className="para-foot">
+            <span className="grow" />
+            <button type="button" className="btn" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn primary">
+              Sort
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>,
+    document.body,
+  );
 }
 
 type Special = 'none' | 'first' | 'hanging';

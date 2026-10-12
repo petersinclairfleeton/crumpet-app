@@ -14,6 +14,7 @@ import { MarkupSelect } from './review';
 import { Popover } from './Sidebar';
 import { useSpelling } from './spelling';
 import { usePictureActions } from './picture';
+import { useClipboard } from './clipboard';
 
 interface Open {
   where: { block: string; from: number; to: number };
@@ -50,6 +51,7 @@ export function useTracking(editor: Editor | null): void {
   }, [editor, color]);
   useSpelling(editor);
   usePictureActions(editor);
+  useClipboard(editor);
   // Markup view: how changes and comments are shown.
   const markup = state.settings.markup ?? 'all';
   useEffect(() => {

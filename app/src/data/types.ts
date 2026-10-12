@@ -211,7 +211,7 @@ export interface LayoutPrefs {
   listWidth?: number;
   /** The right sidebar (outline, styles, comments, links): shown, which tab, and its width. */
   right?: boolean;
-  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus';
+  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard';
   rightWidth?: number;
   /** The writing area's panes and their tabs (a `Workspace` from `panes.ts`, checked when read). */
   panes?: unknown;
