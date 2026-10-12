@@ -29,7 +29,7 @@ export function wordsIn(doc: Doc): number {
       for (const row of b.rows ?? []) for (const cell of row) n += (cellPlain(cell).match(WORD) ?? []).length;
       continue;
     }
-    const text = b.runs.filter((r) => r.footnote === undefined && r.change?.kind !== 'del').map((r) => r.text).join('');
+    const text = b.runs.filter((r) => r.footnote === undefined && r.field === undefined && r.change?.kind !== 'del').map((r) => r.text).join('');
     n += (text.match(WORD) ?? []).length;
   }
   return n;

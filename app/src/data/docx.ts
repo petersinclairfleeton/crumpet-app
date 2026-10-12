@@ -3,10 +3,11 @@
 // needs (styles, lists, footnotes, pictures, headers and footers) and read
 // back what Crumpet can show.
 
-import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, FIELD, runsText, sliceRuns, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { TABLE_STYLES, type TableLook, type TableStyleKey, mergeAt, tableStyleColors, tidyTable } from '@crumpet/editor/table';
 import { cellRuns, cellText } from '@crumpet/editor/cells';
 import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
+import { WORD_PICTURES, fieldFromWord, fieldValue } from '@crumpet/editor/fields';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { type PageSetup, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -221,12 +222,26 @@ class Writer {
       return `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="${id}"/></w:r>`;
     }
     const props = this.props(r.marks, linked, r.look);
+    if (r.field !== undefined) {
+      const pic = WORD_PICTURES[r.field];
+      const instr = pic ? ` ${r.field === 'time' ? 'TIME' : 'DATE'} \\@ &quot;${pic}&quot; ` : ' DATE ';
+      return `<w:fldSimple w:instr="${instr}"><w:r>${props}<w:t xml:space="preserve">${esc(fieldValue(r.field))}</w:t></w:r></w:fldSimple>`;
+    }
     const body = r.text
       .replaceAll(FOOTNOTE, '')
       .split(/(\n|\t)/)
       .map((part) => (part === '\n' ? '<w:br/>' : part === '\t' ? '<w:tab/>' : part ? `<w:t xml:space="preserve">${esc(part)}</w:t>` : ''))
       .join('');
     return body ? `<w:r>${props}${body}</w:r>` : '';
+  }
+
+  /** Word's drop cap paragraph: the letter in a frame `lines` tall, the text after it wrapping round. */
+  dropCap(runs: Run[], lines: number, head: string): string {
+    const size = this.opts.size || 12;
+    const hp = Math.round(size * 2 * lines * 1.35);
+    const big = runs.map((r) => ({ ...r, look: { ...r.look, size: hp / 2 } }));
+    const ppr = `${head}<w:framePr w:dropCap="drop" w:lines="${lines}" w:wrap="around" w:vAnchor="text" w:hAnchor="text"/><w:spacing w:before="0" w:after="0" w:line="${hp * 10}" w:lineRule="exact"/><w:textAlignment w:val="baseline"/>`;
+    return this.paragraph(null, this.runs(big), ppr);
   }
 
   /** A tracked change on the next paragraph break: Word keeps it on this paragraph's mark. */
@@ -368,7 +383,7 @@ class Writer {
     let num = 0;
     let bul = 0;
     const newList = (bullet: boolean, start?: [number, number]) => this.lists.push({ bullet, levels: [], start });
-    for (const [k, b] of blocks.entries()) {
+    for (let [k, b] of blocks.entries()) {
       // (A table or picture ending a section: an empty paragraph after it carries the settings.)
       if (this.sectNext) out += this.paragraph(null, '');
       // A section break before this block (on the document's first block, just the first section's settings).
@@ -401,7 +416,17 @@ class Writer {
       // Paragraph settings set by hand, each where Word expects it: keep and page break first, then spacing and indents.
       const p = b.para;
       const keep = (p?.keepNext ? '<w:keepNext/>' : '') + (p?.keepLines ? '<w:keepLines/>' : '');
-      const head = keep + lead + (p?.pageBefore && !lead.includes('pageBreakBefore') ? '<w:pageBreakBefore/>' : '');
+      let head = keep + lead + (p?.pageBefore && !lead.includes('pageBreakBefore') ? '<w:pageBreakBefore/>' : '');
+      // A drop cap: in Word, a framed paragraph of its own holding the first letter (and any punctuation before it), before the rest.
+      if (p?.drop && /^(paragraph|quote|heading\d)$/.test(b.type)) {
+        const text = runsText(b.runs);
+        const n = /^[\p{P}\s]*[^\p{P}\s]/u.exec(text)?.[0].length ?? 0;
+        if (n) {
+          out += this.dropCap(sliceRuns(b.runs, 0, n), p.drop, head);
+          b = { ...b, runs: sliceRuns(b.runs, n, text.length) };
+          head = keep;
+        }
+      }
       const tw = (inches: number) => Math.round(inches * TWIPS);
       const spacing = p && (p.before !== undefined || p.after !== undefined || p.line !== undefined) ? `<w:spacing${p.before !== undefined ? ` w:before="${Math.round(p.before * 20)}"` : ''}${p.after !== undefined ? ` w:after="${Math.round(p.after * 20)}"` : ''}${p.line !== undefined ? ` w:line="${Math.round(p.line * 240)}" w:lineRule="auto"` : ''}/>` : '';
       const left = p?.left ?? (p?.first !== undefined && p.first < 0 ? -p.first : undefined);
@@ -1052,6 +1077,25 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
             out.push(run);
           };
           for (const c of kids(el)) {
+            // A field in Word's long form: begin, its instruction, separate, what it showed, end. Dates and times become fields of ours; others keep what they showed.
+            if (c.localName === 'fldChar') {
+              const kind = attr(c, 'fldCharType');
+              if (kind === 'begin') wordField = { instr: '', showing: false };
+              else if (kind === 'separate' && wordField) wordField.showing = true;
+              else if (kind === 'end' && wordField) {
+                const f = fieldFromWord(wordField.instr);
+                if (f) {
+                  push(FIELD);
+                  out[out.length - 1].field = f;
+                }
+                wordField = null;
+              }
+              continue;
+            }
+            if (wordField && (!wordField.showing || fieldFromWord(wordField.instr))) {
+              if (c.localName === 'instrText' && !wordField.showing) wordField.instr += c.textContent ?? '';
+              continue;
+            }
             if (c.localName === 't' || c.localName === 'delText') push(c.textContent ?? '');
             else if (c.localName === 'tab') push('\t');
             else if (c.localName === 'br' || c.localName === 'cr') {
@@ -1105,9 +1149,20 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
           trackedChange = outer;
           break;
         }
+        case 'fldSimple': {
+          // A date or time field becomes one of ours; any other keeps what it showed.
+          const f = fieldFromWord(attr(el, 'instr') ?? '');
+          if (f) {
+            const at = out.length;
+            await readRuns(el, out, pics, marks, link);
+            const shown = out.splice(at);
+            const run: Run = { ...(shown[0] ?? { marks: [] }), text: FIELD, field: f };
+            out.push(run);
+          } else await readRuns(el, out, pics, marks, link);
+          break;
+        }
         case 'smartTag':
         case 'customXml':
-        case 'fldSimple':
         case 'sdtContent':
           await readRuns(el, out, pics, marks, link);
           break;
@@ -1132,6 +1187,10 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   let pendingBreak: Change | undefined;
   /** A page break ended the last paragraph: the next one starts a new page. */
   let pageBreakNext = false;
+  /** A drop cap (a framed paragraph with the first letter) goes on the paragraph after it. */
+  let dropNext: { runs: Run[]; lines: number } | null = null;
+  /** A field in Word's long form being read (see readRuns). */
+  let wordField: { instr: string; showing: boolean } | null = null;
   let colBreakNext = false;
   // Section settings, as Word keeps them: at the end of each section (in its last paragraph), the last in the body.
   type SectRead = { margins: { mt?: number; mb?: number; ml?: number; mr?: number }; cont: boolean; cols: number; landscape: boolean };
@@ -1169,7 +1228,19 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const runs: Run[] = [];
     const pics: Block[] = [];
     await readRuns(p, runs, pics);
-    const clean = normalizeRuns(runs);
+    let clean = normalizeRuns(runs);
+    const frame = child(ppr, 'framePr');
+    const dropCap = attr(frame, 'dropCap');
+    if ((dropCap === 'drop' || dropCap === 'margin') && clean.length) {
+      // The letter's own size and lowering are Word's way of drawing it; ours comes from the lines.
+      dropNext = { runs: clean.map((r) => ({ ...r, look: tidyLook({ ...r.look, size: undefined }) })), lines: Number(attr(frame, 'lines') ?? 3) || 3 };
+      const pb = child(ppr, 'pageBreakBefore');
+      if (pb && attr(pb, 'val') !== '0' && attr(pb, 'val') !== 'false') pageBreakNext = true;
+      return;
+    }
+    const drop = dropNext;
+    dropNext = null;
+    if (drop) clean = normalizeRuns([...drop.runs, ...clean]);
     blocks.push(...pics);
     if (pics.length && !clean.some((r) => r.text.trim())) return;
     const jc = attr(child(ppr, 'jc'), 'val');
@@ -1234,6 +1305,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const colCarried = colBreakNext;
     colBreakNext = false;
     if (colCarried) para.colBefore = true;
+    if (drop && !isListType(b.type)) para.drop = drop.lines;
     if (on2(child(ppr, 'pageBreakBefore')) || carried) para.pageBefore = true;
     if (on2(child(ppr, 'keepNext'))) para.keepNext = true;
     if (on2(child(ppr, 'keepLines'))) para.keepLines = true;

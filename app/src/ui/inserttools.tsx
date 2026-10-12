@@ -1,9 +1,11 @@
 // Word's Insert extras for the formatting bar: symbols and special
-// characters, and today's date or the time in a choice of forms.
+// characters, today's date or the time in a choice of forms (as text, or a
+// field that updates), drop cap, blank page, text boxes, shapes and contents.
 
 import { useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import type { ShapeKind } from '@crumpet/editor/shape';
+import { FIELDS, fieldValue } from '@crumpet/editor/fields';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
 
@@ -55,18 +57,12 @@ function SymbolTool({ ed, off }: { ed: Editor | null; off: boolean }) {
   );
 }
 
+/** Word's Date and Time: today in a choice of forms, as fixed text or (Update automatically) a field that always shows the day it's read. */
 function DateTool({ ed, off }: { ed: Editor | null; off: boolean }) {
   const [open, setOpen] = useState(false);
+  const [live, setLive] = useState(false);
   const now = new Date();
-  const forms = [
-    now.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }),
-    now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
-    now.toLocaleDateString(),
-    now.toISOString().slice(0, 10),
-    now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }),
-    now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }),
-    now.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }),
-  ];
+  const forms = Object.keys(FIELDS).map((name) => ({ name, text: fieldValue(name, now) }));
   return (
     <span className="tool-drop">
       <button type="button" aria-label="Insert date and time" aria-expanded={open} title="Insert date and time" disabled={off} onClick={() => setOpen(!open)}>
@@ -76,18 +72,65 @@ function DateTool({ ed, off }: { ed: Editor | null; off: boolean }) {
       </button>
       {open && (
         <Popover label="Date and time" onClose={() => setOpen(false)}>
-          {[...new Set(forms)].map((f) => (
-            <button
-              key={f}
-              type="button"
-              className="menu-item"
-              onClick={() => {
-                setOpen(false);
-                ed?.focus();
-                ed?.typeText(f);
-              }}
-            >
-              {f}
+          {forms
+            .filter((f, i) => forms.findIndex((g) => g.text === f.text) === i)
+            .map((f) => (
+              <button
+                key={f.name}
+                type="button"
+                className="menu-item"
+                onClick={() => {
+                  setOpen(false);
+                  ed?.focus();
+                  if (live) ed?.insertField(f.name);
+                  else ed?.typeText(f.text);
+                }}
+              >
+                {f.text}
+              </button>
+            ))}
+          <hr className="menu-sep" />
+          <label className="check-row menu-check">
+            <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
+            Update automatically
+          </label>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
+const ICON_BLANK = (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M6 3h8l4 4v14H6zM14 3v4h4" />
+  </svg>
+);
+
+/** Word's Drop Cap: the paragraph's first letter sunk into its first lines. */
+function DropCapTool({ ed, off }: { ed: Editor | null; off: boolean }) {
+  const [open, setOpen] = useState(false);
+  const drop = ed?.paraValue('drop');
+  const set = (lines: number | undefined) => {
+    setOpen(false);
+    ed?.setPara({ drop: lines });
+    ed?.focus();
+  };
+  return (
+    <span className="tool-drop">
+      <button type="button" aria-label="Drop cap" aria-expanded={open} title="Drop cap" disabled={off} onClick={() => setOpen(!open)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M3 13V3h3.5a4 4 0 0 1 0 10zM13 4h8M13 9h8M3 17h18M3 21h18" />
+        </svg>
+        <span aria-hidden="true" className="caret">▾</span>
+      </button>
+      {open && (
+        <Popover label="Drop cap" onClose={() => setOpen(false)}>
+          <button type="button" role="menuitemradio" aria-checked={!drop} className={`menu-item${!drop ? ' on' : ''}`} onClick={() => set(undefined)}>
+            None
+          </button>
+          {[2, 3, 4, 5].map((n) => (
+            <button key={n} type="button" role="menuitemradio" aria-checked={drop === n} className={`menu-item${drop === n ? ' on' : ''}`} onClick={() => set(n)}>
+              Dropped, {n} lines tall
             </button>
           ))}
         </Popover>
@@ -164,9 +207,28 @@ export function insertItems(ed: Editor | null, off: boolean): ToolItem[] {
     ed?.focus();
     ed?.insertToc();
   };
+  const blank = () => {
+    ed?.focus();
+    ed?.insertBlankPage();
+  };
   return [
     { key: 'symbol', label: 'Symbol', pri: 1, sep: true, node: <SymbolTool ed={ed} off={off} /> },
     { key: 'date', label: 'Date and time', pri: 1, node: <DateTool ed={ed} off={off} /> },
+    { key: 'dropcap', label: 'Drop cap', pri: 1, node: <DropCapTool ed={ed} off={off} /> },
+    {
+      key: 'blankpage',
+      pri: 1,
+      node: (
+        <button type="button" aria-label="Blank page" title="Blank page" disabled={off} onClick={blank}>
+          {ICON_BLANK}
+        </button>
+      ),
+      menu: (
+        <button type="button" className="menu-item" disabled={off} onClick={blank}>
+          <span className="menu-glyph">{ICON_BLANK}</span> Blank page
+        </button>
+      ),
+    },
     {
       key: 'textbox',
       pri: 1,

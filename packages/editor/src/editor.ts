@@ -25,6 +25,7 @@ import {
   sliceRuns,
   footnotes,
   FOOTNOTE,
+  FIELD,
   type Comment,
   comments,
   type Change,
@@ -88,6 +89,8 @@ import {
   paraValue,
   stepIndent,
   insertPageBreak,
+  insertBlankPage,
+  insertField,
   setListStyle,
   setListStart,
   insertToc,
@@ -102,6 +105,7 @@ import {
   type SectionPatch,
 } from './commands';
 import { History } from './history';
+import { fieldValue } from './fields';
 import { type AutoCorrectOptions, autoCorrect } from './autocorrect';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { type TocEntry, View, readTable } from './view';
@@ -1011,6 +1015,26 @@ export class Editor {
     this.view.writeSelection(this.state.selection);
   }
 
+  /** Puts a field at the caret: a date or time that shows the day it's read (see fields.ts). */
+  insertField(name: string): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(insertField(this.state, name), 'command');
+  }
+
+  /** Shows what each field says now (e.g. after midnight, or when the app's own fields change). */
+  updateFields(): void {
+    this.view.fillFields();
+  }
+
+  /** Word's Blank Page: an empty page at the caret. */
+  insertBlankPage(): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(insertBlankPage(this.state), 'command');
+    this.view.writeSelection(this.state.selection);
+  }
+
   clearFormatting(): void {
     const cell = this.activeCell();
     if (cell) return void clearCellFormat(cell);
@@ -1319,7 +1343,7 @@ export class Editor {
         const text = e.inputType === 'insertText' ? e.data : (e.dataTransfer?.getData('text/plain') ?? e.data);
         if (!text) return true;
         const range = e.inputType === 'insertReplacementText' ? this.targetRange(e) : null;
-        this.dispatch(trackedInsertText(range ? { ...s, selection: range } : s, text.replaceAll(FOOTNOTE, ''), author));
+        this.dispatch(trackedInsertText(range ? { ...s, selection: range } : s, text.replaceAll(FOOTNOTE, '').replaceAll(FIELD, ''), author));
         if (e.inputType === 'insertText') this.correct(text);
         return true;
       }
@@ -1745,7 +1769,7 @@ export class Editor {
         return;
       }
     }
-    const text = e.clipboardData?.getData('text/plain')?.replaceAll(FOOTNOTE, '');
+    const text = e.clipboardData?.getData('text/plain')?.replaceAll(FOOTNOTE, '').replaceAll(FIELD, '');
     if (!text) return;
     this.reviseLook();
     if (this.tracking) return this.dispatch(trackedInsertText(this.state, text, this.tracking.author));
@@ -1794,7 +1818,7 @@ export class Editor {
     for (let i = start; i <= end; i++) {
       const b = s.doc.blocks[i];
       const len = runsText(b.runs).length;
-      lines.push(runsText(sliceRuns(b.runs, i === start ? from.offset : 0, i === end ? to.offset : len)));
+      lines.push(sliceRuns(b.runs, i === start ? from.offset : 0, i === end ? to.offset : len).map((r) => (r.field !== undefined ? (this.view.fieldValue?.(r.field) ?? fieldValue(r.field)) : r.text)).join(''));
     }
     return lines.join('\n');
   }

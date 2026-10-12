@@ -1400,6 +1400,7 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .ac-word code { font-size: 12px; }
 .ac-add { display: flex; align-items: center; gap: 6px; }
 .ac-add input { flex: 1; min-width: 0; }
+.menu-check { padding: 6px 10px; }
 .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
 .page-view .editor[data-empty] .blk:first-child .text::before { content: none; }
 /* The formatting row keeps to one line; what doesn't fit goes under More. */
