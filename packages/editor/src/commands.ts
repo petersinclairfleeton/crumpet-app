@@ -1084,13 +1084,30 @@ export function insertLinkedText(state: EditorState, text: string, href: string)
 }
 
 /** Puts a footnote just after the selection (or at the caret), with the caret after it. */
-export function insertFootnote(state: EditorState, text: string): Transaction {
+export function insertFootnote(state: EditorState, text: string, endnote = false): Transaction {
   const b = new Builder(state.doc);
   const { to } = orderedRange(state.doc, state.selection);
   const block = getBlock(state.doc, to.block);
   if (isMedia(block.type)) return tx(state, b, state.selection);
-  b.step({ type: 'insert', block: to.block, offset: to.offset, runs: [{ text: FOOTNOTE, marks: [], footnote: text }] });
+  b.step({ type: 'insert', block: to.block, offset: to.offset, runs: [{ text: FOOTNOTE, marks: [], footnote: text, ...(endnote ? { endnote: true as const } : {}) }] });
   return tx(state, b, caret({ block: to.block, offset: to.offset + 1 }), { storedMarks: [] });
+}
+
+/** Word's Convert Notes: every footnote made an endnote (to 'end'), or every endnote a footnote. */
+export function convertNotes(state: EditorState, to: 'end' | 'foot'): Transaction | null {
+  const b = new Builder(state.doc);
+  for (const blk of state.doc.blocks) {
+    let pos = 0;
+    for (const r of getBlock(b.doc, blk.id).runs) {
+      if (r.footnote !== undefined && !!r.endnote !== (to === 'end')) {
+        const { endnote: _e, ...plain } = r;
+        b.step({ type: 'remove', block: blk.id, offset: pos, runs: [r] });
+        b.step({ type: 'insert', block: blk.id, offset: pos, runs: [to === 'end' ? { ...plain, endnote: true } : plain] });
+      }
+      pos += r.text.length;
+    }
+  }
+  return b.ops.length ? tx(state, b, state.selection) : null;
 }
 
 /** Changes what the footnote at `at` says; null takes it out. */

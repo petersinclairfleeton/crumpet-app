@@ -12,8 +12,29 @@ import type { Block, TocLook } from '@crumpet/editor/model';
 import { DOC_FIELDS } from '@crumpet/editor/fields';
 import { Popover } from './Sidebar';
 import { type ToolItem, closeMore } from './toolbar';
+import { useAppState, useAppStore } from './hooks';
+import { CITE_STYLES, type CiteStyle, SOURCE_TYPES, type Source, type SourceType, bibliography, inText, sourceKey } from '../data/citations';
 
-type Win = 'caption' | 'crossref' | 'bookmark' | 'index' | 'field' | 'toc';
+/** Citations in the text and the bibliography, written from the sources in the citation style (set on each editor). */
+export function useCitations(editor: Editor | null): void {
+  const state = useAppState();
+  const sources = state.settings.sources;
+  const style = state.settings.citeStyle ?? 'apa';
+  useEffect(() => {
+    if (!editor) return;
+    const list = sources ?? [];
+    editor.setCitations(
+      (key) => {
+        const src = list.find((x) => x.key === key);
+        return src ? inText(src, style) : `(${key}?)`;
+      },
+      () => bibliography(list, editor.citedKeys(), style),
+    );
+    return () => editor.setCitations(null, null);
+  }, [editor, sources, style]);
+}
+
+type Win = 'caption' | 'crossref' | 'bookmark' | 'index' | 'field' | 'toc' | 'cite' | 'sources';
 interface Ask {
   win: Win;
   editor: Editor;
@@ -93,6 +114,29 @@ function ReferencesTool({ ed, off }: { ed: Editor | null; off: boolean }) {
             Table of figures
           </button>
           <hr className="menu-sep" />
+          <button type="button" className="menu-item" onClick={go(() => (ed.focus(), ed.addFootnote()))}>
+            Insert footnote
+          </button>
+          <button type="button" className="menu-item" onClick={go(() => (ed.focus(), ed.addEndnote()))}>
+            Insert endnote
+          </button>
+          <button type="button" className="menu-item" onClick={go(() => ed.convertNotes('end'))}>
+            Make all footnotes endnotes
+          </button>
+          <button type="button" className="menu-item" onClick={go(() => ed.convertNotes('foot'))}>
+            Make all endnotes footnotes
+          </button>
+          <hr className="menu-sep" />
+          <button type="button" className="menu-item" onClick={win('cite')}>
+            Insert citation…
+          </button>
+          <button type="button" className="menu-item" onClick={win('sources')}>
+            Manage sources…
+          </button>
+          <button type="button" className="menu-item" onClick={go(() => (ed.focus(), ed.insertList({ kind: 'sources' })))}>
+            Bibliography
+          </button>
+          <hr className="menu-sep" />
           <button type="button" className="menu-item" onClick={win('index')}>
             Mark index entry…
           </button>
@@ -150,7 +194,180 @@ export function ReferencesHost() {
       return <FieldDialog editor={editor} onClose={close} />;
     case 'toc':
       return open.id ? <TocDialog editor={editor} id={open.id} onClose={close} /> : null;
+    case 'cite':
+      return <CiteDialog editor={editor} onClose={close} />;
+    case 'sources':
+      return <SourcesDialog onClose={close} />;
   }
+}
+
+const EMPTY_SOURCE: Omit<Source, 'key'> = { type: 'book', authors: '', title: '' };
+
+/** A source's details (Word's Create Source): the fields its kind needs. */
+function SourceForm({ value, onChange }: { value: Omit<Source, 'key'>; onChange(s: Omit<Source, 'key'>): void }) {
+  const set = (patch: Partial<Source>) => onChange({ ...value, ...patch });
+  const text = (k: Exclude<keyof Source, 'key'>, label: string, placeholder = '') => (
+    <label className="field">
+      <span>{label}</span>
+      <input aria-label={label} value={(value[k] as string | undefined) ?? ''} placeholder={placeholder} onChange={(e) => set({ [k]: e.target.value || undefined })} />
+    </label>
+  );
+  const t = value.type;
+  return (
+    <div className="source-form">
+      <label className="field">
+        <span>Kind of source</span>
+        <select aria-label="Kind of source" value={t} onChange={(e) => set({ type: e.target.value as SourceType })}>
+          {SOURCE_TYPES.map(([k, l]) => (
+            <option key={k} value={k}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="field">
+        <span>Authors</span>
+        <textarea aria-label="Authors" rows={2} value={value.authors} placeholder="Last, First — one per line (or an organisation)" onChange={(e) => set({ authors: e.target.value })} />
+      </label>
+      {text('title', t === 'article' ? 'Article title' : t === 'web' ? 'Page title' : t === 'chapter' ? 'Chapter title' : 'Title')}
+      <div className="style-row">
+        {text('year', 'Year', '2024')}
+        {t === 'article' && text('volume', 'Volume')}
+        {t === 'article' && text('issue', 'Issue')}
+        {(t === 'article' || t === 'chapter') && text('pages', 'Pages', '12–34')}
+      </div>
+      {t === 'article' && text('container', 'Journal')}
+      {t === 'chapter' && text('container', 'Book title (and editors)')}
+      {t === 'web' && text('container', 'Website')}
+      {(t === 'book' || t === 'chapter') && (
+        <div className="style-row">
+          {text('publisher', 'Publisher')}
+          {text('city', 'City')}
+        </div>
+      )}
+      {(t === 'web' || t === 'article') && text('url', 'Web address')}
+      {t === 'web' && text('accessed', 'Read on (yyyy-mm-dd)')}
+    </div>
+  );
+}
+
+/** Word's Insert Citation: a source from the list (or a new one), cited at the caret. */
+function CiteDialog({ editor, onClose }: { editor: Editor; onClose(): void }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const sources = state.settings.sources ?? [];
+  const style: CiteStyle = state.settings.citeStyle ?? 'apa';
+  const [q, setQ] = useState('');
+  const [adding, setAdding] = useState(!sources.length);
+  const [draft, setDraft] = useState<Omit<Source, 'key'>>(EMPTY_SOURCE);
+  const [pick, setPick] = useState<string | null>(sources[0]?.key ?? null);
+  const shown = sources.filter((x) => `${x.authors} ${x.title} ${x.year ?? ''}`.toLowerCase().includes(q.toLowerCase()));
+  const cite = (key: string) => {
+    editor.focus();
+    editor.insertField(`cite:${key}`);
+    onClose();
+  };
+  return (
+    <Dialog
+      title="Insert citation"
+      ok={adding ? 'Add and cite' : 'Cite'}
+      wide
+      onClose={onClose}
+      onOk={() => {
+        if (adding) {
+          if (!draft.title.trim()) return;
+          const key = sourceKey(draft, sources.map((x) => x.key));
+          store.updateSettings({ sources: [...sources, { ...draft, key }] });
+          cite(key);
+        } else if (pick) cite(pick);
+      }}
+    >
+      {!adding ? (
+        <>
+          <input type="search" aria-label="Find a source" placeholder="Find a source" value={q} onChange={(e) => setQ(e.target.value)} />
+          <ul className="pick-list" role="listbox" aria-label="Sources">
+            {shown.map((x) => (
+              <li key={x.key}>
+                <button type="button" role="option" aria-selected={x.key === pick} className={x.key === pick ? 'on' : ''} onClick={() => setPick(x.key)} onDoubleClick={() => cite(x.key)}>
+                  {inText(x, style)} {x.title}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="btn quiet" onClick={() => setAdding(true)}>
+            + Add a new source
+          </button>
+        </>
+      ) : (
+        <>
+          <SourceForm value={draft} onChange={setDraft} />
+          {sources.length > 0 && (
+            <button type="button" className="btn quiet" onClick={() => setAdding(false)}>
+              ← Choose from your sources
+            </button>
+          )}
+        </>
+      )}
+    </Dialog>
+  );
+}
+
+/** Word's Manage Sources and citation style: every source (shared by all your notes and projects), to change or take away. */
+function SourcesDialog({ onClose }: { onClose(): void }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const sources = state.settings.sources ?? [];
+  const style: CiteStyle = state.settings.citeStyle ?? 'apa';
+  const [editing, setEditing] = useState<Source | null>(null);
+  if (editing)
+    return (
+      <Dialog
+        title="Edit source"
+        ok="Save"
+        wide
+        onClose={() => setEditing(null)}
+        onOk={() => {
+          store.updateSettings({ sources: sources.map((x) => (x.key === editing.key ? editing : x)) });
+          setEditing(null);
+        }}
+      >
+        <SourceForm value={editing} onChange={(v) => setEditing({ ...v, key: editing.key })} />
+      </Dialog>
+    );
+  return (
+    <Dialog title="Sources" wide onClose={onClose}>
+      <label className="field">
+        <span>Citation style</span>
+        <select aria-label="Citation style" value={style} onChange={(e) => store.updateSettings({ citeStyle: e.target.value as CiteStyle })}>
+          {CITE_STYLES.map(([k, l]) => (
+            <option key={k} value={k}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </label>
+      {sources.length ? (
+        <ul className="pick-list" aria-label="Sources">
+          {sources.map((x) => (
+            <li key={x.key} className="pick-row">
+              <span className="grow">
+                {inText(x, style)} {x.title}
+              </span>
+              <button type="button" className="btn small" onClick={() => setEditing(x)}>
+                Edit
+              </button>
+              <button type="button" className="btn small quiet" aria-label={`Delete source ${x.title}`} onClick={() => confirm(`Delete “${x.title}” from your sources? Citations of it show as (${x.key}?).`) && store.updateSettings({ sources: sources.filter((y) => y.key !== x.key) })}>
+                Delete
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="sync-hint">No sources yet: add them with References → Insert citation….</p>
+      )}
+      <p className="sync-hint">Your sources are shared by all your notes and projects (and your other devices, when syncing).</p>
+    </Dialog>
+  );
 }
 
 /** A small window: a form with a title, its fields, and Cancel / OK. */

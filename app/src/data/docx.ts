@@ -41,8 +41,9 @@ export interface DocxOptions {
   media?(src: string): Promise<{ bytes: Uint8Array; type: string } | null>;
   /** Styles of one's own the text uses, written as Word styles of the same names. */
   custom?: CustomStyle[];
-  /** A bibliography's lines (the sources cited, in the citation style). */
+  /** A bibliography's lines (the sources cited, in the citation style), and a citation's text. */
   sources?(): string[];
+  cite?(key: string): string;
 }
 
 /** A style of one's own's Word style id. */
@@ -144,6 +145,7 @@ class Writer {
   rels: { id: string; type: string; target: string; external?: boolean }[] = [];
   media: ZipEntry[] = [];
   footnotes: string[] = [];
+  endnotes: string[] = [];
   /** Comments in the order they start (each with its id, and its replies' ids), and how many commented runs each has still to come. */
   comments: { comment: Comment; id: number; replies: number[] }[] = [];
   private nextComment = 0;
@@ -211,7 +213,8 @@ class Writer {
     if (name === 'page' || name === 'pages') return '1';
     if (name === 'title') return this.opts.title;
     if (name === 'author') return this.opts.author ?? '';
-    if (name.startsWith('xe:') || name.startsWith('cite:')) return '';
+    if (name.startsWith('cite:')) return this.opts.cite?.(name.slice(5)) ?? `(${name.slice(5)})`;
+    if (name.startsWith('xe:')) return '';
     return fieldValue(name);
   }
 
@@ -302,6 +305,11 @@ class Writer {
   private nextChange = 1000;
 
   private basicRun(r: Run, linked: boolean): string {
+    if (r.footnote !== undefined && r.endnote) {
+      const id = this.endnotes.length + 1;
+      this.endnotes.push(r.footnote);
+      return `<w:r><w:rPr><w:rStyle w:val="EndnoteReference"/></w:rPr><w:endnoteReference w:id="${id}"/></w:r>`;
+    }
     if (r.footnote !== undefined) {
       const id = this.footnotes.length + 1;
       this.footnotes.push(r.footnote);
@@ -314,6 +322,8 @@ class Writer {
         const id = this.nextBookmark++;
         return `<w:bookmarkStart w:id="${id}" w:name="${esc(r.field.slice(3))}"/><w:bookmarkEnd w:id="${id}"/>`;
       }
+      // A citation: its text, as written in the citation style.
+      if (r.field.startsWith('cite:')) return `<w:r>${props}<w:t xml:space="preserve">${esc(this.fieldShown(r.field))}</w:t></w:r>`;
       const instr = wordInstr(r.field);
       if (!instr) return '';
       const shown = this.fieldShown(r.field);
@@ -746,6 +756,8 @@ function stylesXml(font: string, size: number): string {
     para('Footer', 'footer', '<w:spacing w:after="0"/>', `<w:sz w:val="${Math.round(hp * 0.85)}"/>`) +
     para('FootnoteText', 'footnote text', '<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>', `<w:sz w:val="${Math.round(hp * 0.8)}"/>`) +
     `<w:style w:type="character" w:styleId="FootnoteReference"><w:name w:val="footnote reference"/><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style>` +
+    para('EndnoteText', 'endnote text', '<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>', `<w:sz w:val="${Math.round(hp * 0.8)}"/>`) +
+    `<w:style w:type="character" w:styleId="EndnoteReference"><w:name w:val="endnote reference"/><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style>` +
     para('CommentText', 'annotation text', '<w:spacing w:after="0" w:line="240" w:lineRule="auto"/>', `<w:sz w:val="20"/>`) +
     `<w:style w:type="character" w:styleId="CommentReference"><w:name w:val="annotation reference"/><w:rPr><w:sz w:val="16"/></w:rPr></w:style>` +
     `<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>` +
@@ -844,6 +856,15 @@ function commentsExtendedXml(list: WrittenComment[]): string {
   return XML + `<w15:commentsEx xmlns:w15="${W15_NS}" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w15">${body}</w15:commentsEx>`;
 }
 
+/** Endnotes, as Word keeps them (numbered i, ii, iii at the end). */
+function endnotesXml(notes: string[]): string {
+  const sep = '<w:endnote w:type="separator" w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p></w:endnote><w:endnote w:type="continuationSeparator" w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p></w:endnote>';
+  const body = notes
+    .map((text, i) => `<w:endnote w:id="${i + 1}"><w:p><w:pPr><w:pStyle w:val="EndnoteText"/></w:pPr><w:r><w:rPr><w:rStyle w:val="EndnoteReference"/></w:rPr><w:endnoteRef/></w:r><w:r><w:t xml:space="preserve"> ${esc(text)}</w:t></w:r></w:p></w:endnote>`)
+    .join('');
+  return XML + `<w:endnotes ${NS}>${sep}${body}</w:endnotes>`;
+}
+
 function footnotesXml(notes: string[]): string {
   const sep = '<w:footnote w:type="separator" w:id="-1"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:type="continuationSeparator" w:id="0"><w:p><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>';
   const body = notes
@@ -923,6 +944,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   w.rel(`${REL}/styles`, 'styles.xml');
   w.rel(`${REL}/numbering`, 'numbering.xml');
   w.rel(`${REL}/footnotes`, 'footnotes.xml');
+  w.rel(`${REL}/endnotes`, 'endnotes.xml');
   w.rel(`${REL}/settings`, 'settings.xml');
   if (w.comments.length) {
     w.rel(`${REL}/comments`, 'comments.xml');
@@ -936,7 +958,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const firstPara = parts[0]?.doc.blocks[0]?.para;
   const protect = firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
   const trackAll = firstPara?.track === 'all' ? '<w:trackRevisions/>' : '';
-  const settings = `${XML}<w:settings ${NS}>${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+  const settings = `${XML}<w:settings ${NS}>${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const core = `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(opts.title)}</dc:title><dc:creator>${esc(opts.author ?? '')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
   const types =
@@ -947,6 +969,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>' +
     '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>' +
     '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>' +
+    '<Override PartName="/word/endnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"/>' +
     '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>' +
     files.map((f) => `<Override PartName="/${f.name}" ContentType="${f.name.endsWith('commentsExtended.xml') ? 'application/vnd.ms-word.commentsExtended+xml' : `application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : f.name.includes('comments') ? 'comments' : 'footer'}+xml`}"/>`).join('') +
     '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>';
@@ -961,6 +984,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     { name: 'word/styles.xml', data: utf8(stylesXml(opts.font || 'Georgia', opts.size || 12).replace('</w:styles>', `${customStylesXml(opts.custom ?? [])}</w:styles>`)) },
     { name: 'word/numbering.xml', data: utf8(numberingXml(w.lists)) },
     { name: 'word/footnotes.xml', data: utf8(footnotesXml(w.footnotes)) },
+    { name: 'word/endnotes.xml', data: utf8(endnotesXml(w.endnotes)) },
     { name: 'word/settings.xml', data: utf8(settings) },
     ...files,
     ...w.media,
@@ -1183,6 +1207,10 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const notes = new Map<string, string>();
   const notesPath = [...rels.values()].find((p) => /footnotes\.xml$/.test(p));
   for (const f of Array.from(parseXml(notesPath ? files.get(notesPath) : undefined)?.getElementsByTagNameNS(W_NS, 'footnote') ?? [])) notes.set(attr(f, 'id') ?? '', textOf(f));
+  // Endnotes come in as endnotes (their text was lost before).
+  const endnotes = new Map<string, string>();
+  const endPath = [...rels.values()].find((p) => /endnotes\.xml$/.test(p));
+  for (const f of Array.from(parseXml(endPath ? files.get(endPath) : undefined)?.getElementsByTagNameNS(W_NS, 'endnote') ?? [])) endnotes.set(attr(f, 'id') ?? '', textOf(f));
 
   // Comments: what each says, and which are open at the text being read.
   const notesById = new Map<string, Comment>();
@@ -1419,8 +1447,9 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
             } else if (c.localName === 'noBreakHyphen') push('‑');
             else if (c.localName === 'sym') push(String.fromCharCode(parseInt(attr(c, 'char') ?? '20', 16) & 0xff || 32));
             else if (c.localName === 'footnoteReference' || c.localName === 'endnoteReference') {
-              const text = c.localName === 'footnoteReference' ? notes.get(attr(c, 'id') ?? '') : undefined;
-              out.push({ text: FOOTNOTE, marks: [], footnote: text ?? '' });
+              const end = c.localName === 'endnoteReference';
+              const text = (end ? endnotes : notes).get(attr(c, 'id') ?? '');
+              out.push({ text: FOOTNOTE, marks: [], footnote: text ?? '', ...(end ? { endnote: true as const } : {}) });
             } else if (c.localName === 'AlternateContent') {
               // Word's choice of ways to show something (a shape, with an older drawing as the fallback): the first.
               const choice = kids(c).find((x) => x.localName === 'Choice') ?? kids(c).find((x) => x.localName === 'Fallback');

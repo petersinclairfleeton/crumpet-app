@@ -26,7 +26,7 @@ import { useAppState, useAppStore, useNav } from './hooks';
 import { IconBack, IconFocus, IconMore, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
-import { FootnoteCard, FootnoteList } from './footnotes';
+import { EndnoteList, FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
 import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from './changes';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, projectDocx, projectEpub } from '../data/wordfiles';
@@ -992,6 +992,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
         <div ref={host} className="note-editor" aria-label={`Text of chapter ${number}`} />
       </PageView>
       {!page && <FootnoteList doc={chapter.doc} editor={editor} />}
+      <EndnoteList doc={chapter.doc} editor={editor} />
       <CommentList doc={chapter.doc} editor={editor} />
     </section>
   );

@@ -77,6 +77,7 @@ import {
   textToTable,
   tableToText,
   insertFootnote,
+  convertNotes,
   setFootnote,
   addComment,
   setComment,
@@ -1577,7 +1578,20 @@ export class Editor {
     this.view.fillFields();
   }
 
-  /** A bibliography's lines (the sources cited, in the citation style), from the app. */
+  /** The keys of the sources this document cites, in the order first cited. */
+  citedKeys(): string[] {
+    const out: string[] = [];
+    for (const b of this.state.doc.blocks) for (const r of b.runs) if (r.field?.startsWith('cite:') && r.change?.kind !== 'del' && !out.includes(r.field.slice(5))) out.push(r.field.slice(5));
+    return out;
+  }
+
+  /** Citations' text, and a bibliography's lines (the sources cited, in the citation style), from the app. */
+  setCitations(cite: ((key: string) => string | null) | null, list: (() => string[]) | null): void {
+    this.view.citeText = cite;
+    this.view.fillFields();
+    this.setSourcesList(list);
+  }
+
   setSourcesList(fn: (() => string[]) | null): void {
     this.view.sourcesList = fn;
     const lists = this.state.doc.blocks.filter((b) => b.type === 'toc' && b.tocl?.kind === 'sources');
@@ -2085,19 +2099,30 @@ export class Editor {
   }
 
   /** Adds a footnote after the selection and returns where it is. */
-  insertFootnote(text = ''): Pos {
+  insertFootnote(text = '', endnote = false): Pos {
     this.syncSelectionFromDom();
-    this.dispatch(insertFootnote(this.state, text), 'command');
+    this.dispatch(insertFootnote(this.state, text, endnote), 'command');
     const f = this.state.selection.focus;
     return { block: f.block, offset: f.offset - 1 };
   }
 
   /** Adds an empty footnote after the selection and opens it for writing (see onFootnoteClick). */
-  addFootnote(): void {
+  addFootnote(endnote = false): void {
     if (this.isReadOnly) return;
-    const at = this.insertFootnote('');
+    const at = this.insertFootnote('', endnote);
     const el = this.footnoteElement(at);
     if (el) this.onFootnoteClick?.(at, '', el);
+  }
+
+  /** Adds an endnote (listed at the end, numbered i, ii, iii) and opens it for writing. */
+  addEndnote(): void {
+    this.addFootnote(true);
+  }
+
+  /** Word's Convert Notes: all footnotes made endnotes, or all endnotes footnotes. */
+  convertNotes(to: 'end' | 'foot'): void {
+    if (this.isReadOnly) return;
+    this.dispatch(convertNotes(this.state, to), 'command');
   }
 
   /** Changes what the footnote at `at` says; null takes it out. */
@@ -2112,8 +2137,11 @@ export class Editor {
     const sup = el?.closest?.<HTMLElement>('sup.fn');
     if (sup) return sup;
     // posToDom can land just past the marker; look for it by order instead.
-    const i = footnotes(this.state.doc).findIndex((f) => f.block === at.block && f.offset === at.offset);
-    return i < 0 ? null : (this.view.root.querySelectorAll<HTMLElement>('sup.fn')[i] ?? null);
+    for (const which of ['foot', 'end'] as const) {
+      const i = footnotes(this.state.doc, which).findIndex((f) => f.block === at.block && f.offset === at.offset);
+      if (i >= 0) return this.view.root.querySelectorAll<HTMLElement>(which === 'end' ? 'sup.fn.en' : 'sup.fn:not(.en)')[i] ?? null;
+    }
+    return null;
   }
 
   /** Puts a comment on the selected text. */
@@ -2231,8 +2259,9 @@ export class Editor {
     }
     const fn = (e.target as Element).closest?.<HTMLElement>('sup.fn');
     if (fn && this.onFootnoteClick) {
-      const i = [...this.view.root.querySelectorAll('sup.fn')].indexOf(fn);
-      const at = footnotes(this.state.doc)[i];
+      const end = fn.classList.contains('en');
+      const i = [...this.view.root.querySelectorAll(end ? 'sup.fn.en' : 'sup.fn:not(.en)')].indexOf(fn);
+      const at = footnotes(this.state.doc, end ? 'end' : 'foot')[i];
       if (at) {
         e.preventDefault();
         this.onFootnoteClick({ block: at.block, offset: at.offset }, at.text, fn);

@@ -202,3 +202,34 @@ describe('Word: table settings', () => {
     expect(back.tbl?.cells?.['1,1']).toEqual({ h: 'right' });
   });
 });
+
+describe('Word: endnotes, bookmarks and fields', () => {
+  it('endnotes go to Word as endnotes and come back with their text', async () => {
+    const p = makeBlock('paragraph', 'The lamp.');
+    p.runs.push({ text: '⁣', marks: [], footnote: 'Lit in 1902.', endnote: true });
+    p.runs.push({ text: ' Gulls.', marks: [] });
+    p.runs.push({ text: '⁣', marks: [], footnote: 'Herring gulls.' });
+    const bytes = await toDocx([{ doc: { blocks: [p] } }], { title: 'T' });
+    const files = await readZip(bytes);
+    expect(new TextDecoder().decode(files.get('word/endnotes.xml'))).toContain('Lit in 1902.');
+    expect(new TextDecoder().decode(files.get('word/document.xml'))).toContain('<w:endnoteReference w:id="1"/>');
+    const back = (await fromDocx(bytes)).doc.blocks[0].runs.filter((r) => r.footnote !== undefined);
+    expect(back.map((r) => [r.footnote, !!r.endnote])).toEqual([
+      ['Lit in 1902.', true],
+      ['Herring gulls.', false],
+    ]);
+  });
+
+  it('a bookmark, a caption number and a cross-reference go to Word and come back', async () => {
+    const cap = makeBlock('paragraph', '', [], { style: 'caption', runs: [{ text: FIELD, marks: [], field: 'bm:lamp' }, { text: 'Figure ', marks: [] }, { text: FIELD, marks: [], field: 'seq:Figure' }, { text: ': The lamp', marks: [] }] });
+    const see = makeBlock('paragraph', '', [], { runs: [{ text: 'See ', marks: [] }, { text: FIELD, marks: [], field: 'ref:lamp' }, { text: ', page ', marks: [] }, { text: FIELD, marks: [], field: 'page' }] });
+    const bytes = await toDocx([{ doc: { blocks: [cap, see] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:bookmarkStart w:id="1" w:name="lamp"/>');
+    expect(xml).toContain('w:instr=" SEQ Figure \\* ARABIC "><w:r><w:t xml:space="preserve">1</w:t>');
+    expect(xml).toContain('w:instr=" REF lamp \\h "><w:r><w:t xml:space="preserve">Figure 1</w:t>');
+    const back = (await fromDocx(bytes)).doc.blocks;
+    expect(back[0].runs.filter((r) => r.field).map((r) => r.field)).toEqual(['bm:lamp', 'seq:Figure']);
+    expect(back[1].runs.filter((r) => r.field).map((r) => r.field)).toEqual(['ref:lamp', 'page']);
+  });
+});

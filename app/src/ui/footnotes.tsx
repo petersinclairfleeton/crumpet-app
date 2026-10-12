@@ -74,11 +74,12 @@ export function FootnoteCard({ editor }: { editor: Editor | null }) {
   });
 
   if (!open) return null;
-  const n = (editor ? footnotes(editor.state.doc).findIndex((f) => f.block === open.at.block && f.offset === open.at.offset) + editor.footnoteStart : -1) + 1;
+  const end = open.el.classList.contains('en');
+  const n = end ? open.el.dataset.n ?? '' : (editor ? footnotes(editor.state.doc).findIndex((f) => f.block === open.at.block && f.offset === open.at.offset) + editor.footnoteStart : -1) + 1;
   return createPortal(
-    <div ref={card} className="footnote-card" role="dialog" aria-label={`Footnote ${n}`} style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }}>
+    <div ref={card} className="footnote-card" role="dialog" aria-label={`${end ? 'Endnote' : 'Footnote'} ${n}`} style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }}>
       <label className="footnote-head">
-        <span>Footnote {n}</span>
+        <span>{end ? 'Endnote' : 'Footnote'} {n}</span>
         <textarea
           ref={field}
           rows={3}
@@ -116,6 +117,34 @@ export function FootnoteCard({ editor }: { editor: Editor | null }) {
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** The note's endnotes, listed at its end (in page view too), numbered i, ii, iii; clicking one opens it. */
+export function EndnoteList({ doc, editor }: { doc: Doc; editor: Editor | null }) {
+  const list = footnotes(doc, 'end');
+  if (!list.length) return null;
+  return (
+    <section className="footnote-list endnote-list" aria-label="Endnotes">
+      <h3>Notes</h3>
+      <ol type="i">
+        {list.map((f) => (
+          <li key={`${f.block}:${f.offset}`}>
+            <button
+              type="button"
+              onClick={() => {
+                const el = editor?.footnoteElement(f);
+                if (!editor || !el) return;
+                el.scrollIntoView({ block: 'center' });
+                editor.onFootnoteClick?.({ block: f.block, offset: f.offset }, f.text, el);
+              }}
+            >
+              {f.text || <em>Empty endnote</em>}
+            </button>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

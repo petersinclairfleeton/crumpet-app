@@ -91,7 +91,13 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     whole document (`fillFields`). A `toc` block's `tocl` makes it a table
     of figures, an index or a bibliography (`lists.ts`); `para.outline` is
     Word's Add Text; `app/src/ui/references.tsx` is the References button
-    and its windows. A `code` block is maths (LaTeX)
+    and its windows. A footnote run with `endnote` is an endnote (`^^[…]`,
+    numbered i, ii, iii, listed at the end by `EndnoteList`). Citations:
+    `app/src/data/citations.ts` (sources in `settings.sources`, shared like
+    the note styles via `SHARED_SETTINGS`; APA, MLA, Chicago), given to each
+    editor by `useCitations`. `ui/snippets.tsx`: snippets (F3) and Text from
+    file; `ui/websearch.tsx`: the right sidebar's Search tab (Wikipedia). A
+    `code` block is maths (LaTeX)
     or a diagram (Mermaid): its source in a text area, drawn by the app's
     renderer (`setCodeRenderer`, `app/src/ui/coderender.ts`, KaTeX and
     Mermaid loaded when first needed); saved as ```` ```math ```` /

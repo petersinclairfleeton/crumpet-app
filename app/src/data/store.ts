@@ -20,7 +20,7 @@ import { type Snapshot, VERSION_GAP, pruneVersions, snapshotAttachments } from '
 import { tidyKeywords } from './keywords';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { removeRevisionColors } from './revisions';
-import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
+import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, SHARED_SETTINGS, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
 import { inOrder, moveInOrder, notebookTree, projectsInOrder } from './selectors';
 
 export interface AppState {
@@ -273,7 +273,7 @@ export class AppStore {
 
   // ---------- notes ----------
 
-  createNote(init: Partial<Pick<Note, 'title' | 'doc' | 'notebookId' | 'tags' | 'favorite' | 'file'>> = {}): Note {
+  createNote(init: Partial<Pick<Note, 'title' | 'doc' | 'notebookId' | 'tags' | 'favorite' | 'file'>> = {}, open = true): Note {
     const view = this.state.view;
     const t = this.now();
     const note: Note = {
@@ -291,7 +291,7 @@ export class AppStore {
     // Show the new note where it lives: its notebook, or All Notes if it isn't in one.
     const nextView: View =
       view.kind === 'trash' || view.kind === 'stack' || view.kind === 'project' ? (note.notebookId ? { kind: 'notebook', id: note.notebookId } : { kind: 'all' }) : view;
-    this.set({ notes: [note, ...this.state.notes], selectedId: note.id, view: nextView, query: '' });
+    this.set({ notes: [note, ...this.state.notes], ...(open ? { selectedId: note.id, view: nextView, query: '' } : {}) });
     this.save(this.storage.putNote(note));
     return note;
   }
@@ -621,8 +621,10 @@ export class AppStore {
     // Shared settings from other devices.
     const st = state.settings;
     const want = tree.settings;
-    if (JSON.stringify(st.noteStyles ?? null) !== JSON.stringify(want?.noteStyles ?? null) || JSON.stringify(st.notePage ?? null) !== JSON.stringify(want?.notePage ?? null) || JSON.stringify(st.sideOrder ?? null) !== JSON.stringify(want?.sideOrder ?? null)) {
-      this.updateSettings({ noteStyles: want?.noteStyles, notePage: want?.notePage, sideOrder: want?.sideOrder, sharedAt: want?.updated ?? st.sharedAt });
+    if (SHARED_SETTINGS.some((k) => JSON.stringify(st[k] ?? null) !== JSON.stringify(want?.[k] ?? null))) {
+      const patch: Partial<Settings> = { sharedAt: want?.updated ?? st.sharedAt };
+      for (const k of SHARED_SETTINGS) (patch as Record<string, unknown>)[k] = want?.[k];
+      this.updateSettings(patch);
     }
     const stacks: Stack[] = Object.values(tree.stacks).map((t) => {
       const cur = state.stacks.find((s) => s.id === t.id);
@@ -751,7 +753,7 @@ export class AppStore {
   updateSettings(patch: Partial<Settings>): void {
     const settings = { ...this.state.settings, ...patch };
     // Note styles and page setup are shared with other devices: the newer change wins.
-    if (('noteStyles' in patch || 'notePage' in patch || 'sideOrder' in patch) && !('sharedAt' in patch)) settings.sharedAt = this.now();
+    if (SHARED_SETTINGS.some((k) => k in patch) && !('sharedAt' in patch)) settings.sharedAt = this.now();
     this.set({ settings });
     this.save(this.storage.putSettings(settings));
   }
