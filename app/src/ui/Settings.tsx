@@ -10,6 +10,7 @@ import { IconClose } from './icons';
 import { SyncSettings } from './SyncSettings';
 import { THEMES, themeInfo } from './themes';
 import { PaperSwatches } from './paper';
+import { AutoCorrectSettings } from './autocorrect';
 
 const SECTIONS = [
   { id: 'account', label: 'Account & sync' },
@@ -135,6 +136,7 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
                   </label>
                 ))}
               </div>
+              <AutoCorrectSettings />
             </>
           )}
 

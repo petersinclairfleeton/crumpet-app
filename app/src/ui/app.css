@@ -1395,6 +1395,11 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .note-scroll.tw-scroll .note-body { padding-bottom: 55vh; }
 .tw-fade:focus .blk { opacity: 0.3; transition: opacity 0.25s ease; }
 .tw-fade:focus .blk.tw-current { opacity: 1; }
+.ac-words { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.ac-word { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text); }
+.ac-word code { font-size: 12px; }
+.ac-add { display: flex; align-items: center; gap: 6px; }
+.ac-add input { flex: 1; min-width: 0; }
 .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 400; color: var(--text); cursor: pointer; }
 .page-view .editor[data-empty] .blk:first-child .text::before { content: none; }
 /* The formatting row keeps to one line; what doesn't fit goes under More. */

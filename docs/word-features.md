@@ -41,7 +41,7 @@ At the end there's a suggested order for building what's missing.
 | Close | ✅ | Close tab. |
 | Account | ✅ | Optional sign-in with email or Google. |
 | Feedback | ❌ | No way to send feedback from the app. |
-| Options: AutoCorrect | 🟡 | Markdown shortcuts ("# " makes a heading, "- " a list). No AutoCorrect list (teh → the), no automatic curly quotes, dashes or (c) → ©. |
+| Options: AutoCorrect | ✅ | Curly quotes, em and en dashes, … and © ® ™ → ⇒, a typo list (teh → the) plus your own replacements, capitals at a sentence's start; each can be turned off (Settings → Writing). Plus Markdown shortcuts ("# " makes a heading). |
 | Options: proofing | 🟡 | The browser's spell check (and right-click suggestions in the Mac app); no settings for it. |
 | Options: save settings | 🟡 | Automatic versions can be turned off; that's all there is to set. |
 | Options: customise the ribbon / Quick Access Toolbar | ❌ | The formatting bar can show always or only over selected text; you can't choose its buttons. |
@@ -85,7 +85,7 @@ At the end there's a suggested order for building what's missing.
 | Multilevel lists | 🟡 | Lists nest, and "1. 1.1 1.1.1" numbering is there. No gallery of multilevel styles, and no "define new multilevel list". |
 | Increase / decrease indent | ✅ | Also on the ruler. |
 | Sort | ❌ | |
-| Show/hide ¶ (formatting marks) | ❌ | |
+| Show/hide ¶ (formatting marks) | ✅ | The ¶ button or Ctrl+Shift+8: dots for spaces, arrows for tabs, ¶ at paragraph ends; page, section and column breaks are labelled outside page view. |
 | Alignment | ✅ | Left, centre, right, justify. |
 | Line and paragraph spacing | ✅ | |
 | Shading, borders | ✅ | Paragraph shading, and borders on any side. No border styles (dashed, double, thickness, colour). |
@@ -450,8 +450,8 @@ points to the code to start from.
 **1. Everyday writing**
 Where: `packages/editor/src/editor.ts` (input), `commands.ts`, `view.ts`;
 `app/src/ui/paratools.tsx`, `inserttools.tsx`, `ruler.tsx`, `statusbar.tsx`.
-- [ ] AutoCorrect: curly quotes, em/en dashes, `...` → …, (c) → ©, a typo list (teh → the), capital at a sentence's start; each can be turned off in Settings
-- [ ] Show/hide ¶ (spaces, tabs, paragraph ends, breaks)
+- [x] AutoCorrect: curly quotes, em/en dashes, `...` → …, (c) → ©, a typo list (teh → the), capital at a sentence's start; each can be turned off in Settings
+- [x] Show/hide ¶ (spaces, tabs, paragraph ends, breaks)
 - [ ] Tab stops (left, centre, right, decimal, dot leaders) on the ruler and in a Tabs window; to and from Word
 - [ ] Drop cap
 - [ ] Blank page button

@@ -1,5 +1,5 @@
 // Word's Paragraph group for the formatting bar: line and paragraph spacing,
-// decrease and increase indent, page break, and the Paragraph window with
+// decrease and increase indent, show/hide ¶, and the Paragraph window with
 // every spacing, indent and page-break setting.
 
 import { useEffect, useRef, useState } from 'react';
@@ -9,6 +9,7 @@ import type { ParaLook } from '@crumpet/editor/model';
 import { IconClose } from './icons';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
+import { useAppState, useAppStore } from './hooks';
 
 const LINE_SPACINGS = [1, 1.15, 1.5, 2, 2.5, 3];
 
@@ -20,6 +21,7 @@ const svg = (d: string) => (
 const ICON_SPACING = svg('M10 6h11M10 12h11M10 18h11M5 4v16M3 6l2-2 2 2M3 18l2 2 2-2');
 const ICON_INDENT = svg('M11 6h10M11 12h10M11 18h10M3 9l3 3-3 3');
 const ICON_OUTDENT = svg('M11 6h10M11 12h10M11 18h10M7 9l-3 3 3 3');
+const ICON_PARA_WINDOW = svg('M4 4h16v16H4zM10 14l6-6M11 8h5v5');
 
 function SpacingTool({ ed, off, onMore }: { ed: Editor | null; off: boolean; onMore(): void }) {
   const [open, setOpen] = useState(false);
@@ -64,6 +66,10 @@ function SpacingTool({ ed, off, onMore }: { ed: Editor | null; off: boolean; onM
 /** The Paragraph group, as toolbar items (see OverflowRow). */
 export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem[]; dialog: React.ReactNode } {
   const [open, setOpen] = useState(false);
+  const store = useAppStore();
+  const marks = !!useAppState().settings.showMarks;
+  const toggleMarks = () => store.updateSettings({ showMarks: !marks });
+  const marksLabel = 'Show/hide ¶ (Ctrl+Shift+8)';
   const simple = (key: string, pri: number, label: string, glyph: React.ReactNode, onClick: () => void, sep = false): ToolItem => ({
     key,
     pri,
@@ -84,14 +90,36 @@ export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem
       { key: 'spacing', label: 'Line spacing', pri: 2, sep: true, node: <SpacingTool ed={ed} off={off} onMore={() => setOpen(true)} />, menu: undefined },
       simple('outdent', 2, 'Decrease indent', ICON_OUTDENT, () => ed?.stepIndent(-1)),
       simple('indent', 2, 'Increase indent', ICON_INDENT, () => ed?.stepIndent(1)),
-      simple('paragraph', 1, 'Paragraph settings…', <span className="glyph-para">¶</span>, () => setOpen(true)),
+      {
+        key: 'marks',
+        pri: 1,
+        node: (
+          <button type="button" className={marks ? 'active' : ''} aria-label="Show/hide ¶" aria-pressed={marks} title={marksLabel} onClick={toggleMarks}>
+            <span className="glyph-para">¶</span>
+          </button>
+        ),
+        menu: (
+          <button type="button" className="menu-item" aria-pressed={marks} onClick={toggleMarks}>
+            <span className="menu-glyph glyph-para">¶</span> {marks ? 'Hide formatting marks' : 'Show formatting marks'}
+          </button>
+        ),
+      },
+      simple('paragraph', 1, 'Paragraph settings…', ICON_PARA_WINDOW, () => setOpen(true)),
     ],
     dialog: open && ed ? <ParagraphDialog editor={ed} onClose={() => setOpen(false)} /> : null,
   };
 }
 
-/** Word's paragraph keys: Ctrl+Enter page break, Ctrl+1/2/5 line spacing, Ctrl+M / Ctrl+Shift+M indent. */
+/** Word's paragraph keys: Ctrl+Enter page break, Ctrl+1/2/5 line spacing, Ctrl+M / Ctrl+Shift+M indent, Ctrl+Shift+8 show/hide ¶. */
 export function useParaKeys(ed: Editor | null): void {
+  const store = useAppStore();
+  const marks = !!useAppState().settings.showMarks;
+  // Show/hide ¶ is for every note and chapter (as Settings keep it).
+  useEffect(() => {
+    ed?.setShowMarks(marks);
+  }, [ed, marks]);
+  const marksRef = useRef(marks);
+  marksRef.current = marks;
   useEffect(() => {
     if (!ed) return;
     const onKey = (e: KeyboardEvent) => {
@@ -103,13 +131,14 @@ export function useParaKeys(ed: Editor | null): void {
       else if (!e.shiftKey && e.code === 'Digit2') ed.setPara({ line: 2 });
       else if (!e.shiftKey && e.code === 'Digit5') ed.setPara({ line: 1.5 });
       else if (e.code === 'KeyM' && e.ctrlKey) ed.stepIndent(e.shiftKey ? -1 : 1);
+      else if (e.shiftKey && e.code === 'Digit8') store.updateSettings({ showMarks: !marksRef.current });
       else done = false;
       if (done) e.preventDefault();
     };
     const root = ed.view.root;
     root.addEventListener('keydown', onKey);
     return () => root.removeEventListener('keydown', onKey);
-  }, [ed]);
+  }, [ed, store]);
 }
 
 type Special = 'none' | 'first' | 'hanging';

@@ -102,6 +102,7 @@ import {
   type SectionPatch,
 } from './commands';
 import { History } from './history';
+import { type AutoCorrectOptions, autoCorrect } from './autocorrect';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { type TocEntry, View, readTable } from './view';
 import { type ShapeKind, type ShapeLook } from './shape';
@@ -157,6 +158,17 @@ export class Editor {
     const sel = this.keepSelection();
     this.paged = !!geometry;
     this.paginator.set(geometry);
+    sel();
+    this.emit(null);
+  }
+
+  /** Show/hide ¶ (Word's formatting marks): dots for spaces, arrows for tabs, ¶ at each paragraph's end, and breaks labelled. */
+  setShowMarks(on: boolean): void {
+    if (this.view.showMarks === on) return;
+    this.view.showMarks = on;
+    this.view.root.classList.toggle('show-marks', on);
+    const sel = this.keepSelection();
+    this.draw(this.state.doc, new Set(this.state.doc.blocks.map((b) => b.id)));
     sel();
     this.emit(null);
   }
@@ -1152,6 +1164,7 @@ export class Editor {
           this.dispatch(markdownShortcut(this.state));
           this.dispatch(autoLink(this.state), 'command');
         }
+        this.correct(e.data);
         return;
       }
       case 'insertReplacementText': {
@@ -1236,6 +1249,16 @@ export class Editor {
   /** Turns pasted HTML into paragraphs (set by the app); null or nothing returned pastes plain text. */
   htmlToBlocks: ((html: string) => Block[] | null) | null = null;
 
+  /** AutoCorrect while typing (curly quotes, dashes, typos, capitals…); null: off. */
+  autocorrect: AutoCorrectOptions | null = null;
+
+  /** Puts right what was just typed, as a step of its own (so Ctrl+Z takes back only the correction). */
+  private correct(typed: string): void {
+    if (!this.autocorrect) return;
+    const t = autoCorrect(this.state, typed, this.autocorrect, !!this.tracking);
+    if (t) this.dispatch(t, 'command');
+  }
+
   /** Track changes: who is editing, or null when changes aren't tracked. */
   tracking: { author: string } | null = null;
 
@@ -1297,6 +1320,7 @@ export class Editor {
         if (!text) return true;
         const range = e.inputType === 'insertReplacementText' ? this.targetRange(e) : null;
         this.dispatch(trackedInsertText(range ? { ...s, selection: range } : s, text.replaceAll(FOOTNOTE, ''), author));
+        if (e.inputType === 'insertText') this.correct(text);
         return true;
       }
       case 'insertParagraph':

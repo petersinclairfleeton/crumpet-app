@@ -38,6 +38,16 @@
 .blk-todo .text { flex: 1 1 auto; min-width: 0; }
 .editor code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 0.88em; padding: 1px 4px; border-radius: 4px; background: var(--code-bg); }
 .editor ::selection { background: #d4a25755; }
+/* Show/hide ¶ (Word's formatting marks): a dot on each space, an arrow on each tab, ° on a non-breaking space, ¶ at each paragraph's end. */
+.show-marks .mk-sp, .show-marks .mk-tab, .show-marks .mk-nb { position: relative; }
+.show-marks .mk-sp::after, .show-marks .mk-tab::after, .show-marks .mk-nb::after { position: absolute; left: 50%; top: 0; transform: translateX(-50%); color: var(--marks, #6b8fc7); pointer-events: none; font-weight: 400; font-style: normal; }
+.show-marks .mk-sp::after { content: '·'; }
+.show-marks .mk-tab::after { content: '→'; left: 0; transform: none; }
+.show-marks .mk-nb::after { content: '°'; }
+.show-marks .blk > .text::after { content: '¶'; color: var(--marks, #6b8fc7); font-weight: 400; font-style: normal; text-decoration: none; pointer-events: none; user-select: none; -webkit-user-select: none; }
+.show-marks .blk[data-split] > .text::after, .show-marks .blk-shape > .text::after, .show-marks .blk-code > .text::after, .show-marks .blk-toc > .text::after, .show-marks .blk-table > .text::after { content: none; }
+.show-marks .blk > .text:has(> br:only-child)::after { content: none; }
+.editor.show-marks:not([data-empty]) .blk > .text:has(> br:only-child)::before { content: '¶'; color: var(--marks, #6b8fc7); pointer-events: none; }
 
 /* ---- Links ---- */
 .editor a { color: var(--accent-ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: text; }
@@ -195,6 +205,10 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
 .editor:not(.paged) .blk[data-sect='cont']::after { content: 'Section break (continuous)'; }
 .editor:not(.paged) .blk[data-col-before] { border-top: 1px dotted var(--line2, #ccc); padding-top: 12px; position: relative; }
 .editor:not(.paged) .blk[data-col-before]::after { content: 'Column break'; position: absolute; top: -0.75em; left: 50%; transform: translateX(-50%); padding: 0 8px; background: var(--page, #fff); color: var(--muted, #888); font: 11px/1.5 var(--ui-font, system-ui, sans-serif); white-space: nowrap; pointer-events: none; }
+.editor:not(.paged) .blk[data-page-before]:not([data-sect]) { border-top: 1px dashed var(--line2, #ccc); padding-top: 14px; position: relative; }
+.editor:not(.paged) .blk[data-page-before]:not([data-sect])::after { content: 'Page break'; position: absolute; top: -0.75em; left: 50%; transform: translateX(-50%); padding: 0 8px; background: var(--page, #fff); color: var(--muted, #888); font: 11px/1.5 var(--ui-font, system-ui, sans-serif); white-space: nowrap; pointer-events: none; }
+.editor:not(.paged) .blk:first-child[data-page-before] { border-top: none; padding-top: 0; }
+.editor:not(.paged) .blk:first-child[data-page-before]::after { content: none; }
 .editor:not(.paged) .blk:first-child[data-sect] { border-top: none; padding-top: 0; }
 .editor:not(.paged) .blk:first-child[data-sect]::after { content: none; }
 /* Text boxes and shapes. */

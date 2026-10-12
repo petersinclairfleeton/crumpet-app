@@ -186,6 +186,10 @@ export interface Settings {
   guideSeen?: boolean;
   /** The colour of the paper notes and chapters are written on (#rrggbb); unset: the theme's own. */
   paper?: string;
+  /** Show/hide ¶: formatting marks (spaces, tabs, paragraph ends) shown in notes and chapters. */
+  showMarks?: boolean;
+  /** AutoCorrect while typing: each kind on unless turned off, plus replacements of the person's own. */
+  autocorrect?: import('@crumpet/editor/autocorrect').AutoCorrectOptions;
   /** Version of one-off data clean-ups already applied to this device's notes. */
   dataVersion?: number;
 }
