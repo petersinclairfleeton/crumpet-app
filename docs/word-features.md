@@ -418,49 +418,100 @@ backlinks; e-book export; the web clipper; Markdown files you own.
 
 ---
 
-## Suggested order for building what's missing
+## Peter's choices (October 2026)
 
-Grouped so each group could be one pull request (or a few). Most useful for a
-fiction and non-fiction writer first.
+Peter went through every missing or partly built feature and chose what to
+build. Unless it's listed under "Not wanted", it's wanted.
 
-**1. Everyday writing gaps (small, high value)**
-1. AutoCorrect: curly quotes, em dashes, "..." → …, (c) → ©, a fix-it list (teh → the), capitalising the first letter of a sentence.
-2. Show/hide ¶ (formatting marks: spaces, tabs, paragraph ends, breaks).
-3. Pictures: resize by dragging, wrap text round them, move and rotate them, alt text of their own, crop.
-4. Tab stops and the Tabs window.
-5. Go To page; previous/next buttons for comments, changes and footnotes.
-6. Drop cap.
+### Not wanted
 
-**2. Reviewing like Word**
-1. Display for Review (Simple / All Markup / No Markup / Original).
-2. A Reviewing Pane listing every change and comment.
-3. Resolved comments kept (greyed out, can be reopened).
-4. Track just my changes; Lock Tracking.
-5. Combine reviewers' copies.
+- Sharing (and with it Block Authors). Crumpet stays personal for now.
+- Mail merge, merge rules, merge emails, envelopes and labels.
+- Similarity checker, Translate, Table of authorities, SmartArt gallery, WordArt.
+- AI assistant (Copilot-like), XPS, Sway, Loop, SharePoint (and Hide Ink,
+  Resume Assistant, Trust Center, which have nothing to do in Crumpet).
 
-**3. Fonts and paragraphs, the rest**
-1. Font window: small caps, all caps, double strikethrough, underline styles, character spacing, kerning, ligatures.
-2. New styles of your own; Reveal Formatting.
-3. Border styles (dashed, double, thickness, colour) for paragraphs and tables.
-4. Sort paragraphs; multilevel list gallery.
-5. Advanced find: wildcards, formatting and special characters; a results list.
+### Decided along the way
 
-**4. Book and non-fiction tools**
-1. Endnotes (and turning footnotes into endnotes); at the least, keep the text of a Word file's endnotes, which is lost today.
-2. Captions numbered automatically, Table of Figures, cross-references, bookmarks in the text.
-3. Citations and bibliography (APA, MLA, Chicago).
-4. Index.
-5. Hyphenation and line numbers; odd/even page section breaks; custom paper sizes; headers that change per section (Link to Previous).
-6. Cover pages and a watermark; page borders; the page colour saved with the document.
+- **@mentions**: names only. Typing @ in a comment picks a name (an editor,
+  a co-writer) as a label; nobody is sent anything.
+- **Markup views** (Simple / All Markup / No Markup / Original): wanted.
+- **Compatibility checker**: wanted, as a check of what won't survive when a
+  document goes to Word.
 
-**5. Tables, the rest**
-Convert text ↔ table, sort, repeat header rows on each page, per-cell alignment (and top/middle/bottom), row heights, distribute evenly, several paragraphs in a cell, formulas.
+### Wanted, in a suggested order to build
 
-**6. Pictures, charts and drawing**
-Charts from a small table of numbers; more shapes and shape styles; icons; screenshots; a Draw tab for pen and Apple Pencil (a big job).
+Each group is one pull request or a few. Everyday writing first, then
+reviewing, then the bigger and more specialised jobs.
 
-**7. Checking and sharing**
-Spelling and grammar pass of Crumpet's own (a grammar service is needed), accessibility checker, translate, document inspector, protect with a password or read-only, more download formats (.odt, .rtf, .html, .txt), sharing and @mentions (needs a server).
+**1. Everyday writing**
+AutoCorrect (curly quotes, dashes, …, ©, a typo list, capitals); show/hide ¶;
+tab stops and the Tabs window; drop cap; blank page button; date that updates;
+go to page; next/previous footnote; spelling settings (own dictionary,
+ignore all, language).
 
-**8. Probably not worth it for Crumpet**
-Mail merge, envelopes and labels, table of authorities, macros, 3D models, WordArt, Excel spreadsheets inside documents, Loop, SharePoint, Sway, XPS. Copilot only if the "no AI in v1" decision changes.
+**2. Pictures**
+Resize; wrap, move and rotate; crop (to shape and ratio); separate alt text;
+change/reset; picture styles and borders; corrections, colour, transparency;
+remove background; compress.
+
+**3. Reviewing**
+Markup views; reviewing pane; previous/next change and comment; keep resolved
+comments; track just mine; lock tracking; show markup by person; @ names in
+comments; combine copies.
+
+**4. Fonts and paragraphs**
+Small caps, all caps, double strikethrough, hidden text; underline styles;
+character spacing and kerning; ligatures and number styles; text effects;
+paste options menu; clipboard history; multilevel list gallery; sort
+paragraphs; paragraph border styles; widow/orphan switch.
+
+**5. Styles, find and selecting**
+Create your own styles; reveal formatting; manage styles; set as default;
+advanced find (wildcards, formatting, special characters); find results
+list; select similar formatting; selection pane.
+
+**6. Tables**
+Paragraphs in cells; cell alignment (per cell, top/middle/bottom); repeat
+header rows; row heights; distribute evenly; cell margins; text direction;
+border styles and border painter; more table style options; convert text to
+table and back; sort; formulas; draw a table; quick tables.
+
+**7. Book and non-fiction tools**
+Endnotes (and keeping Word files' endnotes); contents options; numbered
+captions; table of figures; cross-references; bookmarks in the text; index;
+citations, sources and bibliography; web search in the sidebar; fields in the
+text; saved snippets; text from file.
+
+**8. Page layout and design**
+Hyphenation; headers per section; header distance; odd/even section breaks;
+custom paper sizes per section; line numbers; text wrapping break; watermark;
+page colour saved in the document; page borders; cover pages; document
+themes, theme colours and fonts; paragraph spacing presets; design effects.
+
+**9. Shapes and arranging**
+Wrap behind / tight; position on the page; bring forward/back; align and
+group; more shapes; shape styles; fill and line options; shape effects; more
+text in shapes; text direction in shapes; linked text boxes; edit points;
+icons; convert icons to shapes; gridlines.
+
+**10. Views and windows**
+Word-style outline view; multiple pages zoom; side-to-side pages; page
+thumbnails; immersive reader spacing; syllables and picture dictionary; new
+window; synchronous scrolling.
+
+**11. Checking and files**
+Accessibility checker; compatibility checker; document inspector; spelling
+pass; clarity suggestions; inclusive language; grammar checking (needs an
+outside service); more download types (.odt, .rtf, .html, .txt); Crumpet's
+own print screen; password protection; read-only; mark as final; digital
+signature.
+
+**12. Bigger additions**
+Equations: toolbar of structures, symbols palette, equations within a line,
+UnicodeMath and handwriting. Charts; screenshot; online video; online
+pictures; embedded objects; form controls; spreadsheet in a document; 3D
+models. The Draw tab: pen drawing, ink to shape and maths, ink editing
+gestures, drawing canvas. Macros. Customise the toolbar; add-ins; feedback
+button; contact support; what's new; OneDrive connection (needs an app key
+from Microsoft).
