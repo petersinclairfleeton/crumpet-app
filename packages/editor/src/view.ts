@@ -624,6 +624,7 @@ export function runNode(run: Run, marks = false, noSpell: RegExp | null = null):
     const mark = document.createElement('mark');
     mark.className = 'cmt';
     mark.dataset.comment = run.comment.id;
+    if (run.comment.resolved) mark.dataset.resolved = '';
     mark.appendChild(node);
     node = mark;
   }

@@ -160,6 +160,17 @@ span.fld::after { content: attr(data-v); background: var(--field-shade, rgba(127
 /* Comments: the text they're on is highlighted. */
 mark.cmt { background: color-mix(in srgb, #f5c542 30%, transparent); color: inherit; border-bottom: 2px solid color-mix(in srgb, #e0a800 70%, transparent); border-radius: 2px; cursor: pointer; }
 mark.cmt.active { background: color-mix(in srgb, #f5c542 55%, transparent); }
+/* A resolved comment: kept, greyed out. */
+mark.cmt[data-resolved] { background: color-mix(in srgb, #9a9a9a 14%, transparent); border-bottom: 1px dashed color-mix(in srgb, #8a8a8a 60%, transparent); }
+mark.cmt[data-resolved].active { background: color-mix(in srgb, #9a9a9a 28%, transparent); }
+/* Markup views (Word's Review > Display for Review): Simple shows the changes made, marked only by a bar beside them; No Markup the text as it would be; Original the text as it was. */
+.editor[data-markup='simple'] ins.trk, .editor[data-markup='none'] ins.trk { text-decoration: none; color: inherit; }
+.editor[data-markup='simple'] del.trk, .editor[data-markup='none'] del.trk { display: none; }
+.editor[data-markup='original'] ins.trk { display: none; }
+.editor[data-markup='original'] del.trk { text-decoration: none; color: inherit; opacity: 1; }
+.editor:is([data-markup='simple'], [data-markup='none'], [data-markup='original']) .brk { display: none; }
+.editor[data-markup='simple'] .blk:is(:has(ins.trk, del.trk), [data-brk]) { box-shadow: -10px 0 0 -8px #c0392b; }
+.editor:is([data-markup='none'], [data-markup='original']) mark.cmt { background: none; border-bottom: none; }
 /* Track changes: additions underlined in green, deletions struck through in red. */
 ins.trk { text-decoration: underline; text-decoration-color: #2e8b57; text-decoration-thickness: 2px; text-underline-offset: 2px; color: #22744a; cursor: pointer; }
 del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: #b03a2e; opacity: 0.85; cursor: pointer; }

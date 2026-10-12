@@ -188,6 +188,8 @@ export interface Settings {
   paper?: string;
   /** Spelling: the browser's check on (unless `off`), its language, and words of your own it passes over. */
   spelling?: { off?: boolean; lang?: string; words?: string[] };
+  /** How tracked changes and comments are shown (Word's Display for Review): all markup (unset), simple, none, or the original. */
+  markup?: 'all' | 'simple' | 'none' | 'original';
   /** Show/hide ¶: formatting marks (spaces, tabs, paragraph ends) shown in notes and chapters. */
   showMarks?: boolean;
   /** AutoCorrect while typing: each kind on unless turned off, plus replacements of the person's own. */

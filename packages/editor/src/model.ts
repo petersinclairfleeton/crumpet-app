@@ -81,6 +81,8 @@ export interface Comment {
   at: number;
   text: string;
   replies?: CommentReply[];
+  /** Done with: kept, greyed out, until it's reopened or deleted (Word's Resolve). */
+  resolved?: boolean;
 }
 
 export interface CommentReply {

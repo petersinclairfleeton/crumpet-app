@@ -72,7 +72,7 @@ const CHAPTERS: Chapter[] = [
       { title: 'Put right as you type', text: `AutoCorrect curls quotes, makes dashes, fixes typos like “teh” and starts sentences with a capital (${mod}Z takes one back). Settings → Writing turns each off and keeps your own dictionary; characters’ names are never marked as misspelt.` },
       { title: 'Link your notes', text: 'Type [[ and a note’s name to link to it. Every note shows the notes that link to it, and the Graph shows them all.' },
       { title: 'Pages, like on paper', text: 'Page view shows your writing on real pages, with headers, footers and page numbers. Focus mode hides everything else.' },
-      { title: 'Comments and changes', text: 'Comment on a passage, and track changes as Word does, to review your own edits or someone else’s.' },
+      { title: 'Comments and changes', text: 'Comment on a passage, and track changes as Word does, to review your own edits or someone else’s. The Review tab in the right sidebar lists them all, with who and when, and shows the text with or without the markup.' },
     ],
     pictures: [pic('writing', 'The / menu open in a note, offering text, headings and lists', 'Type / at the start of a line for headings, lists, tables, pictures and more.')],
   },

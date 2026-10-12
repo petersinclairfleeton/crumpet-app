@@ -259,16 +259,16 @@ At the end there's a suggested order for building what's missing.
 | Translate (selection or document) | ❌ | |
 | Proofing language (per paragraph) | ❌ | |
 | Comments: new, reply (threaded), show | ✅ | Listed in the right sidebar too. |
-| Comments: resolve | 🟡 | Resolving takes the comment away; Word keeps it, greyed out, and can reopen it. |
-| Comments: delete, previous/next | 🟡 | Resolving is the way to delete one; no next/previous buttons. |
+| Comments: resolve | ✅ | Kept, greyed out, until reopened; to and from Word ("done"). |
+| Comments: delete, previous/next | ✅ | Delete on the comment's card; previous and next in the Reviewing pane, Go To and the command palette. |
 | Comments: @mentions | ❌ | Needs sharing first. |
 | Track Changes on/off | ✅ | Plus Crumpet's own revision colours. |
 | Track Changes: just mine / Lock Tracking | ❌ | |
-| Display for Review (Simple / All Markup / No Markup / Original) | ❌ | Changes are always shown in full. |
+| Display for Review (Simple / All Markup / No Markup / Original) | ✅ | In the Reviewing pane, the changes bar and the command palette. |
 | Show Markup (choose what's shown, by person) | ❌ | |
-| Reviewing Pane (all changes in a list) | ❌ | There's a count with Accept all / Reject all, but no list. |
+| Reviewing Pane (all changes in a list) | ✅ | The right sidebar's Review tab: every change and comment in order, with who and when, Accept or Reject each. |
 | Accept, Reject (one, or all) | ✅ | |
-| Previous / Next change | ❌ | |
+| Previous / Next change | ✅ | In the Reviewing pane, Go To (F5) and the command palette. |
 | Compare two versions | ✅ | Word by word, or as a copy with the differences as tracked changes. |
 | Combine (several reviewers' copies into one) | ❌ | |
 | Block Authors, Restrict Editing | ❌ | |
@@ -474,10 +474,10 @@ Where: `view.ts` (`buildMedia`), `model.ts` (image blocks), `markdown.ts`, `app/
 
 **3. Reviewing**
 Where: `app/src/ui/changes.tsx`, `comments.tsx`, `rightside.tsx`, `comparedocs.tsx`; `model.ts` (`Comment`, `Change`); `docx.ts`.
-- [ ] Markup views: Simple, All Markup, No Markup, Original
-- [ ] Reviewing pane: every change and comment listed, with who and when
-- [ ] Previous/next change; previous/next comment
-- [ ] Resolved comments kept (greyed out, reopen), also to and from Word
+- [x] Markup views: Simple, All Markup, No Markup, Original
+- [x] Reviewing pane: every change and comment listed, with who and when
+- [x] Previous/next change; previous/next comment
+- [x] Resolved comments kept (greyed out, reopen), also to and from Word
 - [ ] Track just my changes, or everyone's
 - [ ] Lock tracking (with a password)
 - [ ] Show markup by kind and by person

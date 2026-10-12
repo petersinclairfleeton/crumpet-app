@@ -1413,6 +1413,29 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .goto-kinds button.on { border-color: var(--accent); background: var(--accent-soft, var(--field)); font-weight: 600; }
 .goto-kinds button:disabled { opacity: 0.45; cursor: default; }
 .goto-error { margin: 0; }
+/* The Reviewing pane (right sidebar). */
+.review-pane { display: flex; flex-direction: column; gap: 10px; }
+.review-head { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--text2); }
+.review-row { display: flex; align-items: center; gap: 4px; }
+.review-row .btn { padding: 2px 8px; font-size: 12px; }
+.markup-select select { height: 28px; font-size: 12px; }
+.review-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.review-item { padding: 8px 10px; border: 1px solid var(--line); border-left: 3px solid var(--line2); border-radius: 6px; font-size: 12.5px; }
+.review-item.ins { border-left-color: #2e8b57; }
+.review-item.del { border-left-color: #c0392b; }
+.review-item.comment { border-left-color: #e0a800; }
+.review-item.resolved { opacity: 0.6; }
+.review-go { all: unset; display: flex; flex-direction: column; gap: 3px; width: 100%; cursor: pointer; }
+.review-go:focus-visible { outline: 2px solid var(--accent); border-radius: 3px; }
+.review-who small, .review-replies { color: var(--muted); }
+.review-text { color: var(--text); word-break: break-word; }
+.review-text.ins { text-decoration: underline; text-decoration-color: #2e8b57; }
+.review-text.del { text-decoration: line-through; text-decoration-color: #c0392b; }
+.review-quote { color: var(--muted); font-style: italic; }
+.review-actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: 6px; }
+.review-actions .btn { padding: 2px 8px; font-size: 12px; }
+.comment-list li.resolved { opacity: 0.6; }
+.comment-resolved { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .pic-format-grid { display: flex; gap: 16px; flex-wrap: wrap; }
 .pic-preview { flex: 0 0 180px; height: 140px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: var(--field); background-image: linear-gradient(45deg, rgba(127,127,127,0.18) 25%, transparent 25%, transparent 75%, rgba(127,127,127,0.18) 75%), linear-gradient(45deg, rgba(127,127,127,0.18) 25%, transparent 25%, transparent 75%, rgba(127,127,127,0.18) 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
 .pic-preview img { max-width: 100%; max-height: 100%; }

@@ -362,14 +362,21 @@ function commentTime(at: number): string {
 }
 
 function commentMarkup(c: Comment): string {
-  return [c, ...(c.replies ?? [])]
-    .map((m) => {
-      const who = m.author.replace(/[()]/g, '') || (m.at ? 'Someone' : '');
-      const head = who ? `${who} (${m.at ? commentTime(m.at) : 'undated'}): ` : '';
-      return `{>>${head}${m.text.replace(/\s+/g, ' ').replace(/<<\}/g, '<< }')}<<}`;
-    })
-    .join('');
+  return (
+    [c, ...(c.replies ?? [])]
+      .map((m) => {
+        const who = m.author.replace(/[()]/g, '') || (m.at ? 'Someone' : '');
+        const head = who ? `${who} (${m.at ? commentTime(m.at) : 'undated'}): ` : '';
+        return `{>>${head}${m.text.replace(/\s+/g, ' ').replace(/<<\}/g, '<< }')}<<}`;
+      })
+      .join('') +
+    // A resolved comment ends with a tick of its own.
+    (c.resolved ? `{>>${RESOLVED}<<}` : '')
+  );
 }
+
+/** The last part of a resolved comment: {>>✓<<}. */
+const RESOLVED = '✓';
 
 /** A comment (or reply) as written: "Author (2026-10-07 09:32Z): text", or just text. */
 function readCommentPart(raw: string): CommentReply {
@@ -866,9 +873,12 @@ function tokenize(src: string): Node[] {
       }
       if (parts.length) {
         flush();
+        const resolved = parts.length > 1 && parts[parts.length - 1].trim() === RESOLVED;
+        if (resolved) parts.pop();
         const [first, ...replies] = parts.map(readCommentPart);
         const comment: Comment = { id: commentId(first.author, first.at, first.text), ...first };
         if (replies.length) comment.replies = replies;
+        if (resolved) comment.resolved = true;
         nodes.push({ kind: 'comment', open: true, comment });
         nodes.push(...tokenize(src.slice(i + 3, close)));
         nodes.push({ kind: 'comment', open: false });
