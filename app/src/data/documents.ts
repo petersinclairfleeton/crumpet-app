@@ -14,7 +14,7 @@ import { type Doc, makeBlock } from '@crumpet/editor/model';
 import { fromMarkdown } from '@crumpet/editor/markdown';
 import { DOCX_TYPE, toDocx } from './docx';
 import { addFile, fileBlob, isImage, replaceFile } from './files';
-import { mediaBytes, readWordFile } from './wordfiles';
+import { type WordStyles, mediaBytes, readWordFile } from './wordfiles';
 import { readZip } from './zip';
 import { PAGE_SIZES, type PageSize, defaultPage } from './styles';
 import type { Note } from './types';
@@ -45,6 +45,8 @@ export interface Upload {
   title: string;
   doc: Doc;
   file?: string;
+  /** A Word document's own styles its text uses. */
+  styles?: WordStyles;
 }
 
 /** Reads a dropped or chosen file into a note's makings. Throws (with a message to show) if it can't. */
@@ -60,7 +62,7 @@ export async function readUpload(f: File): Promise<Upload> {
     // The file is kept as it is; the editor gets what's in it.
     const read = await readWordFile(f);
     const kept = await addFile(f);
-    return { title: read.title || title, doc: read.doc, file: kept.src };
+    return { title: read.title || title, doc: read.doc, file: kept.src, ...(read.styles ? { styles: read.styles } : {}) };
   }
   const kept = await addFile(f);
   const block = makeBlock(kept.type, kept.type === 'file' ? kept.caption : '', [], { src: kept.src });

@@ -24,7 +24,7 @@ import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { readShapeLine, shapeLine, tidyShape } from './shape';
 import { isField } from './fields';
 import { picAttrs, readPicAttrs, tidyPic } from './picture';
-import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, type LookKey, LOOK_KEYS, lookValueOk, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
+import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, CUSTOM_STYLE, type Look, type LookKey, LOOK_KEYS, lookValueOk, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -169,7 +169,7 @@ function splitAttrs(line: string): { line: string; classes: string[] } {
   const m = ATTRS.exec(line);
   if (!m) return { line, classes: [] };
   const tokens = [...m[2].matchAll(/\.[A-Za-z][\w-]*|[a-z]+=(?:"[^"]*"|[^\s"]+)/g)].map((t) => t[0]);
-  const ok = tokens.every((t) => (t.startsWith('.') ? ALIGNS.has(t.slice(1)) || KNOWN_STYLES.has(t.slice(1)) || t.slice(1) in PARA_FLAGS : PARA_VALUES.has(t.split('=')[0]) || PARA_WORDS.has(t.split('=')[0])));
+  const ok = tokens.every((t) => (t.startsWith('.') ? ALIGNS.has(t.slice(1)) || KNOWN_STYLES.has(t.slice(1)) || CUSTOM_STYLE.test(t.slice(1)) || t.slice(1) in PARA_FLAGS : PARA_VALUES.has(t.split('=')[0]) || PARA_WORDS.has(t.split('=')[0])));
   if (!ok) return { line, classes: [] };
   return { line: m[1], classes: tokens.map((t) => (t.startsWith('.') ? t.slice(1) : t)) };
 }

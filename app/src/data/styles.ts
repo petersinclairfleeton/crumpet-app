@@ -55,7 +55,36 @@ export interface StyleSheet {
    * as in printed books: only the paragraphs after them are indented.
    */
   indentFirst?: boolean;
+  /** Styles of the person's own (Word's New Style), each based on one of the built-in ones. */
+  custom?: CustomStyle[];
+  /** Styles left out of the style menu (Word's Manage Styles: hide). */
+  hidden?: string[];
+  /** The style menu's order, as style keys (anything not listed follows in the usual order). */
+  order?: string[];
 }
+
+/** A style of one's own: its block gets the base style's type and `id` as its style. */
+export interface CustomStyle {
+  /** `c-` and a name in small letters, figures and dashes (what's saved on the paragraph). */
+  id: string;
+  name: string;
+  base: StyleKey;
+  def: StyleDef;
+}
+
+/** Any style, built-in or one's own, as the menus show it. */
+export interface StyleEntry {
+  key: string;
+  name: string;
+  type: BlockType;
+  style?: string;
+  inMenu: boolean;
+  def: StyleDef;
+  custom?: boolean;
+}
+
+/** Built-in styles a style of one's own can be based on. */
+export const BASE_STYLES: StyleKey[] = ['normal', 'title', 'subtitle', 'heading1', 'heading2', 'heading3', 'heading4', 'quote', 'epigraph', 'caption'];
 
 /** The styles in the order Word's style menu shows them, and the block each one makes. */
 export const STYLE_LIST: { key: StyleKey; name: string; type: BlockType; style?: string; inMenu: boolean }[] = [
@@ -79,6 +108,46 @@ export const STYLE_LIST: { key: StyleKey; name: string; type: BlockType; style?:
 
 export function styleName(key: StyleKey): string {
   return STYLE_LIST.find((s) => s.key === key)?.name ?? key;
+}
+
+/** Every style in a sheet, built-in and one's own, in the menu's order; `inMenu` is false for hidden ones. */
+export function sheetStyles(sheet: StyleSheet): StyleEntry[] {
+  const hidden = new Set(sheet.hidden ?? []);
+  const all: StyleEntry[] = [
+    ...STYLE_LIST.map((x) => ({ key: x.key, name: x.name, type: x.type, style: x.style, inMenu: x.inMenu && !hidden.has(x.key), def: sheet.styles[x.key] })),
+    ...(sheet.custom ?? []).map((c) => {
+      const base = STYLE_LIST.find((x) => x.key === c.base) ?? STYLE_LIST[0];
+      return { key: c.id, name: c.name, type: base.type === 'bullet' ? ('paragraph' as BlockType) : base.type, style: c.id, inMenu: !hidden.has(c.id), def: c.def, custom: true };
+    }),
+  ];
+  const order = sheet.order ?? [];
+  const rank = (k: string) => (order.includes(k) ? order.indexOf(k) : order.length + all.findIndex((x) => x.key === k));
+  return all.sort((a, b) => rank(a.key) - rank(b.key));
+}
+
+/** The style a block has, a style of one's own included. */
+export function blockStyleKey(sheet: StyleSheet, block: Pick<Block, 'type' | 'style'>): string {
+  if (block.style?.startsWith('c-') && sheet.custom?.some((c) => c.id === block.style)) return block.style;
+  return styleKeyOf(block);
+}
+
+/** A style's definition by its key. */
+export function styleDefFor(sheet: StyleSheet, key: string): StyleDef {
+  return sheet.custom?.find((c) => c.id === key)?.def ?? sheet.styles[key as StyleKey] ?? sheet.styles.normal;
+}
+
+/** A style's name by its key, a style of one's own included. */
+export function styleNameIn(sheet: StyleSheet, key: string): string {
+  return sheet.custom?.find((c) => c.id === key)?.name ?? styleName(key as StyleKey);
+}
+
+/** The key for a new style of one's own named `name`, unlike any in the sheet. */
+export function customStyleId(name: string, sheet: StyleSheet): string {
+  const slug = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30) || 'style';
+  const taken = new Set((sheet.custom ?? []).map((c) => c.id));
+  let id = `c-${slug}`;
+  for (let n = 2; taken.has(id); n++) id = `c-${slug}-${n}`;
+  return id;
 }
 
 /** Which named style a block has. */
@@ -213,7 +282,14 @@ export function fullSheet(sheet: StyleSheet | undefined, fallback: PresetId): St
   if (!sheet) return preset;
   const styles = { ...preset.styles };
   for (const key of Object.keys(styles) as StyleKey[]) if (sheet.styles?.[key]) styles[key] = { ...preset.styles[key], ...sheet.styles[key] };
-  return { preset: sheet.preset, styles, ...(sheet.indentFirst ? { indentFirst: true } : {}) };
+  return {
+    preset: sheet.preset,
+    styles,
+    ...(sheet.indentFirst ? { indentFirst: true } : {}),
+    ...(sheet.custom?.length ? { custom: sheet.custom.map((c) => ({ ...c, def: { ...styles[c.base] ?? styles.normal, ...c.def } })) } : {}),
+    ...(sheet.hidden?.length ? { hidden: sheet.hidden } : {}),
+    ...(sheet.order?.length ? { order: sheet.order } : {}),
+  };
 }
 
 // ---------------------------------------------------------------- CSS
@@ -243,8 +319,12 @@ const SELECTORS: Record<StyleKey, string> = {
  */
 export function sheetCss(sheet: StyleSheet, scope: string, stack: (f: NoteFont) => string): string {
   const rules: string[] = [];
-  for (const { key } of STYLE_LIST) {
-    const d = sheet.styles[key];
+  const entries: { key: StyleKey; sel: string; d: StyleDef; base: StyleKey }[] = [
+    ...STYLE_LIST.map(({ key }) => ({ key, sel: SELECTORS[key], d: sheet.styles[key], base: key })),
+    // Styles of one's own: their attribute outranks the type's rule.
+    ...(sheet.custom ?? []).map((c) => ({ key: c.base, sel: `.blk[data-style='${c.id}']`, d: c.def, base: c.base })),
+  ];
+  for (const { key, sel, d } of entries) {
     const decl = [
       `font-family: ${d.font ? stack(d.font) : 'var(--note-font, inherit)'}`,
       `font-size: ${d.size ? `${d.size}pt` : 'var(--note-size, 18px)'}`,
@@ -261,7 +341,7 @@ export function sheetCss(sheet: StyleSheet, scope: string, stack: (f: NoteFont) 
     ];
     // Crumpet's own quotes sit in a tinted box; in the other sets they're plain, indented text.
     if ((key === 'quote' || key === 'intense') && sheet.preset !== 'crumpet') decl.push('background: none', 'padding: 0', 'border: none', 'border-radius: 0');
-    rules.push(`${scope} ${SELECTORS[key]} { ${decl.join('; ')}; }`);
+    rules.push(`${scope} ${sel} { ${decl.join('; ')}; }`);
   }
   // A passage's opening paragraph isn't indented (unless the sheet says so).
   if (!sheet.indentFirst) rules.push(`${scope} ${SELECTORS.normal}[data-opens] { text-indent: 0; }`);

@@ -7,7 +7,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import type { CaseChange } from '@crumpet/editor/commands';
 import type { Doc, Look } from '@crumpet/editor/model';
 import { openFontDialog } from './fontdialog';
-import { type StyleSheet, styleKeyOf } from '../data/styles';
+import { type StyleSheet, blockStyleKey, styleDefFor } from '../data/styles';
 import { DEFAULT_NOTE_SIZE } from '../data/types';
 import { type FontChoice, DEFAULT_FONT, googleFonts, loadGoogleFont, systemFonts } from './fonts';
 import { useAppState } from './hooks';
@@ -20,7 +20,7 @@ export const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36
 /** The font and size a paragraph has when nothing is set on its text. */
 function useBase(ed: Editor | null, sheet: StyleSheet): { font: string; size: number } {
   const settings = useAppState().settings;
-  const def = ed ? sheet.styles[styleKeyOf(ed.currentBlock())] : undefined;
+  const def = ed ? styleDefFor(sheet, blockStyleKey(sheet, ed.currentBlock())) : undefined;
   return {
     font: def?.font?.family ?? settings.noteFont?.family ?? DEFAULT_FONT.family,
     size: def?.size ?? Math.round((settings.noteSize ?? DEFAULT_NOTE_SIZE) * 0.75 * 2) / 2,

@@ -2658,6 +2658,105 @@ test('styles pane: apply a style, count its uses, update a style to match the se
   await expect(page.locator('.note-editor .blk').first()).toHaveText('XFirst paragraph.');
 });
 
+test('styles of your own: a new style from the text, renamed and changed, hidden styles, and Reveal formatting', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Letters', 'Dear Mara,');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The lamp is lit.');
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Shift+End');
+  await page.keyboard.press('Control+i');
+  await (await toolButton(page, 'Styles pane')).click();
+  const pane = page.getByRole('complementary', { name: 'Styles' });
+  await pane.getByRole('button', { name: 'New style…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Styles for notes' });
+  await expect(dialog.getByLabel('Style name')).toHaveValue('My style 1');
+  await dialog.getByLabel('Style name').fill('Letter');
+  await dialog.getByRole('button', { name: 'CAPS' }).click();
+  // Epigraph left out of the style menu.
+  await dialog.getByRole('listbox', { name: 'Styles' }).getByRole('option', { name: 'Epigraph' }).click();
+  await dialog.getByLabel('Show in the style menu').uncheck();
+  await dialog.getByRole('button', { name: 'Close styles' }).click();
+  const first = page.locator('.note-editor .blk').first();
+  await expect(first).toHaveAttribute('data-style', 'c-my-style-1');
+  await expect(first).toHaveCSS('text-transform', 'uppercase');
+  await expect(pane.getByTitle('Apply Letter')).toBeVisible();
+  // The second line takes the style from the menu, which no longer lists Epigraph.
+  await page.locator('.note-editor .blk').nth(1).click();
+  await page.getByRole('button', { name: 'Style', exact: true }).click();
+  const menu = page.getByRole('menu');
+  await expect(menu.getByRole('menuitemradio', { name: 'Epigraph' })).toHaveCount(0);
+  await menu.getByRole('menuitemradio', { name: 'Letter' }).click();
+  await expect(page.locator('.note-editor .blk').nth(1)).toHaveAttribute('data-style', 'c-my-style-1');
+  // Reveal formatting: the style, and what's set by hand.
+  await pane.getByLabel('Reveal formatting').check();
+  const reveal = pane.getByRole('region', { name: 'Reveal formatting' });
+  await expect(reveal).toContainText('Letter');
+  await page.locator('.note-editor .blk').first().click({ position: { x: 30, y: 8 } });
+  await expect(reveal.locator('.own', { hasText: 'Emphasis' })).toContainText('italic');
+});
+
+test('advanced find (wildcards, formatting, results), text with similar formatting, and the Selection pane', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Cats', 'The cat sat on a mat with a hat.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Two ');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type('bold');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type(' and ');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type('more');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.press('Control+f');
+  const bar = page.getByRole('search', { name: 'Find and replace' });
+  await bar.getByRole('button', { name: 'More options' }).click();
+  await bar.getByLabel('Use wildcards').check();
+  await bar.getByRole('searchbox', { name: 'Find' }).fill('<?at>');
+  await expect(bar.locator('.find-count')).toHaveText('1 of 4');
+  await bar.getByLabel('List results').check();
+  const results = bar.getByRole('list', { name: 'Results' });
+  await expect(results.locator('mark')).toHaveText(['cat', 'sat', 'mat', 'hat']);
+  await results.getByRole('button').nth(2).click();
+  await expect(bar.locator('.find-count')).toHaveText('3 of 4');
+  // Formatting alone: the bold words.
+  await bar.getByLabel('Use wildcards').uncheck();
+  await bar.getByRole('searchbox', { name: 'Find' }).fill('');
+  await bar.getByRole('button', { name: 'Format ▾' }).click();
+  await page.getByRole('group', { name: 'Find formatting' }).getByLabel('Bold').check();
+  await bar.getByRole('button', { name: 'Format ▾' }).click();
+  await expect(results.locator('mark')).toHaveText(['bold', 'more']);
+  await bar.getByRole('button', { name: 'Close find' }).click();
+  // Select the text formatted like "bold", and make it all italic too.
+  await page.locator('.note-editor .blk').nth(1).locator('strong').first().click();
+  await (await toolButton(page, 'Select text with similar formatting')).click();
+  const similar = page.getByRole('toolbar', { name: 'Selected places' });
+  await expect(similar).toContainText('2 places selected');
+  await similar.getByRole('button', { name: 'Italic them all' }).click();
+  await expect(page.locator('.note-editor .blk').nth(1).locator('em')).toHaveText(['bold', 'more']);
+  await similar.getByRole('button', { name: 'Done' }).click();
+  await expect(similar).toHaveCount(0);
+  // A text box, listed in the Selection pane, hidden and shown.
+  await page.locator('.note-editor .blk').nth(1).click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/textbox');
+  await page.keyboard.press('Enter');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'objects' }));
+  const pane = page.getByRole('tabpanel', { name: 'Selection' });
+  await expect(pane.getByRole('list', { name: 'Objects' }).locator('li')).toHaveCount(1);
+  await expect(pane).toContainText('Text box');
+  await pane.getByRole('button', { name: /^Hide text box/ }).click();
+  await expect(page.locator('.note-editor .blk-shape')).toBeHidden();
+  await pane.getByRole('button', { name: 'Show all' }).click();
+  await expect(page.locator('.note-editor .blk-shape')).toBeVisible();
+});
+
 test('a book’s table of contents lists every chapter with its page, and the headings in them, and opens one', async ({ page }) => {
   await open(page);
   await page.evaluate(async () => {

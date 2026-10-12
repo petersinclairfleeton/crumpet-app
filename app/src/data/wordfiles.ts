@@ -3,13 +3,13 @@
 // header and footer fields, and the download itself).
 
 import type { Doc } from '@crumpet/editor/model';
-import { DOCX_TYPE, fromDocx, toDocx } from './docx';
+import { DOCX_TYPE, type DocxImport, fromDocx, toDocx } from './docx';
 import { EPUB_TYPE, toEpub } from './epub';
 import { addFile, mediaUrl } from './files';
 import { type HFContext, type HFRun, cleanHF, fieldValue } from './headers';
 import { docWords, projectChapters } from './selectors';
 import type { AppState } from './store';
-import { defaultPage, manuscriptPage } from './styles';
+import { defaultPage, fullSheet, manuscriptPage } from './styles';
 import { DEFAULT_NOTE_SIZE, type Note, type Project } from './types';
 
 /** A picture's bytes, wherever it's kept. */
@@ -64,6 +64,7 @@ export async function noteDocx(state: AppState, note: Note): Promise<Uint8Array>
     size: Math.round((s.noteSize ?? DEFAULT_NOTE_SIZE) * 0.75 * 2) / 2,
     media: mediaBytes,
     titleParagraph: note.title.trim() || undefined,
+    custom: fullSheet(s.noteStyles, 'crumpet').custom,
   });
 }
 
@@ -84,12 +85,14 @@ export async function projectDocx(state: AppState, project: Project): Promise<Ui
   };
   return toDocx(
     list.map(({ chapter, number }) => ({ heading: chapter.title || `Chapter ${number}`, doc: chapter.doc })),
-    { title: project.name, author: ctx.author || undefined, page, hf, field: fieldFiller(ctx, hf), font: 'Times New Roman', size: 12, media: mediaBytes },
+    { title: project.name, author: ctx.author || undefined, page, hf, field: fieldFiller(ctx, hf), font: 'Times New Roman', size: 12, media: mediaBytes, custom: fullSheet(project.styles, 'manuscript').custom },
   );
 }
 
 /** Opens a Word document as a note's title and text, keeping its pictures. */
-export async function readWordFile(file: File): Promise<{ title: string; doc: Doc }> {
+export type WordStyles = NonNullable<DocxImport['styles']>;
+
+export async function readWordFile(file: File): Promise<{ title: string; doc: Doc; styles?: WordStyles }> {
   let result;
   try {
     result = await fromDocx(new Uint8Array(await file.arrayBuffer()), {
@@ -98,7 +101,7 @@ export async function readWordFile(file: File): Promise<{ title: string; doc: Do
   } catch {
     throw new Error(`${file.name} couldn’t be opened. Is it a Word document (.docx)?`);
   }
-  return { title: result.title || file.name.replace(/\.docx$/i, ''), doc: result.doc };
+  return { title: result.title || file.name.replace(/\.docx$/i, ''), doc: result.doc, ...(result.styles ? { styles: result.styles } : {}) };
 }
 
 /** A project as an e-book: a title page, contents, and each chapter. */

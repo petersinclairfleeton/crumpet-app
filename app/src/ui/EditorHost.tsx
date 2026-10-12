@@ -37,7 +37,7 @@ interface Props {
   label?: string;
   /** The named styles the document uses, and opening the window to change them. */
   sheet: StyleSheet;
-  onEditStyles?(key?: StyleKey): void;
+  onEditStyles?(key?: string): void;
   /** Changing the style sheet (the Styles pane's Update to Match). */
   onSheet?(s: StyleSheet): void;
   /** Page view: the page setup to lay the text out on, or null for one long page. */

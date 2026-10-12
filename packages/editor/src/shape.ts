@@ -26,6 +26,8 @@ export interface ShapeLook {
   /** In front of the text: where, in inches from the top left of its paragraph. */
   x?: number;
   y?: number;
+  /** Hidden from view (Word's Selection Pane), kept in the document. */
+  hide?: boolean;
 }
 
 export function defaultShape(kind: ShapeKind, textBox = false): ShapeLook {
@@ -59,6 +61,7 @@ export function tidyShape(s: Partial<ShapeLook> | undefined): ShapeLook {
   };
   const rot = typeof s?.rot === 'number' && Number.isFinite(s.rot) ? ((Math.round(s.rot) % 360) + 360) % 360 : 0;
   if (rot) out.rot = rot;
+  if (s?.hide === true) out.hide = true;
   if (out.wrap === 'free') {
     const at = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.max(-20, Math.min(20, v)) * 100) / 100 : 0);
     out.x = at(s?.x);
@@ -79,6 +82,7 @@ export function shapeLine(s: ShapeLook, align?: string): string {
   if (s.wrap !== 'inline') parts.push(`wrap=${s.wrap}`);
   if (s.wrap === 'free') parts.push(`x=${s.x ?? 0}`, `y=${s.y ?? 0}`);
   if (s.rot) parts.push(`rot=${s.rot}`);
+  if (s.hide) parts.push('hide=1');
   if (align) parts.push(`align=${align}`);
   return `{${parts.join(' ')}}${s.text ? ` ${s.text}` : ''}`;
 }
@@ -95,6 +99,6 @@ export function readShapeLine(line: string): { shape: ShapeLook; align?: string 
     v[k] = val;
   }
   const color = (c: string | undefined) => (c === 'none' ? null : c);
-  const shape = tidyShape({ kind: m[1] as ShapeKind, w: Number(v.w), h: Number(v.h), fill: color(v.fill), line: color(v.line), wrap: v.wrap as ShapeWrap, text: m[3] ?? '', rot: v.rot ? Number(v.rot) : undefined, x: v.x ? Number(v.x) : undefined, y: v.y ? Number(v.y) : undefined });
+  const shape = tidyShape({ kind: m[1] as ShapeKind, w: Number(v.w), h: Number(v.h), fill: color(v.fill), line: color(v.line), wrap: v.wrap as ShapeWrap, text: m[3] ?? '', rot: v.rot ? Number(v.rot) : undefined, x: v.x ? Number(v.x) : undefined, y: v.y ? Number(v.y) : undefined, hide: v.hide === '1' });
   return { shape, align: v.align === 'center' || v.align === 'right' ? v.align : undefined };
 }

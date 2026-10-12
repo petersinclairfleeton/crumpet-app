@@ -55,7 +55,7 @@ const CHAPTERS: Chapter[] = [
       { title: 'A new note', text: `Click New Note, or press N anywhere. The first line is its title.` },
       { title: 'Notebooks and stacks', text: 'Group notes in notebooks, and notebooks in stacks. Drag a note onto a notebook in the sidebar to file it; drag notebooks onto a stack to put them in it, or above one another to change their order.' },
       { title: 'Tags and favourites', text: 'Add tags under a note’s title (tags can nest, like book/characters), and star the notes you keep coming back to.' },
-      { title: 'Find anything', text: `Search every note, chapter, PDF and picture from the top bar (${mod}K). ${mod}O jumps to any note by name; ${mod}P lists every command.` },
+      { title: 'Find anything', text: `Search every note, chapter, PDF and picture from the top bar (${mod}K). ${mod}O jumps to any note by name; ${mod}P lists every command. Inside a note, ${mod}F finds and replaces, with wildcards, formatting and a list of results under More options.` },
       { title: 'Upload anything', text: 'The ↑ button next to New Note uploads files, or drag them from your computer onto a notebook, the list or a pane. Pictures, PDFs, video and sound show as they are (drag a picture’s corner to resize it; its Picture menu wraps the text round it, turns, crops, frames or brightens it); Word documents open to edit and are saved back as Word documents.' },
       { title: 'Right-click for more', text: 'Right-click a note to rename, move, tag, duplicate, open it beside another, or put it in the Trash.' },
     ],
@@ -68,7 +68,7 @@ const CHAPTERS: Chapter[] = [
     lede: 'Everything Word can do, without the clutter: it’s there when you need it.',
     points: [
       { title: 'Type / for anything', text: 'Headings, lists, checklists, tables, pictures, footnotes, maths and diagrams: type / at the start of a line and pick.' },
-      { title: 'Format as you go', text: `Select text and a formatting bar appears. Click Aa in the corner to keep it on screen, with fonts, colours, styles and more; ${mod}D opens the Font window (small caps, underline styles, spacing, effects), and Multilevel list numbers an outline as Chapter 1, 1.1, 1.1.1 or a pattern of your own.` },
+      { title: 'Format as you go', text: `Select text and a formatting bar appears. Click Aa in the corner to keep it on screen, with fonts, colours, styles and more; ${mod}D opens the Font window (small caps, underline styles, spacing, effects), and Multilevel list numbers an outline as Chapter 1, 1.1, 1.1.1 or a pattern of your own. Make styles of your own from the Styles tab in the right sidebar.` },
       { title: 'Put right as you type', text: `AutoCorrect curls quotes, makes dashes, fixes typos like “teh” and starts sentences with a capital (${mod}Z takes one back). Settings → Writing turns each off and keeps your own dictionary; characters’ names are never marked as misspelt.` },
       { title: 'Link your notes', text: 'Type [[ and a note’s name to link to it. Every note shows the notes that link to it, and the Graph shows them all.' },
       { title: 'Pages, like on paper', text: 'Page view shows your writing on real pages, with headers, footers and page numbers. Focus mode hides everything else.' },

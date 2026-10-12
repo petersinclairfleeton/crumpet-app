@@ -25,7 +25,8 @@ export async function uploadFiles(store: AppStore, files: File[], where: { noteb
   const failed: string[] = [];
   for (const f of files) {
     try {
-      const u = await readUpload(f);
+      const { styles, ...u } = await readUpload(f);
+      if (styles) store.addNoteStyles(styles);
       made.push(where.projectId ? store.addResearchNote(where.projectId, u, false) : store.createNote({ ...u, ...(where.notebookId !== undefined ? { notebookId: where.notebookId } : {}) }));
     } catch (err) {
       failed.push(err instanceof Error ? err.message : `${f.name} couldn’t be added.`);

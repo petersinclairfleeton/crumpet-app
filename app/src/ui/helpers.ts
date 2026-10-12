@@ -3,7 +3,7 @@
 
 import { type RefObject, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
-import type { StyleKey, StyleSheet } from '../data/styles';
+import type { StyleSheet } from '../data/styles';
 
 export interface Helped {
   editor: Editor;
@@ -11,7 +11,7 @@ export interface Helped {
   docId: string;
   sheet: StyleSheet;
   onSheet?(s: StyleSheet): void;
-  onEditStyles?(key?: StyleKey): void;
+  onEditStyles?(key?: string): void;
 }
 
 type Slot = { current: Helped | null };

@@ -538,6 +538,8 @@ function buildBlock(block: Block, marks = false, noSpell: RegExp | null = null):
     el.appendChild(buildShape(block));
   }
   if (block.type === 'code') el.appendChild(buildCode(block));
+  // Hidden from view in the Selection pane.
+  if (block.pic?.hide || block.shape?.hide) el.dataset.hiddenObj = '';
   if (block.type === 'toc') {
     const box = document.createElement('div');
     box.className = 'toc-box';
@@ -1038,6 +1040,7 @@ function patchShape(el: HTMLElement, block: Block): boolean {
   const text = box.querySelector<HTMLElement>('.shape-text');
   if (text && text !== el.ownerDocument.activeElement && readCell(text) !== s.text) fillCell(text, s.text);
   el.dataset.wrap = s.wrap;
+  el.toggleAttribute('data-hidden-obj', !!s.hide);
   markShape(box.parentElement!, s);
   if (block.align) el.dataset.align = block.align;
   else delete el.dataset.align;

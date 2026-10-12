@@ -10,7 +10,7 @@ import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
 import { WORD_PICTURES, fieldFromWord, fieldValue } from '@crumpet/editor/fields';
 import { type PicLook, tidyPic } from '@crumpet/editor/picture';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
-import { type PageSetup, paperInches } from './styles';
+import { type CustomStyle, type PageSetup, type StyleDef, type StyleKey, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
 
 export const DOCX_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -37,6 +37,28 @@ export interface DocxOptions {
   titleParagraph?: string;
   /** A picture's bytes, from its src. */
   media?(src: string): Promise<{ bytes: Uint8Array; type: string } | null>;
+  /** Styles of one's own the text uses, written as Word styles of the same names. */
+  custom?: CustomStyle[];
+}
+
+/** A style of one's own's Word style id. */
+function customWordId(id: string): string {
+  return `My${id.slice(2).replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase()).replace(/^[a-z]/, (c) => c.toUpperCase())}`;
+}
+
+const WORD_BASE: Partial<Record<StyleKey, string>> = { normal: 'Normal', title: 'Title', subtitle: 'Subtitle', heading1: 'Heading1', heading2: 'Heading2', heading3: 'Heading3', heading4: 'Heading4', quote: 'Quote', epigraph: 'Epigraph', caption: 'Caption' };
+
+/** Styles of one's own as Word paragraph styles, based on the built-in one each started from. */
+function customStylesXml(custom: CustomStyle[]): string {
+  return custom
+    .map((c) => {
+      const d = c.def;
+      const rpr = (d.font ? `<w:rFonts w:ascii="${esc(d.font.family)}" w:hAnsi="${esc(d.font.family)}" w:cs="${esc(d.font.family)}"/>` : '') + (d.bold ? '<w:b/>' : '<w:b w:val="0"/>') + (d.italic ? '<w:i/>' : '<w:i w:val="0"/>') + (d.caps ? '<w:caps/>' : '') + (d.size ? `<w:sz w:val="${Math.round(d.size * 2)}"/><w:szCs w:val="${Math.round(d.size * 2)}"/>` : '');
+      const jc = d.align === 'left' ? 'left' : d.align === 'center' ? 'center' : d.align === 'right' ? 'right' : 'both';
+      const ppr = `<w:spacing w:before="${Math.round(d.spaceBefore * 20)}" w:after="${Math.round(d.spaceAfter * 20)}" w:line="${Math.round((d.lineSpacing / 1.15) * 240)}" w:lineRule="auto"/><w:ind w:left="${Math.round(d.leftIndent * 1440)}" ${d.firstIndent < 0 ? `w:hanging="${Math.round(-d.firstIndent * 1440)}"` : `w:firstLine="${Math.round(d.firstIndent * 1440)}"`}/><w:jc w:val="${jc}"/>${c.base.startsWith('heading') ? `<w:outlineLvl w:val="${Number(c.base.slice(-1)) - 1}"/>` : ''}`;
+      return `<w:style w:type="paragraph" w:customStyle="1" w:styleId="${customWordId(c.id)}"><w:name w:val="${esc(c.name)}"/><w:basedOn w:val="${WORD_BASE[c.base] ?? 'Normal'}"/><w:next w:val="Normal"/><w:qFormat/><w:pPr>${ppr}</w:pPr><w:rPr>${rpr}</w:rPr></w:style>`;
+    })
+    .join('');
 }
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -259,6 +281,11 @@ class Writer {
   /** A tracked change on the next paragraph break: Word keeps it on this paragraph's mark. */
   markNext: Change | null = null;
 
+  /** A block's Word style: its own style's, when it has one Word is told about, else `usual`. */
+  styleOf(b: Block, usual: string | null): string | null {
+    return b.style?.startsWith('c-') && this.opts.custom?.some((c) => c.id === b.style) ? customWordId(b.style) : usual;
+  }
+
   paragraph(style: string | null, body: string, extra = ''): string {
     let mark = '';
     if (this.markNext) {
@@ -301,7 +328,7 @@ class Writer {
     const ln = lineColor ? `<a:ln w="${p.style === 'white' || p.style === 'polaroid' ? 76200 : 38100}"><a:solidFill><a:srgbClr val="${lineColor.slice(1).toUpperCase()}"/></a:solidFill></a:ln>` : '';
     const shadow = p.style === 'shadow' || p.style === 'white' || p.style === 'rounded' || p.style === 'polaroid' ? '<a:effectLst><a:outerShdw blurRad="101600" dist="38100" dir="5400000" algn="t" rotWithShape="0"><a:srgbClr val="000000"><a:alpha val="40000"/></a:srgbClr></a:outerShdw></a:effectLst>' : '';
     const alt = esc(p.alt || b.runs.map((r) => r.text).join('') || 'Picture');
-    const docPr = `<wp:docPr id="${n}" name="Picture ${n}" descr="${alt}"/>`;
+    const docPr = `<wp:docPr id="${n}" name="Picture ${n}" descr="${alt}"${p.hide ? ' hidden="1"' : ''}/>`;
     const graphic =
       `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
       `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${n}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>` +
@@ -341,7 +368,7 @@ class Writer {
     const text = !flat && s.text ? `<wps:txbx><w:txbxContent>${this.paragraph(null, this.runs(cellRuns(s.text)), '<w:jc w:val="center"/>')}</w:txbxContent></wps:txbx>` : '';
     const wsp = `<wps:wsp><wps:cNvSpPr${s.text ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${s.rot ? ` rot="${s.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</wps:spPr>${text}<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
     const graphic = `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">${wsp}</a:graphicData></a:graphic>`;
-    const name = `<wp:docPr id="${n}" name="${s.text ? 'Text Box' : 'Shape'} ${n}"/><wp:cNvGraphicFramePr/>`;
+    const name = `<wp:docPr id="${n}" name="${s.text ? 'Text Box' : 'Shape'} ${n}"${s.hide ? ' hidden="1"' : ''}/><wp:cNvGraphicFramePr/>`;
     const drawing =
       s.wrap === 'inline'
         ? `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${name}${graphic}</wp:inline>`
@@ -509,10 +536,10 @@ class Writer {
         case 'heading2':
         case 'heading3':
         case 'heading4':
-          out += this.paragraph(`Heading${b.type.slice(-1)}`, this.runs(b.runs), head + layout + jc);
+          out += this.paragraph(this.styleOf(b, `Heading${b.type.slice(-1)}`), this.runs(b.runs), head + layout + jc);
           continue;
         case 'quote':
-          out += this.paragraph(b.style === 'intense' ? 'IntenseQuote' : 'Quote', this.runs(b.runs), (CALLOUTS[b.style ?? ''] ? calloutPr(CALLOUTS[b.style!]) : '') + head + layout + jc);
+          out += this.paragraph(this.styleOf(b, b.style === 'intense' ? 'IntenseQuote' : 'Quote'), this.runs(b.runs), (CALLOUTS[b.style ?? ''] ? calloutPr(CALLOUTS[b.style!]) : '') + head + layout + jc);
           continue;
         case 'bullet':
         case 'todo':
@@ -529,7 +556,7 @@ class Writer {
             out += this.paragraph('SceneBreak', '<w:r><w:t>*   *   *</w:t></w:r>', head + layout);
             continue;
           }
-          out += this.paragraph(PARA_STYLES[b.style ?? ''] ?? null, this.runs(b.runs), head + layout + jc);
+          out += this.paragraph(this.styleOf(b, PARA_STYLES[b.style ?? ''] ?? null), this.runs(b.runs), head + layout + jc);
       }
     }
     if (this.sectNext) out += this.paragraph(null, '');
@@ -824,7 +851,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     { name: 'docProps/core.xml', data: utf8(core) },
     { name: 'word/document.xml', data: utf8(documentXml) },
     { name: 'word/_rels/document.xml.rels', data: utf8(docRels) },
-    { name: 'word/styles.xml', data: utf8(stylesXml(opts.font || 'Georgia', opts.size || 12)) },
+    { name: 'word/styles.xml', data: utf8(stylesXml(opts.font || 'Georgia', opts.size || 12).replace('</w:styles>', `${customStylesXml(opts.custom ?? [])}</w:styles>`)) },
     { name: 'word/numbering.xml', data: utf8(numberingXml(w.lists)) },
     { name: 'word/footnotes.xml', data: utf8(footnotesXml(w.footnotes)) },
     { name: 'word/settings.xml', data: utf8(settings) },
@@ -838,6 +865,8 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
 export interface DocxImport {
   title: string;
   doc: Doc;
+  /** The document's own Word styles its paragraphs use, as styles of one's own (what Word says of them). */
+  styles?: { id: string; name: string; base: StyleKey; def: Partial<StyleDef> }[];
 }
 
 export interface ReadOptions {
@@ -949,11 +978,55 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     if (position && !look.va && lookValueOk('pos', position)) look.pos = position;
     return tidyLook(look);
   };
+  // Word styles of the document's own, which come in as styles of one's own.
+  const ownStyles = new Map<string, { id: string; name: string; def: Partial<StyleDef>; basedOn: string }>();
+  const usedOwn = new Set<string>();
+  const KNOWN_BASES: Record<string, StyleKey> = { normal: 'normal', title: 'title', subtitle: 'subtitle', 'heading 1': 'heading1', 'heading 2': 'heading2', 'heading 3': 'heading3', 'heading 4': 'heading4', quote: 'quote', epigraph: 'epigraph', caption: 'caption' };
   for (const s of Array.from(stylesXml?.getElementsByTagNameNS(W_NS, 'style') ?? [])) {
     const id = attr(s, 'styleId') ?? '';
     styleName.set(id, (attr(child(s, 'name'), 'val') ?? id).toLowerCase());
+    if (attr(s, 'type') === 'paragraph' && /^(1|true|on)$/.test(attr(s, 'customStyle') ?? '')) {
+      const name = (attr(child(s, 'name'), 'val') ?? id).trim().slice(0, 40);
+      const slug = name.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
+      if (!slug || !name) continue;
+      const rpr = child(s, 'rPr');
+      const ppr = child(s, 'pPr');
+      const def: Partial<StyleDef> = {};
+      const fam = attr(child(rpr, 'rFonts'), 'ascii');
+      if (fam) def.font = { family: fam, source: 'system' };
+      const sz = Number(attr(child(rpr, 'sz'), 'val'));
+      if (sz) def.size = sz / 2;
+      if (child(rpr, 'b')) def.bold = on(child(rpr, 'b'));
+      if (child(rpr, 'i')) def.italic = on(child(rpr, 'i'));
+      if (child(rpr, 'caps')) def.caps = on(child(rpr, 'caps'));
+      const jc = attr(child(ppr, 'jc'), 'val');
+      if (jc) def.align = jc === 'center' ? 'center' : jc === 'right' || jc === 'end' ? 'right' : jc === 'both' ? 'justify' : 'left';
+      const sp = child(ppr, 'spacing');
+      if (attr(sp, 'before') !== null) def.spaceBefore = Number(attr(sp, 'before')) / 20;
+      if (attr(sp, 'after') !== null) def.spaceAfter = Number(attr(sp, 'after')) / 20;
+      if (attr(sp, 'line') !== null && (attr(sp, 'lineRule') ?? 'auto') === 'auto') def.lineSpacing = Math.round((Number(attr(sp, 'line')) / 240) * 1.15 * 100) / 100;
+      const ind = child(ppr, 'ind');
+      if (attr(ind, 'left') !== null) def.leftIndent = Number(attr(ind, 'left')) / 1440;
+      if (attr(ind, 'firstLine') !== null) def.firstIndent = Number(attr(ind, 'firstLine')) / 1440;
+      if (attr(ind, 'hanging') !== null) def.firstIndent = -Number(attr(ind, 'hanging')) / 1440;
+      for (const [k, v] of Object.entries(def)) if (typeof v === 'number' && !Number.isFinite(v)) delete (def as Record<string, unknown>)[k];
+      ownStyles.set(id, { id: `c-${slug}`, name, def, basedOn: attr(child(s, 'basedOn'), 'val') ?? '' });
+    }
     const lvl = attr(child(child(s, 'pPr'), 'outlineLvl'), 'val');
     if (lvl !== null) styleLevel.set(id, Number(lvl) + 1);
+  }
+
+  // A style based on a heading is a heading of that level too.
+  const basedOn = new Map<string, string>();
+  for (const s of Array.from(stylesXml?.getElementsByTagNameNS(W_NS, 'style') ?? [])) {
+    const on = attr(child(s, 'basedOn'), 'val');
+    if (on) basedOn.set(attr(s, 'styleId') ?? '', on);
+  }
+  for (const id of basedOn.keys()) {
+    let at = id;
+    for (let hops = 0; hops < 10 && !styleLevel.has(at) && basedOn.has(at); hops++) at = basedOn.get(at)!;
+    const lvl = styleLevel.get(at) ?? (/^heading (\d)$/.exec(styleName.get(at) ?? '')?.[1] ? Number(/^heading (\d)$/.exec(styleName.get(at)!)![1]) : undefined);
+    if (lvl && !styleLevel.has(id)) styleLevel.set(id, lvl);
   }
 
   // Lists: which numbering is bullets.
@@ -1420,6 +1493,12 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       b = makeBlock('paragraph', '', [], { style: 'caption' });
     }
     else b = makeBlock('paragraph');
+    // A paragraph in one of the document's own styles keeps it.
+    const own = ownStyles.get(styleId);
+    if (own && !b.style && (b.type === 'paragraph' || b.type.startsWith('heading') || b.type === 'quote')) {
+      b.style = own.id;
+      usedOwn.add(styleId);
+    }
     // Checklist items written as ☐ / ☒.
     const first = clean[0]?.text ?? '';
     if (/^[☐☑☒] ?/.test(first) && (b.type === 'paragraph' || b.type === 'bullet')) {
@@ -1659,7 +1738,12 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     }
     first.para = tidyPara({ ...first.para, track: 'all', ...(locked ? { lock: 'open' } : {}) });
   }
-  return { title: title || coreTitle, doc: { blocks: out } };
+  const styles = [...usedOwn].map((id) => {
+    const o = ownStyles.get(id)!;
+    const base = KNOWN_BASES[styleName.get(o.basedOn) ?? ''] ?? 'normal';
+    return { id: o.id, name: o.name, base, def: o.def };
+  });
+  return { title: title || coreTitle, doc: { blocks: out }, ...(styles.length ? { styles } : {}) };
 }
 
 /** The id of a gallery table style in Word ("CrumpetBlue", shown as "Crumpet Blue"). */

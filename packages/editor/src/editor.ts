@@ -1614,6 +1614,38 @@ export class Editor {
     this.dispatch(replaceMatches(this.state, matches, text, this.tracking?.author ?? null), 'command');
   }
 
+  /**
+   * Does `cmd` on each of `matches` in turn, as if each were selected, as one
+   * step to undo (Word's Select Text with Similar Formatting, then formatting).
+   * For commands that leave the text where it is (formatting, styles).
+   */
+  applyToAll(matches: Match[], cmd: (s: EditorState) => Transaction | null): void {
+    if (this.isReadOnly || !matches.length) return;
+    let state = this.state;
+    const ops: Op[] = [];
+    for (const m of matches) {
+      const t = cmd({ ...state, selection: { anchor: { block: m.block, offset: m.from }, focus: { block: m.block, offset: m.to } }, storedMarks: null });
+      if (!t?.ops.length) continue;
+      state = { ...state, doc: applyOps(state.doc, t.ops) };
+      ops.push(...t.ops);
+    }
+    if (ops.length) this.dispatch({ ops, selectionBefore: this.state.selection, selectionAfter: this.state.selection, kind: 'other' }, 'command');
+  }
+
+  /** The text at the caret's formatting: its marks and look, to find text like it. */
+  formatAtCaret(): { marks: Mark[]; look: Look | undefined } {
+    const pos = this.state.selection.focus;
+    const blk = getBlock(this.state.doc, pos.block);
+    let at = 0;
+    let run = blk.runs[0];
+    for (const r of blk.runs) {
+      // The character before the caret (or the first one, at the start).
+      if (at < Math.max(1, pos.offset)) run = r;
+      at += r.text.length;
+    }
+    return { marks: run ? [...run.marks] : [], look: run?.look };
+  }
+
   /** A DOM range over a match, to highlight it or scroll it into view. */
   rangeOf(m: Match): Range | null {
     const a = this.view.posToDom({ block: m.block, offset: m.from });

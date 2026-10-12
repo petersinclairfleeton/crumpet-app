@@ -1,3 +1,4 @@
+import { SimilarHost } from './similar';
 import { HomeScreenGuide, useSwipeBack } from './iphone';
 import { desktop } from '../data/desktop';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -374,6 +375,7 @@ export function App() {
       <CombineHost />
       <FontDialogHost />
       <PasteOptionsHost />
+      <SimilarHost />
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.

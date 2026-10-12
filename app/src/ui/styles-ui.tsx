@@ -5,22 +5,35 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
 import type { Align } from '@crumpet/editor/model';
-import { PRESETS, type PresetId, STYLE_LIST, type StyleDef, type StyleKey, type StyleSheet, presetSheet, sheetCss, sheetId, styleKeyOf, styleName } from '../data/styles';
+import { BASE_STYLES, PRESETS, type PresetId, type StyleDef, customStyleId, type StyleKey, type StyleSheet, blockStyleKey, fullSheet, presetSheet, sheetCss, sheetId, sheetStyles, styleNameIn } from '../data/styles';
 import { DEFAULT_FONT, fontStack, loadGoogleFont } from './fonts';
 import { IconClose } from './icons';
 import { FontPicker } from './Settings';
 import type { PageSetup } from '../data/styles';
 import { PageSetupForm } from './pages';
 import { Popover } from './Sidebar';
+import { useAppState } from './hooks';
 
 const injected = new Set<string>();
+
+/** Other places' style sheets to copy from (notes and each project), leaving out `except`. */
+export function useStyleSources(except: string): { label: string; sheet: StyleSheet }[] {
+  const state = useAppState();
+  return useMemo(
+    () => [
+      ...(except === 'notes' ? [] : [{ label: 'Notes', sheet: fullSheet(state.settings.noteStyles, 'crumpet') }]),
+      ...state.projects.filter((p) => p.id !== except).map((p) => ({ label: p.name || 'Untitled project', sheet: fullSheet(p.styles, 'manuscript') })),
+    ],
+    [state.settings.noteStyles, state.projects, except],
+  );
+}
 
 /** Puts a style sheet's CSS on the page (once) and returns the class to scope it to. */
 export function useSheetClass(sheet: StyleSheet): string {
   const id = useMemo(() => sheetId(sheet), [sheet]);
   const cls = `styles-${id}`;
   useEffect(() => {
-    for (const d of Object.values(sheet.styles)) if (d.font?.source === 'google') loadGoogleFont(d.font.family, d.font.styles);
+    for (const d of [...Object.values(sheet.styles), ...(sheet.custom ?? []).map((c) => c.def)]) if (d.font?.source === 'google') loadGoogleFont(d.font.family, d.font.styles);
     if (injected.has(id)) return;
     injected.add(id);
     const el = document.createElement('style');
@@ -45,17 +58,17 @@ export function previewCss(d: StyleDef): React.CSSProperties {
 /** The style menu: shows the style at the caret; choosing one applies it. */
 export function StylePicker({ editor, sheet, disabled, onEditStyles }: { editor: Editor | null; sheet: StyleSheet; disabled: boolean; onEditStyles?(): void }) {
   const [open, setOpen] = useState(false);
-  const key = editor ? styleKeyOf(editor.currentBlock()) : 'normal';
+  const key = editor ? blockStyleKey(sheet, editor.currentBlock()) : 'normal';
   return (
     <span className="style-picker note-actions">
       <button type="button" className="style-current" aria-label="Style" aria-haspopup="menu" aria-expanded={open} disabled={disabled} title="Paragraph style" onClick={() => setOpen(!open)}>
-        <span>{styleName(key)}</span>
+        <span>{styleNameIn(sheet, key)}</span>
         <span aria-hidden="true">▾</span>
       </button>
       {open && (
         <Popover onClose={() => setOpen(false)} label="Styles">
           <div role="menu" className="style-menu">
-            {STYLE_LIST.filter((s) => s.inMenu).map((s) => (
+            {sheetStyles(sheet).filter((s) => s.inMenu).map((s) => (
               <button
                 key={s.key}
                 type="button"
@@ -67,7 +80,7 @@ export function StylePicker({ editor, sheet, disabled, onEditStyles }: { editor:
                   editor?.setBlockStyle(s.type, s.style);
                 }}
               >
-                <span style={previewCss(sheet.styles[s.key])}>{s.name}</span>
+                <span style={previewCss(s.def)}>{s.name}</span>
               </button>
             ))}
             {onEditStyles && (
@@ -156,12 +169,34 @@ const SPACINGS: [number, string][] = [
   [2, 'Double'],
 ];
 
-export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, chapters = false, initial = 'normal' }: { title: string; sheet: StyleSheet; onChange(sheet: StyleSheet): void; page?: PageSetup; onPage?(p: PageSetup): void; onClose(): void; chapters?: boolean; initial?: StyleKey }) {
-  const [key, setKey] = useState<StyleKey>(initial);
+export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, chapters = false, initial = 'normal', sources, onDefault }: { title: string; sheet: StyleSheet; onChange(sheet: StyleSheet): void; page?: PageSetup; onPage?(p: PageSetup): void; onClose(): void; chapters?: boolean; initial?: string; sources?: { label: string; sheet: StyleSheet }[]; onDefault?(): void }) {
+  const [key, setKey] = useState<string>(initial);
   const [tab, setTab] = useState<'styles' | 'page'>('styles');
-  const d = sheet.styles[key];
-  const set = (patch: Partial<StyleDef>) => onChange({ ...sheet, styles: { ...sheet.styles, [key]: { ...d, ...patch } } });
+  const [madeDefault, setMadeDefault] = useState(false);
+  const entries = sheetStyles(sheet);
+  const item = entries.find((x) => x.key === key) ?? entries[0];
+  const own = sheet.custom?.find((c) => c.id === item.key);
+  const d = item.def;
+  const set = (patch: Partial<StyleDef>) =>
+    own ? onChange({ ...sheet, custom: sheet.custom!.map((c) => (c.id === own.id ? { ...c, def: { ...c.def, ...patch } } : c)) }) : onChange({ ...sheet, styles: { ...sheet.styles, [item.key]: { ...d, ...patch } } });
   const cls = useSheetClass(sheet);
+  const inMenuKeys = entries.filter((x) => x.key !== 'list' && x.key !== 'header' && x.key !== 'footer');
+  const move = (by: number) => {
+    const keys = inMenuKeys.map((x) => x.key);
+    const at = keys.indexOf(item.key);
+    const to = at + by;
+    if (at < 0 || to < 0 || to >= keys.length) return;
+    [keys[at], keys[to]] = [keys[to], keys[at]];
+    onChange({ ...sheet, order: keys });
+  };
+  const newStyle = () => {
+    const base = (own ? own.base : (['list', 'header', 'footer', 'nospacing', 'intense', 'scenebreak'].includes(item.key) ? 'normal' : item.key)) as StyleKey;
+    const n = (sheet.custom?.length ?? 0) + 1;
+    const name = `My style ${n}`;
+    const id = customStyleId(name, sheet);
+    onChange({ ...sheet, custom: [...(sheet.custom ?? []), { id, name, base, def: { ...d } }] });
+    setKey(id);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -179,7 +214,6 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, ch
     </label>
   );
 
-  const item = STYLE_LIST.find((s) => s.key === key)!;
   // Headers and footers: placed left, centre and right on the page, so no alignment or indents.
   const band = key === 'header' || key === 'footer';
 
@@ -214,7 +248,7 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, ch
               value={sheet.preset}
               onChange={(e) => {
                 const id = e.target.value as PresetId;
-                if (confirm(`Replace every style with the ${PRESETS.find((p) => p.id === id)?.name} set? Changes you made to styles here are lost.`)) onChange(presetSheet(id));
+                if (confirm(`Replace every style with the ${PRESETS.find((p) => p.id === id)?.name} set? Changes you made to styles here are lost (your own styles stay).`)) onChange({ ...presetSheet(id), custom: sheet.custom, hidden: sheet.hidden, order: sheet.order });
               }}
             >
               {PRESETS.map((p) => (
@@ -224,15 +258,74 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, ch
               ))}
             </select>
           </label>
-          <div className="styles-cols">
-            <div className="styles-list" role="listbox" aria-label="Styles">
-              {STYLE_LIST.map((s) => (
-                <button key={s.key} type="button" role="option" aria-selected={s.key === key} onClick={() => setKey(s.key)}>
-                  {s.name}
+          {(sources?.length || onDefault) && (
+            <div className="style-row styles-share">
+              {!!sources?.length && (
+                <label className="field">
+                  <span>Copy styles from</span>
+                  <select
+                    aria-label="Copy styles from"
+                    value=""
+                    onChange={(e) => {
+                      const src = sources[Number(e.target.value)];
+                      if (src && confirm(`Use the styles of ${src.label} here? The styles here now are replaced.`)) onChange(structuredClone(src.sheet));
+                    }}
+                  >
+                    <option value="">Choose…</option>
+                    {sources.map((x, i) => (
+                      <option key={i} value={i}>
+                        {x.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {onDefault && (
+                <button
+                  type="button"
+                  className="btn quiet"
+                  onClick={() => {
+                    onDefault();
+                    setMadeDefault(true);
+                  }}
+                >
+                  {madeDefault ? 'Set as default ✓' : 'Set as default for new projects'}
                 </button>
-              ))}
+              )}
+            </div>
+          )}
+          <div className="styles-cols">
+            <div className="styles-list-col">
+              <div className="styles-list" role="listbox" aria-label="Styles">
+                {entries.map((s) => (
+                  <button key={s.key} type="button" role="option" aria-selected={s.key === item.key} className={s.inMenu || s.key === 'list' || s.key === 'header' || s.key === 'footer' ? '' : 'hidden-style'} onClick={() => setKey(s.key)}>
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn quiet small" onClick={newStyle}>
+                + New style
+              </button>
             </div>
             <div className="style-form" role="group" aria-label={`${item.name} style`}>
+              {own && (
+                <div className="style-row">
+                  <label className="field grow">
+                    <span>Name</span>
+                    <input aria-label="Style name" value={own.name} onChange={(e) => onChange({ ...sheet, custom: sheet.custom!.map((c) => (c.id === own.id ? { ...c, name: e.target.value.slice(0, 40) || c.name } : c)) })} />
+                  </label>
+                  <label className="field">
+                    <span>Based on</span>
+                    <select aria-label="Based on" value={own.base} onChange={(e) => onChange({ ...sheet, custom: sheet.custom!.map((c) => (c.id === own.id ? { ...c, base: e.target.value as StyleKey } : c)) })}>
+                      {BASE_STYLES.map((k) => (
+                        <option key={k} value={k}>
+                          {styleNameIn(sheet, k)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
               <div className="field">
                 <span>Font</span>
                 <label className="check">
@@ -310,9 +403,47 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, ch
                 </p>
                 )}
               </div>
-              <button type="button" className="btn quiet" onClick={() => set(presetSheet(sheet.preset).styles[key])}>
-                Reset {item.name}
-              </button>
+              <div className="style-manage">
+                {inMenuKeys.some((x) => x.key === item.key) && (
+                  <>
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={!sheet.hidden?.includes(item.key)}
+                        onChange={(e) => {
+                          const hidden = (sheet.hidden ?? []).filter((k) => k !== item.key);
+                          onChange({ ...sheet, hidden: e.target.checked ? hidden : [...hidden, item.key] });
+                        }}
+                      />
+                      Show in the style menu
+                    </label>
+                    <button type="button" className="icon-btn" aria-label="Move up in the menu" title="Move up" onClick={() => move(-1)}>
+                      ↑
+                    </button>
+                    <button type="button" className="icon-btn" aria-label="Move down in the menu" title="Move down" onClick={() => move(1)}>
+                      ↓
+                    </button>
+                  </>
+                )}
+                <span className="grow" />
+                {own ? (
+                  <button
+                    type="button"
+                    className="btn quiet danger"
+                    onClick={() => {
+                      if (!confirm(`Delete the style “${own.name}”? Paragraphs in it go back to ${styleNameIn(sheet, own.base)}.`)) return;
+                      onChange({ ...sheet, custom: sheet.custom!.filter((c) => c.id !== own.id), hidden: sheet.hidden?.filter((k) => k !== own.id), order: sheet.order?.filter((k) => k !== own.id) });
+                      setKey(own.base);
+                    }}
+                  >
+                    Delete {own.name}
+                  </button>
+                ) : (
+                  <button type="button" className="btn quiet" onClick={() => set(presetSheet(sheet.preset).styles[item.key as StyleKey])}>
+                    Reset {item.name}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           </>

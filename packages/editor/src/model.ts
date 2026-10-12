@@ -232,8 +232,13 @@ export const BLOCK_STYLES: Partial<Record<BlockType, readonly string[]>> = {
   quote: ['intense', 'note', 'tip', 'warning', 'important'],
 };
 
+/** A style of the person's own (Word's New Style): `c-` and a name made from letters, figures and dashes. */
+export const CUSTOM_STYLE = /^c-[a-z0-9][a-z0-9-]{0,39}$/;
+/** Block types a style of one's own can be based on. */
+const CUSTOM_TYPES: readonly BlockType[] = ['paragraph', 'heading1', 'heading2', 'heading3', 'heading4', 'quote'];
+
 export function styleAllowed(type: BlockType, style: string): boolean {
-  return !!BLOCK_STYLES[type]?.includes(style);
+  return !!BLOCK_STYLES[type]?.includes(style) || (CUSTOM_TYPES.includes(type) && CUSTOM_STYLE.test(style));
 }
 
 /** Block types that are list items: they can be indented, and Enter continues them. */

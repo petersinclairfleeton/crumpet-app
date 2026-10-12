@@ -175,7 +175,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
   const fontItems = useFontItems(ed, off, sheet);
-  const para = useParaItems(ed, off);
+  const para = useParaItems(ed, off, sheet);
   const layout = useLayoutItems(ed, off, { page, onPage, chapters });
   const store = useAppStore();
   const settings = useAppState().settings;
