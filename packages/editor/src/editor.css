@@ -57,9 +57,34 @@
 /* Pictures and attached files: the picture or file above, its caption below. */
 .blk-image, .blk-file { margin: 14px 0; }
 .blk-image .media, .blk-file .media { display: block; user-select: none; }
-.blk-image img { display: block; max-width: 100%; max-height: 70vh; margin: 0 auto; border-radius: 6px; }
-.blk-image[data-align='left'] img { margin-left: 0; }
-.blk-image[data-align='right'] img { margin-right: 0; }
+.blk-image img { display: block; max-width: 100%; max-height: 70vh; margin: 0; border-radius: 6px; }
+.blk-image img[style*='width'] { max-height: none; height: auto; }
+/* The picture's frame: shrinks to the picture, turns with it, and holds its handles. */
+.pic-box { display: table; position: relative; margin: 0 auto; max-width: 100%; }
+.blk-image[data-align='left'] .pic-box { margin-left: 0; }
+.blk-image[data-align='right'] .pic-box { margin-right: 0; }
+.pic-grip { position: absolute; z-index: 2; right: -5px; bottom: -5px; width: 10px; height: 10px; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); cursor: nwse-resize; opacity: 0; }
+.pic-rot { position: absolute; z-index: 2; left: 50%; top: -22px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); cursor: grab; opacity: 0; }
+.pic-rot::after { content: ''; position: absolute; left: 3px; top: 9px; width: 1.5px; height: 11px; background: var(--accent, #4a7); }
+.pic-move { display: none; position: absolute; z-index: 2; left: -11px; top: -11px; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); color: var(--accent-ink, var(--accent, #4a7)); font-size: 12px; line-height: 17px; text-align: center; cursor: move; opacity: 0; user-select: none; }
+.blk-image:hover :is(.pic-grip, .pic-rot, .pic-move), .blk-image:focus-within :is(.pic-grip, .pic-rot, .pic-move) { opacity: 1; }
+.blk-image:hover .pic-tools { visibility: visible; opacity: 1; }
+.pic-tools { display: flex; justify-content: center; }
+.blk-image[data-align='left'] .pic-tools { justify-content: flex-start; }
+.blk-image[data-align='right'] .pic-tools { justify-content: flex-end; }
+.pic-tools .table-menu { right: auto; left: 50%; transform: translateX(-50%); }
+.table-menu button.on { color: var(--text, #222); border-color: var(--accent, #4a7); }
+/* Text wrapping round a picture, or the picture in front of the text wherever it's dragged. */
+.blk-image[data-wrap='left'] { float: left; width: var(--pw, 40%); max-width: 70%; margin: 4px 18px 8px 0; }
+.blk-image[data-wrap='right'] { float: right; width: var(--pw, 40%); max-width: 70%; margin: 4px 0 8px 18px; }
+.blk-image:is([data-wrap='left'], [data-wrap='right']) img { width: 100%; }
+.blk-image:is([data-wrap='left'], [data-wrap='right']) .pic-box { margin: 0; width: 100%; }
+.blk-image[data-wrap='free'] { height: 0; margin: 0; position: relative; z-index: 3; }
+.blk-image[data-wrap='free'] > :is(.media, .text) { position: relative; left: var(--px, 0); top: var(--py, 0); width: var(--pw, 3in); }
+.blk-image[data-wrap='free'] .pic-box { margin: 0; }
+.blk-image[data-wrap='free'] img { width: 100%; }
+.blk-image[data-wrap='free'] .pic-move { display: block; }
+@media print { .pic-grip, .pic-rot, .pic-move, .pic-tools { display: none !important; } }
 .blk-image .text { display: block; margin-top: 6px; text-align: center; font-size: 0.85em; font-style: italic; color: var(--muted, #666); }
 .media.missing { display: flex; align-items: center; justify-content: center; min-height: 80px; border: 1px dashed var(--line2, #ccc); border-radius: 6px; color: var(--muted, #666); font-size: 13px; }
 .blk-image .media.missing img { display: none; }

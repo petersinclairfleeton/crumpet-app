@@ -8,6 +8,7 @@ import { TABLE_STYLES, type TableLook, type TableStyleKey, mergeAt, tableStyleCo
 import { cellRuns, cellText } from '@crumpet/editor/cells';
 import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
 import { WORD_PICTURES, fieldFromWord, fieldValue } from '@crumpet/editor/fields';
+import { type PicLook, tidyPic } from '@crumpet/editor/picture';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { type PageSetup, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
@@ -270,19 +271,29 @@ class Writer {
     this.media.push({ name: `word/media/${name}`, data: got.bytes });
     const id = this.rel(`${REL}/image`, `media/${name}`);
     const size = imageSize(got.bytes) ?? { width: 600, height: 400 };
-    // Never wider than the page's text.
-    const scale = Math.min(1, this.contentWidth / size.width);
+    const p = b.pic ?? {};
+    // Its width as set (or its own), never wider than the page's text.
+    const want = p.w ? p.w * 96 : size.width;
+    const scale = Math.min(this.contentWidth, want) / size.width;
     const cx = Math.round(size.width * scale * EMU_PER_PX);
     const cy = Math.round(size.height * scale * EMU_PER_PX);
-    const alt = esc(b.runs.map((r) => r.text).join('') || 'Picture');
-    const drawing =
-      `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="Picture ${n}" descr="${alt}"/>` +
+    const alt = esc(p.alt || b.runs.map((r) => r.text).join('') || 'Picture');
+    const docPr = `<wp:docPr id="${n}" name="Picture ${n}" descr="${alt}"/>`;
+    const graphic =
       `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
       `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${n}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>` +
       `<pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
-      `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+      `<pic:spPr><a:xfrm${p.rot ? ` rot="${p.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>`;
+    const EMU = 914400;
+    const anchor = (pos: string, wrapXml: string, dist: string) => `<wp:anchor ${dist} simplePos="0" relativeHeight="${251659264 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>${pos}<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${wrapXml}${docPr}<wp:cNvGraphicFramePr/>${graphic}</wp:anchor>`;
+    const drawing =
+      p.wrap === 'left' || p.wrap === 'right'
+        ? anchor(`<wp:positionH relativeFrom="column"><wp:align>${p.wrap}</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>`, '<wp:wrapSquare wrapText="bothSides"/>', 'distT="45720" distB="45720" distL="114300" distR="114300"')
+        : p.wrap === 'free'
+          ? anchor(`<wp:positionH relativeFrom="column"><wp:posOffset>${Math.round((p.x ?? 0) * EMU)}</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>${Math.round((p.y ?? 0) * EMU)}</wp:posOffset></wp:positionV>`, '<wp:wrapNone/>', 'distT="0" distB="0" distL="114300" distR="114300"')
+          : `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/>${docPr}${graphic}</wp:inline>`;
     const jc = `<w:jc w:val="${JC[b.align ?? ''] ?? (b.align === 'left' ? 'left' : 'center')}"/>`;
-    return this.paragraph(null, drawing, `<w:keepNext/>${jc}`);
+    return this.paragraph(null, `<w:r><w:drawing>${drawing}</w:drawing></w:r>`, `<w:keepNext/>${jc}`);
   }
 
   private nextShape = 1;
@@ -1003,6 +1014,33 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const coreTitle = core?.getElementsByTagName('dc:title')[0]?.textContent?.trim() ?? '';
 
   /** A Word text box or shape (DrawingML), as a shape block. */
+  /** A Word picture's alt text, size, turn and wrapping, as a picture look of ours. */
+  const readPictureLook = (drawing: Element): PicLook | undefined => {
+    const all = Array.from(drawing.getElementsByTagName('*'));
+    const plain = (el: Element | undefined, name: string) => el?.getAttribute(name) ?? null;
+    const EMU = 914400;
+    const cx = Number(plain(all.find((x) => x.localName === 'extent'), 'cx') ?? 0) / EMU;
+    const rot = Number(plain(all.find((x) => x.localName === 'xfrm'), 'rot') ?? 0) / 60000;
+    const anchor = all.find((x) => x.localName === 'anchor');
+    let wrap: PicLook['wrap'];
+    let x: number | undefined;
+    let y: number | undefined;
+    if (anchor) {
+      const kidsOf = Array.from(anchor.children);
+      if (kidsOf.some((k) => /^wrap(Square|Tight|Through)$/.test(k.localName))) {
+        const side = Array.from(all.find((k) => k.localName === 'positionH')?.getElementsByTagName('*') ?? []).find((k) => k.localName === 'align')?.textContent;
+        wrap = side === 'right' ? 'right' : 'left';
+      } else if (kidsOf.some((k) => k.localName === 'wrapNone')) {
+        wrap = 'free';
+        const off = (name: string) => Number(Array.from(all.find((k) => k.localName === name)?.getElementsByTagName('*') ?? []).find((k) => k.localName === 'posOffset')?.textContent ?? 0) / EMU;
+        x = off('positionH');
+        y = off('positionV');
+      }
+    }
+    const descr = (plain(all.find((k) => k.localName === 'docPr'), 'descr') ?? '').trim();
+    return tidyPic({ w: cx || undefined, rot, wrap, x, y, alt: descr || undefined });
+  };
+
   const readShape = async (drawing: Element): Promise<Block | null> => {
     // Drawing attributes carry no prefix.
     const plain = (el: Element | undefined | null, name: string) => el?.getAttribute(name) ?? null;
@@ -1125,9 +1163,13 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
               const data = path ? files.get(path) : undefined;
               if (data && path && opts.saveMedia) {
                 const ext = (path.split('.').pop() ?? '').toLowerCase();
-                const descr = Array.from(c.getElementsByTagName('*')).find((x) => x.localName === 'docPr')?.getAttribute('descr') ?? '';
                 const src = await opts.saveMedia(path.replace(/^.*\//, ''), data, MIME[ext] ?? 'application/octet-stream');
-                if (src) pics.push(makeBlock('image', descr.trim(), [], { src }));
+                if (src) {
+                  const img = makeBlock('image', '', [], { src });
+                  const pic = readPictureLook(c);
+                  if (pic) img.pic = pic;
+                  pics.push(img);
+                }
               }
             }
           }
@@ -1269,7 +1311,18 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       if (b.type === 'numbered') wordNumber.set(b, countItem(numId, level));
     } else if (name === 'quote' || name === 'intense quote') b = makeBlock('quote', '', [], name === 'intense quote' ? { style: 'intense' } : {});
     else if (name === 'no spacing') b = makeBlock('paragraph', '', [], { style: 'nospacing' });
-    else if (name === 'caption') b = makeBlock('paragraph', '', [], { style: 'caption' });
+    else if (name === 'caption') {
+      // A caption straight after a picture is that picture's caption (alt text the same as it is dropped: the caption serves).
+      const prev = blocks[blocks.length - 1];
+      const said = clean.map((r) => r.text).join('').trim();
+      if (prev?.type === 'image' && !prev.runs.length && !pics.length && said) {
+        prev.runs = normalizeRuns(clean);
+        if (prev.pic?.alt === said) prev.pic = tidyPic({ ...prev.pic, alt: undefined });
+        if (!prev.pic) delete prev.pic;
+        return;
+      }
+      b = makeBlock('paragraph', '', [], { style: 'caption' });
+    }
     else b = makeBlock('paragraph');
     // Checklist items written as ☐ / ☒.
     const first = clean[0]?.text ?? '';

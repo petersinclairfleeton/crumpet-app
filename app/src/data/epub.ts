@@ -149,7 +149,11 @@ class Book {
         case 'image': {
           const href = b.src ? await this.image(b.src) : null;
           const caption = runs(b.runs);
-          if (href) out += `<figure><img src="${esc(href)}" alt="${esc(b.runs.map((r) => r.text).join(''))}"/>${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`;
+          // Its alt text (or caption), its width (as a share of the page, so it fits any screen) and its turn.
+          const p = b.pic;
+          const style = [p?.w ? `width: ${Math.min(100, Math.round((p.w / 6.5) * 100))}%` : '', p?.rot ? `transform: rotate(${p.rot}deg)` : ''].filter(Boolean).join('; ');
+          const float = p?.wrap === 'left' || p?.wrap === 'right' ? ` class="float-${p.wrap}"` : '';
+          if (href) out += `<figure${float}><img src="${esc(href)}" alt="${esc(p?.alt ?? b.runs.map((r) => r.text).join(''))}"${style ? ` style="${style}"` : ''}/>${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`;
           else if (caption) out += `<p class="caption">${caption}</p>`;
           break;
         }
@@ -251,6 +255,7 @@ figure { margin: 1em 0; text-align: center; } img { max-width: 100%; }
 ul, ol { margin: 0.5em 0 0.5em 1.5em; padding: 0; } ul.checklist { list-style: none; margin-left: 0.5em; }
 table { border-collapse: collapse; margin: 1em 0; width: 100%; } th, td { border: 1px solid #999; padding: 0.2em 0.4em; text-align: left; }
 a.noteref { vertical-align: super; font-size: 0.7em; line-height: 0; text-decoration: none; }
+.float-left { float: left; max-width: 50%; margin: 0 1em 0.5em 0; } .float-right { float: right; max-width: 50%; margin: 0 0 0.5em 1em; } .float-left img, .float-right img { width: 100% !important; }
 .footnotes { margin-top: 2em; font-size: 0.85em; } .footnotes hr { width: 30%; margin-left: 0; } .footnote p { text-indent: 0; margin: 0.3em 0; }
 .title-page { text-align: center; margin-top: 30%; } .title-page h1 { font-size: 2em; } .title-page p { text-indent: 0; font-size: 1.2em; }
 `;

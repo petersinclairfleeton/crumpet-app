@@ -67,3 +67,27 @@ describe('Word: tab stops', () => {
     expect(runsText(back.doc.blocks[0].runs)).toBe('Chapter one\t7');
   });
 });
+
+describe('Word: pictures', () => {
+  // A 2×1 PNG.
+  const PNG = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR4nGP4z8DwHwQZGBgAJ+wE/OXBtvUAAAAASUVORK5CYII='), (c) => c.charCodeAt(0));
+  const opts = { title: 'T', media: async () => ({ bytes: PNG, type: 'image/png' }) };
+  const back = async (bytes: Uint8Array) => (await fromDocx(bytes, { saveMedia: async (name: string) => `Attachments/x-${name}` })).doc.blocks;
+
+  it('keep their width, turn, wrapping and alt text', async () => {
+    const img = makeBlock('image', 'A gull', [], { src: 'Attachments/a-gull.png', pic: { w: 2, rot: 15, wrap: 'right', alt: 'A gull on a post' } });
+    const bytes = await toDocx([{ doc: { blocks: [img, makeBlock('paragraph', 'Text beside it.')] } }], opts);
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<wp:wrapSquare wrapText="bothSides"/>');
+    expect(xml).toContain('descr="A gull on a post"');
+    expect(xml).toContain('rot="900000"');
+    const [pic] = await back(bytes);
+    expect(pic).toMatchObject({ type: 'image', runs: [{ text: 'A gull' }], pic: { w: 2, rot: 15, wrap: 'right', alt: 'A gull on a post' } });
+  });
+
+  it('in front of the text: where it was put', async () => {
+    const img = makeBlock('image', '', [], { src: 'Attachments/a-gull.png', pic: { w: 1.5, wrap: 'free', x: 1, y: -0.5 } });
+    const [pic] = await back(await toDocx([{ doc: { blocks: [img] } }], opts));
+    expect(pic.pic).toMatchObject({ w: 1.5, wrap: 'free', x: 1, y: -0.5 });
+  });
+});
