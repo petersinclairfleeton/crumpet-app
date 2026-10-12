@@ -65,7 +65,7 @@ export function AutoCorrectSettings() {
           <input aria-label="Replace" placeholder="Replace (e.g. lizzy)" value={typo} onChange={(e) => setTypo(e.target.value)} />
           <span aria-hidden="true">→</span>
           <input aria-label="With" placeholder="With (e.g. Elizabeth)" value={right} onChange={(e) => setRight(e.target.value)} />
-          <button type="submit" className="btn" disabled={!typo.trim() || !right.trim()}>
+          <button type="submit" className="btn" aria-label="Add replacement" disabled={!typo.trim() || !right.trim()}>
             Add
           </button>
         </form>

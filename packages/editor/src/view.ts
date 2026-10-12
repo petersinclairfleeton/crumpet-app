@@ -68,6 +68,8 @@ export class View {
   footnoteStart = 0;
   /** Show/hide ¶: spaces, tabs and paragraph ends are shown (set with `setShowMarks`, which redraws). */
   showMarks = false;
+  /** Words the browser's spelling check passes over (your dictionary, names), as one pattern; null for none. */
+  noSpell: RegExp | null = null;
 
   constructor(public root: HTMLElement) {
     root.contentEditable = 'true';
@@ -103,7 +105,7 @@ export class View {
         this.rendered.set(block.id, { block, el: old.el });
         continue;
       }
-      const el = buildBlock(block, this.showMarks);
+      const el = buildBlock(block, this.showMarks, this.noSpell);
       built.add(block.id);
       if (old) old.el.replaceWith(el);
       this.rendered.set(block.id, { block, el });
@@ -327,6 +329,29 @@ export class View {
   }
 }
 
+/** A run's text: words the spelling check should skip in spans of their own, the rest as `markedText` (or plain). */
+function spelledText(text: string, marks: boolean, noSpell: RegExp | null): Node {
+  const plain = (t: string): Node => (t.includes('\t') || (marks && /[ \u00a0]/.test(t)) ? markedText(t, marks) : document.createTextNode(t));
+  if (!noSpell || !text) return plain(text);
+  noSpell.lastIndex = 0;
+  let m = noSpell.exec(text);
+  if (!m) return plain(text);
+  const frag = document.createDocumentFragment();
+  let at = 0;
+  for (; m; m = noSpell.exec(text)) {
+    if (m.index > at) frag.appendChild(plain(text.slice(at, m.index)));
+    const span = document.createElement('span');
+    span.className = 'nosp';
+    span.spellcheck = false;
+    span.textContent = m[0];
+    frag.appendChild(span);
+    at = m.index + m[0].length;
+    if (!m[0]) noSpell.lastIndex++;
+  }
+  if (at < text.length) frag.appendChild(plain(text.slice(at)));
+  return frag;
+}
+
 /**
  * Text with each tab in a span of its own (sized to reach its tab stop by
  * `layoutTabs`), and for Show/hide ¶ (`marks`) each space too. The text
@@ -421,7 +446,7 @@ function textEl(blockEl: HTMLElement): HTMLElement {
   return blockEl.querySelector<HTMLElement>(':scope > .text') ?? blockEl;
 }
 
-function buildBlock(block: Block, marks = false): HTMLElement {
+function buildBlock(block: Block, marks = false, noSpell: RegExp | null = null): HTMLElement {
   const el = document.createElement(TAGS[block.type]);
   el.className = `blk blk-${block.type}`;
   el.dataset.block = block.id;
@@ -523,7 +548,7 @@ function buildBlock(block: Block, marks = false): HTMLElement {
   if (!block.runs.length) {
     text.appendChild(document.createElement('br'));
   }
-  for (const run of block.runs) text.appendChild(runNode(run, marks));
+  for (const run of block.runs) text.appendChild(runNode(run, marks, noSpell));
   el.appendChild(text);
   return el;
 }
@@ -532,9 +557,10 @@ function buildBlock(block: Block, marks = false): HTMLElement {
  * A run of text as the page shows it: its marks, look, footnote, change,
  * comment and link around it. `marks` (Show/hide ¶): each space, tab and
  * non-breaking space is a span of its own, which CSS draws a dot or arrow on.
+ * Words matching `noSpell` are in spans the browser's spelling check skips.
  */
-export function runNode(run: Run, marks = false): Node {
-  let node: Node = run.text.includes('\t') || (marks && /[ \u00a0]/.test(run.text)) ? markedText(run.text, marks) : document.createTextNode(run.text);
+export function runNode(run: Run, marks = false, noSpell: RegExp | null = null): Node {
+  let node: Node = spelledText(run.text, marks, noSpell);
   for (const mark of [...run.marks].reverse()) {
     const wrap = document.createElement(MARK_TAGS[mark]);
     wrap.appendChild(node);

@@ -8,6 +8,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { type Change, type Doc, changes } from '@crumpet/editor/model';
 import { REVISIONS, revisionColor } from '../data/revisions';
 import { useAppState, useAppStore } from './hooks';
+import { useSpelling } from './spelling';
 
 interface Open {
   where: { block: string; from: number; to: number };
@@ -21,7 +22,7 @@ function when(at: number): string {
   return new Date().toDateString() === d.toDateString() ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-/** Keeps the editor tracking (or not), in revision mode and correcting as Settings say. */
+/** Keeps the editor tracking (or not), in revision mode, checking spelling and correcting as Settings say. */
 export function useTracking(editor: Editor | null): void {
   const state = useAppState();
   const on = !!state.settings.trackChanges;
@@ -34,6 +35,7 @@ export function useTracking(editor: Editor | null): void {
   useEffect(() => {
     if (editor) editor.revisionColor = color;
   }, [editor, color]);
+  useSpelling(editor);
   // AutoCorrect, as Settings → Writing says.
   const autocorrect = state.settings.autocorrect;
   useEffect(() => {

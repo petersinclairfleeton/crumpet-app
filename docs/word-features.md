@@ -113,7 +113,7 @@ At the end there's a suggested order for building what's missing.
 | Find options: match case, whole words | ✅ | |
 | Advanced Find: wildcards, formatting, special characters (¶, tab, page break) | ❌ | |
 | Replace, Replace all | ✅ | Can be undone, and is tracked when Track Changes is on. |
-| Go To (page, section, footnote, comment…) | 🟡 | Jump to headings (status bar, outline) and to notes/chapters (Ctrl+O). No "go to page 37". |
+| Go To (page, section, footnote, comment…) | ✅ | F5, the command palette, or the page number in page view: a page, heading, footnote or comment by number (or +1 / -2), or the previous or next one. No sections, lines or bookmarks yet. |
 | Select all | ✅ | |
 | Select objects, text with similar formatting | ❌ | |
 | Selection Pane | ❌ | |
@@ -123,7 +123,7 @@ At the end there's a suggested order for building what's missing.
 | Feature | | Crumpet today |
 |---|---|---|
 | Dictate | ✅ | Including spoken punctuation ("comma", "new paragraph"). |
-| Spelling | 🟡 | The browser's own red underlines; no spelling pass, "ignore all" or custom dictionary of Crumpet's own. |
+| Spelling | 🟡 | The browser's own red underlines, with Crumpet's own dictionary, characters' and places' names never marked, Ignore all (for now, from the command palette), a language, and a switch to turn it off (Settings → Writing). No spelling pass yet. |
 | Grammar | ❌ | |
 | Clarity, conciseness | 🟡 | The Writing tab highlights -ly adverbs, filler words and likely passive voice; no suggestions to fix them. |
 | Inclusive language | ❌ | |
@@ -225,7 +225,7 @@ At the end there's a suggested order for building what's missing.
 | Table of contents: Add Text (include a paragraph) | 🟡 | Only headings are included. No choice of levels or styles of contents. |
 | Footnote | ✅ | Numbered through the whole book. |
 | Endnote | ❌ | A Word file's endnotes come in as empty footnote numbers: their text is lost. |
-| Next Footnote, Show Notes | 🟡 | Footnotes are listed under the note; no "next footnote" button. |
+| Next Footnote, Show Notes | ✅ | Footnotes are listed under the note, with Previous and Next footnote (also in the command palette and Go To). |
 | Research: Search, Researcher | 🟡 | Research notes beside the writing, web clipper, thesaurus and definitions; no searching the web from inside Crumpet. |
 | Insert Citation, Manage Sources | ❌ | |
 | Citation styles (APA, MLA, Chicago), Bibliography | ❌ | |
@@ -456,9 +456,9 @@ Where: `packages/editor/src/editor.ts` (input), `commands.ts`, `view.ts`;
 - [x] Drop cap
 - [x] Blank page button
 - [x] Date and time that update (a field), as well as fixed text
-- [ ] Go to page (and footnote, comment, heading)
-- [ ] Next/previous footnote
-- [ ] Spelling settings: own dictionary (character names), ignore all, language
+- [x] Go to page (and footnote, comment, heading)
+- [x] Next/previous footnote
+- [x] Spelling settings: own dictionary (character names), ignore all, language
 
 **2. Pictures**
 Where: `view.ts` (`buildMedia`), `model.ts` (image blocks), `markdown.ts`, `app/src/data/docx.ts`; follow `shape.ts` for wrap, drag and turning.

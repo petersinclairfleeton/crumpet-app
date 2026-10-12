@@ -11,6 +11,7 @@ import { SyncSettings } from './SyncSettings';
 import { THEMES, themeInfo } from './themes';
 import { PaperSwatches } from './paper';
 import { AutoCorrectSettings } from './autocorrect';
+import { SpellingSettings } from './spelling';
 
 const SECTIONS = [
   { id: 'account', label: 'Account & sync' },
@@ -137,6 +138,7 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
                 ))}
               </div>
               <AutoCorrectSettings />
+              <SpellingSettings />
             </>
           )}
 
