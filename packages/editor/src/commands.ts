@@ -44,6 +44,7 @@ import {
   sliceRuns,
   sortMarks,
   FOOTNOTE,
+  FIELD,
   type Comment,
   commentAt,
   setCommentOnRuns,
@@ -220,7 +221,7 @@ function splitAt(b: Builder, pos: Pos): Pos {
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
   // A new paragraph carries on the spacing and indents of the one before (not a page break, nor after a heading).
-  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined });
+  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, drop: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined });
   const newAttrs = atEnd ? { ...nextBlockAttrs(block), para: carried } : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined, para: carried });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
@@ -542,6 +543,39 @@ export function stepIndent(state: EditorState, delta: 1 | -1): Transaction {
 /** Word's Page Break (Ctrl+Enter): what follows the caret starts on a new page. */
 export function insertPageBreak(state: EditorState): Transaction {
   return insertBreak(state, { pageBefore: true });
+}
+
+/**
+ * Word's Blank Page: a page break, an empty page with the caret on it, and
+ * another page break, so what followed the caret starts on the page after.
+ */
+export function insertBlankPage(state: EditorState): Transaction {
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  let at = deleteRange(b, from, to);
+  const block = getBlock(b.doc, at.block);
+  if (isMedia(block.type) || isWidget(block.type)) at = { block: block.id, offset: runsLength(block.runs) };
+  if (at.offset > 0 || isMedia(block.type) || isWidget(block.type)) at = splitAt(b, at);
+  // `at` is the start of what follows: split it once more, so an empty paragraph comes first.
+  const rest = splitAt(b, at);
+  const blank = getBlock(b.doc, at.block);
+  b.step({ type: 'setAttrs', block: blank.id, from: attrsOf(blank), to: { ...blockAttrs('paragraph'), para: tidyPara({ ...blank.para, pageBefore: true }) } });
+  const after = getBlock(b.doc, rest.block);
+  b.step({ type: 'setAttrs', block: after.id, from: attrsOf(after), to: attrsOf({ ...after, para: tidyPara({ ...after.para, pageBefore: true }) }) });
+  return tx(state, b, caret(at));
+}
+
+/** Puts a field (a date that updates, and the like) at the caret, in place of any selection. */
+export function insertField(state: EditorState, name: string): Transaction {
+  const b = new Builder(state.doc);
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const at = deleteRange(b, from, to);
+  const block = getBlock(b.doc, at.block);
+  const run: Run = { text: FIELD, marks: sortMarks(state.storedMarks ?? marksAt(block.runs, at.offset)), field: name };
+  const look = state.storedLook ?? lookAt(block.runs, at.offset);
+  if (look) run.look = look;
+  b.step({ type: 'insert', block: at.block, offset: at.offset, runs: [run] });
+  return tx(state, b, caret({ block: at.block, offset: at.offset + 1 }), { storedMarks: null, storedLook: null });
 }
 
 /** Word's Column Break (Ctrl+Shift+Enter): what follows the caret starts at the top of the next column. */

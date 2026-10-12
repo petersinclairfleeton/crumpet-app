@@ -3,6 +3,7 @@
 // changed are rebuilt; the rest of the DOM is left alone.
 
 import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection } from './model';
+import { FIELDS, fieldValue } from './fields';
 import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
 import { type ShapeLook, tidyShape } from './shape';
 import { fillCell, readCell } from './cells';
@@ -172,8 +173,23 @@ export class View {
       for (const block of doc.blocks) if (block.type === 'toc') fillToc(this.rendered.get(block.id)!.el, entries);
     }
     this.numberFootnotes();
+    this.fillFields();
     const empty = doc.blocks.length === 1 && runsLength(doc.blocks[0].runs) === 0 && doc.blocks[0].type === 'paragraph';
     this.root.toggleAttribute('data-empty', empty);
+  }
+
+  /** What a field says, for fields the app knows (page numbers, words…); null for Crumpet's own (dates and times). */
+  fieldValue: ((name: string) => string | null) | null = null;
+
+  /** Shows what each field says now. */
+  fillFields(): void {
+    const now = new Date();
+    this.root.querySelectorAll<HTMLElement>('span.fld').forEach((el) => {
+      const name = el.dataset.field ?? '';
+      const v = this.fieldValue?.(name) ?? fieldValue(name, now);
+      if (el.dataset.v !== v) el.dataset.v = v;
+      el.title = FIELDS[name] ? `${FIELDS[name].replace(/ \(.*\)$/, '')}: updates by itself` : 'Field';
+    });
   }
 
   /** Footnotes are numbered in order through the whole note (or book). */
@@ -348,6 +364,11 @@ function buildBlock(block: Block, marks = false): HTMLElement {
       if (p.ml !== undefined) el.dataset.ml = String(p.ml);
       if (p.mr !== undefined) el.dataset.mr = String(p.mr);
     }
+    if (p.drop && !isList(block.type)) {
+      // A drop cap: the first letter, this many lines tall.
+      el.dataset.drop = String(p.drop);
+      el.style.setProperty('--drop', String(p.drop));
+    }
     if (block.type === 'numbered' && p.num) el.dataset.num = p.num;
     if (block.type === 'bullet' && p.bullet) el.dataset.bullet = BULLETS[p.bullet];
     if (p.border) {
@@ -440,6 +461,14 @@ export function runNode(run: Run, marks = false): Node {
       span.style.fontSize = l.size ? `${l.size * 0.65}pt` : '0.65em';
       span.style.lineHeight = '0';
     }
+    span.appendChild(node);
+    node = span;
+  }
+  if (run.field !== undefined) {
+    // A field: its character in the text, with what it says now drawn over it (filled in by `fillFields`).
+    const span = document.createElement('span');
+    span.className = 'fld';
+    span.dataset.field = run.field;
     span.appendChild(node);
     node = span;
   }

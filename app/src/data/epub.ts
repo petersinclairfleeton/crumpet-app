@@ -3,6 +3,7 @@
 // for Kindle). Pictures and footnotes come along; comments don't, and
 // tracked changes are shown as if accepted.
 
+import { fieldValue } from '@crumpet/editor/fields';
 import { type Block, type Doc, type Run, BULLETS, isList, tidyRows } from '@crumpet/editor/model';
 import { isCovered, mergeAt, tableStyleColors } from '@crumpet/editor/table';
 import { cellRuns } from '@crumpet/editor/cells';
@@ -71,7 +72,7 @@ class Book {
           out += `<a epub:type="noteref" href="#fn${n}-${k}" id="ref${n}-${k}" class="noteref">${k}</a>`;
           continue;
         }
-        let t = esc(r.text).replace(/\n/g, '<br/>').replace(/\t/g, ' ');
+        let t = esc(r.field !== undefined ? fieldValue(r.field) : r.text).replace(/\n/g, '<br/>').replace(/\t/g, ' ');
         const m = r.marks;
         if (m.includes('code')) t = `<code>${t}</code>`;
         if (m.includes('strike')) t = `<s>${t}</s>`;

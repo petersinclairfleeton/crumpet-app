@@ -136,7 +136,7 @@ At the end there's a suggested order for building what's missing.
 | Feature | | Crumpet today |
 |---|---|---|
 | Cover Page | ❌ | |
-| Blank Page | 🟡 | Two page breaks do it; no button. |
+| Blank Page | ✅ | The Blank page button: an empty page at the caret, the rest moved on past it. |
 | Page Break | ✅ | |
 | Insert a table | ✅ | |
 | Draw a table | ❌ | |
@@ -158,11 +158,11 @@ At the end there's a suggested order for building what's missing.
 | Comments | ✅ | |
 | Header, Footer, Page Number | ✅ | Left/centre/right places, fields such as page number, number of pages, chapter title, author, date. |
 | Text Box | ✅ | |
-| Drop Cap | ❌ | |
+| Drop Cap | 🟡 | Dropped, 2 to 5 lines tall; to and from Word. No "in margin" kind, and no font or distance of its own. |
 | Signature Line | ❌ | |
-| Date & Time | ✅ | In a choice of forms. Inserted as text, not a field that updates. |
+| Date & Time | ✅ | In a choice of forms, as text or (Update automatically) a field that shows the day it's read; to and from Word as DATE/TIME fields. |
 | Quick Parts: AutoText, Building Blocks | 🟡 | Templates cover whole notes; no saved snippets to drop in. |
-| Quick Parts: Document Property, Field | 🟡 | Fields exist in headers and footers only, not in the text. |
+| Quick Parts: Document Property, Field | 🟡 | Fields in headers and footers; in the text, date and time fields only. |
 | WordArt | ❌ | |
 | Object (embedded/linked file) | 🟡 | Files can be attached in the text (shown as a chip); not embedded as editable objects. |
 | Text from file (put a whole document into this one) | ❌ | |
@@ -453,9 +453,9 @@ Where: `packages/editor/src/editor.ts` (input), `commands.ts`, `view.ts`;
 - [x] AutoCorrect: curly quotes, em/en dashes, `...` → …, (c) → ©, a typo list (teh → the), capital at a sentence's start; each can be turned off in Settings
 - [x] Show/hide ¶ (spaces, tabs, paragraph ends, breaks)
 - [ ] Tab stops (left, centre, right, decimal, dot leaders) on the ruler and in a Tabs window; to and from Word
-- [ ] Drop cap
-- [ ] Blank page button
-- [ ] Date and time that update (a field), as well as fixed text
+- [x] Drop cap
+- [x] Blank page button
+- [x] Date and time that update (a field), as well as fixed text
 - [ ] Go to page (and footnote, comment, heading)
 - [ ] Next/previous footnote
 - [ ] Spelling settings: own dictionary (character names), ignore all, language

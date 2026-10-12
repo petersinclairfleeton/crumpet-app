@@ -22,7 +22,8 @@
 
 import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { readShapeLine, shapeLine, tidyShape } from './shape';
-import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia } from './model';
+import { isField } from './fields';
+import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -111,7 +112,7 @@ function blockLine(b: Block, number: number): string {
   // Styles, alignment and paragraph settings Markdown has no syntax for go at the end of the line, as {.title .center line=2}.
   const p = b.para;
   const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.colBefore ? 'colbreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined].filter(Boolean);
-  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'shade'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
+  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'shade', 'drop'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
   const attrs = [...classes.map((c) => `.${c}`), ...values];
   return attrs.length ? `${line} {${attrs.join(' ')}}` : line;
 }
@@ -146,7 +147,7 @@ const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
 const KNOWN_STYLES = new Set<string>([...Object.values(BLOCK_STYLES).flat(), 'folded']);
 const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=(?:-?[\d.]+|[a-z][a-z-]*|#[0-9a-fA-F]{6}))[ \t]*)+)\}[ \t]*$/;
 const PARA_FLAGS: Record<string, 'pageBefore' | 'colBefore' | 'keepNext' | 'keepLines'> = { pagebreak: 'pageBefore', colbreak: 'colBefore', keepnext: 'keepNext', keeplines: 'keepLines' };
-const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'cols', 'mt', 'mb', 'ml', 'mr']);
+const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'drop', 'cols', 'mt', 'mb', 'ml', 'mr']);
 const PARA_WORDS = new Set(['num', 'bullet', 'border', 'shade', 'sect', 'orient']);
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */
@@ -233,7 +234,7 @@ function escapeText(text: string): string {
     .replace(/[\\`*_~[\]<>]/g, (c) => `\\${c}`)
     .replace(/&(?=[a-zA-Z#][a-zA-Z0-9]*;)/g, '&amp;')
     .replace(/[\t\n\r]/g, (c) => `&#${c.charCodeAt(0)};`)
-    .replace(/\{(?=[=+-]{2})/g, '\\{');
+    .replace(/\{(?=[=+-]{2}|\{)/g, '\\{');
 }
 
 /** Whitespace at the start or end of a line would be dropped, so it's written as character references. */
@@ -390,6 +391,8 @@ function writeFormatted(runs: Run[], style: Style): string {
     moveTo(formatting(r));
     // A footnote is written in place, as ^[what it says].
     if (r.footnote !== undefined) out += `^[${escapeText(r.footnote.replace(/\s+/g, ' '))}]`;
+    // A field, as {{name}}.
+    else if (r.field !== undefined) out += `{{${r.field}}}`;
     else out += r.marks.includes('code') ? codeSpan(r.text) : escapeText(r.text);
   };
   for (let i = 0; i < runs.length; ) {
@@ -706,6 +709,7 @@ interface TextNode {
   marks: Mark[];
   link?: string;
   footnote?: string;
+  field?: string;
 }
 
 interface Delim {
@@ -781,6 +785,7 @@ export function parseInline(src: string): Run[] {
     const link = node.link ?? links[links.length - 1];
     const run: Run = link ? { text: node.text, marks, link } : { text: node.text, marks };
     if (node.footnote !== undefined) run.footnote = node.footnote;
+    if (node.field !== undefined) run.field = node.field;
     if (notes.length) run.comment = notes[notes.length - 1];
     if (edits.length) run.change = edits[edits.length - 1];
     if (looks.length) run.look = tidyLook(Object.assign({}, ...looks));
@@ -892,6 +897,16 @@ function tokenize(src: string): Node[] {
         const note = decodeEntities(unescape(src.slice(i + 2, end))).trim();
         nodes.push({ kind: 'text', text: FOOTNOTE, marks: [], footnote: note });
         i = end + 1;
+        continue;
+      }
+    }
+    // A field: {{date}}.
+    if (c === '{' && src[i + 1] === '{') {
+      const f = /^\{\{([a-z][a-z-]*)\}\}/.exec(src.slice(i));
+      if (f && isField(f[1])) {
+        flush();
+        nodes.push({ kind: 'text', text: FIELD, marks: [], field: f[1] });
+        i += f[0].length;
         continue;
       }
     }

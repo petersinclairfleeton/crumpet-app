@@ -132,14 +132,14 @@ function editBlock(doc: () => Doc, id: string, target: Block, apply: (op: Op) =>
   }
   const len = b.length;
   const at = (runs: Run[], i: number) => sliceRuns(runs, i, i + 1)[0];
-  // Footnotes whose text changed are replaced.
+  // Footnotes whose text changed, and fields that changed, are replaced.
   for (let i = 0; i < len; i++) {
     cur = getBlock(doc(), id);
     const want = at(target.runs, i);
     const have = at(cur.runs, i);
-    if (want.footnote === have.footnote) continue;
+    if (want.footnote === have.footnote && want.field === have.field) continue;
     apply({ type: 'remove', block: id, offset: i, runs: [have] });
-    apply({ type: 'insert', block: id, offset: i, runs: [withLink({ text: want.text, marks: have.marks, footnote: want.footnote }, have.link ?? null)] });
+    apply({ type: 'insert', block: id, offset: i, runs: [withLink({ text: want.text, marks: have.marks, footnote: want.footnote, field: want.field }, have.link ?? null)] });
   }
   // Formatting, one mark at a time, then links.
   for (const mark of MARK_ORDER) {

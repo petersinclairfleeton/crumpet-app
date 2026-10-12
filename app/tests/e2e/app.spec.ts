@@ -3386,3 +3386,40 @@ test('show/hide ¶: dots for spaces and a ¶ at each paragraph end, from the bar
   await expect(editor).not.toHaveClass(/show-marks/);
   await expect(editor.locator('.mk-sp')).toHaveCount(0);
 });
+
+test('drop cap, a blank page, and a date that updates itself', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Opening', 'Once upon a time there was a lighthouse on a rock, and a keeper who kept its lamp lit every night of the year.');
+  const editor = page.locator('.note-editor');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
+    });
+  // Drop cap: the first letter three lines tall.
+  await (await toolButton(page, 'Drop cap')).click();
+  await page.getByRole('menuitemradio', { name: 'Dropped, 3 lines tall' }).click();
+  await expect(editor.locator('.blk').first()).toHaveAttribute('data-drop', '3');
+  await expect.poll(md).toContain('{drop=3}');
+  // A date that updates: a field, saved as {{date}}, showing today.
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Written on ');
+  await (await toolButton(page, 'Insert date and time')).click();
+  await page.getByLabel('Update automatically').check();
+  const today = await page.evaluate(() => new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }));
+  await page.locator('.menu-item', { hasText: today }).first().click();
+  await expect(editor.locator('span.fld')).toHaveAttribute('data-v', today);
+  await expect.poll(md).toContain('Written on {{date}}');
+  // A blank page: the text after the caret moves on past an empty page.
+  await editor.locator('.blk').first().click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('End');
+  await (await toolButton(page, /Blank page/)).click();
+  await expect.poll(md).toMatch(/lit every night of the year\. \{drop=3\}\n\n&nbsp; \{\.pagebreak\}\n\n&nbsp; \{\.pagebreak\}\n\nWritten on \{\{date\}\}/);
+});

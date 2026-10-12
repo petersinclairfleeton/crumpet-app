@@ -15,6 +15,13 @@ export interface Run {
    * character, shown as its number; it never merges with its neighbours.
    */
   footnote?: string;
+  /**
+   * A field (Word's Insert > Date and Time with "update automatically", and
+   * the like): a run of its own holding one FIELD character, shown as what
+   * the field says now (`date`, `date-full`, `date-short`, `date-iso`,
+   * `month`, `time`, `datetime`). It never merges with its neighbours.
+   */
+  field?: string;
   /** A comment on this text (the same comment on every run it covers). */
   comment?: Comment;
   /** With track changes: this text was added, or deleted (still shown, struck through, until accepted). */
@@ -112,6 +119,8 @@ export function sameComment(a: Comment | undefined, b: Comment | undefined): boo
 
 /** The character a footnote's marker stands on in the text (invisible; the number is drawn instead). */
 export const FOOTNOTE = '\u2063';
+/** The character a field stands on in the text (shown as the field's value). */
+export const FIELD = '\u2062';
 
 export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote' | 'image' | 'file' | 'table' | 'toc' | 'shape' | 'code';
 
@@ -267,6 +276,8 @@ export interface ParaLook {
   border?: string;
   /** Shading behind the paragraph, as #rrggbb. */
   shade?: string;
+  /** Word's Drop Cap: the first letter is this many lines tall (2 to 10), dropped into the text. */
+  drop?: number;
   /**
    * A section break before this paragraph (Word's Breaks > Section Breaks):
    * the new section starts on a new page, or carries on down the same one.
@@ -282,7 +293,7 @@ export interface ParaLook {
   mr?: number;
 }
 export type ParaKey = keyof ParaLook;
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'drop', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -306,6 +317,7 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
     else if (v === true) (out as Record<string, unknown>)[k] = true;
   }
   if (out.start !== undefined) out.start = Math.max(0, Math.round(out.start));
+  if (out.drop !== undefined) out.drop = Math.max(2, Math.min(10, Math.round(out.drop)));
   if (p.num && (NUM_FORMATS as readonly string[]).includes(p.num)) out.num = p.num;
   if (p.bullet && p.bullet in BULLETS) out.bullet = p.bullet;
   const border = tidyBorder(p.border);
@@ -379,6 +391,7 @@ export function withText(r: Run, text: string): Run {
   const out: Run = { text, marks: r.marks };
   if (r.link) out.link = r.link;
   if (r.footnote !== undefined) out.footnote = r.footnote;
+  if (r.field !== undefined) out.field = r.field;
   if (r.comment) out.comment = r.comment;
   if (r.change) out.change = r.change;
   const look = tidyLook(r.look);
@@ -387,7 +400,7 @@ export function withText(r: Run, text: string): Run {
 }
 
 export function sameFormat(a: Run, b: Run): boolean {
-  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && sameComment(a.comment, b.comment) && sameChange(a.change, b.change) && sameLook(a.look, b.look);
+  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && a.field === b.field && sameComment(a.comment, b.comment) && sameChange(a.change, b.change) && sameLook(a.look, b.look);
 }
 
 /** Drops empty runs and merges neighbours with identical formatting. */
@@ -396,7 +409,7 @@ export function normalizeRuns(runs: Run[]): Run[] {
   for (const r of runs) {
     if (!r.text) continue;
     const last = out[out.length - 1];
-    if (last && sameFormat(last, r) && last.footnote === undefined) {
+    if (last && sameFormat(last, r) && last.footnote === undefined && last.field === undefined) {
       out[out.length - 1] = withText(last, last.text + r.text);
     } else {
       out.push(withText({ ...r, marks: sortMarks(r.marks) }, r.text));
@@ -489,7 +502,7 @@ export function setLinkOnRuns(runs: Run[], link: string | null): Run[] {
 
 /** A copy of `r` with a different link (or none). */
 export function withLink(r: Run, link: string | null): Run {
-  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, comment: r.comment, change: r.change, look: r.look }, r.text);
+  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, field: r.field, comment: r.comment, change: r.change, look: r.look }, r.text);
   if (link) out.link = link;
   return out;
 }
@@ -498,7 +511,7 @@ export function withLink(r: Run, link: string | null): Run {
 export function setCommentOnRuns(runs: Run[], comment: Comment | null): Run[] {
   return normalizeRuns(
     runs.map((r) => {
-      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, change: r.change, look: r.look }, r.text);
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, field: r.field, change: r.change, look: r.look }, r.text);
       if (comment) out.comment = comment;
       return out;
     }),
@@ -509,7 +522,7 @@ export function setCommentOnRuns(runs: Run[], comment: Comment | null): Run[] {
 export function setChangeOnRuns(runs: Run[], change: Change | null): Run[] {
   return normalizeRuns(
     runs.map((r) => {
-      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, comment: r.comment, look: r.look }, r.text);
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, field: r.field, comment: r.comment, look: r.look }, r.text);
       if (change) out.change = change;
       return out;
     }),
