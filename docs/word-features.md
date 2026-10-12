@@ -439,79 +439,188 @@ build. Unless it's listed under "Not wanted", it's wanted.
 - **Compatibility checker**: wanted, as a check of what won't survive when a
   document goes to Word.
 
-### Wanted, in a suggested order to build
+### Wanted: the build list
 
-Each group is one pull request or a few. Everyday writing first, then
-reviewing, then the bigger and more specialised jobs.
+Work through these groups in order, one pull request per group (or per few
+items when a group is big), as `CLAUDE.md` describes. In the same pull
+request: tick the item here (`[x]`), change its line in the tables above to
+✅ (or 🟡 with what's still missing), and update the welcome guide. "Where"
+points to the code to start from.
 
 **1. Everyday writing**
-AutoCorrect (curly quotes, dashes, …, ©, a typo list, capitals); show/hide ¶;
-tab stops and the Tabs window; drop cap; blank page button; date that updates;
-go to page; next/previous footnote; spelling settings (own dictionary,
-ignore all, language).
+Where: `packages/editor/src/editor.ts` (input), `commands.ts`, `view.ts`;
+`app/src/ui/paratools.tsx`, `inserttools.tsx`, `ruler.tsx`, `statusbar.tsx`.
+- [ ] AutoCorrect: curly quotes, em/en dashes, `...` → …, (c) → ©, a typo list (teh → the), capital at a sentence's start; each can be turned off in Settings
+- [ ] Show/hide ¶ (spaces, tabs, paragraph ends, breaks)
+- [ ] Tab stops (left, centre, right, decimal, dot leaders) on the ruler and in a Tabs window; to and from Word
+- [ ] Drop cap
+- [ ] Blank page button
+- [ ] Date and time that update (a field), as well as fixed text
+- [ ] Go to page (and footnote, comment, heading)
+- [ ] Next/previous footnote
+- [ ] Spelling settings: own dictionary (character names), ignore all, language
 
 **2. Pictures**
-Resize; wrap, move and rotate; crop (to shape and ratio); separate alt text;
-change/reset; picture styles and borders; corrections, colour, transparency;
-remove background; compress.
+Where: `view.ts` (`buildMedia`), `model.ts` (image blocks), `markdown.ts`, `app/src/data/docx.ts`; follow `shape.ts` for wrap, drag and turning.
+- [ ] Resize by dragging a corner
+- [ ] Wrap text round them, move anywhere, rotate (as shapes do)
+- [ ] Crop, to a shape and to a ratio
+- [ ] Alt text of its own, apart from the caption
+- [ ] Change picture, reset picture
+- [ ] Picture styles: frames, shadows, rounded corners, borders
+- [ ] Corrections: brightness, contrast, colour, transparency, artistic effects
+- [ ] Remove background
+- [ ] Compress on request
 
 **3. Reviewing**
-Markup views; reviewing pane; previous/next change and comment; keep resolved
-comments; track just mine; lock tracking; show markup by person; @ names in
-comments; combine copies.
+Where: `app/src/ui/changes.tsx`, `comments.tsx`, `rightside.tsx`, `comparedocs.tsx`; `model.ts` (`Comment`, `Change`); `docx.ts`.
+- [ ] Markup views: Simple, All Markup, No Markup, Original
+- [ ] Reviewing pane: every change and comment listed, with who and when
+- [ ] Previous/next change; previous/next comment
+- [ ] Resolved comments kept (greyed out, reopen), also to and from Word
+- [ ] Track just my changes, or everyone's
+- [ ] Lock tracking (with a password)
+- [ ] Show markup by kind and by person
+- [ ] @ names in comments (a label only; nothing is sent)
+- [ ] Combine several reviewers' copies into one
 
 **4. Fonts and paragraphs**
-Small caps, all caps, double strikethrough, hidden text; underline styles;
-character spacing and kerning; ligatures and number styles; text effects;
-paste options menu; clipboard history; multilevel list gallery; sort
-paragraphs; paragraph border styles; widow/orphan switch.
+Where: `model.ts` (`Look`, `Mark`, `ParaLook`), `markdown.ts`, `docx.ts`, `app/src/ui/fonttools.tsx`, `listtools.tsx`, `paratools.tsx`.
+- [ ] Small caps, all caps, double strikethrough, hidden text
+- [ ] Underline styles (double, dotted, dashed, wavy, coloured)
+- [ ] A Font window: character spacing and kerning
+- [ ] Ligatures and number styles (OpenType)
+- [ ] Text effects (outline, shadow, glow, reflection)
+- [ ] Paste options menu after pasting (keep, merge, text only)
+- [ ] Clipboard history
+- [ ] Multilevel list gallery, and defining your own
+- [ ] Sort paragraphs
+- [ ] Paragraph border styles (dashed, double, thickness, colour)
+- [ ] Widow/orphan control switch per paragraph
 
 **5. Styles, find and selecting**
-Create your own styles; reveal formatting; manage styles; set as default;
-advanced find (wildcards, formatting, special characters); find results
-list; select similar formatting; selection pane.
+Where: `app/src/data/styles.ts`, `ui/stylespane.tsx`, `ui/styles-ui.tsx`, `ui/find.tsx`, `packages/editor/src/find.ts`.
+- [ ] Create your own styles
+- [ ] Reveal formatting (Style Inspector)
+- [ ] Manage styles: copy between documents, hide, order
+- [ ] Set as default for new documents
+- [ ] Advanced find: wildcards, formatting, special characters
+- [ ] Find results list with the words around each match
+- [ ] Select text with similar formatting
+- [ ] Selection pane (shapes, pictures, text boxes)
 
 **6. Tables**
-Paragraphs in cells; cell alignment (per cell, top/middle/bottom); repeat
-header rows; row heights; distribute evenly; cell margins; text direction;
-border styles and border painter; more table style options; convert text to
-table and back; sort; formulas; draw a table; quick tables.
+Where: `packages/editor/src/table.ts`, `cells.ts`, `view.ts` (the Table menu), `paginate.ts`, `markdown.ts`, `docx.ts`.
+- [ ] Several paragraphs, lists or pictures in a cell
+- [ ] Cell alignment per cell, and top/middle/bottom
+- [ ] Repeat the heading row on each page
+- [ ] Row heights
+- [ ] Distribute rows/columns evenly
+- [ ] Cell margins
+- [ ] Text direction in cells
+- [ ] Border styles per cell, and the border painter
+- [ ] Table style options: first column, last column, total row, banded columns
+- [ ] Convert text to table, and table to text
+- [ ] Sort a table
+- [ ] Formulas (=SUM and friends)
+- [ ] Draw a table
+- [ ] Quick tables (calendars, lists, matrix)
 
 **7. Book and non-fiction tools**
-Endnotes (and keeping Word files' endnotes); contents options; numbered
-captions; table of figures; cross-references; bookmarks in the text; index;
-citations, sources and bibliography; web search in the sidebar; fields in the
-text; saved snippets; text from file.
+Where: `model.ts` (footnotes), `paginate.ts`, `app/src/ui/booktoc.ts`, `footnotes.tsx`, `print.tsx`, `docx.ts`, `epub.ts`.
+- [ ] Endnotes, turning footnotes into endnotes, and keeping a Word file's endnotes (their text is lost on import today: `docx.ts`, `endnoteReference`)
+- [ ] Contents options: levels, Add Text, contents styles
+- [ ] Numbered captions (Figure 1, Table 2)
+- [ ] Table of figures
+- [ ] Cross-references that update
+- [ ] Bookmarks on any spot of the text, and links to them
+- [ ] Index: mark entries, insert the index
+- [ ] Citations, sources and a bibliography (APA, MLA, Chicago…)
+- [ ] Web search in the right sidebar (Wikipedia, the web), into research
+- [ ] Fields in the text (page, words, title, author…)
+- [ ] Saved snippets (AutoText / Building Blocks)
+- [ ] Text from file (another document poured in at the caret)
 
 **8. Page layout and design**
-Hyphenation; headers per section; header distance; odd/even section breaks;
-custom paper sizes per section; line numbers; text wrapping break; watermark;
-page colour saved in the document; page borders; cover pages; document
-themes, theme colours and fonts; paragraph spacing presets; design effects.
+Where: `paginate.ts`, `app/src/ui/pagesetup.tsx`, `layouttools.tsx`, `pages.tsx`, `headers.tsx`, `data/headers.ts`, `data/styles.ts`, `print.tsx`, `docx.ts`.
+- [ ] Hyphenation (automatic and manual)
+- [ ] Headers and footers per section (Link to Previous)
+- [ ] Header and footer distance from the edge
+- [ ] Odd page / even page section breaks
+- [ ] Custom paper sizes, and size per section
+- [ ] Line numbers
+- [ ] Text wrapping break
+- [ ] Watermark (text or picture)
+- [ ] Page colour saved in the document, printed and sent to Word
+- [ ] Page borders
+- [ ] Cover pages
+- [ ] Document themes; theme colours and fonts menus
+- [ ] Paragraph spacing presets
+- [ ] Design effects
 
 **9. Shapes and arranging**
-Wrap behind / tight; position on the page; bring forward/back; align and
-group; more shapes; shape styles; fill and line options; shape effects; more
-text in shapes; text direction in shapes; linked text boxes; edit points;
-icons; convert icons to shapes; gridlines.
+Where: `packages/editor/src/shape.ts`, `view.ts` (the Shape menu), `paginate.ts`, `docx.ts`.
+- [ ] Wrap behind the text, tight, top and bottom
+- [ ] Position from the page's corner or margins
+- [ ] Bring forward / send backward
+- [ ] Align and group
+- [ ] More shapes (stars, callouts, banners, flowchart, block arrows)
+- [ ] Shape styles gallery
+- [ ] Fill and line options: gradients, picture fill, thickness, dashes, arrowheads
+- [ ] Shape effects (shadow, glow, soft edges, 3D)
+- [ ] Several paragraphs and lists in a shape
+- [ ] Text direction in shapes
+- [ ] Linked text boxes
+- [ ] Edit points
+- [ ] Icons library; convert icons and SVGs to shapes
+- [ ] Gridlines
 
 **10. Views and windows**
-Word-style outline view; multiple pages zoom; side-to-side pages; page
-thumbnails; immersive reader spacing; syllables and picture dictionary; new
-window; synchronous scrolling.
+Where: `app/src/ui/pages.tsx`, `statusbar.tsx`, `NotePane.tsx` (reading view), `panes.tsx`, `rightside.tsx`.
+- [ ] Word-style outline view (promote, demote, drag)
+- [ ] One page / multiple pages zoom
+- [ ] Side-to-side pages (like a book)
+- [ ] Page thumbnails in the navigation pane
+- [ ] Immersive reader: letter, word and line spacing, column width
+- [ ] Syllables, parts of speech, picture dictionary
+- [ ] New window on the same document
+- [ ] Synchronous scrolling of two panes
 
 **11. Checking and files**
-Accessibility checker; compatibility checker; document inspector; spelling
-pass; clarity suggestions; inclusive language; grammar checking (needs an
-outside service); more download types (.odt, .rtf, .html, .txt); Crumpet's
-own print screen; password protection; read-only; mark as final; digital
-signature.
+Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.tsx`, `data/documents.ts`.
+- [ ] Accessibility checker
+- [ ] Compatibility checker (what won't survive in Word)
+- [ ] Document inspector (comments, changes, authors, hidden text)
+- [ ] Spelling pass with suggestions
+- [ ] Clarity suggestions (from the Writing tab's highlights, plus wordy phrases)
+- [ ] Inclusive language
+- [ ] Grammar checking (needs an outside service such as LanguageTool: ask Peter first)
+- [ ] More download types: .odt, .rtf, .html, .txt
+- [ ] Crumpet's own print screen (preview, page ranges, copies)
+- [ ] Password protection
+- [ ] Read-only / restrict editing
+- [ ] Mark as final
+- [ ] Digital signature
 
 **12. Bigger additions**
-Equations: toolbar of structures, symbols palette, equations within a line,
-UnicodeMath and handwriting. Charts; screenshot; online video; online
-pictures; embedded objects; form controls; spreadsheet in a document; 3D
-models. The Draw tab: pen drawing, ink to shape and maths, ink editing
-gestures, drawing canvas. Macros. Customise the toolbar; add-ins; feedback
-button; contact support; what's new; OneDrive connection (needs an app key
-from Microsoft).
+- [ ] Equation toolbar (fractions, scripts, roots, integrals, matrices)
+- [ ] Maths symbols palette
+- [ ] Equations within a line
+- [ ] UnicodeMath, and handwritten maths
+- [ ] Charts from a table of numbers
+- [ ] Screenshot
+- [ ] Online video (YouTube links play in the text)
+- [ ] Online pictures (needs a picture service's key: ask Peter first)
+- [ ] Embedded objects
+- [ ] Form controls (drop-downs, date pickers, fill-in boxes)
+- [ ] Spreadsheet in a document
+- [ ] 3D models
+- [ ] Draw tab: pen, pencil, highlighter, eraser, lasso (finger, mouse, Apple Pencil)
+- [ ] Ink to shape and maths, ink replay
+- [ ] Ink editing gestures
+- [ ] Drawing canvas in a document
+- [ ] Macros (record and play back)
+- [ ] Customise the formatting bar
+- [ ] Add-ins
+- [ ] Feedback button; contact support; what's new
+- [ ] OneDrive connection (needs an app key from Microsoft: ask Peter first)
