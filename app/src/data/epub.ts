@@ -63,6 +63,44 @@ class Book {
   /** A chapter's text as XHTML, with its footnotes gathered at the end. */
   async chapter(doc: Doc, n: number): Promise<string> {
     const notes: string[] = [];
+    // Captions' numbers count up through the chapter; cross-references show the caption (or text) of their bookmark.
+    const seq = new Map<string, number>();
+    const refs = new Map<string, string>();
+    {
+      const count = new Map<string, number>();
+      for (const b of doc.blocks) {
+        let caption = '';
+        let text = '';
+        const marks: string[] = [];
+        for (const r of b.runs) {
+          if (r.change?.kind === 'del' || r.footnote !== undefined) continue;
+          if (r.field?.startsWith('seq:')) {
+            const l = r.field.slice(4);
+            const k = (count.get(l) ?? 0) + 1;
+            count.set(l, k);
+            caption ||= `${l} ${k}`;
+            text += String(k);
+          } else if (r.field?.startsWith('bm:')) marks.push(r.field.slice(3));
+          else if (r.field === undefined) text += r.text;
+        }
+        for (const m of marks) refs.set(m, caption || text.trim().slice(0, 60));
+      }
+    }
+    const shown = (name: string): string => {
+      if (name.startsWith('seq:')) {
+        const l = name.slice(4);
+        const k = (seq.get(l) ?? 0) + 1;
+        seq.set(l, k);
+        return String(k);
+      }
+      if (name.startsWith('ref:')) {
+        const [, target, how] = name.split(':');
+        return how === 'page' ? '' : how === 'dir' ? (refs.has(target) ? 'here' : '') : (refs.get(target) ?? '');
+      }
+      if (name === 'title') return this.opts.title;
+      if (name === 'author') return this.opts.author ?? '';
+      return fieldValue(name);
+    };
     const runs = (list: Run[]): string => {
       let out = '';
       for (const r of list) {
@@ -73,7 +111,7 @@ class Book {
           out += `<a epub:type="noteref" href="#fn${n}-${k}" id="ref${n}-${k}" class="noteref">${k}</a>`;
           continue;
         }
-        let t = esc(r.field !== undefined ? fieldValue(r.field) : r.text).replace(/\n/g, '<br/>').replace(/\t/g, ' ');
+        let t = esc(r.field !== undefined ? shown(r.field) : r.text).replace(/\n/g, '<br/>').replace(/\t/g, ' ');
         const m = r.marks;
         if (m.includes('code')) t = `<code>${t}</code>`;
         if (m.includes('strike')) t = `<s>${t}</s>`;

@@ -47,7 +47,8 @@ describe('fields', () => {
     expect(fieldFromWord(' DATE \\@ "MMMM d, yyyy" ')).toBe('date');
     expect(fieldFromWord(' DATE ')).toBe('date-short');
     expect(fieldFromWord(' DATE \\@ "d/M/yyyy h:mm am/pm" ')).toBe('datetime');
-    expect(fieldFromWord(' PAGE ')).toBeNull();
+    expect(fieldFromWord(' PAGE ')).toBe('page');
+    expect(fieldFromWord(' FILENAME ')).toBeNull();
   });
 });
 

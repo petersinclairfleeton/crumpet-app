@@ -43,7 +43,7 @@ describe('Word: drop caps and date fields', () => {
       r('<w:fldChar w:fldCharType="end"/>') +
       r('<w:t xml:space="preserve">, page </w:t>') +
       r('<w:fldChar w:fldCharType="begin"/>') +
-      r('<w:instrText> PAGE </w:instrText>') +
+      r('<w:instrText> FILENAME </w:instrText>') +
       r('<w:fldChar w:fldCharType="separate"/>') +
       r('<w:t>4</w:t>') +
       r('<w:fldChar w:fldCharType="end"/>') +

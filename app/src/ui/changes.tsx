@@ -4,6 +4,7 @@
 // or for everyone who edits the document (saved in it), and can be locked
 // with a password so it can't be turned off, nor changes accepted or rejected.
 
+import { useTocOptions } from './references';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
@@ -50,6 +51,7 @@ export function useTracking(editor: Editor | null): void {
     if (editor) editor.revisionColor = color;
   }, [editor, color]);
   useSpelling(editor);
+  useTocOptions(editor);
   usePictureActions(editor);
   useClipboard(editor);
   // Markup view: how changes and comments are shown.

@@ -2859,6 +2859,95 @@ test('advanced find (wildcards, formatting, results), text with similar formatti
   await expect(page.locator('.note-editor .blk-shape')).toBeVisible();
 });
 
+test('references: numbered captions, cross-references, bookmarks, a table of figures, an index, fields, and contents options', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Lights', 'The lighthouse stands alone.');
+  const refs = async (item: string) => {
+    await (await toolButton(page, 'References')).click();
+    await page.getByRole('button', { name: item, exact: true }).click();
+  };
+  // Two captions, numbered by themselves.
+  await refs('Insert caption…');
+  let dialog = page.getByRole('dialog', { name: 'Insert caption' });
+  await dialog.getByLabel('Caption text').fill('The lamp');
+  await expect(dialog.getByLabel('Preview')).toHaveText('Figure 1: The lamp');
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  const blks = page.locator('.note-editor .blk');
+  await expect(blks.nth(1)).toHaveAttribute('data-style', 'caption');
+  await expect(blks.nth(1).locator('span.fld')).toHaveAttribute('data-v', '1');
+  await refs('Insert caption…');
+  dialog = page.getByRole('dialog', { name: 'Insert caption' });
+  await dialog.getByLabel('Caption text').fill('The stairs');
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  await expect(blks.nth(2).locator('span.fld')).toHaveAttribute('data-v', '2');
+  // A cross-reference to the second, which renumbers when a figure goes before it.
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('See ');
+  await refs('Cross-reference…');
+  dialog = page.getByRole('dialog', { name: 'Cross-reference' });
+  await dialog.getByRole('option', { name: 'Figure 2: The stairs' }).click();
+  await dialog.getByRole('button', { name: 'Insert' }).click();
+  const ref = page.locator('.note-editor span.fld[data-target]');
+  await expect(ref).toHaveAttribute('data-v', 'Figure 2');
+  // A bookmark, and a field counting the words.
+  await page.keyboard.type('. ');
+  await refs('Bookmark…');
+  dialog = page.getByRole('dialog', { name: 'Bookmark' });
+  await dialog.getByLabel('Bookmark name').fill('here');
+  await dialog.getByRole('button', { name: 'Add' }).click();
+  await refs('Field…');
+  dialog = page.getByRole('dialog', { name: 'Field' });
+  await dialog.getByRole('option', { name: 'Number of words' }).click();
+  await dialog.getByRole('button', { name: 'Insert' }).click();
+  await expect(blks.nth(3).locator('span.fld[data-field="words"]')).toHaveAttribute('data-v', /^\d+$/);
+  // Index entries and the index; a table of figures.
+  await blks.first().click();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('ControlOrMeta+ArrowRight');
+  await page.keyboard.press('ControlOrMeta+Shift+ArrowRight');
+  await refs('Mark index entry…');
+  dialog = page.getByRole('dialog', { name: 'Mark index entry' });
+  await expect(dialog.getByLabel('Main entry')).toHaveValue('lighthouse');
+  await dialog.getByRole('button', { name: 'Mark', exact: true }).click();
+  await page.locator('.note-editor .blk').last().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await refs('Table of figures');
+  const figures = page.locator('.note-editor .blk-toc').first();
+  await expect(figures.locator('.toc-entry .toc-text')).toHaveText(['Figure 1: The lamp', 'Figure 2: The stairs']);
+  await refs('Insert index');
+  const index = page.locator('.note-editor .blk-toc').last();
+  await expect(index.locator('.toc-title')).toContainText('Index');
+  await expect(index.locator('.toc-entry .toc-text')).toHaveText(['lighthouse']);
+  // The figures list's options: no page numbers, a title of its own.
+  await figures.hover();
+  await figures.getByRole('button', { name: 'Table of figures options' }).click();
+  dialog = page.getByRole('dialog', { name: 'Table of figures' });
+  await dialog.getByLabel('Title').fill('Pictures');
+  await dialog.getByLabel(/Show page numbers/).uncheck();
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  await expect(figures.locator('.toc-title')).toContainText('Pictures');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toContain('[TOC figures="Figure" .nopages title="Pictures"]');
+  await expect.poll(md).toContain('{{xe:lighthouse}}');
+  await expect.poll(md).toMatch(/See \{\{ref:_Ref\d+\}\}\. \{\{bm:here\}\}\{\{words\}\}/);
+  // A new figure at the top: the cross-reference now says Figure 3.
+  await blks.first().click();
+  await page.keyboard.press('End');
+  await refs('Insert caption…');
+  dialog = page.getByRole('dialog', { name: 'Insert caption' });
+  await dialog.getByLabel('Caption text').fill('The cliff');
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  await expect(ref).toHaveAttribute('data-v', 'Figure 3');
+});
+
 test('a book’s table of contents lists every chapter with its page, and the headings in them, and opens one', async ({ page }) => {
   await open(page);
   await page.evaluate(async () => {

@@ -153,8 +153,8 @@ At the end there's a suggested order for building what's missing.
 | Screenshot / screen clipping | ❌ | |
 | Online Video | 🟡 | Uploaded video files play; no YouTube or web video in the text. |
 | Link | ✅ | Web links and [[note links]]. |
-| Bookmark (a place in the text to link to) | 🟡 | Headings can be bookmarked in the sidebar; no bookmark on any spot of the text, no links to it. |
-| Cross-reference ("see page 12", "see Figure 3") | ❌ | |
+| Bookmark (a place in the text to link to) | ✅ | References → Bookmark…: any spot, named; go to it, delete it, link to it (the link box lists them, Ctrl+click follows). To and from Word. |
+| Cross-reference ("see page 12", "see Figure 3") | ✅ | References → Cross-reference…: to a heading, caption or bookmark, as its number, its text, its page (page view) or above/below; updates by itself. |
 | Comments | ✅ | |
 | Header, Footer, Page Number | ✅ | Left/centre/right places, fields such as page number, number of pages, chapter title, author, date. |
 | Text Box | ✅ | |
@@ -162,7 +162,7 @@ At the end there's a suggested order for building what's missing.
 | Signature Line | ❌ | |
 | Date & Time | ✅ | In a choice of forms, as text or (Update automatically) a field that shows the day it's read; to and from Word as DATE/TIME fields. |
 | Quick Parts: AutoText, Building Blocks | 🟡 | Templates cover whole notes; no saved snippets to drop in. |
-| Quick Parts: Document Property, Field | 🟡 | Fields in headers and footers; in the text, date and time fields only. |
+| Quick Parts: Document Property, Field | ✅ | References → Field…: page, number of pages, words, characters, title, author, date created and saved, besides dates and times. To and from Word as field codes. |
 | WordArt | ❌ | |
 | Object (embedded/linked file) | 🟡 | Files can be attached in the text (shown as a chip); not embedded as editable objects. |
 | Text from file (put a whole document into this one) | ❌ | |
@@ -222,17 +222,17 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Table of contents: insert | ✅ | With page numbers; in a project it lists the whole book. |
 | Table of contents: update | ✅ | Updates by itself. |
-| Table of contents: Add Text (include a paragraph) | 🟡 | Only headings are included. No choice of levels or styles of contents. |
+| Table of contents: Add Text (include a paragraph) | ✅ | References → Add text to the contents (level 1–4, or a heading left out); the contents' ⚙: levels shown, title, page numbers, dotted leaders. |
 | Footnote | ✅ | Numbered through the whole book. |
 | Endnote | ❌ | A Word file's endnotes come in as empty footnote numbers: their text is lost. |
 | Next Footnote, Show Notes | ✅ | Footnotes are listed under the note, with Previous and Next footnote (also in the command palette and Go To). |
 | Research: Search, Researcher | 🟡 | Research notes beside the writing, web clipper, thesaurus and definitions; no searching the web from inside Crumpet. |
 | Insert Citation, Manage Sources | ❌ | |
 | Citation styles (APA, MLA, Chicago), Bibliography | ❌ | |
-| Insert Caption | 🟡 | Pictures have captions, and there's a Caption style; no automatic numbering ("Figure 3"). |
-| Table of Figures | ❌ | |
-| Cross-reference | ❌ | |
-| Index: Mark Entry, Insert Index | ❌ | |
+| Insert Caption | ✅ | References → Insert caption…: Figure, Table, Equation or a label of your own, numbered by itself (a picture's own caption, or a line above or below a table or paragraph). |
+| Table of Figures | ✅ | References → Table of figures: the captions of one label, with their pages in page view. |
+| Cross-reference | ✅ | See above (Insert tab). |
+| Index: Mark Entry, Insert Index | ✅ | References → Mark index entry… (an entry, or one under another; or every place the words appear) and Insert index (A to Z, with every page in page view). |
 | Table of Authorities | ❌ | |
 
 ## Mailings
@@ -529,15 +529,15 @@ Where: `packages/editor/src/table.ts`, `cells.ts`, `view.ts` (the Table menu), `
 **7. Book and non-fiction tools**
 Where: `model.ts` (footnotes), `paginate.ts`, `app/src/ui/booktoc.ts`, `footnotes.tsx`, `print.tsx`, `docx.ts`, `epub.ts`.
 - [ ] Endnotes, turning footnotes into endnotes, and keeping a Word file's endnotes (their text is lost on import today: `docx.ts`, `endnoteReference`)
-- [ ] Contents options: levels, Add Text, contents styles
-- [ ] Numbered captions (Figure 1, Table 2)
-- [ ] Table of figures
-- [ ] Cross-references that update
-- [ ] Bookmarks on any spot of the text, and links to them
-- [ ] Index: mark entries, insert the index
+- [x] Contents options: levels, Add Text, contents styles
+- [x] Numbered captions (Figure 1, Table 2)
+- [x] Table of figures
+- [x] Cross-references that update
+- [x] Bookmarks on any spot of the text, and links to them
+- [x] Index: mark entries, insert the index
 - [ ] Citations, sources and a bibliography (APA, MLA, Chicago…)
 - [ ] Web search in the right sidebar (Wikipedia, the web), into research
-- [ ] Fields in the text (page, words, title, author…)
+- [x] Fields in the text (page, words, title, author…)
 - [ ] Saved snippets (AutoText / Building Blocks)
 - [ ] Text from file (another document poured in at the caret)
 

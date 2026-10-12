@@ -138,7 +138,8 @@ export function styleDefFor(sheet: StyleSheet, key: string): StyleDef {
 
 /** A style's name by its key, a style of one's own included. */
 export function styleNameIn(sheet: StyleSheet, key: string): string {
-  return sheet.custom?.find((c) => c.id === key)?.name ?? styleName(key as StyleKey);
+  const OTHER: Record<string, string> = { toc: 'Contents', table: 'Table', image: 'Picture', file: 'File', shape: 'Shape', code: 'Maths or diagram' };
+  return sheet.custom?.find((c) => c.id === key)?.name ?? OTHER[key] ?? styleName(key as StyleKey);
 }
 
 /** The key for a new style of one's own named `name`, unlike any in the sheet. */

@@ -39,6 +39,10 @@ import {
   type BulletKind,
   type CodeLook,
   lookAt,
+  type Run,
+  newId,
+  type TocLook,
+  tidyToc,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
 import { type CellAlign, type CellLook, type TableBorders, type TableLook, type TableShape, isTableStyle, addCol, addRow, alignCol, deleteCol, deleteRow, distributeCols, distributeRows, mergeAt, mergeCells, setCellLooks, setRowHeight, setTableLook, setWidths, shadeCell, sortTable, splitCell } from './table';
@@ -184,6 +188,11 @@ export class Editor {
     const sel = this.keepSelection();
     this.paged = !!geometry;
     this.paginator.set(geometry);
+    if (!geometry) {
+      this.view.pageOfBlock = null;
+      this.view.pageCount = 1;
+      this.view.fillFields();
+    }
     sel();
     this.emit(null);
   }
@@ -273,6 +282,27 @@ export class Editor {
     this.view.footnoteStart = n;
     this.view.numberFootnotes();
     this.emit(null);
+  }
+
+  /** A table of contents' options button was clicked (the app shows its settings). */
+  onTocOptions: ((id: string) => void) | null = null;
+
+  /** Changes a table of contents' settings (levels, title, page numbers, dotted leaders; or what kind of list it is). */
+  setTocLook(id: string, look: TocLook | undefined): void {
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!blk || blk.type !== 'toc' || this.isReadOnly) return;
+    const to = attrsOf({ ...blk, tocl: tidyToc(look) });
+    if (JSON.stringify(to) === JSON.stringify(attrsOf(blk))) return;
+    this.dispatch({ ops: [{ type: 'setAttrs', block: id, from: attrsOf(blk), to }], selectionBefore: this.state.selection, selectionAfter: this.state.selection, kind: 'other' }, 'command');
+  }
+
+  /** Puts a table of contents of `kind` (a table of figures of captions labelled `label`, an index, a bibliography) at the caret. */
+  insertList(look: TocLook): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(insertToc(this.state), 'command');
+    const toc = this.state.doc.blocks.find((b, i, all) => b.type === 'toc' && all[i + 1]?.id === this.state.selection.focus.block);
+    if (toc) this.setTocLook(toc.id, look);
   }
 
   /** A line of the table of contents for something not in this document (another chapter) was clicked. */
@@ -408,6 +438,13 @@ export class Editor {
     this.state = { doc, selection: caret({ block: first.id, offset: 0 }), storedMarks: null };
     this.view = new View(root);
     this.paginator = new Paginator(root);
+    // Page numbers in fields (page, cross-references) once the pages are laid out.
+    this.paginator.onLaidOut = () => {
+      this.view.pageOfBlock = (id) => this.paginator.pageOf.get(id);
+      this.view.pageCount = this.paginator.pages;
+      this.view.pageOffset = this.paginator.pageOffset;
+      this.view.fillFields();
+    };
     this.draw(doc);
 
     const signal = this.listening.signal;
@@ -1479,6 +1516,114 @@ export class Editor {
     el?.scrollIntoView({ block: 'center' });
   }
 
+  /**
+   * Word's Insert Caption: "Figure 1: text", numbered by a seq field that
+   * counts up through the text. A picture at the caret gets it as its
+   * caption; a table (the caret on the line after it) gets a caption line
+   * above or below it; otherwise it's a line after the caret's paragraph.
+   */
+  insertCaption(label: string, text: string, where: 'above' | 'below' = 'below'): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    const runs: Run[] = [{ text: `${label} `, marks: [] }, { text: FIELD, marks: [], field: `seq:${label}` }, ...(text ? [{ text: `: ${text}`, marks: [] as Mark[] }] : [])];
+    const here = this.currentBlock();
+    if (here.type === 'image') {
+      // Its caption, numbered (what it said already stays after the number, unless there's new text).
+      const old = runsText(here.runs).trim();
+      const all = text || !old ? runs : [...runs, { text: `: ${old}`, marks: [] as Mark[] }];
+      const ops: Op[] = [];
+      if (here.runs.length) ops.push({ type: 'remove', block: here.id, offset: 0, runs: here.runs });
+      ops.push({ type: 'insert', block: here.id, offset: 0, runs: all });
+      this.dispatch({ ops, selectionBefore: this.state.selection, selectionAfter: caret({ block: here.id, offset: runsLength(all) }), kind: 'other' }, 'command');
+      return;
+    }
+    const table = this.currentTable();
+    const i = this.state.doc.blocks.findIndex((b) => b.id === (table ?? here).id);
+    // Above: after the block before it (a table first in the text: below instead).
+    const after = where === 'above' && i > 0 ? this.state.doc.blocks[i - 1] : (table ?? here);
+    const id = newId();
+    const ops: Op[] = [
+      { type: 'split', block: after.id, offset: runsLength(after.runs), newBlock: id, newAttrs: { ...blockAttrs('paragraph'), style: 'caption' } },
+      { type: 'insert', block: id, offset: 0, runs },
+    ];
+    this.dispatch({ ops, selectionBefore: this.state.selection, selectionAfter: caret({ block: id, offset: runsLength(runs) }), kind: 'other' }, 'command');
+    this.focusText();
+  }
+
+  /** The caret to the end of the selection (to put something after what's selected). */
+  collapseToEnd(): void {
+    this.syncSelectionFromDom();
+    const { anchor, focus } = this.state.selection;
+    const blocks = this.state.doc.blocks;
+    const ia = blocks.findIndex((b) => b.id === anchor.block);
+    const ifo = blocks.findIndex((b) => b.id === focus.block);
+    const end = ia > ifo || (ia === ifo && anchor.offset > focus.offset) ? anchor : focus;
+    this.state = { ...this.state, selection: caret(end) };
+    this.view.writeSelection(this.state.selection);
+  }
+
+  /** Takes out the field at `pos` (a bookmark or index entry, say). */
+  removeFieldAt(pos: Pos): void {
+    const blk = this.state.doc.blocks.find((b) => b.id === pos.block);
+    if (!blk || this.isReadOnly) return;
+    const runs = sliceRuns(blk.runs, pos.offset, pos.offset + 1);
+    if (runs[0]?.field === undefined) return;
+    this.dispatch({ ops: [{ type: 'remove', block: pos.block, offset: pos.offset, runs }], selectionBefore: this.state.selection, selectionAfter: this.state.selection, kind: 'other' }, 'command');
+  }
+
+  /** Lets the app fill in fields it knows (title, author, citations…). */
+  setFieldValues(fn: ((name: string) => string | null) | null): void {
+    this.view.fieldValue = fn;
+    this.view.fillFields();
+  }
+
+  /** A bibliography's lines (the sources cited, in the citation style), from the app. */
+  setSourcesList(fn: (() => string[]) | null): void {
+    this.view.sourcesList = fn;
+    const lists = this.state.doc.blocks.filter((b) => b.type === 'toc' && b.tocl?.kind === 'sources');
+    if (lists.length) this.draw(this.state.doc, new Set(lists.map((b) => b.id)));
+  }
+
+  /** The bookmarks in the document, in order: name and where. */
+  bookmarks(): { name: string; pos: Pos }[] {
+    const out: { name: string; pos: Pos }[] = [];
+    for (const b of this.state.doc.blocks) {
+      let at = 0;
+      for (const r of b.runs) {
+        if (r.field?.startsWith('bm:') && r.change?.kind !== 'del') out.push({ name: r.field.slice(3), pos: { block: b.id, offset: at } });
+        at += r.text.length;
+      }
+    }
+    return out;
+  }
+
+  /** Goes to the bookmark called `name`. False when there's none. */
+  goToBookmark(name: string): boolean {
+    const bm = this.bookmarks().find((x) => x.name === name);
+    if (!bm) return false;
+    this.goTo(bm.pos);
+    return true;
+  }
+
+  /**
+   * A bookmark at the start of block `id` for a cross-reference to point at
+   * (one there already is used; otherwise a hidden one, _Ref and a number,
+   * as Word makes). Returns its name.
+   */
+  bookmarkBlock(id: string): string {
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    const have = blk?.runs.find((r) => r.field?.startsWith('bm:'));
+    if (have) return have.field!.slice(3);
+    const taken = new Set(this.bookmarks().map((b) => b.name));
+    let name = `_Ref${Math.floor(Math.random() * 9e8 + 1e8)}`;
+    while (taken.has(name)) name = `_Ref${Math.floor(Math.random() * 9e8 + 1e8)}`;
+    const sel = this.state.selection;
+    this.state = { ...this.state, selection: caret({ block: id, offset: 0 }) };
+    this.dispatch(insertField(this.state, `bm:${name}`), 'command');
+    this.state = { ...this.state, selection: mapSelectionAfterInsert(sel, id) };
+    return name;
+  }
+
   /** Page view: the caret to the top of page `n` (from 1). False if there's no such page. */
   goToPage(n: number): boolean {
     const page = this.view.root.querySelectorAll<HTMLElement>(':scope > .pg')[n - 1];
@@ -2094,7 +2239,20 @@ export class Editor {
         return;
       }
     }
+    // Ctrl/⌘-click on a cross-reference, or a link to a bookmark, goes to the bookmark.
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    const ref = mod && (e.target as Element).closest?.<HTMLElement>('span.fld[data-target]');
+    if (ref) {
+      e.preventDefault();
+      this.goToBookmark(ref.dataset.target!);
+      return;
+    }
     const link = (e.target as Element).closest?.('a[href]') as HTMLAnchorElement | null;
+    if (link && mod && link.getAttribute('href')?.startsWith('#bm:')) {
+      e.preventDefault();
+      this.goToBookmark(link.getAttribute('href')!.slice(4));
+      return;
+    }
     if (link && this.onLinkClick?.(link.getAttribute('href') ?? '', e)) {
       e.preventDefault();
       return;
@@ -2154,6 +2312,13 @@ export class Editor {
       e.preventDefault();
       if (e.detail >= 2) this.evenColumns(grip);
       else this.dragColumn(grip, e.clientX);
+      return;
+    }
+    const tocOpts = (e.target as Element).closest?.<HTMLElement>('[data-toc-options]');
+    if (tocOpts) {
+      e.preventDefault();
+      const id = tocOpts.closest<HTMLElement>('[data-block]')?.dataset.block;
+      if (id) this.onTocOptions?.(id);
       return;
     }
     const entry = (e.target as Element).closest?.<HTMLElement>('[data-toc-target], [data-toc-chapter]');
@@ -2439,4 +2604,10 @@ function bulletStart(cell: HTMLElement): boolean {
   sel.addRange(r);
   cell.ownerDocument.execCommand('insertText', false, '• ');
   return true;
+}
+
+/** The selection after one character was put at the start of block `id`: offsets in that block move on by one. */
+function mapSelectionAfterInsert(sel: Selection, id: string): Selection {
+  const move = (p: Pos) => (p.block === id ? { block: id, offset: p.offset + 1 } : p);
+  return { anchor: move(sel.anchor), focus: move(sel.focus) };
 }

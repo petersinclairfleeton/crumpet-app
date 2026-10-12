@@ -24,7 +24,7 @@ import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { readShapeLine, shapeLine, tidyShape } from './shape';
 import { isField } from './fields';
 import { picAttrs, readPicAttrs, tidyPic } from './picture';
-import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, CUSTOM_STYLE, type Look, type LookKey, LOOK_KEYS, lookValueOk, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
+import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, CUSTOM_STYLE, type TocLook, tidyToc, type Look, type LookKey, LOOK_KEYS, lookValueOk, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
 
 // ---------------------------------------------------------------- writing
 
@@ -56,7 +56,13 @@ export function toMarkdown(doc: Doc): string {
 
 function blockLine(b: Block, number: number): string {
   // A table of contents is [TOC] on a line of its own, as in several Markdown tools.
-  if (b.type === 'toc') return '[TOC]';
+  if (b.type === 'toc') {
+    // Its settings after it: [TOC levels=2 .nodots title="In this book"], [TOC figures="Table"], [TOC .index], [TOC .sources].
+    const t = b.tocl;
+    if (!t) return '[TOC]';
+    const parts = [t.kind === 'figures' ? `figures="${t.label}"` : t.kind ? `.${t.kind}` : '', t.levels ? `levels=${t.levels}` : '', t.noPages ? '.nopages' : '', t.noDots ? '.nodots' : '', t.title ? `title="${t.title}"` : ''].filter(Boolean);
+    return `[TOC ${parts.join(' ')}]`;
+  }
   // Maths and diagrams: a fenced block, ```math or ```mermaid (as GitHub and Obsidian write them).
   if (b.type === 'code') {
     const c = tidyCode(b.code);
@@ -116,7 +122,7 @@ function blockLine(b: Block, number: number): string {
   // Styles, alignment and paragraph settings Markdown has no syntax for go at the end of the line, as {.title .center line=2}.
   const p = b.para;
   const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.colBefore ? 'colbreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined, p?.nowidow ? 'nowidow' : undefined].filter(Boolean);
-  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'drop'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
+  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'drop', 'outline'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
   if (p?.numText) values.push(`numtext="${p.numText}"`);
   if (p?.tabs) values.push(`tabs=${tabsToText(p.tabs)}`);
   if (p?.track) values.push(`track=${p.track}`);
@@ -155,7 +161,7 @@ const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
 const KNOWN_STYLES = new Set<string>([...Object.values(BLOCK_STYLES).flat(), 'folded']);
 const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=(?:-?[\d.]+|[a-z][a-z-]*|#[0-9a-fA-F]{6}|[lcrd]?[\d.]+(?:dot|dash|line)?(?:,[lcrd]?[\d.]+(?:dot|dash|line)?)*|[0-9a-f]{16,128}|"[^"{}]*"))[ \t]*)+)\}[ \t]*$/;
 const PARA_FLAGS: Record<string, 'pageBefore' | 'colBefore' | 'keepNext' | 'keepLines' | 'nowidow'> = { pagebreak: 'pageBefore', colbreak: 'colBefore', keepnext: 'keepNext', keeplines: 'keepLines', nowidow: 'nowidow' };
-const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'drop', 'cols', 'mt', 'mb', 'ml', 'mr']);
+const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'drop', 'outline', 'cols', 'mt', 'mb', 'ml', 'mr']);
 const PARA_WORDS = new Set(['num', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'sect', 'orient', 'tabs', 'track', 'lock', 'numtext']);
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */
@@ -574,10 +580,24 @@ export function fromMarkdown(md: string): Doc {
       blocks.push(makeBlock('shape', '', [], { shape: shapeRead.shape, ...(shapeRead.align ? { align: shapeRead.align as Align } : {}) }));
       continue;
     }
-    if (!para.length && /^ {0,3}\[TOC\][ \t]*$/i.test(line)) {
+    const tocLine = !para.length ? /^ {0,3}\[TOC((?:[ \t]+(?:\.[a-z]+|[a-z]+=(?:"[^"{}\n]*"|\d)))*)[ \t]*\][ \t]*$/i.exec(line) : null;
+    if (tocLine) {
       flushPara();
       listIndents = [];
-      blocks.push(makeBlock('toc'));
+      const t: Partial<TocLook> = {};
+      for (const tok of tocLine[1].matchAll(/\.([a-z]+)|([a-z]+)=(?:"([^"]*)"|(\d))/gi)) {
+        if (tok[1] === 'index' || tok[1] === 'sources') t.kind = tok[1];
+        else if (tok[1] === 'nopages') t.noPages = true;
+        else if (tok[1] === 'nodots') t.noDots = true;
+        else if (tok[2] === 'levels') t.levels = Number(tok[4]);
+        else if (tok[2] === 'title') t.title = tok[3];
+        else if (tok[2] === 'figures') {
+          t.kind = 'figures';
+          t.label = tok[3];
+        }
+      }
+      const tocl = tidyToc(t);
+      blocks.push(makeBlock('toc', '', [], tocl ? { tocl } : {}));
       continue;
     }
     // A pipe table: a header row, then a row of dashes.
@@ -938,7 +958,7 @@ function tokenize(src: string): Node[] {
     }
     // A field: {{date}}.
     if (c === '{' && src[i + 1] === '{') {
-      const f = /^\{\{([a-z][a-z-]*)\}\}/.exec(src.slice(i));
+      const f = /^\{\{([a-z][a-z-]*(?::[^{}\n]{1,100})?)\}\}/.exec(src.slice(i));
       if (f && isField(f[1])) {
         flush();
         nodes.push({ kind: 'text', text: FIELD, marks: [], field: f[1] });

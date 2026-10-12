@@ -16,6 +16,7 @@ import { useFontItems } from './fonttools';
 import { useParaItems } from './paratools';
 import { borderItems, DefineListHost, listItems } from './listtools';
 import { TableHost, tableItems } from './tabletools';
+import { ReferencesHost, referenceItems } from './references';
 import { useLayoutItems } from './layouttools';
 import type { PageSetup } from '../data/styles';
 import { insertItems } from './inserttools';
@@ -238,7 +239,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     tool('dictate', 1, speech.kind === 'dictating' ? 'Stop dictating' : 'Dictate', `Dictate: type by speaking (${mod}${isMac ? '⌥' : 'Alt+'}D)`, <MicGlyph />, () => ed && toggleDictation(ed), { active: speech.kind === 'dictating', disabled: !canDictate }),
     tool('stylespane', 1, 'Styles pane', 'Styles pane: every style, with how often it’s used', <span className="glyph-styles">A¶</span>, () => store.updateLayout(stylesPane ? { right: false } : { right: true, rightTab: 'styles' }), { active: stylesPane }),
   ];
-  items.push(...tableItems(ed, off), ...insertItems(ed, off));
+  items.push(...tableItems(ed, off), ...insertItems(ed, off), ...referenceItems(ed, off));
   if (attach)
     items.push(
       tool(
@@ -265,6 +266,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       {para.dialog}
       <DefineListHost ed={ed} />
       <TableHost ed={ed} />
+      <ReferencesHost />
       {layout.dialog}
     </>
   );
@@ -339,7 +341,7 @@ export function LinkBar({ editor, onClose }: { editor: Editor; onClose(): void }
       onSubmit={(e) => {
         e.preventDefault();
         if (!editor.setLink(value || null)) {
-          setError('That doesn’t look like a web address. Try something like example.com.');
+          setError('That doesn’t look like a web address or a bookmark. Try something like example.com.');
           return;
         }
         close();
@@ -363,6 +365,7 @@ export function LinkBar({ editor, onClose }: { editor: Editor; onClose(): void }
             autoComplete="off"
             spellCheck={false}
             placeholder="Paste or type a web address"
+            list="link-bookmarks"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
@@ -372,6 +375,17 @@ export function LinkBar({ editor, onClose }: { editor: Editor; onClose(): void }
               }
             }}
           />
+          {/* A place in this document: its bookmarks. */}
+          <datalist id="link-bookmarks">
+            {editor
+              .bookmarks()
+              .filter((b) => !b.name.startsWith('_'))
+              .map((b) => (
+                <option key={b.name} value={`#bm:${b.name}`}>
+                  Bookmark: {b.name}
+                </option>
+              ))}
+          </datalist>
           <button type="submit" className="primary">
             Apply
           </button>
