@@ -173,6 +173,15 @@ export class View {
       const el = this.rendered.get(block.id)!.el;
       const label = labels.get(block.id) ?? '';
       if (el.dataset.label !== label) el.dataset.label = label;
+      // A long number ("Chapter 12", "1.2.3.") pushes the text over to make room for it.
+      const wide = label.length > (block.para?.numText ? 2 : 3) && block.para?.num !== 'legal' ? String(label.length) : '';
+      if (wide) {
+        if (el.dataset.wide !== wide) el.dataset.wide = wide;
+        if (el.style.getPropertyValue('--label-n') !== wide) el.style.setProperty('--label-n', wide);
+      } else if (el.dataset.wide) {
+        delete el.dataset.wide;
+        el.style.removeProperty('--label-n');
+      }
     }
     // A table of contents lists the headings as they are now.
     if (doc.blocks.some((b) => b.type === 'toc')) {
@@ -492,8 +501,11 @@ function buildBlock(block: Block, marks = false, noSpell: RegExp | null = null):
     if (block.type === 'bullet' && p.bullet) el.dataset.bullet = BULLETS[p.bullet];
     if (p.border) {
       el.dataset.border = p.border;
-      for (const [c, side] of [['t', 'Top'], ['b', 'Bottom'], ['l', 'Left'], ['r', 'Right']] as const) if (p.border.includes(c)) el.style.setProperty(`border-${side.toLowerCase()}`, '1px solid currentColor');
+      // Its style and colour (Word's Borders and Shading): a double line needs room for both.
+      const line = p.bstyle === 'double' ? '3px double' : p.bstyle === 'thick' ? '2.5px solid' : p.bstyle === 'dotted' ? '1.5px dotted' : p.bstyle === 'dashed' ? '1.5px dashed' : '1px solid';
+      for (const [c, side] of [['t', 'Top'], ['b', 'Bottom'], ['l', 'Left'], ['r', 'Right']] as const) if (p.border.includes(c)) el.style.setProperty(`border-${side.toLowerCase()}`, `${line} ${p.bcolor ?? 'currentColor'}`);
     }
+    if (p.nowidow) el.dataset.nowidow = '';
     if (p.shade) {
       el.dataset.shade = '';
       el.style.backgroundColor = p.shade;

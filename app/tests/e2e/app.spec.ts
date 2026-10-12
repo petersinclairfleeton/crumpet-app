@@ -2259,6 +2259,60 @@ test('list styles from the libraries, a numbering value, and paragraph borders a
   await expect(boxed).toHaveCSS('background-color', 'rgb(255, 242, 204)');
 });
 
+test('multilevel lists from the gallery and of your own, border line styles and colours, and widow control', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Outline', '1. Setting');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('Town');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Sea');
+  const blks = page.locator('.note-editor .blk');
+  await (await toolButton(page, 'Multilevel list')).click();
+  await page.getByRole('button', { name: 'Chapter 1, 1.1' }).click();
+  await expect(blks.nth(0)).toHaveAttribute('data-label', 'Chapter 1');
+  await expect(blks.nth(1)).toHaveAttribute('data-label', '1.1');
+  await expect(blks.nth(2)).toHaveAttribute('data-label', '1.2');
+  // A list of its own: "Part I", then "I-a".
+  await (await toolButton(page, 'Multilevel list')).click();
+  await page.getByRole('button', { name: 'Define new multilevel list…' }).click();
+  const define = page.getByRole('dialog', { name: 'Define new multilevel list' });
+  await define.getByLabel('Level 1 number style').selectOption('upper-roman');
+  await define.getByLabel('Level 1 number shown as').fill('Part %1');
+  await define.getByLabel('Level 2 number shown as').fill('%1-%2');
+  await define.getByRole('button', { name: 'OK' }).click();
+  await expect(blks.nth(0)).toHaveAttribute('data-label', 'Part I');
+  await expect(blks.nth(2)).toHaveAttribute('data-label', 'I-b');
+  // A double blue box round a plain paragraph, which may be left alone at a page's foot.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Boxed');
+  const boxed = blks.nth(3);
+  await expect(boxed).not.toHaveClass(/blk-list/);
+  await (await toolButton(page, 'Borders')).click();
+  await page.getByRole('button', { name: 'Double line' }).click();
+  await page.getByRole('button', { name: 'Blue border' }).click();
+  await page.keyboard.press('Escape');
+  await expect(boxed).toHaveCSS('border-top-style', 'double');
+  await (await toolButton(page, /Paragraph settings/)).click();
+  const dialog = page.getByRole('dialog', { name: 'Paragraph' });
+  await dialog.getByLabel(/Widow\/orphan control/).uncheck();
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  await expect(boxed).toHaveAttribute('data-nowidow', '');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toContain('numtext="Part %1"');
+  await expect.poll(md).toMatch(/Boxed \{[^}]*\.nowidow[^}]*bstyle=double[^}]*\}|Boxed \{[^}]*bstyle=double[^}]*\.nowidow[^}]*\}/);
+});
+
 test('table layout and design: merge and split cells, shade a cell, align a column, banding, lines and the heading row', async ({ page }) => {
   await open(page);
   await newNote(page, 'Cast', 'Who is who:');

@@ -1468,6 +1468,21 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .clip-item:hover { background: var(--field); }
 .clip-x { flex: none; }
 .glyph-sort { font-size: 10px; font-weight: 700; letter-spacing: -0.02em; }
+.multi-gallery { display: grid; grid-template-columns: repeat(2, 120px); gap: 6px; padding: 4px; }
+.multi-sample { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border: 1px solid var(--line2); border-radius: 6px; background: var(--page); color: var(--text); font-size: 11px; text-align: left; cursor: pointer; }
+.multi-sample:hover { border-color: var(--accent); }
+.multi-sample span { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.multi-sample i { flex: 1; height: 2px; background: var(--line2); }
+.menu-head { display: block; padding: 2px 10px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.border-styles { display: flex; gap: 4px; padding: 4px 8px; }
+.border-style { width: 34px; height: 22px; padding: 0 5px; border: 1px solid var(--line2); border-radius: 4px; background: var(--page); color: var(--text); cursor: pointer; }
+.border-style i { display: block; }
+.border-style.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.define-levels { display: flex; flex-direction: column; gap: 6px; }
+.define-level { display: grid; grid-template-columns: 60px 1fr 1fr 1fr; align-items: center; gap: 8px; font-size: 13px; }
+.define-level select, .define-level input { height: 28px; padding: 0 6px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); min-width: 0; }
+.define-n { font-size: 12px; color: var(--muted); }
+.define-sample { font-family: var(--note-font, serif); white-space: nowrap; }
 .review-people { margin-top: 4px; font-size: 11px; font-weight: 700; color: var(--muted); }
 .comment-resolved { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .pic-format-grid { display: flex; gap: 16px; flex-wrap: wrap; }

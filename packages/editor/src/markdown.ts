@@ -115,8 +115,9 @@ function blockLine(b: Block, number: number): string {
   })();
   // Styles, alignment and paragraph settings Markdown has no syntax for go at the end of the line, as {.title .center line=2}.
   const p = b.para;
-  const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.colBefore ? 'colbreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined].filter(Boolean);
-  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'shade', 'drop'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
+  const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.colBefore ? 'colbreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined, p?.nowidow ? 'nowidow' : undefined].filter(Boolean);
+  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'drop'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
+  if (p?.numText) values.push(`numtext="${p.numText}"`);
   if (p?.tabs) values.push(`tabs=${tabsToText(p.tabs)}`);
   if (p?.track) values.push(`track=${p.track}`);
   if (p?.lock) values.push(`lock=${p.lock}`);
@@ -152,10 +153,10 @@ function runsPlain(runs: Run[]): string {
 
 const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
 const KNOWN_STYLES = new Set<string>([...Object.values(BLOCK_STYLES).flat(), 'folded']);
-const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=(?:-?[\d.]+|[a-z][a-z-]*|#[0-9a-fA-F]{6}|[lcrd]?[\d.]+(?:dot|dash|line)?(?:,[lcrd]?[\d.]+(?:dot|dash|line)?)*|[0-9a-f]{16,128}))[ \t]*)+)\}[ \t]*$/;
-const PARA_FLAGS: Record<string, 'pageBefore' | 'colBefore' | 'keepNext' | 'keepLines'> = { pagebreak: 'pageBefore', colbreak: 'colBefore', keepnext: 'keepNext', keeplines: 'keepLines' };
+const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=(?:-?[\d.]+|[a-z][a-z-]*|#[0-9a-fA-F]{6}|[lcrd]?[\d.]+(?:dot|dash|line)?(?:,[lcrd]?[\d.]+(?:dot|dash|line)?)*|[0-9a-f]{16,128}|"[^"{}]*"))[ \t]*)+)\}[ \t]*$/;
+const PARA_FLAGS: Record<string, 'pageBefore' | 'colBefore' | 'keepNext' | 'keepLines' | 'nowidow'> = { pagebreak: 'pageBefore', colbreak: 'colBefore', keepnext: 'keepNext', keeplines: 'keepLines', nowidow: 'nowidow' };
 const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'drop', 'cols', 'mt', 'mb', 'ml', 'mr']);
-const PARA_WORDS = new Set(['num', 'bullet', 'border', 'shade', 'sect', 'orient', 'tabs', 'track', 'lock']);
+const PARA_WORDS = new Set(['num', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'sect', 'orient', 'tabs', 'track', 'lock', 'numtext']);
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */
 function protectBraces(text: string): string {
@@ -167,7 +168,7 @@ function protectBraces(text: string): string {
 function splitAttrs(line: string): { line: string; classes: string[] } {
   const m = ATTRS.exec(line);
   if (!m) return { line, classes: [] };
-  const tokens = m[2].trim().split(/\s+/);
+  const tokens = [...m[2].matchAll(/\.[A-Za-z][\w-]*|[a-z]+=(?:"[^"]*"|[^\s"]+)/g)].map((t) => t[0]);
   const ok = tokens.every((t) => (t.startsWith('.') ? ALIGNS.has(t.slice(1)) || KNOWN_STYLES.has(t.slice(1)) || t.slice(1) in PARA_FLAGS : PARA_VALUES.has(t.split('=')[0]) || PARA_WORDS.has(t.split('=')[0])));
   if (!ok) return { line, classes: [] };
   return { line: m[1], classes: tokens.map((t) => (t.startsWith('.') ? t.slice(1) : t)) };
@@ -177,7 +178,12 @@ function applyAttrs(b: Block, classes: string[]): Block {
   const para: ParaLook = {};
   for (const c of classes) {
     if (c.includes('=')) {
-      const [k, v] = c.split('=');
+      const k = c.slice(0, c.indexOf('='));
+      const v = c.slice(c.indexOf('=') + 1).replace(/^"|"$/g, '');
+      if (k === 'numtext') {
+        para.numText = v;
+        continue;
+      }
       if (k === 'tabs') para.tabs = tabsFromText(v);
       else if (PARA_VALUES.has(k) && Number.isFinite(+v)) (para as Record<string, number>)[k] = +v;
       else if (PARA_WORDS.has(k)) (para as Record<string, string>)[k] = v;

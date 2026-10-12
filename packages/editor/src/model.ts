@@ -337,6 +337,17 @@ export interface ParaLook {
   bullet?: BulletKind;
   /** Lines around the paragraph: any of t, b, l, r (top, bottom, left, right). */
   border?: string;
+  /** The lines' style and colour (unset: a thin single line in the text's colour). */
+  bstyle?: 'single' | 'double' | 'dotted' | 'dashed' | 'thick';
+  bcolor?: string;
+  /** Widow/orphan control off: a single line of it may sit alone at the foot or top of a page. */
+  nowidow?: boolean;
+  /**
+   * Numbered lists: what the number looks like at this level (Word's number
+   * format), %1 to %9 standing for the numbers at each level ("Chapter %1",
+   * "%1.%2", "(%1)"); unset: the number and a full stop (or bracket).
+   */
+  numText?: string;
   /** Shading behind the paragraph, as #rrggbb. */
   shade?: string;
   /** Word's Drop Cap: the first letter is this many lines tall (2 to 10), dropped into the text. */
@@ -410,7 +421,7 @@ export function tabsFromText(text: string): TabStop[] | undefined {
   }
   return tidyTabs(out);
 }
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'drop', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -439,6 +450,9 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
   if (p.bullet && p.bullet in BULLETS) out.bullet = p.bullet;
   const border = tidyBorder(p.border);
   if (border) out.border = border;
+  if (border && p.bstyle && ['single', 'double', 'dotted', 'dashed', 'thick'].includes(p.bstyle) && p.bstyle !== 'single') out.bstyle = p.bstyle;
+  if (border && p.bcolor && /^#[0-9a-f]{6}$/i.test(p.bcolor)) out.bcolor = p.bcolor.toLowerCase();
+  if (typeof p.numText === 'string' && /%[1-9]/.test(p.numText) && p.numText.length <= 40) out.numText = p.numText.replace(/["{}\n]/g, '');
   if (p.shade && /^#[0-9a-f]{6}$/i.test(p.shade)) out.shade = p.shade.toLowerCase();
   const tabs = tidyTabs(p.tabs);
   if (tabs) out.tabs = tabs;
@@ -846,18 +860,23 @@ function roman(n: number): string {
 export function listLabels(blocks: Block[]): Map<string, string> {
   const out = new Map<string, string>();
   let counts: number[] = [];
+  /** The number style each level was last seen in (for patterns showing the levels above). */
+  const formats: string[] = [];
   for (const b of blocks) {
     const level = Math.min(MAX_INDENT, b.indent ?? 0);
     if (b.type === 'numbered') {
       counts[level] = b.para?.start !== undefined ? b.para.start : (counts[level] ?? 0) + 1;
       counts = counts.slice(0, level + 1);
-      const n = counts[level];
       const fmt = b.para?.num ?? DEFAULT_NUMS[level % 3];
-      if (fmt === 'legal') out.set(b.id, Array.from({ length: level + 1 }, (_, i) => counts[i] ?? 0).join('.') + (level === 0 ? '.' : ''));
-      else {
-        const text = fmt === 'decimal' || fmt === 'paren' ? String(n) : fmt === 'upper-alpha' ? alpha(n).toUpperCase() : fmt === 'lower-alpha' ? alpha(n) : fmt === 'upper-roman' ? roman(n).toUpperCase() : roman(n);
-        out.set(b.id, text + (fmt === 'paren' ? ')' : '.'));
-      }
+      formats[level] = fmt;
+      const show = (k: number, f: string) => {
+        const v = counts[k] ?? 0;
+        return f === 'upper-alpha' ? alpha(v).toUpperCase() : f === 'lower-alpha' ? alpha(v) : f === 'upper-roman' ? roman(v).toUpperCase() : f === 'lower-roman' ? roman(v) : String(v);
+      };
+      // A pattern of its own ("Chapter %1", "%1.%2"): each level's number in that level's style (all in plain figures when the level is legal, "Section 1.01").
+      if (b.para?.numText) out.set(b.id, b.para.numText.replace(/%([1-9])/g, (_, d) => (Number(d) - 1 <= level ? show(Number(d) - 1, Number(d) - 1 === level || fmt === 'legal' ? fmt : (formats[Number(d) - 1] ?? 'decimal')) : '')));
+      else if (fmt === 'legal') out.set(b.id, Array.from({ length: level + 1 }, (_, i) => counts[i] ?? 0).join('.') + (level === 0 ? '.' : ''));
+      else out.set(b.id, show(level, fmt) + (fmt === 'paren' ? ')' : '.'));
     } else if (isList(b.type)) counts = counts.slice(0, level);
     else counts = [];
   }

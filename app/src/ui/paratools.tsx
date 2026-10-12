@@ -240,6 +240,7 @@ export function ParagraphDialog({ editor, onClose, onTabs }: { editor: Editor; o
   const [pageBefore, setPageBefore] = useState(!!v('pageBefore'));
   const [keepNext, setKeepNext] = useState(!!v('keepNext'));
   const [keepLines, setKeepLines] = useState(!!v('keepLines'));
+  const [widow, setWidow] = useState(!v('nowidow'));
   const panel = useRef<HTMLFormElement>(null);
 
   // Focus once, on opening: a redraw mustn't pull the caret back.
@@ -265,6 +266,7 @@ export function ParagraphDialog({ editor, onClose, onTabs }: { editor: Editor; o
       pageBefore: pageBefore || undefined,
       keepNext: keepNext || undefined,
       keepLines: keepLines || undefined,
+      nowidow: widow ? undefined : true,
     });
     onClose();
     editor.focus();
@@ -338,6 +340,9 @@ export function ParagraphDialog({ editor, onClose, onTabs }: { editor: Editor; o
           </fieldset>
           <fieldset>
             <legend>Line and page breaks</legend>
+            <label className="check-row">
+              <input type="checkbox" checked={widow} onChange={(e) => setWidow(e.target.checked)} /> Widow/orphan control (no single line left alone at a page’s foot or top)
+            </label>
             <label className="check-row">
               <input type="checkbox" checked={pageBefore} onChange={(e) => setPageBefore(e.target.checked)} /> Page break before
             </label>
