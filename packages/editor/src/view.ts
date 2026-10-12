@@ -69,6 +69,8 @@ export class View {
 
   /** Entries for a table of contents other than this document's headings (a book's, set by the app). */
   tocOverride: TocEntry[] | null = null;
+  /** A citation's text in the citation style ("(Quinn, 2021)"), from the app. */
+  citeText: ((key: string) => string | null) | null = null;
   /** A bibliography's lines: the sources cited, in the citation style (set by the app). */
   sourcesList: (() => string[]) | null = null;
   /** Footnotes before this document's first (a book's earlier chapters), so its numbers run on. */
@@ -308,7 +310,7 @@ export class View {
           v = captionOf.get(block) ?? (b && /^heading/.test(b.type) ? textOf(block) : textOf(block).slice(0, 60) || target);
         }
         el.dataset.target = target;
-      } else if (kind === 'cite') v = this.fieldValue?.(name) ?? `(${name.slice(5)})`;
+      } else if (kind === 'cite') v = this.citeText?.(name.slice(5)) ?? `(${name.slice(5)})`;
       if (el.dataset.v !== v) el.dataset.v = v;
       el.title = fieldLabel(name);
     }
@@ -316,8 +318,13 @@ export class View {
 
   /** Footnotes are numbered in order through the whole note (or book). */
   numberFootnotes(): void {
-    this.root.querySelectorAll<HTMLElement>('sup.fn').forEach((el, i) => {
+    this.root.querySelectorAll<HTMLElement>('sup.fn:not(.en)').forEach((el, i) => {
       const n = String(i + 1 + this.footnoteStart);
+      if (el.dataset.n !== n) el.dataset.n = n;
+    });
+    // Endnotes: i, ii, iii, through the document.
+    this.root.querySelectorAll<HTMLElement>('sup.fn.en').forEach((el, i) => {
+      const n = roman(i + 1);
       if (el.dataset.n !== n) el.dataset.n = n;
     });
   }
@@ -735,8 +742,8 @@ export function runNode(run: Run, marks = false, noSpell: RegExp | null = null):
   if (run.footnote !== undefined) {
     // The marker: an invisible character in the text, with its number drawn beside it.
     const sup = document.createElement('sup');
-    sup.className = 'fn';
-    sup.title = run.footnote || 'Footnote';
+    sup.className = run.endnote ? 'fn en' : 'fn';
+    sup.title = run.footnote || (run.endnote ? 'Endnote' : 'Footnote');
     sup.appendChild(node);
     node = sup;
   }
@@ -1539,4 +1546,12 @@ export function readTable(el: HTMLElement | HTMLElement[], block: Block): string
     if (rows[r]?.[c] !== undefined) rows[r][c] = readCell(box);
   }
   return rows;
+}
+
+/** A number in small Roman numerals (endnotes' numbers). */
+export function roman(n: number): string {
+  const parts: [number, string][] = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']];
+  let out = '';
+  for (const [v, r] of parts) while (n >= v) (out += r), (n -= v);
+  return out;
 }

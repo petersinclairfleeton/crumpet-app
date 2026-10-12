@@ -3,7 +3,8 @@
 // header and footer fields, and the download itself).
 
 import type { Doc } from '@crumpet/editor/model';
-import { DOCX_TYPE, type DocxImport, fromDocx, toDocx } from './docx';
+import { DOCX_TYPE, type DocxImport, type DocxOptions, fromDocx, toDocx } from './docx';
+import { bibliography, inText } from './citations';
 import { EPUB_TYPE, toEpub } from './epub';
 import { addFile, mediaUrl } from './files';
 import { type HFContext, type HFRun, cleanHF, fieldValue } from './headers';
@@ -47,6 +48,20 @@ function fieldFiller(ctx: HFContext, hf: ReturnType<typeof cleanHF>) {
   return (run: HFRun) => fieldValue(run, ctx, 1, hf);
 }
 
+/** Citations' text and the bibliography's lines, from the sources the documents cite. */
+function citing(state: AppState, docs: Doc[]): Pick<DocxOptions, 'cite' | 'sources'> {
+  const sources = state.settings.sources ?? [];
+  const style = state.settings.citeStyle ?? 'apa';
+  const keys = [...new Set(docs.flatMap((d) => d.blocks.flatMap((b) => b.runs.filter((r) => r.field?.startsWith('cite:')).map((r) => r.field!.slice(5)))))];
+  return {
+    cite: (key) => {
+      const src = sources.find((x) => x.key === key);
+      return src ? inText(src, style) : `(${key})`;
+    },
+    sources: () => bibliography(sources, keys, style),
+  };
+}
+
 /** A note as a Word document. */
 export async function noteDocx(state: AppState, note: Note): Promise<Uint8Array> {
   const s = state.settings;
@@ -65,6 +80,7 @@ export async function noteDocx(state: AppState, note: Note): Promise<Uint8Array>
     media: mediaBytes,
     titleParagraph: note.title.trim() || undefined,
     custom: fullSheet(s.noteStyles, 'crumpet').custom,
+    ...citing(state, [note.doc]),
   });
 }
 
@@ -85,7 +101,7 @@ export async function projectDocx(state: AppState, project: Project): Promise<Ui
   };
   return toDocx(
     list.map(({ chapter, number }) => ({ heading: chapter.title || `Chapter ${number}`, doc: chapter.doc })),
-    { title: project.name, author: ctx.author || undefined, page, hf, field: fieldFiller(ctx, hf), font: 'Times New Roman', size: 12, media: mediaBytes, custom: fullSheet(project.styles, 'manuscript').custom },
+    { title: project.name, author: ctx.author || undefined, page, hf, field: fieldFiller(ctx, hf), font: 'Times New Roman', size: 12, media: mediaBytes, custom: fullSheet(project.styles, 'manuscript').custom, ...citing(state, list.map((x) => x.chapter.doc)) },
   );
 }
 

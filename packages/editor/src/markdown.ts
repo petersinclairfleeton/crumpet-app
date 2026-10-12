@@ -424,7 +424,8 @@ function writeFormatted(runs: Run[], style: Style): string {
   const writeRun = (r: Run) => {
     moveTo(formatting(r));
     // A footnote is written in place, as ^[what it says].
-    if (r.footnote !== undefined) out += `^[${escapeText(r.footnote.replace(/\s+/g, ' '))}]`;
+    // An endnote: ^^[what it says].
+    if (r.footnote !== undefined) out += `${r.endnote ? '^^' : '^'}[${escapeText(r.footnote.replace(/\s+/g, ' '))}]`;
     // A field, as {{name}}.
     else if (r.field !== undefined) out += `{{${r.field}}}`;
     else out += r.marks.includes('code') ? codeSpan(r.text) : escapeText(r.text);
@@ -762,6 +763,7 @@ interface TextNode {
   marks: Mark[];
   link?: string;
   footnote?: string;
+  endnote?: boolean;
   field?: string;
 }
 
@@ -838,6 +840,7 @@ export function parseInline(src: string): Run[] {
     const link = node.link ?? links[links.length - 1];
     const run: Run = link ? { text: node.text, marks, link } : { text: node.text, marks };
     if (node.footnote !== undefined) run.footnote = node.footnote;
+    if (node.endnote && node.footnote !== undefined) run.endnote = true;
     if (node.field !== undefined) run.field = node.field;
     if (notes.length) run.comment = notes[notes.length - 1];
     if (edits.length) run.change = edits[edits.length - 1];
@@ -945,13 +948,15 @@ function tokenize(src: string): Node[] {
         continue;
       }
     }
-    // A footnote: ^[what it says].
-    if (c === '^' && src[i + 1] === '[') {
-      const end = closeBracket(src, i + 1);
+    // A footnote: ^[what it says]; an endnote: ^^[what it says].
+    if (c === '^' && (src[i + 1] === '[' || (src[i + 1] === '^' && src[i + 2] === '['))) {
+      const endnote = src[i + 1] === '^';
+      const open = i + (endnote ? 2 : 1);
+      const end = closeBracket(src, open);
       if (end > 0) {
         flush();
-        const note = decodeEntities(unescape(src.slice(i + 2, end))).trim();
-        nodes.push({ kind: 'text', text: FOOTNOTE, marks: [], footnote: note });
+        const note = decodeEntities(unescape(src.slice(open + 1, end))).trim();
+        nodes.push({ kind: 'text', text: FOOTNOTE, marks: [], footnote: note, ...(endnote ? { endnote: true } : {}) });
         i = end + 1;
         continue;
       }

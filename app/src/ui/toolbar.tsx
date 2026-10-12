@@ -87,7 +87,7 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
           </button>
           {open && (
             <Popover label="More formatting" onClose={() => setOpen(false)}>
-              <div className="more-menu" onClick={(e) => (e.target as Element).closest('button.menu-item') && setOpen(false)}>
+              <div className="more-menu" onClick={(e) => (e.target as Element).closest('button.menu-item:not(.keep-open)') && setOpen(false)}>
                 {extra.map((i) => (
                   <div key={i.key} className="more-row">
                     {i.menu ?? i.node}

@@ -10,7 +10,7 @@ import { type PageSetup, type StyleKey, type StyleSheet, defaultPage } from '../
 import { type PageFields, type PagePlacement, PageView } from './pages';
 import { useSheetClass } from './styles-ui';
 import { SlashMenu } from './slash';
-import { FootnoteCard, FootnoteList } from './footnotes';
+import { EndnoteList, FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
 import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from './changes';
 import { useTypewriter } from './typewriter';
@@ -159,6 +159,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
             <div ref={host} className="note-editor" aria-label={label} />
           </PageView>
           {!paged && <FootnoteList doc={doc} editor={readOnly || reading ? null : ed} />}
+          <EndnoteList doc={doc} editor={readOnly || reading ? null : ed} />
           {!reading && <CommentList doc={doc} editor={readOnly ? null : ed} />}
           {footer}
         </article>

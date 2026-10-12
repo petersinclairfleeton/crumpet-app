@@ -12,6 +12,7 @@
 // If anything fails part way, nothing is remembered and the next sync starts
 // again from the last agreed version. Every step is safe to repeat.
 
+import { SHARED_SETTINGS } from '../data/types';
 import type { AppStore } from '../data/store';
 import { type Layout, META_FILE, PROJECT_FILE, RESEARCH, fullLayout, join, layout, parentOf } from './layout';
 import { mergeTrees } from './merge';
@@ -126,7 +127,7 @@ export class SyncEngine {
     let last = this.store.getState();
     this.unsubscribe = this.store.subscribe(() => {
       const s = this.store.getState();
-      const changed = s.notes !== last.notes || s.notebooks !== last.notebooks || s.stacks !== last.stacks || s.projects !== last.projects || s.chapters !== last.chapters || s.settings.noteStyles !== last.settings.noteStyles || s.settings.notePage !== last.settings.notePage || s.settings.sideOrder !== last.settings.sideOrder;
+      const changed = s.notes !== last.notes || s.notebooks !== last.notebooks || s.stacks !== last.stacks || s.projects !== last.projects || s.chapters !== last.chapters || SHARED_SETTINGS.some((k) => s.settings[k] !== last.settings[k]);
       last = s;
       if (changed && !this.applying) this.schedule(delay);
     });
@@ -184,7 +185,7 @@ export class SyncEngine {
     // Apply here, keeping anything typed while the sync ran.
     this.store.flush();
     const s1 = this.store.getState();
-    const unchanged = s1.notes === s0.notes && s1.notebooks === s0.notebooks && s1.stacks === s0.stacks && s1.projects === s0.projects && s1.chapters === s0.chapters && s1.settings.noteStyles === s0.settings.noteStyles && s1.settings.notePage === s0.settings.notePage && s1.settings.sideOrder === s0.settings.sideOrder;
+    const unchanged = s1.notes === s0.notes && s1.notebooks === s0.notebooks && s1.stacks === s0.stacks && s1.projects === s0.projects && s1.chapters === s0.chapters && SHARED_SETTINGS.every((k) => s1.settings[k] === s0.settings[k]);
     const final = unchanged ? merged : mergeTrees(local, localTree(s1), merged, opts).tree;
     this.applying = true;
     try {

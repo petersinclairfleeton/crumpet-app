@@ -2948,6 +2948,85 @@ test('references: numbered captions, cross-references, bookmarks, a table of fig
   await expect(ref).toHaveAttribute('data-v', 'Figure 3');
 });
 
+test('endnotes, citations and a bibliography, snippets with F3, text from a file, and searching Wikipedia', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Sources', 'The lamp was lit');
+  const refs = async (item: string) => {
+    await (await toolButton(page, 'References')).click();
+    await page.getByRole('button', { name: item, exact: true }).click();
+  };
+  // An endnote: numbered i, listed at the end.
+  await refs('Insert endnote');
+  const card = page.getByRole('dialog', { name: 'Endnote i' });
+  await card.getByRole('textbox').fill('In 1902.');
+  await card.getByRole('button', { name: 'Done' }).click();
+  await expect(page.locator('.note-editor sup.fn.en')).toHaveAttribute('data-n', 'i');
+  await expect(page.getByRole('region', { name: 'Endnotes' })).toContainText('In 1902.');
+  // A citation of a new source, in APA, then MLA; a bibliography of it.
+  await page.keyboard.press('End');
+  await page.keyboard.type(' ');
+  await refs('Insert citation…');
+  let dialog = page.getByRole('dialog', { name: 'Insert citation' });
+  await dialog.getByLabel('Authors').fill('Quinn, Mara');
+  await dialog.getByLabel('Title', { exact: true }).fill('The Lighthouse Keepers');
+  await dialog.getByLabel('Year').fill('2021');
+  await dialog.getByLabel('Publisher').fill('Harbour Press');
+  await dialog.getByRole('button', { name: 'Add and cite' }).click();
+  const cite = page.locator('.note-editor span.fld[data-field="cite:Quinn2021"]');
+  await expect(cite).toHaveAttribute('data-v', '(Quinn, 2021)');
+  await page.keyboard.press('Enter');
+  await refs('Bibliography');
+  const bib = page.locator('.note-editor .blk-toc');
+  await expect(bib.locator('.toc-entry')).toHaveText(['Quinn, M. (2021). The Lighthouse Keepers. Harbour Press.']);
+  await refs('Manage sources…');
+  dialog = page.getByRole('dialog', { name: 'Sources' });
+  await dialog.getByLabel('Citation style').selectOption('mla');
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await expect(cite).toHaveAttribute('data-v', '(Quinn)');
+  await expect(bib.locator('.toc-entry')).toHaveText(['Quinn, Mara. The Lighthouse Keepers. Harbour Press, 2021.']);
+  // A snippet saved from the text, put back by typing its name and F3.
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Shift+End');
+  await (await toolButton(page, 'Snippets')).click();
+  await page.getByRole('button', { name: 'Save selection as a snippet…' }).click();
+  await page.getByLabel('Snippet name').fill('lamp');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await page.locator('.note-editor .blk').last().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('lamp');
+  await page.keyboard.press('F3');
+  await expect(page.locator('.note-editor .blk').last()).toContainText('The lamp was lit');
+  // Text from a Markdown file, poured in at the caret.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await (await toolButton(page, 'Snippets')).click();
+  const Bytes = (globalThis as unknown as { Buffer: { from(s: string, encoding?: string): never } }).Buffer;
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByRole('button', { name: 'Text from file…' }).click();
+  await (await chooser).setFiles({ name: 'more.md', mimeType: 'text/markdown', buffer: Bytes.from('## From the file\n\nA **bold** line.\n') });
+  await expect(page.locator('.note-editor h2')).toHaveText('From the file');
+  // Searching Wikipedia (answered here), then saving a result as a note and citing it.
+  await page.route('https://en.wikipedia.org/w/api.php**', (route) => route.fulfill({ json: { query: { search: [{ title: 'Eddystone Lighthouse', snippet: 'A <span class="searchmatch">lighthouse</span> on the Eddystone Rocks' }] } } }));
+  await page.route('https://en.wikipedia.org/api/rest_v1/page/summary/**', (route) => route.fulfill({ json: { extract: 'The Eddystone Lighthouse is on the Eddystone Rocks.' } }));
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'search' }));
+  const tab = page.getByRole('tabpanel', { name: 'Search' });
+  await tab.getByLabel('Search Wikipedia').fill('lighthouse');
+  await tab.getByRole('button', { name: 'Search' }).click();
+  const hit = tab.getByRole('list', { name: 'Results' }).locator('li');
+  await expect(hit).toContainText('Eddystone Lighthouse');
+  await expect(hit).toContainText('A lighthouse on the Eddystone Rocks');
+  await hit.getByRole('button', { name: 'Save to research' }).click();
+  await expect(hit).toContainText('Saved as a note');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { crumpet: { getState(): { notes: { title: string }[] } } }).crumpet.getState().notes.some((n) => n.title === 'Eddystone Lighthouse'))).toBe(true);
+  // Saving it didn't take you away from what you're writing.
+  await expect(page.getByLabel('Title')).toHaveValue('Sources');
+});
+
 test('a book’s table of contents lists every chapter with its page, and the headings in them, and opens one', async ({ page }) => {
   await open(page);
   await page.evaluate(async () => {

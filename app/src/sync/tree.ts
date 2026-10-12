@@ -6,7 +6,7 @@
 import { encodeReminder } from '../data/reminders';
 import { toMarkdown } from '@crumpet/editor/markdown';
 import type { AppState } from '../data/store';
-import type { CastMember, ChapterStatus, Deadline, OutlineItem, SideOrder } from '../data/types';
+import { type CastMember, type ChapterStatus, type Deadline, type OutlineItem, SHARED_SETTINGS, type Settings, type SharedSetting } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 
 export interface TStack {
@@ -74,13 +74,10 @@ export interface TChapter {
 }
 
 /** Settings shared by every device: how notes look on the page, and the sidebar's order. */
-export interface TSettings {
-  noteStyles?: StyleSheet;
-  notePage?: PageSetup;
-  sideOrder?: SideOrder;
+export type TSettings = Partial<Pick<Settings, SharedSetting>> & {
   /** When they last changed. */
   updated: number;
-}
+};
 
 export interface Tree {
   /** Absent: the defaults. */
@@ -105,7 +102,11 @@ export function fullTree(t: Partial<Tree> | undefined): Tree {
 export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'> & Partial<Pick<AppState, 'projects' | 'chapters' | 'settings'>>): Tree {
   const tree = emptyTree();
   const st = state.settings;
-  if (st && (st.noteStyles || st.notePage || st.sideOrder)) tree.settings = { ...(st.noteStyles ? { noteStyles: st.noteStyles } : {}), ...(st.notePage ? { notePage: st.notePage } : {}), ...(st.sideOrder ? { sideOrder: st.sideOrder } : {}), updated: st.sharedAt ?? 0 };
+  if (st && SHARED_SETTINGS.some((k) => st[k] !== undefined)) {
+    const shared: TSettings = { updated: st.sharedAt ?? 0 };
+    for (const k of SHARED_SETTINGS) if (st[k] !== undefined) (shared as Record<string, unknown>)[k] = st[k];
+    tree.settings = shared;
+  }
   for (const s of state.stacks) tree.stacks[s.id] = { id: s.id, name: s.name, created: s.createdAt };
   for (const nb of state.notebooks) {
     tree.notebooks[nb.id] = { id: nb.id, name: nb.name, color: nb.color, stackId: nb.stackId && tree.stacks[nb.stackId] ? nb.stackId : null, created: nb.createdAt };

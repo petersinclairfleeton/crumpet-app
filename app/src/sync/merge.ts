@@ -13,6 +13,7 @@
 //   added on either side are added, removed on either side are removed, and
 //   the order follows this device.
 
+import { SHARED_SETTINGS } from '../data/types';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { mergeText } from './textmerge';
 import type { CastMember, OutlineItem } from '../data/types';
@@ -37,10 +38,9 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
   {
     const [b, l, r] = [base.settings, local.settings, remote.settings];
     const newer = (r?.updated ?? 0) > (l?.updated ?? 0) ? r : l;
-    const noteStyles = jsonField(b?.noteStyles, l?.noteStyles, r?.noteStyles, newer?.noteStyles);
-    const notePage = jsonField(b?.notePage, l?.notePage, r?.notePage, newer?.notePage);
-    const sideOrder = jsonField(b?.sideOrder, l?.sideOrder, r?.sideOrder, newer?.sideOrder);
-    if (noteStyles || notePage || sideOrder) tree.settings = { ...withValue('noteStyles', noteStyles), ...withValue('notePage', notePage), ...withValue('sideOrder', sideOrder), updated: Math.max(l?.updated ?? 0, r?.updated ?? 0) };
+    const shared: Record<string, unknown> = {};
+    for (const k of SHARED_SETTINGS) Object.assign(shared, withValue(k, jsonField<unknown>(b?.[k], l?.[k], r?.[k], newer?.[k])));
+    if (Object.keys(shared).length) tree.settings = { ...shared, updated: Math.max(l?.updated ?? 0, r?.updated ?? 0) };
   }
 
   for (const id of keys(base.stacks, local.stacks, remote.stacks)) {

@@ -161,11 +161,11 @@ At the end there's a suggested order for building what's missing.
 | Drop Cap | 🟡 | Dropped, 2 to 5 lines tall; to and from Word. No "in margin" kind, and no font or distance of its own. |
 | Signature Line | ❌ | |
 | Date & Time | ✅ | In a choice of forms, as text or (Update automatically) a field that shows the day it's read; to and from Word as DATE/TIME fields. |
-| Quick Parts: AutoText, Building Blocks | 🟡 | Templates cover whole notes; no saved snippets to drop in. |
+| Quick Parts: AutoText, Building Blocks | ✅ | The Snippets button: save the selection as a snippet (with its formatting), drop one in from the menu, or type its name and press F3. Shared across devices. |
 | Quick Parts: Document Property, Field | ✅ | References → Field…: page, number of pages, words, characters, title, author, date created and saved, besides dates and times. To and from Word as field codes. |
 | WordArt | ❌ | |
 | Object (embedded/linked file) | 🟡 | Files can be attached in the text (shown as a chip); not embedded as editable objects. |
-| Text from file (put a whole document into this one) | ❌ | |
+| Text from file (put a whole document into this one) | ✅ | Snippets → Text from file…: a Word document, Markdown or plain text, poured in at the caret with its formatting. |
 | Equation | 🟡 | Written in LaTeX and drawn at once. No equation toolbar of structures, no UnicodeMath, no ink equation. |
 | Symbol | ✅ | Symbols and special characters (non-breaking space and hyphen, dashes, quotes…). |
 | Forms (content controls: tick boxes, drop-downs, date pickers) | 🟡 | Checklists only. |
@@ -190,7 +190,7 @@ At the end there's a suggested order for building what's missing.
 | Colours, Fonts (for the whole document) | 🟡 | Done by modifying styles one by one. |
 | Paragraph Spacing presets | 🟡 | Comes with the style sets; no separate menu. |
 | Effects | ❌ | |
-| Set as Default | ✅ | The styles window's "Set as default for new projects" (kept on this device). |
+| Set as Default | ✅ | The styles window's "Set as default for new projects" (shared across devices). |
 | Watermark ("DRAFT", "CONFIDENTIAL") | ❌ | |
 | Page Colour | 🟡 | The paper colour you write on is an app setting; it isn't saved in the document or printed. |
 | Page Borders | ❌ | |
@@ -224,11 +224,11 @@ At the end there's a suggested order for building what's missing.
 | Table of contents: update | ✅ | Updates by itself. |
 | Table of contents: Add Text (include a paragraph) | ✅ | References → Add text to the contents (level 1–4, or a heading left out); the contents' ⚙: levels shown, title, page numbers, dotted leaders. |
 | Footnote | ✅ | Numbered through the whole book. |
-| Endnote | ❌ | A Word file's endnotes come in as empty footnote numbers: their text is lost. |
+| Endnote | ✅ | References → Insert endnote (or /endnote): numbered i, ii, iii and listed at the end (after the pages, in page view); all footnotes made endnotes or back. To and from Word, endnotes' text included. Not yet printed. |
 | Next Footnote, Show Notes | ✅ | Footnotes are listed under the note, with Previous and Next footnote (also in the command palette and Go To). |
-| Research: Search, Researcher | 🟡 | Research notes beside the writing, web clipper, thesaurus and definitions; no searching the web from inside Crumpet. |
-| Insert Citation, Manage Sources | ❌ | |
-| Citation styles (APA, MLA, Chicago), Bibliography | ❌ | |
+| Research: Search, Researcher | ✅ | The right sidebar's Search tab: Wikipedia articles, to save as a research note (into a project's Research), cite or link to; and a link to search the whole web. |
+| Insert Citation, Manage Sources | ✅ | References → Insert citation… (choose a source or add one: book, chapter, article, web page) and Manage sources… (one list for all your notes and projects). |
+| Citation styles (APA, MLA, Chicago), Bibliography | ✅ | APA 7, MLA 9 or Chicago author-date, in the text and in References → Bibliography (the sources cited, A to Z). Go to Word as text (not Word's own citation fields). |
 | Insert Caption | ✅ | References → Insert caption…: Figure, Table, Equation or a label of your own, numbered by itself (a picture's own caption, or a line above or below a table or paragraph). |
 | Table of Figures | ✅ | References → Table of figures: the captions of one label, with their pages in page view. |
 | Cross-reference | ✅ | See above (Insert tab). |
@@ -528,18 +528,18 @@ Where: `packages/editor/src/table.ts`, `cells.ts`, `view.ts` (the Table menu), `
 
 **7. Book and non-fiction tools**
 Where: `model.ts` (footnotes), `paginate.ts`, `app/src/ui/booktoc.ts`, `footnotes.tsx`, `print.tsx`, `docx.ts`, `epub.ts`.
-- [ ] Endnotes, turning footnotes into endnotes, and keeping a Word file's endnotes (their text is lost on import today: `docx.ts`, `endnoteReference`)
+- [x] Endnotes, turning footnotes into endnotes, and keeping a Word file's endnotes (their text is lost on import today: `docx.ts`, `endnoteReference`)
 - [x] Contents options: levels, Add Text, contents styles
 - [x] Numbered captions (Figure 1, Table 2)
 - [x] Table of figures
 - [x] Cross-references that update
 - [x] Bookmarks on any spot of the text, and links to them
 - [x] Index: mark entries, insert the index
-- [ ] Citations, sources and a bibliography (APA, MLA, Chicago…)
-- [ ] Web search in the right sidebar (Wikipedia, the web), into research
+- [x] Citations, sources and a bibliography (APA, MLA, Chicago…)
+- [x] Web search in the right sidebar (Wikipedia, the web), into research
 - [x] Fields in the text (page, words, title, author…)
-- [ ] Saved snippets (AutoText / Building Blocks)
-- [ ] Text from file (another document poured in at the caret)
+- [x] Saved snippets (AutoText / Building Blocks)
+- [x] Text from file (another document poured in at the caret)
 
 **8. Page layout and design**
 Where: `paginate.ts`, `app/src/ui/pagesetup.tsx`, `layouttools.tsx`, `pages.tsx`, `headers.tsx`, `data/headers.ts`, `data/styles.ts`, `print.tsx`, `docx.ts`.

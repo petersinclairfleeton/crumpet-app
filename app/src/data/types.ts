@@ -1,3 +1,4 @@
+import type { CiteStyle, Source } from './citations';
 import type { StatsElsewhere, WritingStats } from './stats';
 import type { Doc } from '@crumpet/editor/model';
 import type { PageSetup, StyleSheet } from './styles';
@@ -130,6 +131,16 @@ export interface NoteFont {
   category?: string;
 }
 
+/** A saved snippet: its name (typed, then F3, puts it in) and its text as Markdown. */
+export interface Snippet {
+  name: string;
+  md: string;
+}
+
+/** Settings shared by every device through the synced folder (the rest stay on this device). */
+export const SHARED_SETTINGS = ['noteStyles', 'notePage', 'sideOrder', 'defaultStyles', 'sources', 'citeStyle', 'snippets'] as const;
+export type SharedSetting = (typeof SHARED_SETTINGS)[number];
+
 export interface Settings {
   name: string;
   accent: string;
@@ -143,6 +154,11 @@ export interface Settings {
   noteStyles?: StyleSheet;
   /** Styles new projects start with (Word's Set as Default); the manuscript set when unset. */
   defaultStyles?: StyleSheet;
+  /** Sources to cite (Word's Master List), and the citation style. */
+  sources?: Source[];
+  citeStyle?: CiteStyle;
+  /** Saved snippets of text to drop in (Word's AutoText / Building Blocks), as Markdown. */
+  snippets?: Snippet[];
   notePage?: PageSetup;
   /** Words written each day on this device. */
   stats?: WritingStats;
@@ -213,7 +229,7 @@ export interface LayoutPrefs {
   listWidth?: number;
   /** The right sidebar (outline, styles, comments, links): shown, which tab, and its width. */
   right?: boolean;
-  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects';
+  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
   rightWidth?: number;
   /** The writing area's panes and their tabs (a `Workspace` from `panes.ts`, checked when read). */
   panes?: unknown;

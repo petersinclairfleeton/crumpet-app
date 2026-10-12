@@ -21,10 +21,10 @@ export interface SlashItem {
 }
 
 /** A footnote sits right against the word before it, so the space typed before the / goes. */
-function addFootnoteHere(ed: Editor): void {
+function addFootnoteHere(ed: Editor, endnote = false): void {
   const at = ed.currentSelection().focus;
   if (at.offset > 0 && runsText(ed.currentBlock().runs)[at.offset - 1] === ' ') ed.deleteBefore(1);
-  ed.addFootnote();
+  ed.addFootnote(endnote);
 }
 
 export const SLASH_ITEMS: SlashItem[] = [
@@ -50,7 +50,8 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'math', label: 'Maths', hint: 'An equation, written in LaTeX', words: 'math maths equation formula latex katex', glyph: '∑', run: (ed) => ed.insertCode('math') },
   { id: 'diagram', label: 'Diagram', hint: 'A flowchart or timeline, written as text (Mermaid)', words: 'diagram flowchart chart mermaid graph timeline sequence', glyph: '⇄', run: (ed) => ed.insertCode('mermaid', 'graph LR\n  A[Start] --> B[End]') },
   { id: 'toc', label: 'Table of contents', hint: 'The headings, with page numbers', words: 'contents toc index outline headings', glyph: '☰', run: (ed) => ed.insertToc() },
-  { id: 'footnote', label: 'Footnote', hint: 'A numbered note at the bottom', words: 'footnote endnote note reference citation', glyph: '¹', run: addFootnoteHere },
+  { id: 'footnote', label: 'Footnote', hint: 'A numbered note at the bottom', words: 'footnote note reference citation', glyph: '¹', run: (ed) => addFootnoteHere(ed) },
+  { id: 'endnote', label: 'Endnote', hint: 'A note listed at the end (i, ii, iii)', words: 'endnote note end reference', glyph: 'ⁱ', run: (ed) => addFootnoteHere(ed, true) },
   { id: 'picture', label: 'Picture or file', hint: 'From this device', words: 'image photo attachment upload pdf', glyph: '▣', run: (ed) => chooseFiles(ed) },
   { id: 'date', label: 'Today’s date', hint: longDate(), words: 'date today now', glyph: '◷', run: (ed) => ed.typeText(longDate()) },
 ];

@@ -222,7 +222,8 @@ export class Paginator {
     });
     const rootBox = root.getBoundingClientRect();
     const scale = root.offsetWidth ? rootBox.width / root.offsetWidth || 1 : 1;
-    const markers = Array.from(root.querySelectorAll<HTMLElement>('sup.fn'));
+    // (Endnotes go at the end, not the foot of their page.)
+    const markers = Array.from(root.querySelectorAll<HTMLElement>('sup.fn:not(.en)'));
     const noteIndex = new Map(markers.map((el, n) => [el, n]));
     const info: Measured[] = [];
     sections.forEach((s, si) => {
@@ -244,7 +245,7 @@ export class Paginator {
           // (A table splits between its rows.)
           whole: el.classList.contains('blk-table') ? false : !!el.querySelector('[data-widget], .media') || el.classList.contains('blk-toc'),
           notes: this.noteHeight
-            ? Array.from(el.querySelectorAll<HTMLElement>('sup.fn')).map((f) => {
+            ? Array.from(el.querySelectorAll<HTMLElement>('sup.fn:not(.en)')).map((f) => {
                 const r = f.getBoundingClientRect();
                 return { n: noteIndex.get(f)!, y: y(r.top + r.height / 2) };
               })

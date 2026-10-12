@@ -15,6 +15,8 @@ export interface Run {
    * character, shown as its number; it never merges with its neighbours.
    */
   footnote?: string;
+  /** The footnote is an endnote: listed at the end of the document (numbered i, ii, iii), not at the foot of its page. */
+  endnote?: true;
   /**
    * A field (Word's Insert > Date and Time with "update automatically", and
    * the like): a run of its own holding one FIELD character, shown as what
@@ -564,6 +566,7 @@ export function withText(r: Run, text: string): Run {
   const out: Run = { text, marks: r.marks };
   if (r.link) out.link = r.link;
   if (r.footnote !== undefined) out.footnote = r.footnote;
+  if (r.endnote && r.footnote !== undefined) out.endnote = true;
   if (r.field !== undefined) out.field = r.field;
   if (r.comment) out.comment = r.comment;
   if (r.change) out.change = r.change;
@@ -573,7 +576,7 @@ export function withText(r: Run, text: string): Run {
 }
 
 export function sameFormat(a: Run, b: Run): boolean {
-  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && a.field === b.field && sameComment(a.comment, b.comment) && sameChange(a.change, b.change) && sameLook(a.look, b.look);
+  return sameMarks(a.marks, b.marks) && a.link === b.link && a.footnote === b.footnote && !!a.endnote === !!b.endnote && a.field === b.field && sameComment(a.comment, b.comment) && sameChange(a.change, b.change) && sameLook(a.look, b.look);
 }
 
 /** Drops empty runs and merges neighbours with identical formatting. */
@@ -675,7 +678,7 @@ export function setLinkOnRuns(runs: Run[], link: string | null): Run[] {
 
 /** A copy of `r` with a different link (or none). */
 export function withLink(r: Run, link: string | null): Run {
-  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, field: r.field, comment: r.comment, change: r.change, look: r.look }, r.text);
+  const out = withText({ text: r.text, marks: r.marks, footnote: r.footnote, endnote: r.endnote, field: r.field, comment: r.comment, change: r.change, look: r.look }, r.text);
   if (link) out.link = link;
   return out;
 }
@@ -684,7 +687,7 @@ export function withLink(r: Run, link: string | null): Run {
 export function setCommentOnRuns(runs: Run[], comment: Comment | null): Run[] {
   return normalizeRuns(
     runs.map((r) => {
-      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, field: r.field, change: r.change, look: r.look }, r.text);
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, endnote: r.endnote, field: r.field, change: r.change, look: r.look }, r.text);
       if (comment) out.comment = comment;
       return out;
     }),
@@ -695,7 +698,7 @@ export function setCommentOnRuns(runs: Run[], comment: Comment | null): Run[] {
 export function setChangeOnRuns(runs: Run[], change: Change | null): Run[] {
   return normalizeRuns(
     runs.map((r) => {
-      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, field: r.field, comment: r.comment, look: r.look }, r.text);
+      const out = withText({ text: r.text, marks: r.marks, link: r.link, footnote: r.footnote, endnote: r.endnote, field: r.field, comment: r.comment, look: r.look }, r.text);
       if (change) out.change = change;
       return out;
     }),
@@ -862,13 +865,13 @@ export function tidyRows(rows: string[][] | undefined): string[][] {
   return list.map((r) => Array.from({ length: width }, (_, i) => (r[i] ?? '').replace(/[\r\n]+/g, ' ')));
 }
 
-/** Every footnote in the document, in order: where it is and what it says. */
-export function footnotes(doc: Doc): { block: string; offset: number; text: string }[] {
+/** Every footnote in the document (or every endnote), in order: where it is and what it says. */
+export function footnotes(doc: Doc, which: 'foot' | 'end' = 'foot'): { block: string; offset: number; text: string }[] {
   const out: { block: string; offset: number; text: string }[] = [];
   for (const b of doc.blocks) {
     let pos = 0;
     for (const r of b.runs) {
-      if (r.footnote !== undefined) out.push({ block: b.id, offset: pos, text: r.footnote });
+      if (r.footnote !== undefined && !!r.endnote === (which === 'end')) out.push({ block: b.id, offset: pos, text: r.footnote });
       pos += r.text.length;
     }
   }
