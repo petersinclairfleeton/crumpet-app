@@ -3,6 +3,8 @@
 // the DOM, so they can be tested directly.
 
 import {
+  normalizeRuns,
+  tidyRows,
   type Align,
   type Block,
   type BlockType,
@@ -61,6 +63,7 @@ import {
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs, BulletKind, NumFormat } from './model';
 import type { TableLook } from './table';
+import { inlineMarkdown, parseInline } from './markdown';
 import { type PicLook, tidyPic } from './picture';
 import { type ShapeKind, type ShapeLook, defaultShape, tidyShape } from './shape';
 
@@ -916,6 +919,76 @@ export function insertMedia(state: EditorState, type: 'image' | 'file', src: str
 /** Puts a new table (an empty header row and `rows` rows) after the caret's block. */
 export function insertTable(state: EditorState, rows = 2, cols = 3): Transaction {
   return insertWidget(state, attrsOf({ type: 'table', rows: Array.from({ length: rows + 1 }, () => Array.from({ length: cols }, () => '')) }));
+}
+
+/** A table made already (Quick Tables, Draw Table): its rows of cells and its look. */
+export function insertTableOf(state: EditorState, rows: string[][], tbl?: TableLook): Transaction {
+  return insertWidget(state, attrsOf({ type: 'table', rows, ...(tbl ? { tbl } : {}) }));
+}
+
+/**
+ * Word's Convert Text to Table: the selected paragraphs become a table, a
+ * row each, their text cut into cells at `sep` (tab, comma, a character of
+ * one's own), keeping its formatting. Null when there's nothing to convert.
+ */
+export function textToTable(state: EditorState, sep: string): Transaction | null {
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const start = blockIndex(state.doc, from.block);
+  const end = blockIndex(state.doc, to.block);
+  const lines = state.doc.blocks.slice(start, end + 1);
+  if (lines.some((x) => isMedia(x.type) || isWidget(x.type))) return null;
+  const rows = lines.map((x) => {
+    const text = runsText(x.runs);
+    const cells: string[] = [];
+    let at = 0;
+    const cuts = sep === ' ' ? [...text.matchAll(/\s+/g)].map((m) => [m.index!, m.index! + m[0].length]) : [...text.matchAll(new RegExp(sep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))].map((m) => [m.index!, m.index! + m[0].length]);
+    for (const [a, b] of cuts) {
+      cells.push(inlineMarkdown(normalizeRuns(sliceRuns(x.runs, at, a))));
+      at = b;
+    }
+    cells.push(inlineMarkdown(normalizeRuns(sliceRuns(x.runs, at, text.length))));
+    return cells.map((c) => c.trim());
+  });
+  const width = Math.max(1, ...rows.map((r) => r.length));
+  const full = rows.map((r) => [...r, ...Array(width - r.length).fill('')]);
+  const b = new Builder(state.doc);
+  const first = lines[0];
+  const last = lines[lines.length - 1];
+  deleteRange(b, { block: first.id, offset: 0 }, { block: last.id, offset: runsLength(last.runs) });
+  const now = getBlock(b.doc, first.id);
+  // A heading row only when there's more than one row (Word's tables start with one).
+  const tbl: TableLook | undefined = full.length > 1 ? undefined : { noHeader: true };
+  b.step({ type: 'setAttrs', block: first.id, from: attrsOf(now), to: attrsOf({ type: 'table', rows: full, ...(tbl ? { tbl } : {}) }) });
+  let next = b.doc.blocks[blockIndex(b.doc, first.id) + 1];
+  if (!next) {
+    const para = newId();
+    b.step({ type: 'split', block: first.id, offset: 0, newBlock: para, newAttrs: blockAttrs('paragraph') });
+    next = getBlock(b.doc, para);
+  }
+  return tx(state, b, caret({ block: next.id, offset: 0 }));
+}
+
+/** Word's Convert Table to Text: each row a paragraph, its cells parted by `sep` (a tab, unless said). */
+export function tableToText(state: EditorState, id: string, sep = '\t'): Transaction | null {
+  const blk = getBlock(state.doc, id);
+  if (blk.type !== 'table') return null;
+  const rows = tidyRows(blk.rows);
+  const lineRuns = rows.map((row) => row.flatMap((cell, c) => [...(c ? [{ text: sep, marks: [] as Mark[] }] : []), ...(cell ? parseInline(cell) : [])]).map((r) => ({ ...r, text: r.text.replace(/\n/g, ' ') })));
+  const b = new Builder(state.doc);
+  b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('paragraph') });
+  const ids = [id];
+  lineRuns.forEach((runs, i) => {
+    let at = id;
+    if (i > 0) {
+      at = newId();
+      b.step({ type: 'split', block: ids[ids.length - 1], offset: runsLength(getBlock(b.doc, ids[ids.length - 1]).runs), newBlock: at, newAttrs: blockAttrs('paragraph') });
+      ids.push(at);
+    }
+    const clean = normalizeRuns(runs);
+    if (clean.length) b.step({ type: 'insert', block: at, offset: 0, runs: clean });
+  });
+  const last = getBlock(b.doc, ids[ids.length - 1]);
+  return tx(state, b, caret({ block: last.id, offset: runsLength(last.runs) }));
 }
 
 /** Word's Table of Contents: a list of the headings (with page numbers in page view), kept up to date. */

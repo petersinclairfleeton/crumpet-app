@@ -41,7 +41,7 @@ import {
   lookAt,
 } from './model';
 import { type Op, applyOps, attrsOf, blockAttrs } from './ops';
-import { type CellAlign, type TableBorders, type TableShape, isTableStyle, addCol, addRow, alignCol, deleteCol, deleteRow, mergeAt, mergeCells, setTableLook, setWidths, shadeCell, splitCell } from './table';
+import { type CellAlign, type CellLook, type TableBorders, type TableLook, type TableShape, isTableStyle, addCol, addRow, alignCol, deleteCol, deleteRow, distributeCols, distributeRows, mergeAt, mergeCells, setCellLooks, setRowHeight, setTableLook, setWidths, shadeCell, sortTable, splitCell } from './table';
 import {
   type EditorState,
   type Transaction,
@@ -69,6 +69,9 @@ import {
   toggleTodo,
   toggleFold,
   insertTable,
+  insertTableOf,
+  textToTable,
+  tableToText,
   insertFootnote,
   setFootnote,
   addComment,
@@ -119,7 +122,7 @@ import { type FindOptions, type Match, findMatches, replaceMatches } from './fin
 import { type TocEntry, View, readTable } from './view';
 import { type ShapeKind, type ShapeLook } from './shape';
 import type { PicLook } from './picture';
-import { readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
+import { cellPlain, fillCell, readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
 import { fromMarkdown, noteLink, toMarkdown } from './markdown';
 
 /** The clipboard's type for Crumpet's own text, as Markdown. */
@@ -315,10 +318,14 @@ export class Editor {
 
   /** Remembers the selection (as places in the text) and returns how to put it back after the page moves things around. */
   private keepSelection(): () => void {
-    const focused = this.view.root.contains(this.view.root.ownerDocument.activeElement) && !this.activeCell();
+    const cell = this.activeCell();
+    const focused = this.view.root.contains(this.view.root.ownerDocument.activeElement) && !cell;
     const sel = focused ? this.view.readSelection() : null;
+    // A cell being typed in (in page view its row may move between pages and lose the focus).
+    if (cell && cell.ownerDocument.activeElement === cell) rememberCellSelection(cell);
     return () => {
       if (sel) this.view.writeSelection(sel);
+      if (cell?.isConnected && cell.ownerDocument.activeElement !== cell && cell.ownerDocument.activeElement === cell.ownerDocument.body) refocusCell(cell);
     };
   }
 
@@ -518,6 +525,34 @@ export class Editor {
     if (table) this.focusCell(table.id, 0, 0);
   }
 
+  /** Puts a table made already at the caret (Quick Tables, Draw Table). */
+  insertTableOf(rows: string[][], tbl?: TableLook): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(insertTableOf(this.state, rows, tbl), 'command');
+    const table = this.state.doc.blocks.find((b, i, all) => b.type === 'table' && all[i + 1]?.id === this.state.selection.focus.block);
+    if (table) this.focusCell(table.id, tbl?.noHeader ? 0 : 1, 0);
+  }
+
+  /** Word's Convert Text to Table: the selected paragraphs, cut into cells at `sep`. False when the selection can't be. */
+  textToTable(sep: string): boolean {
+    if (this.isReadOnly) return false;
+    this.syncSelectionFromDom();
+    const t = textToTable(this.state, sep);
+    if (!t) return false;
+    this.dispatch(t, 'command');
+    return true;
+  }
+
+  /** The table the caret is in or by (a cell has the focus, or the caret is on the line after it). */
+  currentTable(): Block | null {
+    const cell = this.activeCell();
+    const id = cell?.closest<HTMLElement>('[data-block]')?.dataset.block;
+    const blk = id ? this.state.doc.blocks.find((b) => b.id === id) : undefined;
+    if (blk?.type === 'table') return blk;
+    return this.state.doc.blocks.find((b, i, all) => b.type === 'table' && all[i + 1]?.id === this.state.selection.focus.block) ?? null;
+  }
+
   private onTableInput(target: HTMLElement): void {
     const id = target.closest<HTMLElement>('[data-block]')?.dataset.block;
     if (!id) return;
@@ -544,20 +579,50 @@ export class Editor {
       if (box) this.dispatch(setShape(this.state, id, { text: readCell(box) }), 'input', true, true);
       return;
     }
-    this.dispatch(setTableRows(this.state, id, readTable(el, blk)), 'input', true, true);
+    this.dispatch(setTableRows(this.state, id, readTable(this.view.pieces(id), blk)), 'input', true, true);
   }
 
   private commitTables(): void {
     for (const id of [...this.tableTimers.keys()]) this.commitTable(id);
   }
 
+  /** Every cell of the table showing its text as it is now, the one being typed in too. */
+  private refillCells(id: string): void {
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!blk?.rows) return;
+    for (const box of this.view.pieces(id).flatMap((p) => Array.from(p.querySelectorAll<HTMLElement>('table .cell')))) {
+      const text = blk.rows[Number(box.dataset.r)]?.[Number(box.dataset.c)];
+      if (text !== undefined && readCell(box) !== text) fillCell(box, text);
+    }
+  }
+
   private focusCell(id: string, r: number, c: number): void {
-    const cell = this.view.blockElement(id)?.querySelector<HTMLElement>(`.cell[data-r="${r}"][data-c="${c}"]`);
+    const cell = this.view
+      .pieces(id)
+      .map((el) => el.querySelector<HTMLElement>(`.cell[data-r="${r}"][data-c="${c}"]`))
+      .find(Boolean);
     if (!cell) return;
     cell.focus();
     const sel = cell.ownerDocument.getSelection();
     sel?.selectAllChildren(cell);
     sel?.collapseToEnd();
+  }
+
+  /** The line style and colour new cell lines are drawn in (the Table menu's Cell lines). */
+  private cellLine: { bs?: CellLook['bs']; bc?: string } = {};
+  /** Word's border painter: on, each cell clicked gets lines all round in the style above. */
+  private borderPainter = false;
+
+  /** Paints the border painter's lines onto the cell clicked. */
+  private paintCell(cell: HTMLElement): void {
+    const id = cell.closest<HTMLElement>('[data-block]')?.dataset.block;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!id || !blk || blk.type !== 'table') return;
+    this.commitTable(id);
+    const fresh = this.state.doc.blocks.find((b) => b.id === id)!;
+    const next = setCellLooks({ rows: tidyRows(fresh.rows), tbl: fresh.tbl }, [[Number(cell.dataset.r), Number(cell.dataset.c)]], { bd: 'tblr', bs: this.cellLine.bs ?? null, bc: this.cellLine.bc ?? null });
+    this.dispatch(setTableRows(this.state, id, next.rows, next.tbl), 'command', true, true);
+    this.view.blockElement(id)?.querySelector('.table-wrap')?.classList.add('painting');
   }
 
   /** Changes a table's shape or look (Word's Table Layout and Design) from the cell at r, c. */
@@ -586,6 +651,46 @@ export class Editor {
     else if (action === 'shade') next = shadeCell(now, r, c, value || null);
     else if (action === 'align') next = alignCol(now, c, (value || null) as CellAlign | null);
     else if (action === 'header') next = setTableLook(now, { noHeader: !now.tbl?.noHeader });
+    else if (action === 'first-col') next = setTableLook(now, { firstCol: !now.tbl?.firstCol });
+    else if (action === 'last-col') next = setTableLook(now, { lastCol: !now.tbl?.lastCol });
+    else if (action === 'total-row') next = setTableLook(now, { totalRow: !now.tbl?.totalRow });
+    else if (action === 'banded-cols') next = setTableLook(now, { bandedCols: !now.tbl?.bandedCols });
+    else if (action === 'repeat') next = setTableLook(now, { noRepeat: !now.tbl?.noRepeat });
+    else if (action === 'pad') next = setTableLook(now, { pad: value ? Number(value) : undefined });
+    else if (action === 'cell-h') next = setCellLooks(now, [[r, c]], { h: (value || null) as CellLook['h'] | null });
+    else if (action === 'cell-v') next = setCellLooks(now, [[r, c]], { v: (value || null) as CellLook['v'] | null });
+    else if (action === 'cell-dir') next = setCellLooks(now, [[r, c]], { dir: (value || null) as CellLook['dir'] | null });
+    else if (action === 'cell-bd') next = setCellLooks(now, [[r, c]], value ? { bd: value, bs: this.cellLine.bs ?? null, bc: this.cellLine.bc ?? null } : { bd: null, bs: null, bc: null });
+    else if (action === 'cell-bs' || action === 'cell-bc') {
+      // The line style or colour for the next lines drawn (and this cell's, if it has lines of its own).
+      if (action === 'cell-bs') this.cellLine.bs = (value || undefined) as CellLook['bs'];
+      else this.cellLine.bc = value || undefined;
+      const own = now.tbl?.cells?.[`${mr},${mc}`];
+      if (own?.bd && own.bd !== '0') next = setCellLooks(now, [[r, c]], { bs: this.cellLine.bs ?? null, bc: this.cellLine.bc ?? null });
+      else return;
+    } else if (action === 'painter') {
+      this.borderPainter = !this.borderPainter;
+      const el = this.view.blockElement(id);
+      el?.querySelector('.table-wrap')?.classList.toggle('painting', this.borderPainter);
+      el?.querySelectorAll('[data-table-action="painter"]').forEach((b) => b.setAttribute('aria-checked', String(this.borderPainter)));
+      return;
+    } else if (action === 'row-h') next = setRowHeight(now, r, value ? Number(value) : null);
+    else if (action === 'dist-cols') next = distributeCols(now);
+    else if (action === 'dist-rows') {
+      // Every row as tall as the average of them now (in inches).
+      const trs = Array.from(this.view.pieces(id).flatMap((el) => Array.from(el.querySelectorAll<HTMLElement>('table tr:not(.repeat-head)'))));
+      const avg = trs.reduce((n, tr) => n + tr.getBoundingClientRect().height / zoomOf(tr), 0) / Math.max(1, trs.length) / 96;
+      next = distributeRows(now, Math.max(0.2, Math.round(avg * 100) / 100));
+    } else if (action === 'sort-asc' || action === 'sort-desc') next = sortTable(now, c, action === 'sort-desc', cellPlain);
+    else if (action === 'formula') {
+      const rowsNow = now.rows.map((row) => [...row]);
+      rowsNow[mr][mc] = '=SUM(ABOVE)';
+      next = { rows: rowsNow, tbl: now.tbl };
+    } else if (action === 'to-text') {
+      this.dispatch(tableToText(this.state, id), 'command');
+      this.focusText();
+      return;
+    }
     else if (action === 'banded') next = setTableLook(now, { banded: !now.tbl?.banded });
     else if (action === 'borders') next = setTableLook(now, { borders: (value || undefined) as TableBorders | undefined });
     // A style from the gallery comes with banded rows, as in Word.
@@ -598,6 +703,8 @@ export class Editor {
     }
     if (!next) return;
     this.dispatch(setTableRows(this.state, id, next.rows, next.tbl), 'command', true, true);
+    // The cell being typed in isn't redrawn as the table changes; here its text may have changed too (a sort, a formula).
+    this.refillCells(id);
     const m = mergeAt(next.tbl, at.r, at.c);
     this.focusCell(id, m ? m[0] : at.r, m ? m[1] : at.c);
   }
@@ -1053,7 +1160,6 @@ export class Editor {
     if (cell.classList.contains('shape-text')) return this.onShapeKey(e, cell, id);
     const r = Number(cell.dataset.r);
     const c = Number(cell.dataset.c);
-    const el = this.view.blockElement(id)!;
     const blk = this.state.doc.blocks.find((b) => b.id === id);
     const rows = blk?.rows?.length ?? 1;
     const mod = isMac ? e.metaKey : e.ctrlKey;
@@ -1075,12 +1181,21 @@ export class Editor {
     if (e.key === 'Tab') {
       e.preventDefault();
       // Cell to cell in reading order (a merged cell is one stop); past the last, a new row.
-      const cells = Array.from(el.querySelectorAll<HTMLElement>('table .cell'));
+      const cells = this.view.pieces(id).flatMap((p) => Array.from(p.querySelectorAll<HTMLElement>('table .cell')));
       const i = cells.indexOf(cell) + (e.shiftKey ? -1 : 1);
       if (i < 0) return;
       if (i >= cells.length) return this.reshapeTable(id, 'row', r, 0);
       this.commitTable(id);
       this.focusCell(id, Number(cells[i].dataset.r), Number(cells[i].dataset.c));
+    } else if (e.key === 'Enter' && (e.shiftKey || e.altKey)) {
+      // Another line in the same cell.
+      e.preventDefault();
+      cell.ownerDocument.execCommand('insertLineBreak');
+      this.onTableInput(cell);
+    } else if (e.key === ' ' && !mod && bulletStart(cell)) {
+      // "- " or "* " starting a line in a cell: a bullet.
+      e.preventDefault();
+      this.onTableInput(cell);
     } else if (e.key === 'Enter') {
       e.preventDefault();
       const below = r + (mergeAt(blk?.tbl, r, c)?.[2] ?? 1);
@@ -2050,12 +2165,20 @@ export class Editor {
       else if (entry.dataset.tocChapter) this.onTocTarget?.({ chapter: entry.dataset.tocChapter, block: id });
       return;
     }
+    // The border painter paints each cell clicked.
+    const painted = this.borderPainter && (e.target as Element).closest?.<HTMLElement>('.table-wrap .cell');
+    if (painted) {
+      e.preventDefault();
+      this.paintCell(painted);
+      return;
+    }
     const action = (e.target as Element).closest?.<HTMLElement>('[data-table-action]');
     if (action) {
       e.preventDefault();
       const id = action.closest<HTMLElement>('[data-block]')!.dataset.block!;
       const cell = this.view.root.ownerDocument.activeElement as HTMLElement | null;
-      const inThis = cell?.classList.contains('cell') && action.closest('[data-block]')!.contains(cell);
+      // (In page view the cell may be in a later part of the table.)
+      const inThis = cell?.classList.contains('cell') && cell.closest<HTMLElement>('[data-block]')?.dataset.block === id;
       const r = inThis ? Number(cell!.dataset.r) : -1;
       const c = inThis ? Number(cell!.dataset.c) : -1;
       const blk = this.state.doc.blocks.find((b) => b.id === id);
@@ -2066,7 +2189,8 @@ export class Editor {
         tools?.classList.toggle('open');
         return;
       }
-      tools?.classList.remove('open');
+      // Choosing a line style or colour, or the painter, keeps the menu open.
+      if (!['cell-bs', 'cell-bc', 'painter'].includes(action.dataset.tableAction!)) tools?.classList.remove('open');
       // Without a cell to work from: add at the end, remove the last.
       this.reshapeTable(id, action.dataset.tableAction!, r >= 0 ? r : rows - 1, c >= 0 ? c : cols - 1, action.dataset.value);
       return;
@@ -2286,4 +2410,33 @@ function pastePlain(e: ClipboardEvent): void {
 function zoomOf(el: HTMLElement): number {
   const frame = el.closest<HTMLElement>('.shape-wrap') ?? el;
   return frame.getBoundingClientRect().width / (frame.offsetWidth || 1) || 1;
+}
+
+/**
+ * In a cell: when the line the caret is on so far is just "-" or "*", it
+ * becomes "• " (a bullet), and true is returned.
+ */
+function bulletStart(cell: HTMLElement): boolean {
+  const sel = cell.ownerDocument.getSelection();
+  if (!sel?.rangeCount || !sel.isCollapsed) return false;
+  const node = sel.anchorNode;
+  if (!node || node.nodeType !== Node.TEXT_NODE || !cell.contains(node)) return false;
+  const text = node.textContent ?? '';
+  const at = sel.anchorOffset;
+  const lineStart = text.lastIndexOf('\n', at - 1) + 1;
+  // The line must start the text node too, after a line break or the cell's start.
+  const before = text.slice(lineStart, at);
+  if (before !== '-' && before !== '*') return false;
+  if (lineStart === 0) {
+    // What comes before must end a line: a line break, or text ending in one.
+    const prev = node.previousSibling;
+    if (prev && prev.nodeName !== 'BR' && !(prev.nodeType === Node.TEXT_NODE && (prev.textContent ?? '').endsWith('\n'))) return false;
+  }
+  const r = cell.ownerDocument.createRange();
+  r.setStart(node, lineStart);
+  r.setEnd(node, at);
+  sel.removeAllRanges();
+  sel.addRange(r);
+  cell.ownerDocument.execCommand('insertText', false, '• ');
+  return true;
 }

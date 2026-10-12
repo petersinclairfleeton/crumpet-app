@@ -91,9 +91,17 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines, and the gallery's styles,
     `TABLE_STYLES`, which go to Word as table styles "Crumpet Blue" and so on) and keeping it in step as rows and
-    columns change. `cells.ts`: a cell's text is a line of inline
-    Markdown (bold, fonts, colours), drawn into and read from its box, and
-    formatting applied there (the toolbar goes to the cell being typed in).
+    columns change. `cells.ts`: a cell's text is inline
+    Markdown (bold, fonts, colours; lines within it as `&#10;`, Shift+Enter),
+    drawn into and read from its box, and formatting applied there (the
+    toolbar goes to the cell being typed in). A table's look also holds each
+    cell's own settings (`cells`: alignment, text direction, lines), row
+    heights, cell margins and style options; `formula.ts` works out cells
+    starting with = (=SUM(ABOVE)). In page view a table splits between rows
+    (`paginate.ts`: `splitTable`, the heading row repeated), so the editor
+    finds cells through `view.pieces(id)`. `app/src/ui/tabletools.tsx` is
+    the Table button (size grid, Draw table, Convert text to table, Quick
+    tables).
   - `shape.ts`: text boxes and shapes (`shape` blocks: rectangle, rounded,
     oval, line, arrow; size in inches, fill, line, wrapping left/right or
     in front of the text at `x`,`y` inches from its paragraph (`wrap=free`,

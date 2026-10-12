@@ -8,7 +8,9 @@ import { FIELDS, fieldValue } from './fields';
 import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
 import { type ShapeLook, tidyShape } from './shape';
 import { MASK_CLIPS, PIC_MASKS, PIC_STYLES, type PicLook, type PicMask, type PicStyle, picFilter } from './picture';
-import { fillCell, readCell } from './cells';
+import { cellPlain, fillCell, readCell } from './cells';
+import { evaluateCell, formatValue, isFormula } from './formula';
+import type { CellLook } from './table';
 import { BULLETS, foldedUnder, isHeading, isList, isToggle, listLabels, runsLength, tidyCode } from './model';
 
 const TAGS: Record<Block['type'], string> = {
@@ -1168,7 +1170,20 @@ function buildTable(block: Block): HTMLElement {
     button('del-row', 'Delete row'),
     button('del-col', 'Delete column'),
   ]);
+  group('Size', [button('dist-rows', 'Distribute rows', 'Make every row as tall as the others'), button('dist-cols', 'Distribute columns', 'Make every column as wide as the others')]);
+  group('Row height', [button('row-h', 'Auto', 'As tall as its text', ''), button('row-h', '0.3"', 'At least 0.3 inch', '0.3'), button('row-h', '0.5"', 'At least half an inch', '0.5'), button('row-h', '0.75"', 'At least 0.75 inch', '0.75'), button('row-h', '1"', 'At least an inch', '1')]);
   group('Merge', [button('merge-right', 'Merge with cell to the right'), button('merge-down', 'Merge with cell below'), button('split', 'Split cell')]);
+  group('This cell', [
+    button('cell-h', 'Text left', 'Cell: align left', 'left'),
+    button('cell-h', 'Text centre', 'Cell: align centre', 'center'),
+    button('cell-h', 'Text right', 'Cell: align right', 'right'),
+    button('cell-v', 'At top', 'Cell: text at the top', ''),
+    button('cell-v', 'In middle', 'Cell: text in the middle', 'middle'),
+    button('cell-v', 'At bottom', 'Cell: text at the bottom', 'bottom'),
+    button('cell-dir', 'Across', 'Text direction: across', ''),
+    button('cell-dir', 'Down ↓', 'Text direction: down the cell', 'down'),
+    button('cell-dir', 'Up ↑', 'Text direction: up the cell', 'up'),
+  ]);
   group('Align column', [button('align', 'Left', 'Align column left', ''), button('align', 'Centre', 'Align column centre', 'center'), button('align', 'Right', 'Align column right', 'right')]);
   const toggle = (action: string, label: string) => {
     const b = button(action, label);
@@ -1189,7 +1204,7 @@ function buildTable(block: Block): HTMLElement {
     gallery.appendChild(b);
   }
   group('Table style', [gallery]);
-  group('Style options', [toggle('header', 'Heading row'), toggle('banded', 'Banded rows')]);
+  group('Style options', [toggle('header', 'Heading row'), toggle('banded', 'Banded rows'), toggle('first-col', 'First column'), toggle('last-col', 'Last column'), toggle('total-row', 'Total row'), toggle('banded-cols', 'Banded columns'), toggle('repeat', 'Repeat heading row on each page')]);
   group('Lines', [button('borders', 'All lines', 'All lines', ''), button('borders', 'Outside only', 'Outside only', 'outside'), button('borders', 'Between rows', 'Lines between rows', 'rows'), button('borders', 'No lines', 'No lines', 'none')]);
   const swatches = document.createElement('div');
   swatches.className = 'table-swatches';
@@ -1200,6 +1215,24 @@ function buildTable(block: Block): HTMLElement {
     swatches.appendChild(b);
   }
   group('Cell shading', [swatches, button('shade', 'No shading', 'No shading', '')]);
+  // Lines round this cell (Word's Borders on cells), and the border painter that paints them onto cells clicked.
+  const sides = document.createElement('div');
+  sides.className = 'table-borders';
+  sides.append(button('cell-bd', 'Box', 'Cell lines: all round', 'tblr'), button('cell-bd', 'Line top', 'Cell line: top', 't'), button('cell-bd', 'Line bottom', 'Cell line: bottom', 'b'), button('cell-bd', 'Line left', 'Cell line: left', 'l'), button('cell-bd', 'Line right', 'Cell line: right', 'r'), button('cell-bd', 'None', 'Cell: no lines', '0'), button('cell-bd', "Table's", 'Cell: the table’s lines', ''));
+  const lines = document.createElement('div');
+  lines.className = 'table-lines';
+  for (const [v, name] of [['single', 'Single'], ['thick', 'Thick'], ['double', 'Double'], ['dotted', 'Dotted'], ['dashed', 'Dashed']]) lines.appendChild(button('cell-bs', name, `Cell line style: ${name.toLowerCase()}`, v));
+  const inks = document.createElement('div');
+  inks.className = 'table-swatches';
+  for (const [hex, name] of [['', 'Text colour'], ['#7f7f7f', 'Grey'], ['#2f6fd1', 'Blue'], ['#c0392b', 'Red'], ['#2e8b57', 'Green']]) {
+    const b = button('cell-bc', '', `Cell line colour: ${name.toLowerCase()}`, hex);
+    b.setAttribute('aria-label', `Cell line colour ${name.toLowerCase()}`);
+    b.style.background = hex || 'var(--text, #222)';
+    inks.appendChild(b);
+  }
+  group('Cell lines', [sides, lines, inks, toggle('painter', 'Border painter')]);
+  group('Cell margins', [button('pad', 'Narrow', 'Cell margins: narrow', '0.03'), button('pad', 'Normal', 'Cell margins: normal', ''), button('pad', 'Wide', 'Cell margins: wide', '0.15')]);
+  group('Data', [button('sort-asc', 'Sort A→Z', 'Sort the rows by this column, A to Z (or smallest first)'), button('sort-desc', 'Sort Z→A', 'Sort the rows by this column, Z to A (or largest first)'), button('formula', '=SUM(ABOVE)', 'Put a formula in this cell: the numbers above it added up'), button('to-text', 'Convert to text', 'Each row a line, the cells parted by tabs')]);
   group('', [button('delete', 'Delete table')]);
   tools.appendChild(menu);
   // The table scrolls sideways on its own; the tools sit below it, so they never cover a cell.
@@ -1250,6 +1283,15 @@ function fillTable(table: HTMLTableElement, block: Block): void {
   else delete table.dataset.borders;
   table.classList.toggle('banded', !!t?.banded);
   table.classList.toggle('no-header', !!t?.noHeader);
+  // Word's style options: first and last column, total row, banded columns.
+  table.classList.toggle('first-col', !!t?.firstCol);
+  table.classList.toggle('last-col', !!t?.lastCol);
+  table.classList.toggle('total-row', !!t?.totalRow);
+  table.classList.toggle('banded-cols', !!t?.bandedCols);
+  // The heading row goes again at the top of each page the table runs onto.
+  table.toggleAttribute('data-repeat', !t?.noHeader && !t?.noRepeat);
+  if (t?.pad !== undefined) table.style.setProperty('--cell-pad', `${t.pad}in`);
+  else table.style.removeProperty('--cell-pad');
   // A gallery style: its colour (bands and lines are paler mixes of it, so they suit dark mode too).
   const st = t?.style ? TABLE_STYLES[t.style] : null;
   if (st && t?.style) {
@@ -1277,10 +1319,19 @@ function fillTable(table: HTMLTableElement, block: Block): void {
   const check = (sel: string, on: boolean) => wrap?.querySelectorAll(sel).forEach((b) => b.setAttribute('aria-checked', String(on)));
   check('[data-table-action="header"]', !t?.noHeader);
   check('[data-table-action="banded"]', !!t?.banded);
+  check('[data-table-action="first-col"]', !!t?.firstCol);
+  check('[data-table-action="last-col"]', !!t?.lastCol);
+  check('[data-table-action="total-row"]', !!t?.totalRow);
+  check('[data-table-action="banded-cols"]', !!t?.bandedCols);
+  check('[data-table-action="repeat"]', !t?.noRepeat && !t?.noHeader);
+  wrap?.querySelectorAll<HTMLElement>('[data-table-action="pad"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (t?.pad !== undefined ? String(t.pad) : '')));
   wrap?.querySelectorAll<HTMLElement>('[data-table-action="borders"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (t?.borders ?? '')));
   wrap?.querySelectorAll<HTMLElement>('[data-table-action="style"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (t?.style ?? '')));
+  const plain = rows.some((row) => row.some(isFormula)) ? rows.map((row) => row.map(cellPlain)) : null;
   rows.forEach((row, r) => {
     const tr = table.insertRow();
+    const h = t?.heights?.[r];
+    if (h) tr.style.height = `${h}in`;
     row.forEach((text, c) => {
       if (isCovered(t, r, c)) return;
       const head = r === 0 && !t?.noHeader;
@@ -1294,6 +1345,10 @@ function fillTable(table: HTMLTableElement, block: Block): void {
       if (shade) cell.style.background = shade;
       const align = t?.aligns?.[c];
       if (align) cell.style.textAlign = align;
+      const own = t?.cells?.[`${r},${c}`];
+      if (own) cellLook(cell, own);
+      // A formula shows what it comes to (its own text while it's being edited).
+      if (plain && isFormula(text)) cell.dataset.value = formatValue(evaluateCell(plain, r, c));
       const box = document.createElement('div');
       box.className = 'cell';
       box.contentEditable = 'true';
@@ -1318,6 +1373,33 @@ function fillTable(table: HTMLTableElement, block: Block): void {
   });
 }
 
+const CELL_LINES: Record<string, string> = { single: '1px solid', thick: '2.5px solid', double: '3px double', dotted: '1.5px dotted', dashed: '1.5px dashed' };
+
+/** A cell's own alignment, text direction and lines. */
+function cellLook(cell: HTMLElement, own: CellLook): void {
+  if (own.h) cell.style.textAlign = own.h;
+  if (own.v) cell.style.verticalAlign = own.v;
+  if (own.dir) cell.dataset.dir = own.dir;
+  if (own.bd === '0') cell.style.border = 'none';
+  else if (own.bd) {
+    const line = `${CELL_LINES[own.bs ?? 'single']} ${own.bc ?? 'currentColor'}`;
+    for (const [k, side] of [['t', 'Top'], ['b', 'Bottom'], ['l', 'Left'], ['r', 'Right']] as const) if (own.bd.includes(k)) cell.style.setProperty(`border-${side.toLowerCase()}`, line);
+    cell.dataset.lines = own.bd;
+  }
+}
+
+/** Works out the table's formulas again (another cell changed). */
+function refreshFormulas(table: HTMLElement, rows: string[][]): void {
+  const plain = rows.some((row) => row.some(isFormula)) ? rows.map((row) => row.map(cellPlain)) : null;
+  for (const box of table.querySelectorAll<HTMLElement>('.cell')) {
+    const td = box.parentElement as HTMLElement;
+    const r = Number(box.dataset.r);
+    const c = Number(box.dataset.c);
+    if (plain && isFormula(rows[r]?.[c] ?? '')) td.dataset.value = formatValue(evaluateCell(plain, r, c));
+    else delete td.dataset.value;
+  }
+}
+
 /** Updates a table's cells in place. False when its shape changed (it's rebuilt instead). */
 function patchTable(el: HTMLElement, block: Block): boolean {
   const table = el.querySelector('table');
@@ -1339,13 +1421,14 @@ function patchTable(el: HTMLElement, block: Block): boolean {
     const text = rows[Number(box.dataset.r)][Number(box.dataset.c)];
     if (box !== el.ownerDocument.activeElement && readCell(box) !== text) fillCell(box, text);
   }
+  refreshFormulas(table, rows);
   return true;
 }
 
-/** The cells' text as the table shows it now. */
-export function readTable(el: HTMLElement, block: Block): string[][] {
+/** The cells' text as the table shows it now (in page view, from every part of it). */
+export function readTable(el: HTMLElement | HTMLElement[], block: Block): string[][] {
   const rows = (block.rows ?? [['']]).map((row) => [...row]);
-  for (const box of el.querySelectorAll<HTMLElement>('table .cell')) {
+  for (const box of (Array.isArray(el) ? el : [el]).flatMap((x) => Array.from(x.querySelectorAll<HTMLElement>('table .cell')))) {
     const r = Number(box.dataset.r);
     const c = Number(box.dataset.c);
     if (rows[r]?.[c] !== undefined) rows[r][c] = readCell(box);

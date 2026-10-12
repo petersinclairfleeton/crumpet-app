@@ -174,3 +174,31 @@ describe('Word: styles of your own', () => {
     expect(back.styles?.find((x) => x.id === 'c-part-head')?.base).toBe('heading2');
   });
 });
+
+describe('Word: table settings', () => {
+  it('cells of their own, heights, margins, options, lines in a cell and formulas go to Word and come back', async () => {
+    const tbl = { firstCol: true, totalRow: true, bandedCols: true, pad: 0.15, heights: [null, 0.5], cells: { '1,0': { v: 'middle' as const, dir: 'up' as const, bd: 'tb', bs: 'double' as const, bc: '#2f6fd1' }, '1,1': { h: 'right' as const } } };
+    const rows = [
+      ['Item', 'Cost'],
+      ['Tea&#10;• hot', '2'],
+      ['Total', '=SUM(ABOVE)'],
+    ];
+    const bytes = await toDocx([{ doc: { blocks: [makeBlock('table', '', [], { rows, tbl })] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:textDirection w:val="btLr"/>');
+    expect(xml).toContain('<w:vAlign w:val="center"/>');
+    expect(xml).toContain('<w:trHeight w:val="720" w:hRule="atLeast"/>');
+    expect(xml).toContain('w:lastRow="1" w:firstColumn="1"');
+    expect(xml).toContain('<w:fldSimple w:instr=" =SUM(ABOVE) "><w:r><w:t xml:space="preserve">2</w:t>');
+    expect(xml).toContain('<w:top w:val="double" w:sz="4" w:space="0" w:color="2F6FD1"/>');
+    const back = (await fromDocx(bytes)).doc.blocks[0];
+    expect(back.rows).toEqual([
+      ['Item', 'Cost'],
+      ['Tea&#10;• hot', '2'],
+      ['Total', '=SUM(ABOVE)'],
+    ]);
+    expect(back.tbl).toMatchObject({ firstCol: true, totalRow: true, bandedCols: true, pad: 0.15, heights: [null, 0.5] });
+    expect(back.tbl?.cells?.['1,0']).toEqual({ v: 'middle', dir: 'up', bd: 'tb', bs: 'double', bc: '#2f6fd1' });
+    expect(back.tbl?.cells?.['1,1']).toEqual({ h: 'right' });
+  });
+});

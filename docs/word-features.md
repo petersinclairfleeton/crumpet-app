@@ -138,11 +138,11 @@ At the end there's a suggested order for building what's missing.
 | Cover Page | ❌ | |
 | Blank Page | ✅ | The Blank page button: an empty page at the caret, the rest moved on past it. |
 | Page Break | ✅ | |
-| Insert a table | ✅ | |
-| Draw a table | ❌ | |
-| Convert text to table | ❌ | |
+| Insert a table | ✅ | The Table button's size grid, or /table. |
+| Draw a table | ✅ | Table → Draw table…: drag lines across or down a box (click one to rub it out); their places become the rows' heights and columns' widths. Lines that stop partway (merged cells as you draw) aren't drawn. |
+| Convert text to table | ✅ | Table → Convert text to table…: the selected lines cut at tabs, commas, spaces or a character of your own; formatting kept. |
 | Excel spreadsheet in the document | ❌ | |
-| Quick Tables (ready-made calendars, tables) | ❌ | |
+| Quick Tables (ready-made calendars, tables) | ✅ | This month's calendar, a list, a matrix, and a table with subheadings and totals (formulas). |
 | Pictures from the device | ✅ | Also pasted or dropped in. |
 | Stock images, online pictures | ❌ | |
 | Shapes | ✅ | Rectangle, rounded rectangle, oval, line, arrow. Word has many more (stars, callouts, flowchart shapes). |
@@ -319,10 +319,10 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Table styles | ✅ | A gallery of eight (they go to Word as styles of their own). |
 | Shading | ✅ | Per cell. |
-| Borders | 🟡 | All lines, outside only, between rows, none. No line styles, thickness, colour or per-cell borders. |
-| Border painter | ❌ | |
+| Borders | ✅ | All lines, outside only, between rows, none for the table; and per cell: which sides, single, thick, double, dotted or dashed, in a colour. To and from Word. |
+| Border painter | ✅ | Table menu → Cell lines → Border painter: each cell clicked gets lines all round in the style and colour chosen. |
 | Header row, banded rows | ✅ | |
-| First column, last column, total row, banded columns | ❌ | |
+| First column, last column, total row, banded columns | ✅ | In the Table menu's Style options; to and from Word. A total row stays at the foot when sorting. |
 
 ### Table Layout
 
@@ -330,16 +330,16 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Insert/delete rows and columns | ✅ | |
 | Merge / split cells | ✅ | |
-| Cell size (column widths) | 🟡 | Column widths; no row heights. |
-| Distribute rows/columns evenly | ❌ | |
-| Alignment | 🟡 | Left/centre/right for a whole column; not per cell, not top/middle/bottom. |
-| Text direction | ❌ | |
-| Cell margins | ❌ | |
-| Repeat Header Rows on each page | ❌ | |
-| Convert table to text | ❌ | |
-| Sort | ❌ | |
-| Formula (=SUM) | ❌ | |
-| More than one paragraph in a cell | ❌ | A cell holds one line of formatted text. |
+| Cell size (column widths) | ✅ | Column widths (drag the edges) and row heights (at least 0.3, 0.5, 0.75 or 1 inch, or as tall as the text). |
+| Distribute rows/columns evenly | ✅ | |
+| Alignment | ✅ | Left/centre/right for a column or one cell, and top/middle/bottom per cell. Applies to the cell with the cursor (not several selected cells at once). |
+| Text direction | ✅ | Per cell: across, down or up. |
+| Cell margins | ✅ | Narrow, normal or wide, for the whole table. |
+| Repeat Header Rows on each page | ✅ | In page view, a table that runs onto another page is split between rows, with its heading row again at the top (on unless switched off). |
+| Convert table to text | ✅ | Each row a line, cells parted by tabs. |
+| Sort | ✅ | By the cursor's column, A to Z or Z to A, as numbers when the column holds numbers; rows keep their shading and settings. Not when merged cells span rows. |
+| Formula (=SUM) | ✅ | A cell starting with = shows what it comes to: SUM, AVERAGE, MIN, MAX, COUNT, PRODUCT of ABOVE/LEFT/BELOW/RIGHT, cells (A1) or ranges (B2:B5), with + − × ÷. To Word as formula fields. |
+| More than one paragraph in a cell | 🟡 | Shift+Enter starts another line in a cell, and "- " a bullet; to Word as separate paragraphs. Pictures and real lists in a cell aren't possible yet. |
 
 ### Picture Format
 
@@ -511,20 +511,20 @@ Where: `app/src/data/styles.ts`, `ui/stylespane.tsx`, `ui/styles-ui.tsx`, `ui/fi
 
 **6. Tables**
 Where: `packages/editor/src/table.ts`, `cells.ts`, `view.ts` (the Table menu), `paginate.ts`, `markdown.ts`, `docx.ts`.
-- [ ] Several paragraphs, lists or pictures in a cell
-- [ ] Cell alignment per cell, and top/middle/bottom
-- [ ] Repeat the heading row on each page
-- [ ] Row heights
-- [ ] Distribute rows/columns evenly
-- [ ] Cell margins
-- [ ] Text direction in cells
-- [ ] Border styles per cell, and the border painter
-- [ ] Table style options: first column, last column, total row, banded columns
-- [ ] Convert text to table, and table to text
-- [ ] Sort a table
-- [ ] Formulas (=SUM and friends)
-- [ ] Draw a table
-- [ ] Quick tables (calendars, lists, matrix)
+- [x] Several paragraphs, lists or pictures in a cell
+- [x] Cell alignment per cell, and top/middle/bottom
+- [x] Repeat the heading row on each page
+- [x] Row heights
+- [x] Distribute rows/columns evenly
+- [x] Cell margins
+- [x] Text direction in cells
+- [x] Border styles per cell, and the border painter
+- [x] Table style options: first column, last column, total row, banded columns
+- [x] Convert text to table, and table to text
+- [x] Sort a table
+- [x] Formulas (=SUM and friends)
+- [x] Draw a table
+- [x] Quick tables (calendars, lists, matrix)
 
 **7. Book and non-fiction tools**
 Where: `model.ts` (footnotes), `paginate.ts`, `app/src/ui/booktoc.ts`, `footnotes.tsx`, `print.tsx`, `docx.ts`, `epub.ts`.

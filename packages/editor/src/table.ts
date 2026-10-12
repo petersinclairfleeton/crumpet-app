@@ -22,6 +22,51 @@ export interface TableLook {
   widths?: number[];
   /** A style from the gallery (TABLE_STYLES): coloured heading row, bands and lines. */
   style?: TableStyleKey;
+  /** Word's table style options beyond the heading row and banded rows. */
+  firstCol?: boolean;
+  lastCol?: boolean;
+  totalRow?: boolean;
+  bandedCols?: boolean;
+  /** The heading row isn't repeated at the top of each page the table runs onto (it is, unset). */
+  noRepeat?: boolean;
+  /** Each row's least height in inches (null: as tall as its text). */
+  heights?: (number | null)[];
+  /** Space inside each cell, in inches, all round (unset: Crumpet's usual). */
+  pad?: number;
+  /** Cells' own settings, by "row,column": alignment, text direction and lines. */
+  cells?: Record<string, CellLook>;
+}
+
+/** One cell's own settings (a merged cell's go on its top-left cell). */
+export interface CellLook {
+  /** Across, over its column's alignment. */
+  h?: 'left' | 'center' | 'right';
+  /** Up and down (unset: at the top). */
+  v?: 'middle' | 'bottom';
+  /** Text running up or down the cell (Word's Text Direction). */
+  dir?: 'up' | 'down';
+  /** Lines round the cell: which sides (t, b, l, r), their style and colour. */
+  bd?: string;
+  bs?: 'single' | 'double' | 'dotted' | 'dashed' | 'thick';
+  bc?: string;
+}
+
+const CELL_BORDER_STYLES = ['single', 'double', 'dotted', 'dashed', 'thick'] as const;
+
+/** A cell's settings made safe (undefined when there's nothing). */
+export function tidyCellLook(x: Partial<CellLook> | undefined): CellLook | undefined {
+  if (!x || typeof x !== 'object') return undefined;
+  const out: CellLook = {};
+  if (x.h === 'left' || x.h === 'center' || x.h === 'right') out.h = x.h;
+  if (x.v === 'middle' || x.v === 'bottom') out.v = x.v;
+  if (x.dir === 'up' || x.dir === 'down') out.dir = x.dir;
+  const bd = typeof x.bd === 'string' ? ['t', 'b', 'l', 'r'].filter((c) => x.bd!.includes(c)).join('') : '';
+  if (bd) out.bd = bd;
+  // A side drawn none at all: "0" (to take a table's lines off a cell).
+  else if (x.bd === '0') out.bd = '0';
+  if (out.bd && out.bd !== '0' && x.bs && CELL_BORDER_STYLES.includes(x.bs) && x.bs !== 'single') out.bs = x.bs;
+  if (out.bd && out.bd !== '0' && typeof x.bc === 'string' && /^#[0-9a-f]{6}$/i.test(x.bc)) out.bc = x.bc.toLowerCase();
+  return Object.keys(out).length ? out : undefined;
 }
 
 /**
@@ -95,6 +140,27 @@ export function tidyTable(t: TableLook | undefined, rows: number, cols: number):
     while (aligns.length && !aligns[aligns.length - 1]) aligns.pop();
     out.aligns = aligns;
   }
+  if (t.firstCol) out.firstCol = true;
+  if (t.lastCol) out.lastCol = true;
+  if (t.totalRow) out.totalRow = true;
+  if (t.bandedCols) out.bandedCols = true;
+  if (t.noRepeat) out.noRepeat = true;
+  if (typeof t.pad === 'number' && Number.isFinite(t.pad) && t.pad >= 0 && t.pad <= 1) out.pad = Math.round(t.pad * 100) / 100;
+  const heights = Array.from({ length: rows }, (_, i) => {
+    const h = t.heights?.[i];
+    return typeof h === 'number' && Number.isFinite(h) && h > 0 ? Math.round(Math.min(10, Math.max(0.1, h)) * 100) / 100 : null;
+  });
+  if (heights.some((h) => h !== null)) {
+    while (heights.length && heights[heights.length - 1] === null) heights.pop();
+    out.heights = heights;
+  }
+  const cells: Record<string, CellLook> = {};
+  for (const [k, v] of Object.entries(t.cells ?? {}).sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))) {
+    const [r, c] = k.split(',').map(Number);
+    const look = tidyCellLook(v);
+    if (look && Number.isInteger(r) && Number.isInteger(c) && r < rows && c < cols && !isCovered(out, r, c)) cells[`${r},${c}`] = look;
+  }
+  if (Object.keys(cells).length) out.cells = cells;
   const w = t.widths;
   if (w && w.length === cols && w.every((x) => typeof x === 'number' && Number.isFinite(x) && x > 0)) {
     const sum = w.reduce((a, b) => a + b, 0);
@@ -144,6 +210,23 @@ const remap = (t: TableLook | undefined, row: (r: number) => number | null, col:
       const nc = col(c);
       if (nr !== null && nc !== null) out.shades[`${nr},${nc}`] = v;
     }
+  }
+  if (t.cells) {
+    out.cells = {};
+    for (const [k, v] of Object.entries(t.cells)) {
+      const [r, c] = k.split(',').map(Number);
+      const nr = row(r);
+      const nc = col(c);
+      if (nr !== null && nc !== null) out.cells[`${nr},${nc}`] = v;
+    }
+  }
+  if (t.heights) {
+    const heights: (number | null)[] = [];
+    t.heights.forEach((h, r) => {
+      const nr = row(r);
+      if (nr !== null) heights[nr] = h;
+    });
+    out.heights = Array.from(heights, (h) => h ?? null);
   }
   if (t.aligns) {
     const aligns: (CellAlign | null)[] = [];
@@ -243,9 +326,85 @@ export function setWidths({ rows, tbl }: TableShape, widths: number[] | undefine
   return { rows, tbl: tidyTable({ ...tbl, widths }, rows.length, rows[0].length) };
 }
 
-/** Sets the heading row, banded rows, lines or style. */
-export function setTableLook({ rows, tbl }: TableShape, patch: Pick<TableLook, 'noHeader' | 'banded' | 'borders' | 'style'>): TableShape {
+/** Sets the heading row, banded rows, lines, style, style options, repeating, cell margins. */
+export function setTableLook({ rows, tbl }: TableShape, patch: Pick<TableLook, 'noHeader' | 'banded' | 'borders' | 'style' | 'firstCol' | 'lastCol' | 'totalRow' | 'bandedCols' | 'noRepeat' | 'pad'>): TableShape {
   return { rows, tbl: tidyTable({ ...tbl, ...patch }, rows.length, rows[0].length) };
+}
+
+/** Changes cells' own settings (null takes a setting off), each of a merged cell on its top-left cell. */
+export function setCellLooks({ rows, tbl }: TableShape, at: [number, number][], patch: { [K in keyof CellLook]?: CellLook[K] | null }): TableShape {
+  const cells = { ...tbl?.cells };
+  for (const [r, c] of at) {
+    const [mr, mc] = mergeAt(tbl, r, c) ?? [r, c];
+    const key = `${mr},${mc}`;
+    const next: Record<string, unknown> = { ...cells[key] };
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null || v === undefined) delete next[k];
+      else next[k] = v;
+    }
+    const look = tidyCellLook(next as CellLook);
+    if (look) cells[key] = look;
+    else delete cells[key];
+  }
+  return { rows, tbl: tidyTable({ ...tbl, cells }, rows.length, rows[0].length) };
+}
+
+/** Sets row `r`'s least height in inches (null: as tall as its text). */
+export function setRowHeight({ rows, tbl }: TableShape, r: number, h: number | null): TableShape {
+  const heights = Array.from({ length: rows.length }, (_, i) => (i === r ? h : (tbl?.heights?.[i] ?? null)));
+  return { rows, tbl: tidyTable({ ...tbl, heights }, rows.length, rows[0].length) };
+}
+
+/** Word's Distribute Rows: every row as tall as `h` inches (the average of their heights now). */
+export function distributeRows({ rows, tbl }: TableShape, h: number): TableShape {
+  return { rows, tbl: tidyTable({ ...tbl, heights: rows.map(() => h) }, rows.length, rows[0].length) };
+}
+
+/** Word's Distribute Columns: every column as wide as the others. */
+export function distributeCols({ rows, tbl }: TableShape): TableShape {
+  const n = rows[0].length;
+  return { rows, tbl: tidyTable({ ...tbl, widths: Array(n).fill(100 / n) }, rows.length, n) };
+}
+
+/**
+ * Word's Sort: the rows below the heading row (or all, with none) put in
+ * order of column `c`, as numbers when every filled cell is one, else
+ * alphabetically; a total row stays at the foot. Unchanged when a merged
+ * cell covers more than one row of what's sorted.
+ */
+export function sortTable({ rows, tbl }: TableShape, c: number, desc = false, plain: (s: string) => string = (s) => s): TableShape {
+  const top = tbl?.noHeader ? 0 : 1;
+  const end = tbl?.totalRow ? rows.length - 1 : rows.length;
+  if (end - top < 2) return { rows, tbl };
+  if (tbl?.merges?.some(([r, , rs]) => rs > 1 && r + rs > top && r < end)) return { rows, tbl };
+  const body = rows.slice(top, end).map((row, i) => ({ row, i: i + top }));
+  const keys = body.map((x) => plain(x.row[c] ?? '').trim());
+  const asNumber = (s: string) => Number(s.replace(/[,$£€%\s]/g, ''));
+  const numeric = keys.filter(Boolean).length > 0 && keys.filter(Boolean).every((k) => Number.isFinite(asNumber(k)));
+  const order = body
+    .map((x, n) => ({ ...x, key: keys[n] }))
+    .sort((a, b) => {
+      // Empty cells go last either way.
+      if (!a.key || !b.key) return a.key ? -1 : b.key ? 1 : a.i - b.i;
+      const d = numeric ? asNumber(a.key) - asNumber(b.key) : a.key.localeCompare(b.key, undefined, { sensitivity: 'base', numeric: true });
+      return (desc ? -d : d) || a.i - b.i;
+    });
+  const where = new Map(order.map((x, n) => [x.i, n + top]));
+  const next = [...rows.slice(0, top), ...order.map((x) => x.row), ...rows.slice(end)];
+  const t = remap(tbl, (r) => where.get(r) ?? r, (cc) => cc);
+  return { rows: next, tbl: tidyTable(t, next.length, next[0].length) };
+}
+
+/** A table as lines of text, cells parted by tabs (Word's Convert Table to Text). */
+export function tableToLines(rows: string[][], sep = '\t'): string[] {
+  return rows.map((row) => row.join(sep));
+}
+
+/** Lines of text as a table's rows, split at `sep` (Word's Convert Text to Table); short rows are filled out. */
+export function linesToRows(lines: string[], sep: string): string[][] {
+  const split = lines.map((l) => (sep === ' ' ? l.trim().split(/\s+/) : l.split(sep)).map((x) => x.trim()));
+  const width = Math.max(1, ...split.map((r) => r.length));
+  return split.map((r) => [...r, ...Array(width - r.length).fill('')]);
 }
 
 // ---------------------------------------------------------------- Markdown
@@ -265,11 +424,19 @@ export function tableAttrs(t: TableLook | undefined): string {
     ...(t.merges ?? []).map((m) => `merge=${m.join('-')}`),
     ...Object.entries(t.shades ?? {}).map(([k, v]) => `shade=${k.replace(',', '-')}-${v}`),
     t.widths ? `widths=${t.widths.join('-')}` : '',
+    t.firstCol ? '.firstcol' : '',
+    t.lastCol ? '.lastcol' : '',
+    t.totalRow ? '.totalrow' : '',
+    t.bandedCols ? '.bandedcols' : '',
+    t.noRepeat ? '.norepeat' : '',
+    t.pad !== undefined ? `pad=${t.pad}` : '',
+    t.heights ? `heights=${t.heights.map((h) => h ?? 'x').join('-')}` : '',
+    ...Object.entries(t.cells ?? {}).map(([k, v]) => `cell=${k.replace(',', '-')}:${Object.entries(v).map(([a, b]) => `${a}=${b}`).join(',')}`),
   ].filter(Boolean);
   return parts.length ? `{table ${parts.join(' ')}}` : '';
 }
 
-export const TABLE_ATTRS = /^[ \t]*\{table((?:[ \t]+(?:\.noheader|\.banded|style=[a-z]+|borders=[a-z]+|merge=\d+-\d+-\d+-\d+|shade=\d+-\d+-#[0-9a-fA-F]{6}|widths=[\d.]+(?:-[\d.]+)*))*)[ \t]*\}[ \t]*$/;
+export const TABLE_ATTRS = /^[ \t]*\{table((?:[ \t]+(?:\.noheader|\.banded|style=[a-z]+|borders=[a-z]+|merge=\d+-\d+-\d+-\d+|shade=\d+-\d+-#[0-9a-fA-F]{6}|widths=[\d.]+(?:-[\d.]+)*|\.firstcol|\.lastcol|\.totalrow|\.bandedcols|\.norepeat|pad=[\d.]+|heights=[\d.x]+(?:-[\d.x]+)*|cell=\d+-\d+:[a-z]+=[#\w]+(?:,[a-z]+=[#\w]+)*))*)[ \t]*\}[ \t]*$/;
 
 /** Reads the line written by tableAttrs (aligns come from the rule row). */
 export function readTableAttrs(line: string): TableLook | null {
@@ -285,6 +452,23 @@ export function readTableAttrs(line: string): TableLook | null {
     } else if (tok.startsWith('borders=')) t.borders = tok.slice(8) as TableBorders;
     else if (tok.startsWith('merge=')) (t.merges ??= []).push(tok.slice(6).split('-').map(Number) as [number, number, number, number]);
     else if (tok.startsWith('widths=')) t.widths = tok.slice(7).split('-').map(Number);
+    else if (tok === '.firstcol') t.firstCol = true;
+    else if (tok === '.lastcol') t.lastCol = true;
+    else if (tok === '.totalrow') t.totalRow = true;
+    else if (tok === '.bandedcols') t.bandedCols = true;
+    else if (tok === '.norepeat') t.noRepeat = true;
+    else if (tok.startsWith('pad=')) t.pad = Number(tok.slice(4));
+    else if (tok.startsWith('heights=')) t.heights = tok.slice(8).split('-').map((h) => (h === 'x' ? null : Number(h)));
+    else if (tok.startsWith('cell=')) {
+      const [where, rest] = tok.slice(5).split(':');
+      const [r, c] = where.split('-');
+      const look: Record<string, string> = {};
+      for (const kv of rest.split(',')) {
+        const [k, v] = kv.split('=');
+        look[k] = v;
+      }
+      (t.cells ??= {})[`${r},${c}`] = look as CellLook;
+    }
     else if (tok.startsWith('shade=')) {
       const [r, c, hex] = tok.slice(6).split('-');
       (t.shades ??= {})[`${r},${c}`] = hex;

@@ -2,7 +2,7 @@
 // least-used controls move into a "More" menu at the end (as in Word when its
 // window is narrow). Each control has a priority; lower priorities go first.
 
-import { type ReactNode, useLayoutEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Popover } from './Sidebar';
 
 export interface ToolItem {
@@ -17,6 +17,12 @@ export interface ToolItem {
   label?: string;
   /** A thin line between groups (goes with the item after it). */
   sep?: boolean;
+}
+
+const CLOSE_MORE = 'crumpet:close-more';
+/** Closes the bar's More menu (a tool in it has done what it was asked). */
+export function closeMore(): void {
+  window.dispatchEvent(new Event(CLOSE_MORE));
 }
 
 export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: boolean }) {
@@ -57,6 +63,12 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
     return () => ro.disconnect();
   }, [keys, fit]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A tool under More that has done its work asks for the menu to close (closeMore).
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener(CLOSE_MORE, close);
+    return () => window.removeEventListener(CLOSE_MORE, close);
+  }, []);
   // Floating over the text, the bar keeps to the most-used controls.
   const shown = fit ? items.filter((i) => !hidden.includes(i.key)) : items.filter((i) => i.pri >= 2);
   const extra = fit ? items.filter((i) => hidden.includes(i.key)) : [];
