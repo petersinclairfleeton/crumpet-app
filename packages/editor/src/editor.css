@@ -268,7 +268,9 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
 .col-grip:hover, .col-grip.dragging { background: linear-gradient(to right, transparent 3px, var(--accent, #4a7) 3px, var(--accent, #4a7) 5px, transparent 5px); }
 @media print { .col-grip { display: none; } }
 
-.blk-numbered::before { content: attr(data-label); }
+.blk-numbered::before { content: attr(data-label); white-space: nowrap; }
+.blk-numbered[data-wide] { padding-left: calc(var(--label-n, 4) * 0.55em + 12px); }
+.blk-numbered[data-wide]::before { width: auto; text-align: left; white-space: nowrap; }
 /* Page view (paginate.ts): pages, bands of columns, and paragraphs split between columns or pages. */
 .editor.paged { padding: 0 !important; min-height: 0 !important; }
 .pg { box-sizing: border-box; margin-left: auto; margin-right: auto; position: relative; }

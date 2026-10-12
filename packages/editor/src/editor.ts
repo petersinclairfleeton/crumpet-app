@@ -79,6 +79,8 @@ import {
   insertBlocks,
   sliceDoc,
   sortParagraphs,
+  setMultilevel,
+  type ListLevel,
   type SortBy,
   trackedSplit,
   trackedJoin,
@@ -2141,6 +2143,13 @@ export class Editor {
     if (!last) return;
     while (this.history.depth > last.depth && this.history.canUndo) this.undo();
     this.paste(last.what, mode);
+  }
+
+  /** Word's Multilevel List: every level of the list styled at once (see setMultilevel). */
+  setMultilevel(levels: ListLevel[]): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(setMultilevel(this.state, levels), 'command');
   }
 
   /** Word's Sort: the selected paragraphs in order (see sortParagraphs). */

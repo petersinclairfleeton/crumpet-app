@@ -129,3 +129,25 @@ describe('Word: the Font window’s settings', () => {
     expect(back.doc.blocks[0].runs[0].look).toEqual(p.runs[0].look);
   });
 });
+
+describe('Word: multilevel lists, border styles and widow control', () => {
+  it('go to Word and come back', async () => {
+    const blocks = [
+      makeBlock('numbered', 'Part', [], { para: { num: 'upper-roman', numText: 'Part %1' } }),
+      makeBlock('numbered', 'Inner', [], { indent: 1, para: { num: 'decimal', numText: '%1.%2' } }),
+      makeBlock('paragraph', 'Boxed', [], { para: { border: 'tblr', bstyle: 'double', bcolor: '#2f6fd1', nowidow: true } }),
+    ];
+    const bytes = await toDocx([{ doc: { blocks } }], { title: 'T' });
+    const files = await readZip(bytes);
+    const numbering = new TextDecoder().decode(files.get('word/numbering.xml'));
+    expect(numbering).toContain('<w:lvlText w:val="Part %1"/>');
+    expect(numbering).toContain('<w:lvlText w:val="%1.%2"/>');
+    const xml = new TextDecoder().decode(files.get('word/document.xml'));
+    expect(xml).toContain('<w:top w:val="double" w:sz="4" w:space="4" w:color="2F6FD1"/>');
+    expect(xml).toContain('<w:widowControl w:val="0"/>');
+    const back = (await fromDocx(bytes)).doc.blocks;
+    expect(back[0].para).toMatchObject({ num: 'upper-roman', numText: 'Part %1' });
+    expect(back[1].para).toMatchObject({ num: 'decimal', numText: '%1.%2' });
+    expect(back[2].para).toMatchObject({ border: 'tblr', bstyle: 'double', bcolor: '#2f6fd1', nowidow: true });
+  });
+});

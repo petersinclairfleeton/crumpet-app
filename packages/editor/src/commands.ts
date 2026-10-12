@@ -548,6 +548,37 @@ export function setListStyle(state: EditorState, style: { num: NumFormat } | { b
   return tx(state, b, state.selection);
 }
 
+/** One level of a multilevel list: its number style, and the pattern its number is shown in ("%1.%2", "Chapter %1"; unset: the usual). */
+export interface ListLevel {
+  num: NumFormat;
+  text?: string;
+}
+
+/**
+ * Word's Multilevel List: every level of the list the caret is in (or the
+ * selected paragraphs, made into one) numbered in the given styles, a level
+ * each by how far in it is (the last style serving for levels below).
+ */
+export function setMultilevel(state: EditorState, levels: ListLevel[]): Transaction {
+  const b = new Builder(state.doc);
+  const blocks = state.doc.blocks;
+  let targets = selectedBlocks(state).filter((x) => !isMedia(x.type) && !isWidget(x.type));
+  if (targets.length === 1 && isList(targets[0].type)) {
+    let i = blockIndex(state.doc, targets[0].id);
+    let j = i;
+    while (i > 0 && isList(blocks[i - 1].type)) i--;
+    while (j < blocks.length - 1 && isList(blocks[j + 1].type)) j++;
+    targets = blocks.slice(i, j + 1).filter((x) => x.type !== 'todo');
+  }
+  for (const blk of targets) {
+    const level = isList(blk.type) ? (blk.indent ?? 0) : 0;
+    const style = levels[Math.min(level, levels.length - 1)];
+    const to = attrsOf({ ...blk, ...blockAttrs('numbered', false, level), style: undefined, para: tidyPara({ ...blk.para, num: style.num, numText: style.text, bullet: undefined }) });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to });
+  }
+  return tx(state, b, state.selection);
+}
+
 /** Word's Restart at 1 / Set Numbering Value: the numbered item at the caret starts again from `start` (undefined: carries on). */
 export function setListStart(state: EditorState, start: number | undefined): Transaction {
   const b = new Builder(state.doc);

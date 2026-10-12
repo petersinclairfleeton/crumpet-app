@@ -82,16 +82,16 @@ At the end there's a suggested order for building what's missing.
 | Feature | | Crumpet today |
 |---|---|---|
 | Bullets, numbering (with libraries, restart and start at) | ✅ | |
-| Multilevel lists | 🟡 | Lists nest, and "1. 1.1 1.1.1" numbering is there. No gallery of multilevel styles, and no "define new multilevel list". |
+| Multilevel lists | ✅ | Lists nest; the Multilevel list button has a gallery (1. a. i., 1.1.1, Chapter 1, Article I / Section 1.01…) and Define new multilevel list sets each level's style and pattern. To and from Word. |
 | Increase / decrease indent | ✅ | Also on the ruler. |
 | Sort | ✅ | Sort paragraphs… in the Paragraph group: by text, a number or a date, ascending or descending. |
 | Show/hide ¶ (formatting marks) | ✅ | The ¶ button or Ctrl+Shift+8: dots for spaces, arrows for tabs, ¶ at paragraph ends; page, section and column breaks are labelled outside page view. |
 | Alignment | ✅ | Left, centre, right, justify. |
 | Line and paragraph spacing | ✅ | |
-| Shading, borders | ✅ | Paragraph shading, and borders on any side. No border styles (dashed, double, thickness, colour). |
+| Shading, borders | ✅ | Paragraph shading, and borders on any side, single, thick, double, dotted or dashed, in a colour. To and from Word. |
 | Paragraph dialog: indents and spacing | ✅ | |
 | Keep with next, keep lines together, page break before | ✅ | |
-| Widow/orphan control | 🟡 | Always on; can't be switched off for a paragraph. |
+| Widow/orphan control | ✅ | On by default; switched off for a paragraph in the Paragraph window. To and from Word. |
 | Tab stops (and the Tabs window) | ✅ | Tab types a tab (outside lists); left, centre, right and decimal stops with dot, dash or line leaders, set on the ruler (page view) or in the Tabs window (Paragraph settings → Tabs…); default stops every half inch; to and from Word. |
 
 ### Styles
@@ -493,10 +493,10 @@ Where: `model.ts` (`Look`, `Mark`, `ParaLook`), `markdown.ts`, `docx.ts`, `app/s
 - [x] Text effects (outline, shadow, glow, reflection)
 - [x] Paste options menu after pasting (keep, merge, text only)
 - [x] Clipboard history
-- [ ] Multilevel list gallery, and defining your own
+- [x] Multilevel list gallery, and defining your own
 - [x] Sort paragraphs
-- [ ] Paragraph border styles (dashed, double, thickness, colour)
-- [ ] Widow/orphan control switch per paragraph
+- [x] Paragraph border styles (dashed, double, thickness, colour)
+- [x] Widow/orphan control switch per paragraph
 
 **5. Styles, find and selecting**
 Where: `app/src/data/styles.ts`, `ui/stylespane.tsx`, `ui/styles-ui.tsx`, `ui/find.tsx`, `packages/editor/src/find.ts`.

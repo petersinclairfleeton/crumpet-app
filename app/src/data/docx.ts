@@ -442,6 +442,8 @@ class Writer {
         const f = b.para?.num;
         if (f === 'legal') this.lists[num - 1].levels = Array(9).fill('legal');
         else if (f) this.lists[num - 1].levels[lvl] = f;
+        // A pattern of its own for the number ("Chapter %1", "%1.%2"): Word's own level text, the same.
+        if (b.para?.numText) (this.lists[num - 1].texts ??= [])[lvl] = b.para.numText;
       } else if (b.type === 'bullet') {
         if (!bul) bul = newList(true);
         if (b.para?.bullet) this.lists[bul - 1].levels[lvl] = b.para.bullet;
@@ -450,7 +452,7 @@ class Writer {
       // Paragraph settings set by hand, each where Word expects it: keep and page break first, then spacing and indents.
       const p = b.para;
       const keep = (p?.keepNext ? '<w:keepNext/>' : '') + (p?.keepLines ? '<w:keepLines/>' : '');
-      let head = keep + lead + (p?.pageBefore && !lead.includes('pageBreakBefore') ? '<w:pageBreakBefore/>' : '');
+      let head = keep + lead + (p?.pageBefore && !lead.includes('pageBreakBefore') ? '<w:pageBreakBefore/>' : '') + (p?.nowidow ? '<w:widowControl w:val="0"/>' : '');
       // A drop cap: in Word, a framed paragraph of its own holding the first letter (and any punctuation before it), before the rest.
       if (p?.drop && /^(paragraph|quote|heading\d)$/.test(b.type)) {
         const text = runsText(b.runs);
@@ -465,7 +467,10 @@ class Writer {
       const spacing = p && (p.before !== undefined || p.after !== undefined || p.line !== undefined) ? `<w:spacing${p.before !== undefined ? ` w:before="${Math.round(p.before * 20)}"` : ''}${p.after !== undefined ? ` w:after="${Math.round(p.after * 20)}"` : ''}${p.line !== undefined ? ` w:line="${Math.round(p.line * 240)}" w:lineRule="auto"` : ''}/>` : '';
       const left = p?.left ?? (p?.first !== undefined && p.first < 0 ? -p.first : undefined);
       const ind = p && (left !== undefined || p.right !== undefined || p.first !== undefined) ? `<w:ind${left !== undefined ? ` w:left="${tw(left)}"` : ''}${p.right !== undefined ? ` w:right="${tw(p.right)}"` : ''}${p.first !== undefined ? (p.first < 0 ? ` w:hanging="${tw(-p.first)}"` : ` w:firstLine="${tw(p.first)}"`) : ''}/>` : '';
-      const sides = p?.border ? ([['t', 'top'], ['l', 'left'], ['b', 'bottom'], ['r', 'right']] as const).filter(([c]) => p.border!.includes(c)).map(([, side]) => `<w:${side} w:val="single" w:sz="4" w:space="4" w:color="auto"/>`).join('') : '';
+      const BDR: Record<string, [string, number]> = { single: ['single', 4], thick: ['single', 18], double: ['double', 4], dotted: ['dotted', 6], dashed: ['dashed', 6] };
+      const [bval, bsz] = BDR[p?.bstyle ?? 'single'];
+      const bcol = p?.bcolor ? p.bcolor.slice(1).toUpperCase() : 'auto';
+      const sides = p?.border ? ([['t', 'top'], ['l', 'left'], ['b', 'bottom'], ['r', 'right']] as const).filter(([c]) => p.border!.includes(c)).map(([, side]) => `<w:${side} w:val="${bval}" w:sz="${bsz}" w:space="4" w:color="${bcol}"/>`).join('') : '';
       const box = (sides ? `<w:pBdr>${sides}</w:pBdr>` : '') + (p?.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${p.shade.slice(1).toUpperCase()}"/>` : '');
       const LEADER = { dot: 'dot', dash: 'hyphen', line: 'underscore' } as const;
       const tabs = p?.tabs ? `<w:tabs>${p.tabs.map((t) => `<w:tab w:val="${t.align}"${t.leader ? ` w:leader="${LEADER[t.leader]}"` : ''} w:pos="${tw(t.at)}"/>`).join('')}</w:tabs>` : '';
@@ -635,12 +640,16 @@ interface ListDef {
   levels: (string | undefined)[];
   /** A numbering value set by hand: [level, number]. */
   start?: [number, number];
+  /** Each level's number pattern ("%1.%2"), when it isn't the usual one. */
+  texts?: (string | undefined)[];
 }
 
 interface WordLevel {
   fmt: string;
   text: string;
   start: number;
+  /** Word's legal-style numbering (every level's number shown as a plain number). */
+  legal?: boolean;
 }
 
 /** Bullets Word draws from symbol fonts, as the characters they show. */
@@ -652,8 +661,14 @@ function wordListStyle(l: WordLevel, level: number): ParaLook {
     const kind = (Object.keys(BULLETS) as BulletKind[]).find((k) => BULLETS[k] === l.text) ?? WORD_BULLETS[l.text];
     return kind && kind !== DEFAULT_BULLETS[level % 3] ? { bullet: kind } : {};
   }
-  const f: NumFormat | undefined = (l.text.match(/%/g) ?? []).length > 1 ? 'legal' : l.fmt === 'decimal' || l.fmt === 'decimalZero' ? (/\)\s*$/.test(l.text) ? 'paren' : 'decimal') : ({ upperLetter: 'upper-alpha', lowerLetter: 'lower-alpha', upperRoman: 'upper-roman', lowerRoman: 'lower-roman' } as Record<string, NumFormat>)[l.fmt];
-  return f && f !== DEFAULT_NUMS[level % 3] ? { num: f } : {};
+  const own = ({ upperLetter: 'upper-alpha', lowerLetter: 'lower-alpha', upperRoman: 'upper-roman', lowerRoman: 'lower-roman' } as Record<string, NumFormat>)[l.fmt];
+  const legalText = Array.from({ length: level + 1 }, (_, i) => `%${i + 1}`).join('.');
+  const isLegal = !!l.legal && (l.text.match(/%/g) ?? []).length > 1 && (l.text === legalText || l.text === `${legalText}.`);
+  const f: NumFormat | undefined = isLegal || (l.legal && (l.text.match(/%/g) ?? []).length > 1) ? 'legal' : l.fmt === 'decimal' || l.fmt === 'decimalZero' ? (/\)\s*$/.test(l.text) ? 'paren' : 'decimal') : own;
+  // A pattern of its own ("Chapter %1", "(%1)", "%1.%2" in letters…): kept as it is.
+  const usual = new RegExp(`^%${level + 1}[.)]?$`);
+  const numText = !isLegal && /%[1-9]/.test(l.text) && !usual.test(l.text.trim()) ? l.text.trim() : undefined;
+  return { ...(f && (f !== DEFAULT_NUMS[level % 3] || numText) ? { num: f } : {}), ...(numText ? { numText } : {}) };
 }
 
 const DEFAULT_NUMS = ['decimal', 'lower-alpha', 'lower-roman'];
@@ -668,7 +683,7 @@ function numberingXml(lists: ListDef[]): string {
       return `<w:lvl w:ilvl="${l}"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="${BULLETS[kind] ?? '•'}"/><w:lvlJc w:val="left"/>${ind}</w:lvl>`;
     }
     const f = list.levels[l] ?? DEFAULT_NUMS[l % 3];
-    const text = f === 'legal' ? Array.from({ length: l + 1 }, (_, i) => `%${i + 1}`).join('.') + (l === 0 ? '.' : '') : `%${l + 1}${f === 'paren' ? ')' : '.'}`;
+    const text = esc(list.texts?.[l] ?? (f === 'legal' ? Array.from({ length: l + 1 }, (_, i) => `%${i + 1}`).join('.') + (l === 0 ? '.' : '') : `%${l + 1}${f === 'paren' ? ')' : '.'}`));
     return `<w:lvl w:ilvl="${l}"><w:start w:val="1"/><w:numFmt w:val="${NUM_FMT[f] ?? 'decimal'}"/>${f === 'legal' ? '<w:isLgl/>' : ''}<w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/>${ind}</w:lvl>`;
   };
   const abstracts = lists.map((list, i) => `<w:abstractNum w:abstractNumId="${i}"><w:multiLevelType w:val="${list.levels.includes('legal') ? 'multilevel' : 'hybridMultilevel'}"/>${Array.from({ length: 9 }, (_, l) => lvl(list, l)).join('')}</w:abstractNum>`).join('');
@@ -953,7 +968,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
         attr(a, 'abstractNumId') ?? '',
         kids(a)
           .filter((c) => c.localName === 'lvl')
-          .map((l) => ({ fmt: attr(child(l, 'numFmt'), 'val') ?? 'decimal', text: attr(child(l, 'lvlText'), 'val') ?? '', start: Number(attr(child(l, 'start'), 'val') ?? 1) || 0 })),
+          .map((l) => ({ fmt: attr(child(l, 'numFmt'), 'val') ?? 'decimal', text: attr(child(l, 'lvlText'), 'val') ?? '', start: Number(attr(child(l, 'start'), 'val') ?? 1) || 0, legal: on(child(l, 'isLgl')) })),
       );
     }
     for (const n of Array.from(numbering.getElementsByTagNameNS(W_NS, 'num'))) {
@@ -1455,7 +1470,19 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     if (on2(child(ppr, 'keepLines'))) para.keepLines = true;
     // Borders and shading.
     const bdr = child(ppr, 'pBdr');
-    if (bdr) para.border = (['top', 'bottom', 'left', 'right'] as const).filter((side) => { const v = attr(child(bdr, side), 'val'); return v !== null && v !== 'none' && v !== 'nil'; }).map((side) => side[0]).join('');
+    if (bdr) {
+      const drawn = (['top', 'bottom', 'left', 'right'] as const).filter((side) => { const v = attr(child(bdr, side), 'val'); return v !== null && v !== 'none' && v !== 'nil'; });
+      para.border = drawn.map((side) => side[0]).join('');
+      // The line's style and colour, from its first side.
+      const first = drawn[0] ? child(bdr, drawn[0]) : undefined;
+      const val = attr(first, 'val') ?? 'single';
+      const sz = Number(attr(first, 'sz') ?? 4);
+      para.bstyle = val === 'double' ? 'double' : /dot/i.test(val) ? 'dotted' : /dash/i.test(val) ? 'dashed' : sz >= 12 ? 'thick' : undefined;
+      const col = attr(first, 'color');
+      if (col && /^[0-9a-f]{6}$/i.test(col)) para.bcolor = `#${col.toLowerCase()}`;
+    }
+    const widow = child(ppr, 'widowControl');
+    if (widow && /^(0|false|off)$/.test(attr(widow, 'val') ?? '')) para.nowidow = true;
     const fill = attr(child(ppr, 'shd'), 'fill');
     if (fill && /^[0-9a-f]{6}$/i.test(fill) && fill.toLowerCase() !== 'ffffff') para.shade = `#${fill.toLowerCase()}`;
     // A page break (Ctrl+Enter in Word): on its own or after the text, the next paragraph starts a new page; before the text, this one does.

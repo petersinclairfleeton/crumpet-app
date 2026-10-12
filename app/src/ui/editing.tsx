@@ -14,7 +14,7 @@ import { AlignTools, StylePicker } from './styles-ui';
 import { OverflowRow, type ToolItem } from './toolbar';
 import { useFontItems } from './fonttools';
 import { useParaItems } from './paratools';
-import { borderItems, listItems } from './listtools';
+import { borderItems, DefineListHost, listItems } from './listtools';
 import { useLayoutItems } from './layouttools';
 import type { PageSetup } from '../data/styles';
 import { insertItems } from './inserttools';
@@ -262,6 +262,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     <>
       <OverflowRow items={items} fit={fit} />
       {para.dialog}
+      <DefineListHost ed={ed} />
       {layout.dialog}
     </>
   );

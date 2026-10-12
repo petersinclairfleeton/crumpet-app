@@ -68,6 +68,8 @@ interface Measured {
   colBefore: boolean;
   keepNext: boolean;
   keepLines: boolean;
+  /** Widow/orphan control off for this paragraph. */
+  noWidow: boolean;
   heading: boolean;
   /** Tables, pictures, a table of contents: never split. */
   whole: boolean;
@@ -232,6 +234,7 @@ export class Paginator {
           colBefore: el.dataset.colBefore !== undefined,
           keepNext: el.dataset.keepNext !== undefined,
           keepLines: el.dataset.keepLines !== undefined,
+          noWidow: el.dataset.nowidow !== undefined,
           heading: /^H[1-6]$/.test(el.tagName),
           whole: !!el.querySelector('[data-widget], .media') || el.classList.contains('blk-table') || el.classList.contains('blk-toc'),
           notes: this.noteHeight
@@ -366,11 +369,11 @@ export class Paginator {
         if (col.length) {
           // Lines kept together: the whole paragraph moves if it can.
           if (b.keepLines && firstHere === 0 && cut > 0) cut = 0;
-          // No lone first line at the foot of a column (orphan)…
-          if (cut === 1 && firstHere === 0 && lines.length > 1) cut = 0;
+          // No lone first line at the foot of a column (orphan)… (unless its widow/orphan control is off)
+          if (cut === 1 && firstHere === 0 && lines.length > 1 && !b.noWidow) cut = 0;
         }
         // …and no lone last line at the top of the next (widow).
-        if (cut > firstHere && cut === lines.length - 1 && cut - firstHere >= 2) cut -= 1;
+        if (cut > firstHere && cut === lines.length - 1 && cut - firstHere >= 2 && !b.noWidow) cut -= 1;
         if (cut === firstHere) {
           // Nothing of it fits here. A heading (or "keep with next" paragraph) just above it goes along, to stay with it.
           const prev = col[col.length - 1];

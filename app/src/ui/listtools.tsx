@@ -1,10 +1,14 @@
 // Word's list and border buttons for the formatting bar: Bullets and
 // Numbering, each with its library of styles (and for numbering, starting
-// again or from a number), and Borders and Shading for paragraphs.
+// again or from a number), Multilevel List (a gallery, and lists of your own
+// design), and Borders (sides, line style and colour) and Shading for paragraphs.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
-import { BULLETS, type BulletKind, type NumFormat, tidyBorder } from '@crumpet/editor/model';
+import type { ListLevel } from '@crumpet/editor/commands';
+import { BULLETS, type BulletKind, type NumFormat, type ParaLook, makeBlock, listLabels, tidyBorder } from '@crumpet/editor/model';
+import { IconClose } from './icons';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
 
@@ -30,6 +34,7 @@ const svg = (d: string) => (
     <path d={d} />
   </svg>
 );
+const ICON_MULTI = svg('M9 6h12M12 12h9M15 18h6M3 5h2v3M3 11h3l-3 3h3M6 17H4v4h2');
 const ICON_BORDER = svg('M4 4h16v16H4z M4 12h16 M12 4v16');
 const ICON_SHADE = svg('M5 13l7-7 6 6-7 7z M5 13l13 0 M19 15c0 1.5 1 2.5 1 3.5a1 1 0 0 1-2 0c0-1 1-2 1-3.5');
 
@@ -107,9 +112,29 @@ const SIDES: [string, string][] = [
   ['r', 'Right border'],
 ];
 
+/** Word's border line styles and some colours. */
+const BORDER_STYLES: [NonNullable<ParaLook['bstyle']>, string, string][] = [
+  ['single', 'Single', '1px solid currentColor'],
+  ['thick', 'Thick', '3px solid currentColor'],
+  ['double', 'Double', '3px double currentColor'],
+  ['dotted', 'Dotted', '2px dotted currentColor'],
+  ['dashed', 'Dashed', '2px dashed currentColor'],
+];
+const BORDER_COLORS: [string, string][] = [
+  ['', 'Automatic'],
+  ['#7a7a7a', 'Grey'],
+  ['#2f6fd1', 'Blue'],
+  ['#2e8b57', 'Green'],
+  ['#c0392b', 'Red'],
+  ['#d08a00', 'Gold'],
+  ['#7b4fb8', 'Purple'],
+];
+
 function BorderTool({ ed, off }: { ed: Editor | null; off: boolean }) {
   const [open, setOpen] = useState(false);
   const now = ed?.paraValue('border') ?? '';
+  const style = ed?.paraValue('bstyle');
+  const color = ed?.paraValue('bcolor');
   const set = (border: string) => {
     setOpen(false);
     ed?.setPara({ border: tidyBorder(border) || undefined });
@@ -135,6 +160,20 @@ function BorderTool({ ed, off }: { ed: Editor | null; off: boolean }) {
           <button type="button" className="menu-item" onClick={() => set('')}>
             No border
           </button>
+          <hr className="menu-sep" />
+          <span className="menu-head">Line</span>
+          <div className="border-styles" role="group" aria-label="Border line">
+            {BORDER_STYLES.map(([st, name, css]) => (
+              <button key={st} type="button" title={name} aria-label={`${name} line`} aria-pressed={(style ?? 'single') === st} className={`border-style${(style ?? 'single') === st ? ' on' : ''}`} onClick={() => ed?.setPara({ bstyle: st === 'single' ? undefined : st, border: now || 'tblr' })}>
+                <i style={{ borderBottom: css }} />
+              </button>
+            ))}
+          </div>
+          <div className="accents" role="group" aria-label="Border colour">
+            {BORDER_COLORS.map(([c, name]) => (
+              <button key={name} type="button" className={`swatch${(color ?? '') === c ? ' on' : ''}`} style={{ background: c || 'var(--text)' }} aria-label={`${name} border`} title={name} onClick={() => ed?.setPara({ bcolor: c || undefined, border: now || 'tblr' })} />
+            ))}
+          </div>
         </Popover>
       )}
     </span>
@@ -172,10 +211,160 @@ function ShadingTool({ ed, off }: { ed: Editor | null; off: boolean }) {
 }
 
 /** Bullets and Numbering (with their libraries), as toolbar items. */
+/** Word's multilevel list gallery. */
+const MULTILEVELS: [string, ListLevel[]][] = [
+  ['1. a. i.', [{ num: 'decimal' }, { num: 'lower-alpha' }, { num: 'lower-roman' }]],
+  ['1) a) i)', [{ num: 'paren' }, { num: 'lower-alpha', text: '%2)' }, { num: 'lower-roman', text: '%3)' }]],
+  ['1. 1.1. 1.1.1.', [{ num: 'decimal', text: '%1.' }, { num: 'decimal', text: '%1.%2.' }, { num: 'decimal', text: '%1.%2.%3.' }, { num: 'decimal', text: '%1.%2.%3.%4.' }]],
+  ['I. A. 1. a)', [{ num: 'upper-roman' }, { num: 'upper-alpha' }, { num: 'decimal' }, { num: 'lower-alpha', text: '%4)' }, { num: 'lower-roman', text: '(%5)' }]],
+  ['(1) (a) (i)', [{ num: 'decimal', text: '(%1)' }, { num: 'lower-alpha', text: '(%2)' }, { num: 'lower-roman', text: '(%3)' }]],
+  ['Chapter 1, 1.1', [{ num: 'decimal', text: 'Chapter %1' }, { num: 'decimal', text: '%1.%2' }, { num: 'decimal', text: '%1.%2.%3' }]],
+  ['Article I, Section 1.01', [{ num: 'upper-roman', text: 'Article %1.' }, { num: 'legal', text: 'Section %1.0%2' }, { num: 'lower-alpha', text: '(%3)' }]],
+];
+
+/** How a multilevel list's first three levels look, for the gallery and the preview. */
+function sampleLabels(levels: ListLevel[], depth = 3): string[] {
+  const blocks = Array.from({ length: depth }, (_, i) => makeBlock('numbered', '', [], { indent: i, para: { num: levels[Math.min(i, levels.length - 1)].num, ...(levels[Math.min(i, levels.length - 1)].text ? { numText: levels[Math.min(i, levels.length - 1)].text } : {}) } }));
+  const labels = listLabels(blocks);
+  return blocks.map((b) => labels.get(b.id) ?? '');
+}
+
+function MultilevelTool({ ed, off }: { ed: Editor | null; off: boolean }) {
+  const [open, setOpen] = useState(false);
+  const pick = (levels: ListLevel[]) => {
+    setOpen(false);
+    ed?.setMultilevel(levels);
+    ed?.focus();
+  };
+  return (
+    <span className="tool-drop">
+      <button type="button" aria-label="Multilevel list" aria-expanded={open} title="Multilevel list" disabled={off} onClick={() => setOpen(!open)}>
+        {ICON_MULTI}
+        <span aria-hidden="true" className="caret">▾</span>
+      </button>
+      {open && (
+        <Popover label="Multilevel list" onClose={() => setOpen(false)}>
+          <div className="multi-gallery" role="group" aria-label="Multilevel lists">
+            {MULTILEVELS.map(([name, levels]) => (
+              <button key={name} type="button" className="multi-sample" aria-label={name} title={name} onClick={() => pick(levels)}>
+                {sampleLabels(levels).map((l, i) => (
+                  <span key={i} style={{ paddingLeft: `${i * 10}px` }}>
+                    {l} <i />
+                  </span>
+                ))}
+              </button>
+            ))}
+          </div>
+          <hr className="menu-sep" />
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false);
+              // The window lives outside the bar (the More menu closes as it opens).
+              window.dispatchEvent(new Event(DEFINE_EVENT));
+            }}
+          >
+            Define new multilevel list…
+          </button>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
+const DEFINE_EVENT = 'crumpet:define-list';
+
+/** Shows the Define New Multilevel List window when asked, for the formatting bar's editor. */
+export function DefineListHost({ ed }: { ed: Editor | null }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(DEFINE_EVENT, show);
+    return () => window.removeEventListener(DEFINE_EVENT, show);
+  }, []);
+  return open && ed ? <DefineListDialog editor={ed} onClose={() => setOpen(false)} /> : null;
+}
+
+/** Word's Define New Multilevel List: each level's number style and how its number is shown. */
+function DefineListDialog({ editor, onClose }: { editor: Editor; onClose(): void }) {
+  const [levels, setLevels] = useState<ListLevel[]>([
+    { num: 'decimal', text: '%1.' },
+    { num: 'lower-alpha', text: '%2.' },
+    { num: 'lower-roman', text: '%3.' },
+    { num: 'decimal', text: '(%4)' },
+    { num: 'lower-alpha', text: '(%5)' },
+  ]);
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close.current();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+  const set = (i: number, patch: Partial<ListLevel>) => setLevels(levels.map((l, k) => (k === i ? { ...l, ...patch } : l)));
+  const preview = sampleLabels(levels, levels.length);
+  return createPortal(
+    <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <form
+        className="dialog para-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Define new multilevel list"
+        onSubmit={(e) => {
+          e.preventDefault();
+          editor.setMultilevel(levels.map((l) => ({ num: l.num, ...(l.text && /%[1-9]/.test(l.text) ? { text: l.text } : {}) })));
+          onClose();
+          editor.focus();
+        }}
+      >
+        <header className="dialog-head">
+          <h2>Define new multilevel list</h2>
+          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+            <IconClose size={16} />
+          </button>
+        </header>
+        <div className="settings">
+          <p className="sync-hint">For each level: its number style, and how its number is shown. %1 is the number at level 1, %2 at level 2, and so on, so “%1.%2” shows 1.1, and “Chapter %1” shows Chapter 1.</p>
+          <div className="define-levels">
+            {levels.map((l, i) => (
+              <div key={i} className="define-level">
+                <span className="define-n">Level {i + 1}</span>
+                <select aria-label={`Level ${i + 1} number style`} value={l.num} onChange={(e) => set(i, { num: e.target.value as NumFormat })}>
+                  {NUMBERS.filter(([f]) => f !== 'legal').map(([f, , name]) => (
+                    <option key={f} value={f}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                <input aria-label={`Level ${i + 1} number shown as`} value={l.text ?? ''} onChange={(e) => set(i, { text: e.target.value })} />
+                <span className="define-sample" style={{ paddingLeft: `${i * 12}px` }}>
+                  {preview[i]}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="para-foot">
+            <span className="grow" />
+            <button type="button" className="btn" onClick={onClose}>
+              Cancel
+            </button>
+            <button type="submit" className="btn primary">
+              OK
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>,
+    document.body,
+  );
+}
+
 export function listItems(ed: Editor | null, off: boolean): ToolItem[] {
   return [
     { key: 'bullet', label: 'Bullets', pri: 2, sep: true, node: <ListTool ed={ed} off={off} kind="bullet" /> },
     { key: 'numbered', label: 'Numbering', pri: 2, node: <ListTool ed={ed} off={off} kind="numbered" /> },
+    { key: 'multilevel', label: 'Multilevel list', pri: 1, node: <MultilevelTool ed={ed} off={off} /> },
   ];
 }
 
