@@ -716,6 +716,18 @@ describe('shared settings', () => {
   });
 });
 
+describe('uploaded files', () => {
+  it('a note that is an uploaded file reaches other devices still pointing at its file', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    mac.store.createNote({ title: 'Lease', doc: md('[Lease.pdf](Attachments/abc1234-Lease.pdf)'), file: 'Attachments/abc1234-Lease.pdf' });
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(phone.store.getState().notes.find((n) => n.title === 'Lease')?.file).toBe('Attachments/abc1234-Lease.pdf');
+  });
+});
+
 describe('project research', () => {
   it('lives in the project’s Research folder and comes back as research on another device', async () => {
     const cloud = new MemoryProvider();

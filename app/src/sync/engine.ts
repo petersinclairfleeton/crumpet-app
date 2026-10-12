@@ -206,6 +206,7 @@ export function fileOf(n: TNote, l: Layout): NoteFile {
     tags: n.tags,
     favorite: n.favorite,
     ...(n.reminder ? { reminder: n.reminder } : {}),
+    ...(n.file ? { file: n.file } : {}),
     created: n.created,
     updated: n.updated,
     trashed: n.trashed,

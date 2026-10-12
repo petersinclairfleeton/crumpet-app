@@ -1,4 +1,4 @@
-import { type Page, expect, test } from '@playwright/test';
+import { type Locator, type Page, expect, test } from '@playwright/test';
 
 // Every test starts in a fresh browser profile, so Crumpet starts empty: everything is created here.
 
@@ -1357,7 +1357,7 @@ test('footnotes: add from the / menu or Ctrl+Alt+F, numbered in order, edited in
   await expect(page.getByRole('region', { name: 'Footnotes' }).locator('li')).toHaveCount(2);
 });
 
-test('Word documents: download a note as .docx, and open one as a new note', async ({ page }) => {
+test('Word documents: download a note as .docx, and open one as a new note', async ({ page }, info) => {
   await open(page);
   await newNote(page, 'Letter home', 'Dear all,');
   await page.keyboard.press('Enter');
@@ -1367,15 +1367,106 @@ test('Word documents: download a note as .docx, and open one as a new note', asy
   await page.getByRole('button', { name: 'More', exact: true }).click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as Word document' }).click()]);
   expect(download.suggestedFilename()).toBe('Letter home.docx');
-  const file = await download.path();
-  // Open it again as a new note.
+  const file = info.outputPath('Letter home.docx');
+  await download.saveAs(file);
+  // Upload it: it opens as a Word document, kept as one.
   await sidebar(page).getByRole('button', { name: 'New from a template' }).click();
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: 'Open a Word document…' }).click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('button', { name: /Upload files…/ }).click()]);
   await chooser.setFiles(file);
   await expect(list(page).locator('.card')).toHaveCount(2);
   await expect(page.getByLabel('Title')).toHaveValue('Letter home');
   await expect(page.locator('.note-editor .blk').first()).toHaveText('Dear all,');
   await expect(page.locator('.note-editor .blk-bullet')).toHaveText('The weather is fine');
+  const banner = page.locator('.word-banner');
+  await expect(banner).toContainText('Word document · saved back to Letter-home.docx');
+  // Edited here, it's saved back to its own file, which downloads with the change.
+  await page.locator('.note-editor .blk-bullet').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' and warm');
+  const [again] = await Promise.all([page.waitForEvent('download'), banner.getByRole('button', { name: 'Download' }).click()]);
+  expect(again.suggestedFilename()).toBe('Letter-home.docx');
+  // Uploaded once more, the change is in it.
+  const file2 = info.outputPath('Letter again.docx');
+  await again.saveAs(file2);
+  const [chooser2] = await Promise.all([page.waitForEvent('filechooser'), sidebar(page).getByRole('button', { name: 'Upload files' }).click()]);
+  await chooser2.setFiles(file2);
+  await expect(list(page).locator('.card')).toHaveCount(3);
+  await expect(page.locator('.note-editor .blk-bullet')).toHaveText('The weather is fine and warm');
+  // The file is kept with the note, and comes back after a reload.
+  await page.reload();
+  await expect(page.locator('.word-banner')).toBeVisible();
+});
+
+/** Drops files from "the computer" on an element, as a browser does. */
+async function dropFiles(target: Locator, files: { name: string; type: string; text: string }[], at?: { x: number; y: number }) {
+  await target.evaluate(
+    (el, { files, at }) => {
+      const r = el.getBoundingClientRect();
+      const dt = new DataTransfer();
+      for (const f of files) dt.items.add(new File([f.text], f.name, { type: f.type }));
+      const opts = { dataTransfer: dt, bubbles: true, cancelable: true, clientX: r.left + (at ? at.x : r.width / 2), clientY: r.top + (at ? at.y : r.height / 2) };
+      el.dispatchEvent(new DragEvent('dragenter', opts));
+      el.dispatchEvent(new DragEvent('dragover', opts));
+      el.dispatchEvent(new DragEvent('drop', opts));
+    },
+    { files, at },
+  );
+}
+
+const SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="#c33"/></svg>';
+
+test('uploading files: each opens as what it is, from the Upload button or dropped on a notebook, the list or a pane', async ({ page }) => {
+  await open(page);
+  await newNotebook(page, 'Scans');
+  // Upload: a picture, a PDF, a Markdown file and something Crumpet can't show.
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), sidebar(page).getByRole('button', { name: 'Upload files' }).click()]);
+  const buf = (s: string) => (globalThis as unknown as { Buffer: { from(s: string): Uint8Array } }).Buffer.from(s) as never;
+  await chooser.setFiles([
+    { name: 'Map.svg', mimeType: 'image/svg+xml', buffer: buf(SVG) },
+    { name: 'Lease.pdf', mimeType: 'application/pdf', buffer: buf('%PDF-1.4\n%%EOF') },
+    { name: 'Plan.md', mimeType: 'text/markdown', buffer: buf('# Plan\n\n- Pack\n- Go') },
+    { name: 'Budget.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: buf('not really') },
+  ]);
+  const cards = list(page).locator('.card');
+  await expect(cards).toHaveCount(4);
+  // Into the notebook being looked at.
+  await expect(sidebar(page).locator('.nb-row', { hasText: 'Scans' }).locator('.count')).toHaveText('4');
+  // The last one is open: a file Crumpet can't show, kept to download.
+  const file = page.getByRole('region', { name: 'File' });
+  await expect(file).toContainText('File · Budget.xlsx');
+  await expect(file.locator('.file-glyph')).toHaveText('XLSX');
+  const [download] = await Promise.all([page.waitForEvent('download'), file.getByRole('button', { name: 'Download' }).click()]);
+  expect(download.suggestedFilename()).toBe('Budget.xlsx');
+  // The picture and the PDF, shown as themselves.
+  await cards.filter({ hasText: 'Map' }).click();
+  await expect(page.getByRole('region', { name: 'File' }).locator('img')).toHaveAttribute('src', /^blob:/);
+  await cards.filter({ hasText: 'Lease' }).click();
+  await expect(page.getByRole('region', { name: 'File' }).locator('iframe[title="PDF"]')).toBeVisible();
+  // Markdown is a note.
+  await cards.filter({ hasText: 'Plan' }).click();
+  await expect(page.locator('.note-editor .blk-bullet')).toHaveText(['Pack', 'Go']);
+
+  // Dropped on a notebook in the sidebar: filed there.
+  await newNotebook(page, 'Sounds');
+  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await dropFiles(sidebar(page).locator('.nb-row', { hasText: 'Sounds' }), [{ name: 'Birdsong.mp3', type: 'audio/mpeg', text: 'ID3' }]);
+  await expect(sidebar(page).locator('.nb-row', { hasText: 'Sounds' }).locator('.count')).toHaveText('1');
+  await expect(page.getByRole('region', { name: 'File' }).locator('audio')).toBeVisible();
+
+  // Dropped on the list: a note there.
+  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await dropFiles(list(page), [{ name: 'Shopping.txt', type: 'text/plain', text: 'Eggs\nFlour' }]);
+  await expect(page.getByLabel('Title')).toHaveValue('Shopping');
+  await expect(page.locator('.note-editor .blk')).toHaveText(['Eggs', 'Flour']);
+
+  // Dropped on the right edge of the pane: opened in a new pane beside.
+  await dropFiles(page.locator('.pane-body').first(), [{ name: 'Logo.svg', type: 'image/svg+xml', text: SVG }], { x: 790, y: 200 });
+  await expect(page.locator('.pane-group')).toHaveCount(2);
+  await expect(page.locator('.pane-group').nth(1).getByRole('region', { name: 'File' }).locator('img')).toBeVisible();
+  // Dropped on a pane's tabs: a new tab there.
+  await dropFiles(page.locator('.pane-group').nth(0).locator('.pane-tabs'), [{ name: 'Notes.md', type: 'text/markdown', text: 'Hello' }]);
+  await expect(page.locator('.pane-group').nth(0).getByRole('tab')).toHaveCount(2);
+  await expect(page.locator('.pane-group').nth(0).getByRole('tab', { selected: true })).toContainText('Notes');
 });
 
 test('comments: select text, comment, reply, see them listed, and resolve', async ({ page }) => {

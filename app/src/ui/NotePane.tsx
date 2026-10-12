@@ -18,6 +18,8 @@ import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
 import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
 import { BoardView } from './board';
+import { FileView, WordBanner, downloadFile } from './uploads';
+import { fileKind } from '../data/documents';
 import { isBoard } from '../data/board';
 import { InlineInput, Popover } from './Sidebar';
 
@@ -179,7 +181,9 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
             aria-label="Download as Word document"
             onClick={async () => {
               setMenu(false);
-              download(await noteDocx(store.getState(), note), docxName(note.title), DOCX_TYPE);
+              // An uploaded Word document: its own file.
+              if (note.file && fileKind(note.file) === 'word') await downloadFile(note.file);
+              else download(await noteDocx(store.getState(), note), docxName(note.title), DOCX_TYPE);
             }}
           >
             <IconDownload size={14} /> Word document <small className="menu-hint">.docx</small>
@@ -312,6 +316,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
             </button>
           ))}
       </div>
+      {note.file && fileKind(note.file) === 'word' && <WordBanner path={note.file} />}
     </>
   );
 
@@ -339,8 +344,21 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
     </>
   );
 
+  // An uploaded picture, PDF, video, sound or other file: shown as what it is.
+  const shownFile = note.file && !['word', 'text'].includes(fileKind(note.file)) ? note.file : null;
+
   return (
-    isBoard(note) ? (
+    shownFile ? (
+      <section className="pane file-pane" aria-label="File">
+        <div className="note-toolbar" role="toolbar" aria-label="File options">
+          {lead}
+          <span className="grow" />
+          {trail}
+        </div>
+        <div className="board-header">{header}</div>
+        <FileView key={shownFile} path={shownFile} />
+      </section>
+    ) : isBoard(note) ? (
       <section className="pane board-pane" aria-label="Board">
         <div className="note-toolbar" role="toolbar" aria-label="Board options">
           {lead}

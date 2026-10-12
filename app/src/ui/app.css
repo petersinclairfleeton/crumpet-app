@@ -1843,3 +1843,25 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .guide-foot { padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
   .guide-next-to { display: none; }
 }
+
+/* ---------- Uploaded files: shown as what they are ---------- */
+.file-pane { display: flex; flex-direction: column; }
+.file-pane .board-header .reading-meta { display: none; }
+.file-view { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 8px 24px 16px; }
+.file-view > img { flex: none; width: auto; height: auto; max-width: 100%; max-height: calc(100vh - 250px); min-width: 48px; margin: auto; align-self: center; border-radius: 6px; background: repeating-conic-gradient(color-mix(in srgb, var(--line) 60%, transparent) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
+.file-view > iframe { flex: 1; min-height: 60vh; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.file-view > video { flex: 1; min-height: 0; max-width: 100%; align-self: center; border-radius: 8px; background: #000; }
+.file-view > audio { width: 100%; max-width: 560px; margin: 24px auto; }
+.file-other { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); text-align: center; max-width: 420px; margin: 0 auto; }
+.file-glyph { display: grid; place-items: center; width: 64px; height: 80px; border: 1.5px solid var(--line); border-radius: 6px 18px 6px 6px; font-weight: 700; font-size: 13px; color: var(--accent); background: var(--chip); }
+.file-bar { flex: none; display: flex; align-items: center; gap: 14px; margin: 0; font-size: 13px; color: var(--muted); }
+.file-bar .ellipsis { flex: 1; min-width: 0; }
+.file-bar .link-btn { display: inline-flex; align-items: center; gap: 4px; }
+.file-missing { padding: 24px; color: var(--muted); }
+/* A Word document: edited here, saved back to its file. */
+.word-banner { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: var(--chip); font-size: 12.5px; color: var(--muted); }
+.word-banner .ellipsis { flex: 1; min-width: 0; }
+.word-banner .link-btn { display: inline-flex; align-items: center; gap: 4px; }
+.word-glyph { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; background: #2b579a; color: #fff; font-weight: 700; font-size: 11px; }
+/* Files from the computer over the note list. */
+.list.files-over { box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--list-bg, transparent)); }

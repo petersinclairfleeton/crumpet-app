@@ -361,6 +361,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       tags: f.tags,
       favorite: f.favorite,
       ...(f.reminder ? { reminder: f.reminder } : {}),
+      ...(f.file ? { file: f.file } : {}),
       created: f.created ?? modified,
       updated: f.updated ?? modified,
       trashed: inTrash ? (f.trashed ?? modified) : null,

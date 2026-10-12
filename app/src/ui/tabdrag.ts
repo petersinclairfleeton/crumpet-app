@@ -159,3 +159,34 @@ export function bothDrops(...all: Partial<Pick<React.HTMLAttributes<HTMLElement>
   const run = (k: 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop') => (e: React.DragEvent<HTMLElement>) => all.forEach((p) => p[k]?.(e));
   return { onDragOver: run('onDragOver'), onDragEnter: run('onDragEnter'), onDragLeave: run('onDragLeave'), onDrop: run('onDrop') };
 }
+
+/**
+ * The props that let a row take files dropped from the computer, and whether
+ * files are over it now (to light it up).
+ */
+export function useFileDrop(onFiles: ((files: File[]) => void) | undefined): { over: boolean; props: Pick<React.HTMLAttributes<HTMLElement>, 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'> } {
+  const [over, setOver] = useState(false);
+  const ok = (e: React.DragEvent) => {
+    if (!onFiles || dragged || folder || !Array.from(e.dataTransfer.types).includes('Files')) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    return true;
+  };
+  return {
+    over,
+    props: {
+      onDragEnter: (e) => ok(e) && setOver(true),
+      onDragOver: (e) => ok(e) && !over && setOver(true),
+      onDragLeave: (e) => {
+        if (!(e.currentTarget as Node).contains(e.relatedTarget as Node | null)) setOver(false);
+      },
+      onDrop: (e) => {
+        if (!ok(e)) return;
+        setOver(false);
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length) onFiles!(files);
+      },
+    },
+  };
+}

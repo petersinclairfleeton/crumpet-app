@@ -159,18 +159,19 @@ export class AppStore {
     for (const id of expired) this.save(this.storage.deleteNote(id));
     const notes = data.notes.filter((n) => !expired.has(n.id));
     const expiredDocs = data.notes.filter((n) => expired.has(n.id)).map((n) => n.doc);
+    const expiredFiles = data.notes.filter((n) => expired.has(n.id) && n.file).map((n) => n.file!);
     const settings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}), dataVersion: DATA_VERSION };
     const projects = [...(data.projects ?? [])].sort((a, b) => a.createdAt - b.createdAt);
     this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, projects, chapters: data.chapters ?? [], settings });
     if (data.settings?.dataVersion !== DATA_VERSION) this.save(this.storage.putSettings(settings));
     this.set({ selectedId: visibleIn(this.state, this.state.view)[0]?.id ?? null });
     this.set({ snapshots: (await this.storage.getSync<Snapshot[]>(SNAPSHOTS_KEY)) ?? [], fileText: (await this.storage.getSync<Record<string, string>>(FILE_TEXT_KEY)) ?? {} });
-    this.forgetUnused(expiredDocs);
+    this.forgetUnused(expiredDocs, expiredFiles);
   }
 
   /** Pictures and files only the deleted documents used are deleted too. */
-  private forgetUnused(docs: Doc[]): void {
-    const candidates = docs.flatMap((d) => attachmentsIn(d.blocks));
+  private forgetUnused(docs: Doc[], files: string[] = []): void {
+    const candidates = [...docs.flatMap((d) => attachmentsIn(d.blocks)), ...files];
     if (!candidates.length) return;
     this.forgetPictures(candidates);
   }
@@ -178,6 +179,7 @@ export class AppStore {
   /** Deletes attachments nothing uses any more (no note, chapter, character or place). */
   private forgetPictures(candidates: string[]): void {
     const used = new Set([...this.state.notes.map((n) => n.doc), ...this.state.chapters.map((c) => c.doc)].flatMap((d) => attachmentsIn(d.blocks)));
+    for (const n of this.state.notes) if (n.file) used.add(n.file);
     for (const p of this.state.projects) for (const m of p.cast ?? []) if (m.picture) used.add(m.picture);
     // A snapshot still uses the pictures it had.
     for (const snap of this.state.snapshots) for (const a of snapshotAttachments(snap)) used.add(a);
@@ -271,7 +273,7 @@ export class AppStore {
 
   // ---------- notes ----------
 
-  createNote(init: Partial<Pick<Note, 'title' | 'doc' | 'notebookId' | 'tags' | 'favorite'>> = {}): Note {
+  createNote(init: Partial<Pick<Note, 'title' | 'doc' | 'notebookId' | 'tags' | 'favorite' | 'file'>> = {}): Note {
     const view = this.state.view;
     const t = this.now();
     const note: Note = {
@@ -284,6 +286,7 @@ export class AppStore {
       createdAt: t,
       updatedAt: t,
       trashedAt: null,
+      ...(init.file ? { file: init.file } : {}),
     };
     // Show the new note where it lives: its notebook, or All Notes if it isn't in one.
     const nextView: View =
@@ -416,12 +419,6 @@ export class AppStore {
     this.updateNote(id, { notebookId });
   }
 
-  /** Makes a note research for a project, or (null) takes it out, into a notebook (or none). */
-  setNoteProject(id: string, projectId: string | null, notebookId: string | null = null): void {
-    if (projectId && !this.project(projectId)) return;
-    this.updateNote(id, { projectId, notebookId: projectId ? null : notebookId });
-  }
-
   addTag(id: string, tag: string): void {
     const clean = cleanTag(tag);
     const note = this.note(id);
@@ -486,7 +483,7 @@ export class AppStore {
     this.save(this.storage.deleteNote(id));
     this.selectNeighbourIfHidden(id);
     this.dropVersions(id);
-    if (note) this.forgetUnused([note.doc]);
+    if (note) this.forgetUnused([note.doc], note.file ? [note.file] : []);
   }
 
   emptyTrash(): void {
@@ -653,6 +650,7 @@ export class AppStore {
         tags: t.tags,
         favorite: t.favorite,
         ...(decodeReminder(t.reminder) ? { reminder: decodeReminder(t.reminder) } : {}),
+        ...(t.file ? { file: t.file } : {}),
         createdAt: t.created,
         updatedAt: t.updated,
         trashedAt: t.trashed,
@@ -976,9 +974,9 @@ export class AppStore {
   }
 
   /** Adds a note to a project's research and opens it beside the writing. */
-  addResearchNote(projectId: string, init: Partial<Pick<Note, 'title' | 'doc' | 'tags'>> = {}, open = true): Note {
+  addResearchNote(projectId: string, init: Partial<Pick<Note, 'title' | 'doc' | 'tags' | 'file'>> = {}, open = true): Note {
     const t = this.now();
-    const note: Note = { id: newId(), notebookId: null, projectId, title: init.title ?? '', doc: init.doc ?? emptyDoc(), tags: init.tags ?? [], favorite: false, createdAt: t, updatedAt: t, trashedAt: null };
+    const note: Note = { id: newId(), notebookId: null, projectId, title: init.title ?? '', doc: init.doc ?? emptyDoc(), tags: init.tags ?? [], favorite: false, createdAt: t, updatedAt: t, trashedAt: null, ...(init.file ? { file: init.file } : {}) };
     this.set({ notes: [note, ...this.state.notes], ...(open ? { researchId: note.id } : {}) });
     this.save(this.storage.putNote(note));
     return note;
@@ -1027,8 +1025,9 @@ export class AppStore {
   }
 
   /** Files a note as research for a project, or (with null) back among the notes. */
-  setResearchProject(id: string, projectId: string | null): void {
-    this.updateNote(id, { projectId, notebookId: null }, { touch: false });
+  setResearchProject(id: string, projectId: string | null, notebookId: string | null = null): void {
+    if (projectId && !this.project(projectId)) return;
+    this.updateNote(id, { projectId, notebookId: projectId ? null : notebookId }, { touch: false });
   }
 
   /** Deletes a project and all its chapters. */
@@ -1289,6 +1288,7 @@ function sameNoteRecord(a: Note, b: Note): boolean {
     a.tags.every((t, i) => t === b.tags[i]) &&
     a.favorite === b.favorite &&
     JSON.stringify(a.reminder ?? null) === JSON.stringify(b.reminder ?? null) &&
+    (a.file ?? null) === (b.file ?? null) &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt &&
     a.trashedAt === b.trashedAt &&

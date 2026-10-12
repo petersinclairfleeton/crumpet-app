@@ -55,6 +55,15 @@ export async function addFile(file: File): Promise<{ type: 'image' | 'file'; src
   return { type: image ? 'image' : 'file', src: path, caption: image ? '' : (file.name || name) };
 }
 
+/** Puts new contents in a file already kept (a Word document edited here): copied to the cloud folder at the next sync. */
+export async function replaceFile(path: string, blob: Blob): Promise<void> {
+  if (!storage) return;
+  await storage.putFile({ path, type: blob.type, blob, synced: false });
+  const known = urls.get(path);
+  if (known) URL.revokeObjectURL(known);
+  urls.set(path, URL.createObjectURL(blob));
+}
+
 /** An address the browser can show for a picture or file in a note. */
 export function mediaUrl(src: string): string | Promise<string> {
   if (!src.startsWith(`${ATTACHMENTS}/`)) return src;
