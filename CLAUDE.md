@@ -312,7 +312,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   once); its Google sign-in needs `VITE_GOOGLE_MAC_CLIENT_ID` (docs step 4b),
   and was tested on Linux with a stand-in for Google, not on a real Mac; its
   fonts come from the internet (the Mac's own font is used offline).
-- Accounts need Firebase set up once (`docs/accounts-setup.md`); the Mac app
+- Accounts are on (Firebase key in `app/.env`, `docs/accounts-setup.md`); the Mac app
   offers email sign-in only (no Google there yet).
 - Not built yet: native iPhone/iPad apps, Dropbox/OneDrive/iCloud as
   services of their own (they need app keys from their makers; on a computer,
