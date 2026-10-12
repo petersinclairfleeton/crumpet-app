@@ -254,10 +254,12 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     in `editing.tsx` from `fonttools.tsx` (Font group), `paratools.tsx`
     (Paragraph group and window), `listtools.tsx` (bullet and numbering
     libraries, borders, shading), `inserttools.tsx` (symbols, date,
-    contents) and `layouttools.tsx` (Breaks, Columns, Orientation, and
+    contents) and `layouttools.tsx` (Breaks (page, column, odd/even page,
+    text wrapping), Columns, Orientation, Line numbers, Hyphenation, and
     `pagesetup.tsx`'s Page Setup window, for the caret's section, the whole
     document or from the caret on; the first section's settings sit on the
-    first paragraph). `rightside.tsx` is the right sidebar: tabs for the
+    first paragraph; a section of its own paper size has `pw`/`ph` inches, and
+    document-wide `hyph`, `lnum`/`lnr` sit on the first paragraph too). `rightside.tsx` is the right sidebar: tabs for the
     headings outline, Word's Styles pane (`stylespane.tsx`), comments and
     links, working on the editor last clicked in (`helpers.ts`: editors offer
     themselves with `useOfferHelped`). `booktoc.ts`: in a project, a table of contents
@@ -341,7 +343,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   build. Bookmarks dragged to the bar before the clipper changed need dragging
   again.
 - Word features not built: Word's own built-in table styles (ours go to Word as
-  styles of their own), paper size per section; shapes hold one paragraph of text, can't go behind the
+  styles of their own), shapes hold one paragraph of text, can't go behind the
   text, and are placed from their paragraph (not the page's corner). Printing turns landscape pages only
   in browsers that support named pages (Chrome, Edge, Firefox). A book's table of contents
   guesses the pages of headings in chapters not laid out yet (from their

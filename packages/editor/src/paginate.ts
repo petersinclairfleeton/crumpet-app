@@ -49,6 +49,8 @@ interface Section {
   start: number;
   end: number;
   cont: boolean;
+  /** Starts on the next odd or even page. */
+  parity?: 'odd' | 'even';
   margins: Margins;
   width: number;
   height: number;
@@ -100,6 +102,8 @@ interface Band {
 }
 
 interface Page {
+  /** Left empty, so a section starts on an odd or even page. */
+  blank?: boolean;
   width: number;
   height: number;
   landscape: boolean;
@@ -123,6 +127,9 @@ export class Paginator {
   pageOffset = 0;
   /** How tall footnote `index` is at the foot of a page, in px; without it footnotes take no room. */
   noteHeight: ((index: number) => number) | null = null;
+
+  /** Line numbers in the margin: every `every` lines, starting again each page, each section, or never. */
+  lineNumbers: { every: number; restart: 'page' | 'sect' | 'cont' } | null = null;
 
   /** Called after the pages are laid out (fields showing page numbers are filled in again). */
   onLaidOut: (() => void) | null = null;
@@ -188,8 +195,8 @@ export class Paginator {
     const m = g.margins;
     const colGap = g.colGap ?? 48;
     const baseLandscape = g.width > g.height;
-    const long = Math.max(g.width, g.height);
-    const short = Math.min(g.width, g.height);
+    let long = Math.max(g.width, g.height);
+    let short = Math.min(g.width, g.height);
     const sections: Section[] = [];
     let cols = Math.max(1, g.cols ?? 1);
     let landscape = baseLandscape;
@@ -200,6 +207,15 @@ export class Paginator {
       // (On the very first paragraph, a section break just holds the first section's settings.)
       if (el.dataset.cols) cols = Math.max(1, Number(el.dataset.cols) || 1);
       if (el.dataset.orient) landscape = el.dataset.orient === 'landscape';
+      // The section's own paper (inches, standing upright).
+      if (el.dataset.pw && el.dataset.ph) {
+        const pw = Number(el.dataset.pw) * 96;
+        const ph = Number(el.dataset.ph) * 96;
+        if (pw > 0 && ph > 0) {
+          long = Math.max(pw, ph);
+          short = Math.min(pw, ph);
+        }
+      }
       // The section's own margins (inches), otherwise the page setup's.
       const inch = (v: string | undefined, base: number) => (v !== undefined && v !== '' && Number.isFinite(Number(v)) ? Number(v) * 96 : base);
       margins = { top: inch(el.dataset.mt, margins.top), bottom: inch(el.dataset.mb, margins.bottom), left: inch(el.dataset.ml, margins.left), right: inch(el.dataset.mr, margins.right) };
@@ -208,7 +224,7 @@ export class Paginator {
       const content = width - margins.left - margins.right;
       const prev = sections[sections.length - 1];
       if (prev) prev.end = i - 1;
-      sections.push({ start: i, end: blocks.length - 1, cont: i > 0 && sect === 'cont', margins, width, height, landscape, cols, colWidth: Math.max(40, (content - (cols - 1) * colGap) / cols) });
+      sections.push({ start: i, end: blocks.length - 1, cont: i > 0 && sect === 'cont', parity: i > 0 && (sect === 'odd' || sect === 'even') ? sect : undefined, margins, width, height, landscape, cols, colWidth: Math.max(40, (content - (cols - 1) * colGap) / cols) });
     });
 
     // Measure everything in one long column per section, at the column's width.
@@ -418,6 +434,11 @@ export class Paginator {
       if (!page || !s.cont || page.landscape !== s.landscape || page.width !== s.width || page.margins.left !== s.margins.left || page.margins.right !== s.margins.right) {
         page = newPage(s);
         y = 0;
+        // An odd or even page section break: a blank page first when the new page is the other kind.
+        if (s.parity && (this.pageOffset + pages.length) % 2 === (s.parity === 'odd' ? 0 : 1)) {
+          page.blank = true;
+          page = newPage(s);
+        }
       }
       let at: { i: number; k: number } | null = { i: s.start, k: 0 };
       while (at) {
@@ -460,6 +481,38 @@ export class Paginator {
     this.pages = pages.length;
     this.onLaidOut?.();
     return this.pages;
+  }
+
+  /** Word's Line Numbers: a small number beside every line (or every few), in the margin left of its column. */
+  private numberLines(): void {
+    const ln = this.lineNumbers;
+    if (!ln) return;
+    let n = 0;
+    for (const pg of Array.from(this.root.querySelectorAll<HTMLElement>(':scope > .pg'))) {
+      if (ln.restart === 'page') n = 0;
+      const box = pg.getBoundingClientRect();
+      const scale = pg.offsetWidth ? box.width / pg.offsetWidth || 1 : 1;
+      for (const col of Array.from(pg.querySelectorAll<HTMLElement>('.pg-col'))) {
+        const colLeft = (col.getBoundingClientRect().left - box.left) / scale;
+        for (const el of Array.from(col.children) as HTMLElement[]) {
+          if (!el.dataset.block) continue;
+          if (ln.restart === 'sect' && el.dataset.sect && !el.hasAttribute(CONT)) n = 0;
+          if (el.matches(UNNUMBERED)) continue;
+          for (const line of lineBoxes(el)) {
+            n++;
+            if (n % ln.every) continue;
+            const mark = document.createElement('span');
+            mark.className = 'ln';
+            mark.textContent = String(n);
+            mark.setAttribute('aria-hidden', 'true');
+            mark.style.top = `${(line.top - box.top) / scale}px`;
+            mark.style.height = `${(line.bottom - line.top) / scale}px`;
+            mark.style.left = `${colLeft - 34}px`;
+            pg.appendChild(mark);
+          }
+        }
+      }
+    }
   }
 
   /** Puts the blocks (split where they run on) into page, band and column boxes. */
@@ -515,6 +568,7 @@ export class Paginator {
       while (w.firstChild) (lastCol ?? root).appendChild(w.firstChild);
       w.remove();
     }
+    this.numberLines();
     // A table of contents shows the page each heading is on.
     for (const entry of root.querySelectorAll<HTMLElement>('[data-toc-target]')) {
       const span = entry.querySelector('.toc-page:not([data-fixed])');
@@ -609,6 +663,28 @@ function joinTable(head: HTMLElement, cont: HTMLElement): void {
   const tools = cont.querySelector('.table-tools');
   const wrap = head.querySelector('.table-wrap');
   if (tools && wrap) wrap.appendChild(tools);
+}
+
+/** Not numbered: tables, pictures, files, contents, shapes, maths. */
+const UNNUMBERED = '.blk-table, .blk-image, .blk-file, .blk-toc, .blk-shape, .blk-code';
+
+/** The lines of a block as the browser draws them: each one's top and bottom (client px). */
+function lineBoxes(el: HTMLElement): { top: number; bottom: number }[] {
+  const range = document.createRange();
+  range.selectNodeContents(textEl(el));
+  const tops: { top: number; bottom: number }[] = [];
+  for (const r of Array.from(range.getClientRects())
+    .filter((r) => r.width || r.height)
+    .sort((a, b) => a.top - b.top)) {
+    const last = tops[tops.length - 1];
+    if (last && r.top < last.bottom - 1 && r.top - last.top < (last.bottom - last.top) / 2) last.bottom = Math.max(last.bottom, r.bottom);
+    else tops.push({ top: r.top, bottom: r.bottom });
+  }
+  if (!tops.length) {
+    const b = textEl(el).getBoundingClientRect();
+    tops.push({ top: b.top, bottom: b.bottom });
+  }
+  return tops;
 }
 
 /** The text part of a block (list items and checkboxes have more around it). */

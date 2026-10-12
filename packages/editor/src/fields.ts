@@ -33,13 +33,17 @@ export const DOC_FIELDS: Record<string, string> = {
  */
 const PARAM = /^(?:seq:[A-Za-z][\w ]{0,30}|bm:[A-Za-z_][\w-]{0,39}|ref:[A-Za-z_][\w-]{0,39}(?::(?:num|text|page|dir))?|xe:[^{}\n:][^{}\n]{0,99}|cite:[\w.:-]{1,60})$/;
 
+/** Breaks kept as fields: Word's Text Wrapping break (the text after it starts below any picture or shape it's wrapping round). */
+export const BREAK_FIELDS: Record<string, string> = { wrapbreak: 'Text wrapping break' };
+
 export function isField(name: string): boolean {
-  return name in FIELDS || name in DOC_FIELDS || PARAM.test(name);
+  return name in FIELDS || name in DOC_FIELDS || name in BREAK_FIELDS || PARAM.test(name);
 }
 
 /** What kind a field is. */
-export function fieldKind(name: string): 'date' | 'doc' | 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | null {
+export function fieldKind(name: string): 'date' | 'doc' | 'break' | 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | null {
   if (name in FIELDS) return 'date';
+  if (name in BREAK_FIELDS) return 'break';
   if (name in DOC_FIELDS) return 'doc';
   const k = /^(seq|bm|ref|xe|cite):/.exec(name)?.[1];
   return (k as 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | undefined) ?? null;
@@ -49,6 +53,7 @@ export function fieldKind(name: string): 'date' | 'doc' | 'seq' | 'bm' | 'ref' |
 export function fieldLabel(name: string): string {
   if (FIELDS[name]) return `${FIELDS[name].replace(/ \(.*\)$/, '')}: updates by itself`;
   if (DOC_FIELDS[name]) return `${DOC_FIELDS[name]}: updates by itself`;
+  if (BREAK_FIELDS[name]) return BREAK_FIELDS[name];
   const [kind, rest] = [name.slice(0, name.indexOf(':')), name.slice(name.indexOf(':') + 1)];
   if (kind === 'seq') return `${rest} number: counts up through the text`;
   if (kind === 'bm') return `Bookmark “${rest}”`;

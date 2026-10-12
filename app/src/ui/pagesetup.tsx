@@ -6,7 +6,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
-import { PAGE_SIZES, type PageSetup, pageHF } from '../data/styles';
+import { PAGE_SIZES, type PageSetup, pageHF, paperInches } from '../data/styles';
+import { PaperPicker } from './pages';
 import { HFOptions } from './headers';
 import { IconClose } from './icons';
 
@@ -29,7 +30,14 @@ export function PageSetupDialog({ editor, page, onPage, chapters = false, onClos
     right: show(look.margins.right ?? base.right),
   });
   const [landscape, setLandscape] = useState(look.orient ? look.orient === 'landscape' : !!page?.landscape);
-  const [size, setSize] = useState(page?.size ?? 'letter');
+  // The paper: the section's own, or the page setup's.
+  const [paper, setPaper] = useState<Pick<PageSetup, 'size' | 'w' | 'h'>>(() => {
+    if (look.paper) {
+      const known = PAGE_SIZES.find((s) => Math.abs(s.width - look.paper!.w) < 0.02 && Math.abs(s.height - look.paper!.h) < 0.02);
+      return known ? { size: known.id } : { size: 'custom', w: look.paper.w, h: look.paper.h };
+    }
+    return { size: page?.size ?? 'letter', w: page?.w, h: page?.h };
+  });
   const [cols, setCols] = useState(look.cols);
   const [start, setStart] = useState(look.start);
   const [hf, setHF] = useState(page ? pageHF(page) : null);
@@ -48,13 +56,16 @@ export function PageSetupDialog({ editor, page, onPage, chapters = false, onClos
 
   const apply = () => {
     const mm = { top: read(margins.top) ?? base.top, bottom: read(margins.bottom) ?? base.bottom, left: read(margins.left) ?? base.left, right: read(margins.right) ?? base.right };
-    // Paper size, and headers and footers, are the whole document's.
-    const docPage = page ? { ...page, size, ...(hf ? { hf } : {}) } : null;
+    // Headers and footers are the whole document's; the paper too, unless a section has its own.
+    const inches = paperInches({ ...paper, landscape: false });
+    const docInches = paperInches(page ? { ...page, landscape: false } : undefined);
+    const ownPaper = applyTo !== 'all' && (Math.abs(inches.width - docInches.width) > 0.01 || Math.abs(inches.height - docInches.height) > 0.01);
+    const docPage = page ? { ...page, ...(applyTo === 'all' ? paper : {}), ...(hf ? { hf } : {}) } : null;
     if (applyTo === 'all') {
       if (docPage) onPage?.({ ...docPage, margins: mm, landscape: landscape || undefined });
       editor.setAllSections(cols);
     } else {
-      if (docPage && (docPage.size !== page?.size || hf !== (page ? pageHF(page) : null))) onPage?.(docPage);
+      if (docPage && hf !== (page ? pageHF(page) : null)) onPage?.(docPage);
       if (applyTo === 'forward') editor.insertSectionBreak('page');
       // Only what differs from the page setup is the section's own.
       const own = (v: number, b: number) => (Math.abs(v - b) < 0.001 ? undefined : v);
@@ -65,6 +76,8 @@ export function PageSetupDialog({ editor, page, onPage, chapters = false, onClos
         mb: own(mm.bottom, base.bottom),
         ml: own(mm.left, base.left),
         mr: own(mm.right, base.right),
+        pw: ownPaper ? inches.width : undefined,
+        ph: ownPaper ? inches.height : undefined,
         ...(applyTo === 'section' && !look.first ? { sect: start } : {}),
       });
     }
@@ -136,14 +149,8 @@ export function PageSetupDialog({ editor, page, onPage, chapters = false, onClos
           {tab === 'paper' && (
             <fieldset>
               <legend>Paper size</legend>
-              <select aria-label="Paper size" value={size} onChange={(e) => setSize(e.target.value as PageSetup['size'])} disabled={!page}>
-                {PAGE_SIZES.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <p className="sync-hint">The paper size is the whole document’s.</p>
+              <PaperPicker label="Paper size" value={paper} onChange={setPaper} disabled={!page} />
+              <p className="sync-hint">“Apply to” below: the whole document, or just this section (a section can have paper of its own).</p>
             </fieldset>
           )}
           {tab === 'layout' && (
@@ -152,9 +159,11 @@ export function PageSetupDialog({ editor, page, onPage, chapters = false, onClos
                 <legend>Section</legend>
                 <label className="para-field">
                   <span>Section starts</span>
-                  <select aria-label="Section starts" value={start} disabled={look.first || applyTo !== 'section'} onChange={(e) => setStart(e.target.value as 'page' | 'cont')}>
+                  <select aria-label="Section starts" value={start} disabled={look.first || applyTo !== 'section'} onChange={(e) => setStart(e.target.value as 'page' | 'cont' | 'odd' | 'even')}>
                     <option value="page">On a new page</option>
                     <option value="cont">Continuous (on the same page)</option>
+                    <option value="odd">On the next odd page</option>
+                    <option value="even">On the next even page</option>
                   </select>
                 </label>
                 <label className="para-field">

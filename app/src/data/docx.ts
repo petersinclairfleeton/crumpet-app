@@ -322,6 +322,8 @@ class Writer {
         const id = this.nextBookmark++;
         return `<w:bookmarkStart w:id="${id}" w:name="${esc(r.field.slice(3))}"/><w:bookmarkEnd w:id="${id}"/>`;
       }
+      // Word's Text Wrapping break.
+      if (r.field === 'wrapbreak') return '<w:r><w:br w:type="textWrapping" w:clear="all"/></w:r>';
       // A citation: its text, as written in the citation style.
       if (r.field.startsWith('cite:')) return `<w:r>${props}<w:t xml:space="preserve">${esc(this.fieldShown(r.field))}</w:t></w:r>`;
       const instr = wordInstr(r.field);
@@ -563,7 +565,7 @@ class Writer {
       if (sb) {
         const p = b.para!;
         const was = this.section;
-        this.section = { cols: p.cols ?? was.cols, orient: p.orient ?? was.orient, type: sb, mt: p.mt ?? was.mt, mb: p.mb ?? was.mb, ml: p.ml ?? was.ml, mr: p.mr ?? was.mr };
+        this.section = { cols: p.cols ?? was.cols, orient: p.orient ?? was.orient, type: sb, mt: p.mt ?? was.mt, mb: p.mb ?? was.mb, ml: p.ml ?? was.ml, mr: p.mr ?? was.mr, pw: p.pw ?? was.pw, ph: p.ph ?? was.ph };
       }
       // The next block starts a new section: this one's paragraph carries this section's settings.
       if (blocks[k + 1]?.para?.sect) this.sectNext = this.sectionMark();
@@ -771,7 +773,10 @@ function stylesXml(font: string, size: number): string {
 interface SectionProps {
   cols: number;
   orient?: 'portrait' | 'landscape';
-  type: 'page' | 'cont';
+  type: 'page' | 'cont' | 'odd' | 'even';
+  /** The section's own paper, inches (standing upright). */
+  pw?: number;
+  ph?: number;
   /** Margins in inches, when the section has its own. */
   mt?: number;
   mb?: number;
@@ -922,15 +927,19 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const pgNum = hf ? `<w:pgNumType${hf.numberFormat !== '1' ? ` w:fmt="${{ i: 'lowerRoman', I: 'upperRoman', a: 'lowerLetter', A: 'upperLetter' }[hf.numberFormat]}"` : ''}${hf.startAt !== 1 ? ` w:start="${hf.startAt}"` : ''}/>` : '';
   const tw = (inches: number) => Math.round(inches * TWIPS);
   const titlePg = refs.includes('<w:titlePg/>');
+  const p0 = parts[0]?.doc.blocks[0]?.para;
+  const lines = p0?.lnum ? { every: p0.lnum, restart: p0.lnr ?? 'page' } : null;
   // Each section's settings: the page turned for landscape, its columns and how it starts. The first section has the page numbering and a different first page.
   const sectionXml = (sp: SectionProps, first: boolean) => {
     const landscape = sp.orient ? sp.orient === 'landscape' : !!page?.landscape;
-    const long = Math.max(size.width, size.height);
-    const short = Math.min(size.width, size.height);
+    const long = sp.pw && sp.ph ? Math.max(sp.pw, sp.ph) : Math.max(size.width, size.height);
+    const short = sp.pw && sp.ph ? Math.min(sp.pw, sp.ph) : Math.min(size.width, size.height);
     const [pw, ph] = landscape ? [long, short] : [short, long];
-    const type = sp.type === 'cont' && !first ? '<w:type w:val="continuous"/>' : '';
+    const type = first ? '' : sp.type === 'cont' ? '<w:type w:val="continuous"/>' : sp.type === 'odd' ? '<w:type w:val="oddPage"/>' : sp.type === 'even' ? '<w:type w:val="evenPage"/>' : '';
+    // Line numbers (the whole document's).
+    const lnNum = lines ? `<w:lnNumType w:countBy="${lines.every}" w:restart="${lines.restart === 'sect' ? 'newSection' : lines.restart === 'cont' ? 'continuous' : 'newPage'}"/>` : '';
     const cols = sp.cols > 1 ? `<w:cols w:num="${sp.cols}" w:space="720"/>` : '<w:cols w:space="720"/>';
-    return `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr>${type}<w:pgSz w:w="${tw(pw)}" w:h="${tw(ph)}"${landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(sp.mt ?? m.top)}" w:right="${tw(sp.mr ?? m.right)}" w:bottom="${tw(sp.mb ?? m.bottom)}" w:left="${tw(sp.ml ?? m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${first ? pgNum : ''}${cols}${titlePg && first ? '<w:titlePg/>' : ''}</w:sectPr>`;
+    return `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr>${type}<w:pgSz w:w="${tw(pw)}" w:h="${tw(ph)}"${landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(sp.mt ?? m.top)}" w:right="${tw(sp.mr ?? m.right)}" w:bottom="${tw(sp.mb ?? m.bottom)}" w:left="${tw(sp.ml ?? m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${lnNum}${first ? pgNum : ''}${cols}${titlePg && first ? '<w:titlePg/>' : ''}</w:sectPr>`;
   };
   let firstSect = true;
   body = body.replace(/<!--crumpet-sect:(.*?)-->/g, (_, json: string) => {
@@ -958,7 +967,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const firstPara = parts[0]?.doc.blocks[0]?.para;
   const protect = firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
   const trackAll = firstPara?.track === 'all' ? '<w:trackRevisions/>' : '';
-  const settings = `${XML}<w:settings ${NS}>${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+  const settings = `${XML}<w:settings ${NS}>${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}${parts[0]?.doc.blocks[0]?.para?.hyph ? '<w:autoHyphenation/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const core = `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(opts.title)}</dc:title><dc:creator>${esc(opts.author ?? '')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
   const types =
@@ -1442,7 +1451,10 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
             }
             if (c.localName === 't' || c.localName === 'delText') push(c.textContent ?? '');
             else if (c.localName === 'tab') push('\t');
-            else if (c.localName === 'br' || c.localName === 'cr') {
+            else if (c.localName === 'br' && attr(c, 'type') === 'textWrapping' && attr(c, 'clear') && attr(c, 'clear') !== 'none') {
+              push(FIELD);
+              out[out.length - 1].field = 'wrapbreak';
+            } else if (c.localName === 'br' || c.localName === 'cr') {
               if (attr(c, 'type') !== 'page' && attr(c, 'type') !== 'column') push('\n');
             } else if (c.localName === 'noBreakHyphen') push('‑');
             else if (c.localName === 'sym') push(String.fromCharCode(parseInt(attr(c, 'char') ?? '20', 16) & 0xff || 32));
@@ -1548,7 +1560,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   let wordField: { instr: string; showing: boolean } | null = null;
   let colBreakNext = false;
   // Section settings, as Word keeps them: at the end of each section (in its last paragraph), the last in the body.
-  type SectRead = { margins: { mt?: number; mb?: number; ml?: number; mr?: number }; cont: boolean; cols: number; landscape: boolean };
+  type SectRead = { margins: { mt?: number; mb?: number; ml?: number; mr?: number }; cont: boolean; parity?: 'odd' | 'even'; cols: number; landscape: boolean; paper?: { w: number; h: number }; lines?: { every: number; restart: 'page' | 'sect' | 'cont' } };
   const sectEnds: { end: number; props: SectRead }[] = [];
   const readSect = (sp: Element): SectRead => {
     const sz = child(sp, 'pgSz');
@@ -1559,7 +1571,19 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       const v = attr(mar, k);
       return v !== null && Number.isFinite(Number(v)) ? Math.round((Number(v) / TWIPS) * 1000) / 1000 : undefined;
     };
-    return { margins: { mt: inch('top'), mb: inch('bottom'), ml: inch('left'), mr: inch('right') }, cont: attr(child(sp, 'type'), 'val') === 'continuous', cols: Math.max(1, Math.min(4, Number(attr(child(sp, 'cols'), 'num') ?? 1) || 1)), landscape: attr(sz, 'orient') === 'landscape' || (w > 0 && h > 0 && w > h) };
+    const typ = attr(child(sp, 'type'), 'val');
+    const ln = child(sp, 'lnNumType');
+    const every = Number(attr(ln, 'countBy') ?? (ln ? 1 : 0));
+    const restart = attr(ln, 'restart');
+    return {
+      margins: { mt: inch('top'), mb: inch('bottom'), ml: inch('left'), mr: inch('right') },
+      cont: typ === 'continuous',
+      ...(typ === 'oddPage' ? { parity: 'odd' as const } : typ === 'evenPage' ? { parity: 'even' as const } : {}),
+      cols: Math.max(1, Math.min(4, Number(attr(child(sp, 'cols'), 'num') ?? 1) || 1)),
+      landscape: attr(sz, 'orient') === 'landscape' || (w > 0 && h > 0 && w > h),
+      ...(w > 0 && h > 0 ? { paper: { w: Math.round((Math.min(w, h) / TWIPS) * 100) / 100, h: Math.round((Math.max(w, h) / TWIPS) * 100) / 100 } } : {}),
+      ...(every > 0 ? { lines: { every, restart: restart === 'newSection' ? ('sect' as const) : restart === 'continuous' ? ('cont' as const) : ('page' as const) } } : {}),
+    };
   };
   /** Whether `el` comes after all the text in paragraph `p`. */
   const isLastThing = (p: Element, el: Element): boolean => {
@@ -1900,7 +1924,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     let at = startsAt[k];
     const sp = sects[k];
     const prev = sects[k - 1];
-    if (k === 0 && sp.cols === 1 && !sp.landscape) continue;
+    if (k === 0 && sp.cols === 1 && !sp.landscape && !sp.lines) continue;
     // (The first section's settings go on the first paragraph; a document starting with a picture or table keeps the page setup's.)
     if (k === 0 && blocks[0] && (isMediaType(blocks[0].type) || blocks[0].type === 'table' || blocks[0].type === 'toc')) continue;
     if (k > 0 && at >= blocks.length) continue;
@@ -1913,7 +1937,9 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const orient = sp.landscape ? 'landscape' : prev?.landscape || k === 0 ? 'portrait' : undefined;
     // A section's own margins: where they differ from the section before.
     const own = (key: 'mt' | 'mb' | 'ml' | 'mr') => (k > 0 && prev && sp.margins[key] !== undefined && sp.margins[key] !== prev.margins[key] ? sp.margins[key] : undefined);
-    b.para = tidyPara({ ...b.para, sect: k > 0 && sp.cont ? 'cont' : 'page', cols: k === 0 ? sp.cols : sp.cols !== prev?.cols ? sp.cols : undefined, orient: k === 0 ? (sp.landscape ? 'landscape' : undefined) : orient, mt: own('mt'), mb: own('mb'), ml: own('ml'), mr: own('mr') });
+    // A section's own paper: where it differs from the one before.
+    const paper = k > 0 && prev?.paper && sp.paper && (Math.abs(sp.paper.w - prev.paper.w) > 0.05 || Math.abs(sp.paper.h - prev.paper.h) > 0.05) ? sp.paper : undefined;
+    b.para = tidyPara({ ...b.para, sect: k > 0 && sp.cont ? 'cont' : k > 0 && sp.parity ? sp.parity : 'page', cols: k === 0 ? sp.cols : sp.cols !== prev?.cols ? sp.cols : undefined, orient: k === 0 ? (sp.landscape ? 'landscape' : undefined) : orient, mt: own('mt'), mb: own('mb'), ml: own('ml'), mr: own('mr'), pw: paper?.w, ph: paper?.h, ...(k === 0 && sp.lines ? { lnum: sp.lines.every, lnr: sp.lines.restart === 'page' ? undefined : sp.lines.restart } : {}) });
   }
   // Where Word's numbering differs from what the list shows on its own (carrying on after a paragraph, or starting again), keep Word's.
   const shown: number[] = [];
@@ -1936,6 +1962,10 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   // Word's "track changes" (and locked to tracked changes): kept on the first paragraph, as Crumpet keeps them.
   const wordSettings = parseXml(files.get('word/settings.xml'));
   const setting = (name: string) => Array.from(wordSettings?.getElementsByTagNameNS(W_NS, name) ?? [])[0];
+  if (on(setting('autoHyphenation'))) {
+    const first = out[0];
+    first.para = tidyPara({ ...first.para, hyph: true });
+  }
   const track = setting('trackRevisions');
   const protection = setting('documentProtection');
   const locked = !!protection && attr(protection, 'edit') === 'trackedChanges' && /^(1|true|on)$/.test(attr(protection, 'enforcement') ?? '');

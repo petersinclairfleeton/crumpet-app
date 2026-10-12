@@ -233,3 +233,22 @@ describe('Word: endnotes, bookmarks and fields', () => {
     expect(back[1].runs.filter((r) => r.field).map((r) => r.field)).toEqual(['ref:lamp', 'page']);
   });
 });
+
+describe('Word: page layout', () => {
+  it('odd page sections, a section\'s own paper, line numbers, hyphenation and the text wrapping break go to Word and come back', async () => {
+    const first = makeBlock('paragraph', 'One', [], { para: { hyph: true, lnum: 5, lnr: 'sect' } });
+    const odd = makeBlock('paragraph', 'Two', [], { para: { sect: 'odd', pw: 5, ph: 8 } });
+    const wrap = makeBlock('paragraph', '', [], { runs: [{ text: 'A', marks: [] }, { text: FIELD, marks: [], field: 'wrapbreak' }, { text: 'B', marks: [] }] });
+    const bytes = await toDocx([{ doc: { blocks: [first, odd, wrap] } }], { title: 'T' });
+    const files = await readZip(bytes);
+    const xml = new TextDecoder().decode(files.get('word/document.xml'));
+    expect(xml).toContain('<w:type w:val="oddPage"/><w:pgSz w:w="7200" w:h="11520"/>');
+    expect(xml).toContain('<w:lnNumType w:countBy="5" w:restart="newSection"/>');
+    expect(xml).toContain('<w:br w:type="textWrapping" w:clear="all"/>');
+    expect(new TextDecoder().decode(files.get('word/settings.xml'))).toContain('<w:autoHyphenation/>');
+    const back = (await fromDocx(bytes)).doc.blocks;
+    expect(back[0].para).toMatchObject({ hyph: true, lnum: 5, lnr: 'sect' });
+    expect(back[1].para).toMatchObject({ sect: 'odd', pw: 5, ph: 8 });
+    expect(back[2].runs.map((r) => r.field ?? r.text)).toEqual(['A', 'wrapbreak', 'B']);
+  });
+});

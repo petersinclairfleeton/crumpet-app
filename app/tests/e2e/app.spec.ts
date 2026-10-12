@@ -3027,6 +3027,59 @@ test('endnotes, citations and a bibliography, snippets with F3, text from a file
   await expect(page.getByLabel('Title')).toHaveValue('Sources');
 });
 
+test('page layout: an odd page section break, paper of your own for a section, line numbers, hyphenation and the text wrapping break', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always', pageView: { notes: true } }));
+  await newNote(page, 'Layout', 'The first page.');
+  await expect(page.locator('.note-editor .pg')).toHaveCount(1);
+  // A section starting on the next odd page: page 2 is left blank, the text goes on page 3.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Chapter two.');
+  await page.keyboard.press('Home');
+  await (await toolButton(page, 'Breaks')).click();
+  await page.getByRole('button', { name: 'Odd page', exact: true }).click();
+  await expect(page.locator('.note-editor .pg')).toHaveCount(3);
+  await expect(page.locator('.note-editor .pg').nth(1).locator('[data-block]')).toHaveCount(0);
+  await expect(page.locator('.note-editor .pg').nth(2)).toContainText('Chapter two.');
+  // That section on paper of its own: 5 × 8 inches.
+  await (await toolButton(page, 'Page setup')).click();
+  const dialog = page.getByRole('dialog', { name: 'Page setup' });
+  await dialog.getByRole('tab', { name: 'Paper' }).click();
+  await dialog.getByLabel('Paper size').selectOption('custom');
+  await dialog.getByLabel('Paper width').fill(await page.evaluate(() => (/^en-(US|CA)/.test(navigator.language) ? '5' : '12.7')));
+  await dialog.getByLabel('Paper height').fill(await page.evaluate(() => (/^en-(US|CA)/.test(navigator.language) ? '8' : '20.32')));
+  await dialog.getByLabel('Apply to').selectOption('section');
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  await expect(page.locator('.note-editor .pg').nth(2)).toHaveCSS('width', '480px');
+  await expect(page.locator('.note-editor .pg').first()).not.toHaveCSS('width', '480px');
+  // Line numbers in the margin, starting again each page.
+  await (await toolButton(page, 'Line numbers')).click();
+  await page.getByRole('menuitemradio', { name: 'Restart each page' }).click();
+  await expect(page.locator('.note-editor .pg').first().locator('.ln')).toHaveText(['1']);
+  await expect(page.locator('.note-editor .pg').nth(2).locator('.ln').first()).toHaveText('1');
+  // Hyphenation, for the whole document.
+  await (await toolButton(page, 'Hyphenation')).click();
+  await page.getByRole('menuitemradio', { name: 'Automatic', exact: true }).click();
+  await expect(page.locator('.note-editor')).toHaveClass(/hyphenate/);
+  await expect(page.locator('.note-editor .blk').first()).toHaveCSS('hyphens', 'auto');
+  // A text wrapping break.
+  await page.keyboard.press('End');
+  await (await toolButton(page, 'Breaks')).click();
+  await page.getByRole('button', { name: 'Text wrapping', exact: true }).click();
+  await expect(page.locator('.note-editor span.fld[data-field="wrapbreak"]')).toHaveCount(1);
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toContain('{.hyphenate lnum=1}');
+  await expect.poll(md).toMatch(/\{sect=odd [^}]*pw=5 ph=8\}/);
+  await expect.poll(md).toContain('{{wrapbreak}}');
+});
+
 test('a book’s table of contents lists every chapter with its page, and the headings in them, and opens one', async ({ page }) => {
   await open(page);
   await page.evaluate(async () => {

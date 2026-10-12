@@ -401,12 +401,18 @@ export interface ParaLook {
    */
   track?: 'all';
   lock?: string;
+  /** Also the whole document's: words hyphenated at the ends of lines (Word's Hyphenation: Automatic). */
+  hyph?: boolean;
+  /** Line numbers in the margin (page view), every `lnum` lines, starting again on each page, each section, or never. */
+  lnum?: number;
+  lnr?: 'page' | 'sect' | 'cont';
   /**
    * A section break before this paragraph (Word's Breaks > Section Breaks):
-   * the new section starts on a new page, or carries on down the same one.
-   * The section's columns and orientation, when they change here.
+   * the new section starts on a new page (the next odd or even one), or
+   * carries on down the same one. The section's columns and orientation,
+   * when they change here.
    */
-  sect?: 'page' | 'cont';
+  sect?: 'page' | 'cont' | 'odd' | 'even';
   cols?: number;
   orient?: 'portrait' | 'landscape';
   /** The section's margins, in inches, when they differ from the page setup's (top, bottom, left, right). */
@@ -414,6 +420,9 @@ export interface ParaLook {
   mb?: number;
   ml?: number;
   mr?: number;
+  /** The section's paper, in inches (width and height, as it stands upright), when it differs from the page setup's. */
+  pw?: number;
+  ph?: number;
 }
 export type ParaKey = keyof ParaLook;
 
@@ -460,7 +469,7 @@ export function tabsFromText(text: string): TabStop[] | undefined {
   }
   return tidyTabs(out);
 }
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -498,17 +507,28 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
   if (tabs) out.tabs = tabs;
   if (p.track === 'all') out.track = 'all';
   if (typeof p.lock === 'string' && /^(open|[0-9a-f]{16,128})$/.test(p.lock)) out.lock = p.lock;
-  if (p.sect === 'page' || p.sect === 'cont') {
+  if (out.lnum !== undefined) {
+    out.lnum = Math.max(1, Math.min(100, Math.round(out.lnum)));
+    if (p.lnr === 'sect' || p.lnr === 'cont') out.lnr = p.lnr;
+  }
+  if (p.sect === 'page' || p.sect === 'cont' || p.sect === 'odd' || p.sect === 'even') {
     out.sect = p.sect;
     if (out.cols !== undefined) out.cols = Math.max(1, Math.min(MAX_COLS, Math.round(out.cols)));
     if (p.orient === 'portrait' || p.orient === 'landscape') out.orient = p.orient;
     for (const k of ['mt', 'mb', 'ml', 'mr'] as const) if (out[k] !== undefined) out[k] = Math.max(0, Math.min(5, out[k]!));
+    for (const k of ['pw', 'ph'] as const) if (out[k] !== undefined) out[k] = Math.max(1, Math.min(48, out[k]!));
+    if ((out.pw === undefined) !== (out.ph === undefined)) {
+      delete out.pw;
+      delete out.ph;
+    }
   } else {
     delete out.cols;
     delete out.mt;
     delete out.mb;
     delete out.ml;
     delete out.mr;
+    delete out.pw;
+    delete out.ph;
   }
   return Object.keys(out).length ? out : undefined;
 }
@@ -939,8 +959,10 @@ export interface SectionLook {
   orient?: 'portrait' | 'landscape';
   /** Margins in inches (unset: the page setup's). */
   margins: { top?: number; bottom?: number; left?: number; right?: number };
+  /** Its own paper, in inches (unset: the page setup's). */
+  paper?: { w: number; h: number };
   /** How the section starts (the first section: 'page'). */
-  start: 'page' | 'cont';
+  start: 'page' | 'cont' | 'odd' | 'even';
   /** It's the document's first section. */
   first: boolean;
 }
@@ -948,6 +970,7 @@ export interface SectionLook {
 export function sectionLook(blocks: Block[], i: number): SectionLook {
   let cols = 1;
   let orient: 'portrait' | 'landscape' | undefined;
+  let paper: { w: number; h: number } | undefined;
   const margins: SectionLook['margins'] = {};
   const start = sectionStart(blocks, i);
   for (let k = 0; k <= start; k++) {
@@ -959,6 +982,8 @@ export function sectionLook(blocks: Block[], i: number): SectionLook {
     if (p.mb !== undefined) margins.bottom = p.mb;
     if (p.ml !== undefined) margins.left = p.ml;
     if (p.mr !== undefined) margins.right = p.mr;
+    if (p.pw !== undefined && p.ph !== undefined) paper = { w: p.pw, h: p.ph };
   }
-  return { cols, orient, margins, start: start > 0 && blocks[start].para?.sect === 'cont' ? 'cont' : 'page', first: start === 0 };
+  const how = blocks[start].para?.sect;
+  return { cols, orient, margins, ...(paper ? { paper } : {}), start: start > 0 && (how === 'cont' || how === 'odd' || how === 'even') ? how : 'page', first: start === 0 };
 }
