@@ -114,3 +114,9 @@ export function NotebookIcon({ color, size = 13, cut = 'var(--side-bg)' }: { col
     </svg>
   );
 }
+export const IconHelp = icon(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.2-2.4 3.8M12 17h.01" />
+  </>,
+);

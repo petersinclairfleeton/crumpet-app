@@ -17,6 +17,8 @@ import { RightSidebar } from './rightside';
 import { Finder } from './finder';
 import { currentHelped } from './helpers';
 import { SettingsDialog } from './Settings';
+import { Guide, onOpenGuide, shouldOpenGuide } from './guide';
+import { Tour } from './Tour';
 import { applyTheme } from './theme';
 import { startSession } from './writingtab';
 import { useTodayWords } from './stats-ui';
@@ -249,6 +251,13 @@ export function App() {
   const [compareFrom, setCompareFrom] = useState<string | null>(null);
   const [compare, setCompare] = useState<{ a: string; b: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // The guide: by itself on a first visit, and from the ? button or the command palette.
+  const [guide, setGuide] = useState(false);
+  const [touring, setTouring] = useState(false);
+  useEffect(() => onOpenGuide(() => setGuide(true)), []);
+  useEffect(() => {
+    if (state.ready && shouldOpenGuide(store.getState())) setGuide(true);
+  }, [state.ready]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
@@ -339,6 +348,8 @@ export function App() {
       )}
       {compare && <CompareDocs a={compare.a} b={compare.b} onSwap={() => setCompare({ a: compare.b, b: compare.a })} onClose={() => setCompare(null)} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {guide && <Guide onClose={() => setGuide(false)} onNewNote={newNote} onNewProject={newProject} onConnect={() => setSettingsOpen(true)} onTour={() => setTouring(true)} />}
+      {touring && <Tour onDone={() => setTouring(false)} />}
       <SpeechBar />
       <ReminderAlerts onOpen={openNote} />
       {state.temporary && (
