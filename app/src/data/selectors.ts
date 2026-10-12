@@ -5,7 +5,7 @@ import { matchesFilters, parseQuery } from './search';
 import { comments, footnotes, runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
 import type { Doc } from '@crumpet/editor/model';
-import type { Chapter, Note, Notebook, OutlineItem, Project, Stack, View } from './types';
+import type { Chapter, Note, Notebook, OutlineItem, Project, SideOrder, Stack, View } from './types';
 import { boardOf, boardPreview, boardText, isBoard } from './board';
 import { cellPlain } from '@crumpet/editor/cells';
 
@@ -132,11 +132,34 @@ export interface StackNode {
 const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
 
 /** Sidebar tree: notebooks outside stacks, then every stack (empty ones too) with its notebooks, all by name. */
-export function notebookTree(stacks: Stack[], notebooks: Notebook[]): { loose: Notebook[]; stacks: StackNode[] } {
+/** Sorts by a dragged order (ids), then anything not in it by name. */
+export function inOrder<T extends { id: string; name: string }>(list: T[], order: string[] | undefined, otherwise: (a: T, b: T) => number = byName): T[] {
+  const at = new Map((order ?? []).map((id, i) => [id, i]));
+  const place = (x: T) => at.get(x.id) ?? Number.MAX_SAFE_INTEGER;
+  return [...list].sort((a, b) => place(a) - place(b) || otherwise(a, b));
+}
+
+/** Projects as the sidebar lists them: as dragged, then oldest first. */
+export function projectsInOrder(projects: Project[], order: SideOrder | undefined): Project[] {
+  return inOrder(projects, order?.projects, (a, b) => a.createdAt - b.createdAt);
+}
+
+export function notebookTree(stacks: Stack[], notebooks: Notebook[], order?: SideOrder): { loose: Notebook[]; stacks: StackNode[] } {
   const ids = new Set(stacks.map((s) => s.id));
-  const loose = notebooks.filter((n) => !n.stackId || !ids.has(n.stackId)).sort(byName);
-  const nodes = [...stacks].sort(byName).map((stack) => ({ stack, notebooks: notebooks.filter((n) => n.stackId === stack.id).sort(byName) }));
+  const loose = inOrder(notebooks.filter((n) => !n.stackId || !ids.has(n.stackId)), order?.notebooks);
+  const nodes = inOrder(stacks, order?.stacks).map((stack) => ({ stack, notebooks: inOrder(notebooks.filter((n) => n.stackId === stack.id), order?.notebooks) }));
   return { loose, stacks: nodes };
+}
+
+/**
+ * An order with `id` moved to just before `before` (null: the end), given
+ * the things as they're shown now.
+ */
+export function moveInOrder(shown: string[], id: string, before: string | null): string[] {
+  const rest = shown.filter((x) => x !== id);
+  const at = before === null ? rest.length : rest.indexOf(before);
+  rest.splice(at < 0 ? rest.length : at, 0, id);
+  return rest;
 }
 
 export function noteCounts(notes: Note[]): Map<string, number> {

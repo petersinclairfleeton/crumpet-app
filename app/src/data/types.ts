@@ -2,6 +2,13 @@ import type { StatsElsewhere, WritingStats } from './stats';
 import type { Doc } from '@crumpet/editor/model';
 import type { PageSetup, StyleSheet } from './styles';
 
+/** Ids in the order they were dragged into; anything not listed comes after, by name. */
+export interface SideOrder {
+  stacks?: string[];
+  notebooks?: string[];
+  projects?: string[];
+}
+
 export interface Stack {
   id: string;
   name: string;
@@ -145,8 +152,10 @@ export interface Settings {
   revision?: number;
   /** Words to write in a session (since Crumpet was opened today); 0 or unset for none. */
   sessionTarget?: number;
-  /** When the note styles or page setup (shared with other devices) last changed. */
+  /** When the note styles, page setup or sidebar order (shared with other devices) last changed. */
   sharedAt?: number;
+  /** The order of the sidebar's stacks, notebooks and projects, as dragged (shared with other devices). */
+  sideOrder?: SideOrder;
   /** Track changes: typing is marked as added, deleting strikes text through. */
   trackChanges?: boolean;
   /** How the note list is sorted. */

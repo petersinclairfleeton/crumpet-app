@@ -52,7 +52,7 @@ const CHAPTERS: Chapter[] = [
     lede: 'Start writing straight away; organise later, in whichever way suits you.',
     points: [
       { title: 'A new note', text: `Click New Note, or press N anywhere. The first line is its title.` },
-      { title: 'Notebooks and stacks', text: 'Group notes in notebooks, and notebooks in stacks. Drag a note onto a notebook in the sidebar to file it.' },
+      { title: 'Notebooks and stacks', text: 'Group notes in notebooks, and notebooks in stacks. Drag a note onto a notebook in the sidebar to file it; drag notebooks onto a stack to put them in it, or above one another to change their order.' },
       { title: 'Tags and favourites', text: 'Add tags under a note’s title (tags can nest, like book/characters), and star the notes you keep coming back to.' },
       { title: 'Find anything', text: `Search every note, chapter, PDF and picture from the top bar (${mod}K). ${mod}O jumps to any note by name; ${mod}P lists every command.` },
       { title: 'Right-click for more', text: 'Right-click a note to rename, move, tag, duplicate, open it beside another, or put it in the Trash.' },
@@ -96,7 +96,7 @@ const CHAPTERS: Chapter[] = [
     lede: 'Everything about your story, next to the writing.',
     points: [
       { title: 'A card for everyone', text: 'Add characters and places to a project. Crumpet spots their names in your chapters; hover over one to see their card.' },
-      { title: 'Research beside you', text: 'Keep notes, pictures and PDFs in a project’s Research, and open them next to the chapter you’re writing.' },
+      { title: 'Research beside you', text: 'Keep notes, pictures and PDFs in a project’s Research (drag a note onto the project to add it), and open them next to the chapter you’re writing.' },
       { title: 'Clip the web', text: 'The web clipper (Settings → Clipper & app) saves a web page, or the part you select, as a note in one click.' },
       { title: 'See the connections', text: 'The Graph draws your notes and the links between them, so related ideas find each other.' },
     ],

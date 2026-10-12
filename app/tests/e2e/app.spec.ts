@@ -234,6 +234,65 @@ test('drag and drop: notes onto a notebook, Favorites, a tag and the Trash, and 
   await expect(card('Soda bread')).toBeVisible();
 });
 
+test('drag and drop in the sidebar: notebooks into and out of stacks, reordering notebooks, stacks and projects, notes into a project', async ({ page }) => {
+  await open(page);
+  await newNotebook(page, 'Apple');
+  await newNotebook(page, 'Zebra');
+  await newStack(page, 'Kitchen');
+  await newStack(page, 'Attic');
+  const side = sidebar(page);
+  const nb = (name: string) => side.locator('.nb-row', { hasText: name });
+  const stack = (name: string) => side.locator('.stack-row', { hasText: name });
+  const order = () => side.locator('.nb-row .row-main, .stack-row .row-main').allInnerTexts();
+  // At first, by name.
+  expect(await order()).toEqual(['Apple', 'Zebra', 'Attic', 'Kitchen']);
+
+  // A notebook dropped on another goes just above it.
+  await nb('Zebra').dragTo(nb('Apple'));
+  expect(await order()).toEqual(['Zebra', 'Apple', 'Attic', 'Kitchen']);
+  // A stack dropped on another goes above it.
+  await stack('Kitchen').dragTo(stack('Attic'));
+  expect(await order()).toEqual(['Zebra', 'Apple', 'Kitchen', 'Attic']);
+  // A notebook dropped on a stack goes into it.
+  await nb('Apple').dragTo(stack('Kitchen'));
+  await expect(nb('Apple')).toHaveCSS('padding-left', '26px');
+  expect(await order()).toEqual(['Zebra', 'Kitchen', 'Apple', 'Attic']);
+  // ... and out again onto the Notebooks heading, to the top.
+  await nb('Apple').dragTo(side.locator('.side-heading', { hasText: 'Notebooks' }));
+  expect(await order()).toEqual(['Apple', 'Zebra', 'Kitchen', 'Attic']);
+
+  // Projects: dragged into a new order.
+  for (const name of ['Novel', 'Essay']) {
+    await side.getByRole('button', { name: 'New project' }).click();
+    await page.keyboard.type(name);
+    await page.keyboard.press('Enter');
+    await expect(side.getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
+  }
+  const projects = () => side.locator('.side-row').filter({ has: page.locator('.ellipsis') }).filter({ hasText: /^(Novel|Essay)/ }).allInnerTexts();
+  expect((await projects()).map((t) => t.split('\n')[0])).toEqual(['Novel', 'Essay']);
+  await side.getByRole('button', { name: /^Essay/ }).dragTo(side.getByRole('button', { name: /^Novel/ }));
+  expect((await projects()).map((t) => t.split('\n')[0])).toEqual(['Essay', 'Novel']);
+
+  // A note dropped on a project becomes its research.
+  await side.getByRole('button', { name: 'All Notes' }).click();
+  await newNote(page, 'Old letters', 'Found in the attic.');
+  await list(page).locator('.card', { hasText: 'Old letters' }).dragTo(side.getByRole('button', { name: /^Novel/ }));
+  await expect(list(page).locator('.card', { hasText: 'Old letters' })).toHaveCount(0);
+  await side.getByRole('button', { name: /^Novel/ }).click();
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await expect(outline.locator('.research-item', { hasText: 'Old letters' })).toBeVisible();
+  // ... and dragged onto a notebook, it's a note again, filed there.
+  await outline.locator('.research-item', { hasText: 'Old letters' }).dragTo(nb('Zebra'));
+  await expect(outline.locator('.research-item', { hasText: 'Old letters' })).toHaveCount(0);
+  await expect(nb('Zebra').locator('.count')).toHaveText('1');
+
+  // The order is kept.
+  await page.reload();
+  await expect(list(page)).toBeVisible();
+  expect(await order()).toEqual(['Apple', 'Zebra', 'Kitchen', 'Attic']);
+  expect((await projects()).map((t) => t.split('\n')[0])).toEqual(['Essay', 'Novel']);
+});
+
 test('right click on a note: rename, favourite, move, tag, duplicate, trash, and restore or delete from the Trash', async ({ page }) => {
   await open(page);
   await newNotebook(page, 'Ideas');

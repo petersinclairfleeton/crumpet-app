@@ -20,7 +20,8 @@ import { type Snapshot, VERSION_GAP, pruneVersions, snapshotAttachments } from '
 import { tidyKeywords } from './keywords';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { removeRevisionColors } from './revisions';
-import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type Stack, TRASH_DAYS, type View } from './types';
+import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
+import { inOrder, moveInOrder, notebookTree, projectsInOrder } from './selectors';
 
 export interface AppState {
   ready: boolean;
@@ -415,6 +416,12 @@ export class AppStore {
     this.updateNote(id, { notebookId });
   }
 
+  /** Makes a note research for a project, or (null) takes it out, into a notebook (or none). */
+  setNoteProject(id: string, projectId: string | null, notebookId: string | null = null): void {
+    if (projectId && !this.project(projectId)) return;
+    this.updateNote(id, { projectId, notebookId: projectId ? null : notebookId });
+  }
+
   addTag(id: string, tag: string): void {
     const clean = cleanTag(tag);
     const note = this.note(id);
@@ -548,6 +555,36 @@ export class AppStore {
     this.reselectIfHidden();
   }
 
+  // ---------- the sidebar's order ----------
+
+  /** Moves a notebook into a stack (null: none), just before another notebook (null: at the end). */
+  moveNotebook(id: string, stackId: string | null, before: string | null): void {
+    const nb = this.notebook(id);
+    if (!nb) return;
+    const { loose, stacks } = notebookTree(this.state.stacks, this.state.notebooks, this.state.settings.sideOrder);
+    const shown = [...loose, ...stacks.flatMap((s) => s.notebooks)].map((n) => n.id);
+    if ((nb.stackId ?? null) !== stackId) this.setStack(id, stackId);
+    this.setSideOrder({ notebooks: moveInOrder(shown, id, before) });
+  }
+
+  /** Moves a stack to just before another (null: at the end). */
+  moveStack(id: string, before: string | null): void {
+    if (!this.stack(id)) return;
+    const shown = inOrder(this.state.stacks, this.state.settings.sideOrder?.stacks).map((s) => s.id);
+    this.setSideOrder({ stacks: moveInOrder(shown, id, before) });
+  }
+
+  /** Moves a project to just before another (null: at the end). */
+  moveProject(id: string, before: string | null): void {
+    if (!this.project(id)) return;
+    const shown = projectsInOrder(this.state.projects, this.state.settings.sideOrder).map((p) => p.id);
+    this.setSideOrder({ projects: moveInOrder(shown, id, before) });
+  }
+
+  private setSideOrder(patch: SideOrder): void {
+    this.updateSettings({ sideOrder: { ...this.state.settings.sideOrder, ...patch } });
+  }
+
   // ---------- stacks ----------
 
   createStack(name: string): Stack {
@@ -587,8 +624,8 @@ export class AppStore {
     // Shared settings from other devices.
     const st = state.settings;
     const want = tree.settings;
-    if (JSON.stringify(st.noteStyles ?? null) !== JSON.stringify(want?.noteStyles ?? null) || JSON.stringify(st.notePage ?? null) !== JSON.stringify(want?.notePage ?? null)) {
-      this.updateSettings({ noteStyles: want?.noteStyles, notePage: want?.notePage, sharedAt: want?.updated ?? st.sharedAt });
+    if (JSON.stringify(st.noteStyles ?? null) !== JSON.stringify(want?.noteStyles ?? null) || JSON.stringify(st.notePage ?? null) !== JSON.stringify(want?.notePage ?? null) || JSON.stringify(st.sideOrder ?? null) !== JSON.stringify(want?.sideOrder ?? null)) {
+      this.updateSettings({ noteStyles: want?.noteStyles, notePage: want?.notePage, sideOrder: want?.sideOrder, sharedAt: want?.updated ?? st.sharedAt });
     }
     const stacks: Stack[] = Object.values(tree.stacks).map((t) => {
       const cur = state.stacks.find((s) => s.id === t.id);
@@ -716,7 +753,7 @@ export class AppStore {
   updateSettings(patch: Partial<Settings>): void {
     const settings = { ...this.state.settings, ...patch };
     // Note styles and page setup are shared with other devices: the newer change wins.
-    if (('noteStyles' in patch || 'notePage' in patch) && !('sharedAt' in patch)) settings.sharedAt = this.now();
+    if (('noteStyles' in patch || 'notePage' in patch || 'sideOrder' in patch) && !('sharedAt' in patch)) settings.sharedAt = this.now();
     this.set({ settings });
     this.save(this.storage.putSettings(settings));
   }
