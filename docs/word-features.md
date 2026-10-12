@@ -92,7 +92,7 @@ At the end there's a suggested order for building what's missing.
 | Paragraph dialog: indents and spacing | ✅ | |
 | Keep with next, keep lines together, page break before | ✅ | |
 | Widow/orphan control | 🟡 | Always on; can't be switched off for a paragraph. |
-| Tab stops (and the Tabs window) | ❌ | Not on Word's list above, but a big part of Word's paragraph formatting. |
+| Tab stops (and the Tabs window) | ✅ | Tab types a tab (outside lists); left, centre, right and decimal stops with dot, dash or line leaders, set on the ruler (page view) or in the Tabs window (Paragraph settings → Tabs…); default stops every half inch; to and from Word. |
 
 ### Styles
 
@@ -452,7 +452,7 @@ Where: `packages/editor/src/editor.ts` (input), `commands.ts`, `view.ts`;
 `app/src/ui/paratools.tsx`, `inserttools.tsx`, `ruler.tsx`, `statusbar.tsx`.
 - [x] AutoCorrect: curly quotes, em/en dashes, `...` → …, (c) → ©, a typo list (teh → the), capital at a sentence's start; each can be turned off in Settings
 - [x] Show/hide ¶ (spaces, tabs, paragraph ends, breaks)
-- [ ] Tab stops (left, centre, right, decimal, dot leaders) on the ruler and in a Tabs window; to and from Word
+- [x] Tab stops (left, centre, right, decimal, dot leaders) on the ruler and in a Tabs window; to and from Word
 - [x] Drop cap
 - [x] Blank page button
 - [x] Date and time that update (a field), as well as fixed text

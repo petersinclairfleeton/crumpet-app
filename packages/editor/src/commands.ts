@@ -471,7 +471,8 @@ export function changeCase(state: EditorState, how: CaseChange): Transaction {
 export function paraValue<K extends ParaKey>(state: EditorState, key: K): ParaLook[K] | undefined {
   const blocks = selectedBlocks(state).filter((b) => !isMedia(b.type));
   const v = blocks[0]?.para?.[key];
-  return blocks.every((b) => b.para?.[key] === v) ? v : undefined;
+  const same = (x: unknown) => (key === 'tabs' ? JSON.stringify(x ?? null) === JSON.stringify(v ?? null) : x === v);
+  return blocks.every((b) => same(b.para?.[key])) ? v : undefined;
 }
 
 /** Word's Paragraph settings on the selected paragraphs: a value sets one, undefined takes it off; null clears them all. */

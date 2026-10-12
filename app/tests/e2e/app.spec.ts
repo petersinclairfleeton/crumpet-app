@@ -3423,3 +3423,58 @@ test('drop cap, a blank page, and a date that updates itself', async ({ page }) 
   await (await toolButton(page, /Blank page/)).click();
   await expect.poll(md).toMatch(/lit every night of the year\. \{drop=3\}\n\n&nbsp; \{\.pagebreak\}\n\n&nbsp; \{\.pagebreak\}\n\nWritten on \{\{date\}\}/);
 });
+
+test('tab stops: Tab types a tab, set stops in the Tabs window or on the ruler, right tabs with dot leaders', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Contents', 'Chapter one');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('7');
+  const blk = page.locator('.note-editor .blk').first();
+  // Where the text after the tab starts and ends, in px from the paragraph's left edge.
+  const after = () =>
+    blk.evaluate((el) => {
+      const tab = el.querySelector('span.tb')!;
+      const r = document.createRange();
+      r.setStartAfter(tab);
+      r.setEnd(el.querySelector('.text')!, el.querySelector('.text')!.childNodes.length);
+      const box = r.getBoundingClientRect();
+      const left = el.getBoundingClientRect().left;
+      return { start: Math.round(box.left - left), end: Math.round(box.right - left) };
+    });
+  // No stops of its own: the next half inch.
+  await expect.poll(async () => (await after()).start % 48).toBe(0);
+  // A right tab stop at 3 inches with dots, from Paragraph settings → Tabs….
+  await (await toolButton(page, /Paragraph settings/)).click();
+  await page.getByRole('dialog', { name: 'Paragraph' }).getByRole('button', { name: 'Tabs…' }).click();
+  const tabs = page.getByRole('dialog', { name: 'Tabs' });
+  await tabs.getByLabel('Tab stop position').fill('3');
+  await tabs.getByLabel('Right').check();
+  await tabs.getByLabel('Leader dots').check();
+  await tabs.getByRole('button', { name: 'Set' }).click();
+  await expect(tabs.getByRole('list', { name: 'Tab stops' })).toContainText('3″');
+  await tabs.getByRole('button', { name: 'OK' }).click();
+  await expect.poll(async () => Math.abs((await after()).end - 288)).toBeLessThan(2);
+  await expect(blk.locator('span.tb')).toHaveAttribute('data-leader', 'dot');
+  // On the ruler (page view): a click sets a left tab stop there.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true }, ruler: true }));
+  await blk.click();
+  const ruler = page.locator('.ruler');
+  await expect(ruler.getByRole('button', { name: 'Right tab stop at 3 inches' })).toBeVisible();
+  const geo = await ruler.evaluate((el) => {
+    const inch = el.querySelectorAll<HTMLElement>('.tick.inch');
+    const r = el.getBoundingClientRect();
+    // The 0 mark is the left margin; find it among the inch ticks (the one with no number).
+    const zero = Array.from(inch).find((t) => !t.textContent)!;
+    return { zero: zero.getBoundingClientRect().left, ppi: inch[2].getBoundingClientRect().left - inch[1].getBoundingClientRect().left, y: r.top + r.height / 2 };
+  });
+  await page.mouse.click(geo.zero + geo.ppi * 1.5 + 1, geo.y);
+  await expect(ruler.getByRole('button', { name: 'Left tab stop at 1.5 inches' })).toBeVisible();
+  const md = await page.evaluate(async () => {
+    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+    return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
+  });
+  expect(md).toContain('Chapter one&#9;7 {tabs=1.5,r3dot}');
+});

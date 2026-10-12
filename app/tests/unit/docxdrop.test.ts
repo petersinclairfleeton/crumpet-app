@@ -55,3 +55,15 @@ describe('Word: drop caps and date fields', () => {
     expect(runsText(runs).replace(FIELD, '#')).toBe('On #, page 4');
   });
 });
+
+describe('Word: tab stops', () => {
+  it('go to Word and come back', async () => {
+    const p = makeBlock('paragraph', 'Chapter one\t7', [], { para: { tabs: [{ at: 1, align: 'center' }, { at: 6, align: 'right', leader: 'dot' }] } });
+    const bytes = await toDocx([{ doc: { blocks: [p] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<w:tabs><w:tab w:val="center" w:pos="1440"/><w:tab w:val="right" w:leader="dot" w:pos="8640"/></w:tabs>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks[0].para?.tabs).toEqual([{ at: 1, align: 'center' }, { at: 6, align: 'right', leader: 'dot' }]);
+    expect(runsText(back.doc.blocks[0].runs)).toBe('Chapter one\t7');
+  });
+});

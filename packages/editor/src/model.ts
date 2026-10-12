@@ -278,6 +278,8 @@ export interface ParaLook {
   shade?: string;
   /** Word's Drop Cap: the first letter is this many lines tall (2 to 10), dropped into the text. */
   drop?: number;
+  /** Tab stops, in order: where a tab in the paragraph takes the text after it (past them, every half inch). */
+  tabs?: TabStop[];
   /**
    * A section break before this paragraph (Word's Breaks > Section Breaks):
    * the new section starts on a new page, or carries on down the same one.
@@ -293,7 +295,51 @@ export interface ParaLook {
   mr?: number;
 }
 export type ParaKey = keyof ParaLook;
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'drop', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
+
+/** A tab stop: `at` inches from the left margin; text after the tab starts there (left), is centred on it, ends there (right), or has its decimal point there. */
+export interface TabStop {
+  at: number;
+  align: 'left' | 'center' | 'right' | 'decimal';
+  /** What fills the gap: dots, dashes or a line (as in a table of contents). */
+  leader?: 'dot' | 'dash' | 'line';
+}
+const TAB_ALIGNS = ['left', 'center', 'right', 'decimal'] as const;
+const TAB_LEADERS = ['dot', 'dash', 'line'] as const;
+/** Word's default tab stops: every half inch, past the paragraph's own. */
+export const DEFAULT_TAB = 0.5;
+
+/** Tab stops tidied: in order, each on its own spot, between 0 and 22 inches; undefined if none. */
+export function tidyTabs(tabs: TabStop[] | undefined): TabStop[] | undefined {
+  if (!Array.isArray(tabs)) return undefined;
+  const out: TabStop[] = [];
+  for (const t of tabs) {
+    if (!t || !Number.isFinite(t.at) || t.at < 0 || t.at > 22) continue;
+    const at = Math.round(t.at * 1000) / 1000;
+    if (out.some((x) => Math.abs(x.at - at) < 0.01)) continue;
+    const stop: TabStop = { at, align: (TAB_ALIGNS as readonly string[]).includes(t.align) ? t.align : 'left' };
+    if (t.leader && (TAB_LEADERS as readonly string[]).includes(t.leader)) stop.leader = t.leader;
+    out.push(stop);
+  }
+  out.sort((a, b) => a.at - b.at);
+  return out.length ? out : undefined;
+}
+
+/** Tab stops written short, for Markdown: 1.5,c3,r6.5dot (left is plain, then c, r or d, then the leader). */
+export function tabsToText(tabs: TabStop[]): string {
+  return tabs.map((t) => `${t.align === 'left' ? '' : t.align[0]}${t.at}${t.leader ?? ''}`).join(',');
+}
+
+export function tabsFromText(text: string): TabStop[] | undefined {
+  const out: TabStop[] = [];
+  for (const part of text.split(',')) {
+    const m = /^([lcrd]?)(\d+(?:\.\d+)?)(dot|dash|line)?$/.exec(part.trim());
+    if (!m) continue;
+    const align = ({ '': 'left', l: 'left', c: 'center', r: 'right', d: 'decimal' } as const)[m[1] as '' | 'l' | 'c' | 'r' | 'd'];
+    out.push({ at: +m[2], align, ...(m[3] ? { leader: m[3] as TabStop['leader'] } : {}) });
+  }
+  return tidyTabs(out);
+}
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'drop', 'tabs', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -323,6 +369,8 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
   const border = tidyBorder(p.border);
   if (border) out.border = border;
   if (p.shade && /^#[0-9a-f]{6}$/i.test(p.shade)) out.shade = p.shade.toLowerCase();
+  const tabs = tidyTabs(p.tabs);
+  if (tabs) out.tabs = tabs;
   if (p.sect === 'page' || p.sect === 'cont') {
     out.sect = p.sect;
     if (out.cols !== undefined) out.cols = Math.max(1, Math.min(MAX_COLS, Math.round(out.cols)));
@@ -339,7 +387,7 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
 }
 
 export function samePara(a: ParaLook | undefined, b: ParaLook | undefined): boolean {
-  return PARA_KEYS.every((k) => (a?.[k] ?? undefined) === (b?.[k] ?? undefined));
+  return PARA_KEYS.every((k) => (k === 'tabs' ? JSON.stringify(a?.tabs ?? null) === JSON.stringify(b?.tabs ?? null) : (a?.[k] ?? undefined) === (b?.[k] ?? undefined)));
 }
 
 export interface Block extends BlockAttrs {

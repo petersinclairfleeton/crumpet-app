@@ -10,6 +10,7 @@ import { IconClose } from './icons';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
 import { useAppState, useAppStore } from './hooks';
+import { TabsDialog } from './tabstops';
 
 const LINE_SPACINGS = [1, 1.15, 1.5, 2, 2.5, 3];
 
@@ -66,6 +67,7 @@ function SpacingTool({ ed, off, onMore }: { ed: Editor | null; off: boolean; onM
 /** The Paragraph group, as toolbar items (see OverflowRow). */
 export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem[]; dialog: React.ReactNode } {
   const [open, setOpen] = useState(false);
+  const [tabs, setTabs] = useState(false);
   const store = useAppStore();
   const marks = !!useAppState().settings.showMarks;
   const toggleMarks = () => store.updateSettings({ showMarks: !marks });
@@ -106,7 +108,19 @@ export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem
       },
       simple('paragraph', 1, 'Paragraph settings…', ICON_PARA_WINDOW, () => setOpen(true)),
     ],
-    dialog: open && ed ? <ParagraphDialog editor={ed} onClose={() => setOpen(false)} /> : null,
+    dialog:
+      open && ed ? (
+        <ParagraphDialog
+          editor={ed}
+          onClose={() => setOpen(false)}
+          onTabs={() => {
+            setOpen(false);
+            setTabs(true);
+          }}
+        />
+      ) : tabs && ed ? (
+        <TabsDialog editor={ed} onClose={() => setTabs(false)} />
+      ) : null,
   };
 }
 
@@ -144,7 +158,7 @@ export function useParaKeys(ed: Editor | null): void {
 type Special = 'none' | 'first' | 'hanging';
 
 /** Word's Paragraph window: indents, spacing, and line and page breaks for the selected paragraphs. */
-export function ParagraphDialog({ editor, onClose }: { editor: Editor; onClose(): void }) {
+export function ParagraphDialog({ editor, onClose, onTabs }: { editor: Editor; onClose(): void; onTabs?(): void }) {
   const v = <K extends keyof ParaLook>(k: K) => editor.paraValue(k);
   const num = (x: number | undefined) => (x === undefined ? '' : String(x));
   const first = v('first');
@@ -278,6 +292,11 @@ export function ParagraphDialog({ editor, onClose }: { editor: Editor; onClose()
             >
               Back to the style’s own
             </button>
+            {onTabs && (
+              <button type="button" className="btn quiet" onClick={onTabs}>
+                Tabs…
+              </button>
+            )}
             <span className="grow" />
             <button type="button" className="btn" onClick={onClose}>
               Cancel
