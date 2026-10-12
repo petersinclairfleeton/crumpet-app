@@ -1891,3 +1891,4 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .account-who { margin: 0; font-size: 13.5px; }
 .account-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .link-btn.danger { color: var(--danger); }
+.account-field > .btn { align-self: flex-start; }
