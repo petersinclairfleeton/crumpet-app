@@ -50,3 +50,12 @@ describe('picture crops, styles and corrections', () => {
     expect(tidyPic({ crop: [0.6, 0, 0.6, 0], mask: 'blob' as never, bright: 400, fade: 99 })).toEqual({ crop: [0.6, 0, 0.35, 0], bright: 100, fade: 90 });
   });
 });
+
+describe('a picture’s original file', () => {
+  it('is kept in the file, for Reset picture', () => {
+    const img = makeBlock('image', '', [], { src: 'Attachments/b-gull-small.jpg', pic: { orig: 'Attachments/a-gull.jpg' } });
+    const md = toMarkdown({ blocks: [img] });
+    expect(md).toBe('![](Attachments/b-gull-small.jpg) {pic orig="Attachments/a-gull.jpg"}\n');
+    expect(fromMarkdown(md).blocks[0].pic).toEqual({ orig: 'Attachments/a-gull.jpg' });
+  });
+});

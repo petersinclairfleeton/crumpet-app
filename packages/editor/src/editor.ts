@@ -760,8 +760,8 @@ export class Editor {
     if (action === 'wrap') this.setPicture(id, { wrap: value as PicLook['wrap'], ...(value === 'free' && !p.w ? { w: this.pictureWidth(el) } : {}) });
     else if (action === 'rot') this.setPicture(id, { rot: value === '0' ? 0 : (p.rot ?? 0) + Number(value) });
     else if (action === 'size') this.setPicture(id, { w: undefined });
-    else if (action === 'reset') this.setPicture(id, p.alt ? { alt: p.alt } : {}, true);
-    else if (action === 'alt' || action === 'change' || action === 'format') this.onPictureAction?.(id, action);
+    else if (action === 'reset') this.setPicture(id, p.alt ? { alt: p.alt } : {}, true, p.orig);
+    else if (action === 'alt' || action === 'change' || action === 'format' || action === 'background' || action === 'compress') this.onPictureAction?.(id, action);
     else if (action === 'crop') {
       // Crop mode: the edges to drag, until Crop is clicked again (or anything else).
       const on = !el.closest('.blk-image')!.classList.contains('cropping');
@@ -788,7 +788,7 @@ export class Editor {
   }
 
   /** The app's part of a picture's menu: alt text (a box to type it in), Change picture (a file to choose), corrections and effects (a window). */
-  onPictureAction: ((id: string, action: 'alt' | 'change' | 'format') => void) | null = null;
+  onPictureAction: ((id: string, action: 'alt' | 'change' | 'format' | 'background' | 'compress') => void) | null = null;
 
   /** The picture being cropped (its edges showing), if any. */
   private cropping: string | null = null;
