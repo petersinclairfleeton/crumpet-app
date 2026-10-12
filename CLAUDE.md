@@ -3,6 +3,15 @@
 Read this first in every session. `PLAN.md` has the product plan and visual
 design; this file is how we work and where things are.
 
+**Current work: Word features.** `docs/word-features.md` compares Crumpet
+with Microsoft Word, feature by feature, with Peter's choices of what to
+build. Its last section, "Wanted: the build list", is the to-do list:
+groups in order, each item a checkbox with where in the code to start.
+"Continue the plan" means take the first group with unticked items, build
+it (one PR per group, or per few items when it's big), tick the items, mark
+them ✅ in that file's tables, and carry on. Items marked "ask Peter first"
+need a service or key from him.
+
 ## Working with Peter
 
 - **Plain language.** Explain what changed and why in everyday words, not

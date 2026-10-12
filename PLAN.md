@@ -53,6 +53,8 @@ Live at https://petersinclairfleeton.github.io/crumpet-app/ and installable as a
 - **Speed and power** (October, fourth batch): quick switcher and command palette, bookmarks, snapshots and automatic version history, chapter keywords, writing focus tools, revision colours, read aloud and dictation, thesaurus, format painter, comparing documents, callouts and toggles, maths and diagrams, search inside PDFs and pictures, graph view, boards (cards and arrows).
 - **Finishing the to-dos** (October): footnotes numbered through the whole book, a table styles gallery, shapes turned and placed anywhere, a folder on the computer as a place to keep notes (so a Dropbox, OneDrive or iCloud Drive folder works), reminders.
 
+**Now (October 2026): Word features.** Peter chose which of Word's missing features to build; the list, in order with checkboxes, is in `docs/word-features.md` ("Wanted: the build list").
+
 Next possibilities: native Mac and iPhone/iPad apps, Dropbox and OneDrive as services of their own (they need app keys), reminders that arrive when the app is closed (needs a server), sharing. See `CLAUDE.md` for how we work and known gaps.
 
 ## Later to-dos
