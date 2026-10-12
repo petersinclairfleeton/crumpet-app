@@ -6,6 +6,7 @@
 import { ignoreWord, useAddWord } from './spelling';
 import { goToPlace, openGoTo } from './goto';
 import { MARKUP_VIEWS } from './review';
+import { openCombine } from './comparedocs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppState, useAppStore } from './hooks';
 import { type Match, rank } from '../data/fuzzy';
@@ -167,6 +168,7 @@ function useCommands(actions: Actions): Item[] {
   }
   if (here.doc) {
     list.push(cmd('Compare with another note or chapter…', () => actions.compareFrom(here.doc!.id)));
+    list.push(cmd('Combine reviewers’ copies of this…', () => openCombine(here.doc!.id)));
     list.push(cmd('Take a snapshot', () => {
       store.takeSnapshot(here.doc!.id);
       set({ right: true, rightTab: 'snapshots' });

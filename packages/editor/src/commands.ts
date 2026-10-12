@@ -222,7 +222,7 @@ function splitAt(b: Builder, pos: Pos): Pos {
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
   // A new paragraph carries on the spacing and indents of the one before (not a page break, nor after a heading).
-  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, drop: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined });
+  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, drop: undefined, track: undefined, lock: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined });
   const newAttrs = atEnd ? { ...nextBlockAttrs(block), para: carried } : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined, para: carried });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
@@ -474,6 +474,25 @@ export function paraValue<K extends ParaKey>(state: EditorState, key: K): ParaLo
   const v = blocks[0]?.para?.[key];
   const same = (x: unknown) => (key === 'tabs' ? JSON.stringify(x ?? null) === JSON.stringify(v ?? null) : x === v);
   return blocks.every((b) => same(b.para?.[key])) ? v : undefined;
+}
+
+/**
+ * Settings of the whole document (kept on its first paragraph, as the first
+ * section's are): a value sets one, undefined takes it off. If the document
+ * starts with a picture or table, an empty paragraph is put before it to hold them.
+ */
+export function setDocPara(state: EditorState, patch: Partial<ParaLook>): Transaction {
+  const b = new Builder(state.doc);
+  let first = b.doc.blocks[0];
+  if (isMedia(first.type) || isWidget(first.type)) {
+    const id = newId();
+    b.step({ type: 'split', block: first.id, offset: 0, newBlock: id, newAttrs: attrsOf(first) });
+    b.step({ type: 'setAttrs', block: first.id, from: attrsOf(first), to: blockAttrs('paragraph') });
+    first = getBlock(b.doc, first.id);
+  }
+  const to = attrsOf({ ...first, para: tidyPara({ ...first.para, ...patch }) });
+  if (!sameAttrs(attrsOf(first), to)) b.step({ type: 'setAttrs', block: first.id, from: attrsOf(first), to });
+  return tx(state, b, state.selection);
 }
 
 /** Word's Paragraph settings on the selected paragraphs: a value sets one, undefined takes it off; null clears them all. */

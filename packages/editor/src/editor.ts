@@ -86,6 +86,7 @@ import {
   changeCase,
   type CaseChange,
   setPara,
+  setDocPara,
   paraValue,
   stepIndent,
   insertPageBreak,
@@ -1654,8 +1655,27 @@ export class Editor {
     }
   }
 
-  /** Accepts or rejects tracked changes: in one stretch of a paragraph, or everywhere. */
+  /** The whole document's settings: track changes for everyone, and the lock on tracking (see ParaLook). */
+  get docTracking(): { all: boolean; lock?: string } {
+    const p = this.state.doc.blocks[0]?.para;
+    return { all: p?.track === 'all', lock: p?.lock };
+  }
+
+  /** Sets the whole document's tracking settings (kept on its first paragraph). */
+  setDocTracking(patch: { track?: 'all'; lock?: string }): void {
+    if (this.isReadOnly) return;
+    this.dispatch(setDocPara(this.state, patch), 'command');
+  }
+
+  /** Accepting or rejecting was asked for while tracking is locked (the app says how to unlock it). */
+  onLockedReview: (() => void) | null = null;
+
+  /** Accepts or rejects tracked changes: in one stretch of a paragraph, or everywhere. Not while tracking is locked. */
   resolveChanges(accept: boolean, where?: { block: string; from: number; to: number }): void {
+    if (this.docTracking.lock) {
+      this.onLockedReview?.();
+      return;
+    }
     this.dispatch(resolveChanges(this.state, accept, where), 'command');
   }
 

@@ -9,7 +9,7 @@ import { type Change, type Comment, changes, comments, runsText, sliceRuns } fro
 import type { Settings } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
 import { goToPlace } from './goto';
-import { openComment } from './comments';
+import { Mentions, openComment } from './comments';
 
 export const MARKUP_VIEWS: [NonNullable<Settings['markup']>, string][] = [
   ['all', 'All markup'],
@@ -64,9 +64,53 @@ export function MarkupSelect() {
   );
 }
 
+/** Who made each change or comment. */
+function itemAuthor(it: Item): string {
+  return (it.kind === 'change' ? it.change.author : it.comment.author) || 'Someone';
+}
+
+/** Word's Show Markup: which kinds, and whose, are shown. */
+function ShowMarkup({ people }: { people: string[] }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const hide = state.settings.markupHide ?? {};
+  const [open, setOpen] = useState(false);
+  const set = (patch: NonNullable<Settings['markupHide']>) => store.updateSettings({ markupHide: { ...hide, ...patch } });
+  const hiddenPeople = hide.people ?? [];
+  const some = hide.changes || hide.comments || hiddenPeople.length;
+  return (
+    <div className="show-markup">
+      <button type="button" className="btn quiet" aria-expanded={open} onClick={() => setOpen(!open)}>
+        Show markup {some ? '(some hidden)' : ''} ▾
+      </button>
+      {open && (
+        <div className="show-markup-body" role="group" aria-label="Show markup">
+          <label className="check-row">
+            <input type="checkbox" checked={!hide.changes} onChange={(e) => set({ changes: !e.target.checked || undefined })} /> Insertions and deletions
+          </label>
+          <label className="check-row">
+            <input type="checkbox" checked={!hide.comments} onChange={(e) => set({ comments: !e.target.checked || undefined })} /> Comments
+          </label>
+          {people.length > 0 && <span className="review-people">People</span>}
+          {people.map((p) => (
+            <label key={p} className="check-row">
+              <input type="checkbox" checked={!hiddenPeople.includes(p)} onChange={(e) => set({ people: e.target.checked ? hiddenPeople.filter((x) => x !== p) : [...hiddenPeople, p] })} /> {p}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ReviewPane({ editor }: { editor: Editor }) {
   useEditorChanges(editor);
-  const items = reviewItems(editor);
+  const state = useAppState();
+  const hide = state.settings.markupHide ?? {};
+  const all = reviewItems(editor);
+  const people = [...new Set(all.map(itemAuthor))].sort((a, b) => a.localeCompare(b));
+  // What Show Markup hides isn't listed either.
+  const items = all.filter((it) => !(it.kind === 'change' ? hide.changes : hide.comments) && !(hide.people ?? []).includes(itemAuthor(it)));
   const nChanges = items.filter((i) => i.kind === 'change').length;
   const nComments = items.length - nChanges;
   const step = (kind: 'change' | 'comment', dir: 'next' | 'previous') => {
@@ -76,7 +120,10 @@ export function ReviewPane({ editor }: { editor: Editor }) {
   return (
     <div className="review-pane">
       <div className="review-head">
-        <MarkupSelect />
+        <div className="review-row">
+          <MarkupSelect />
+          <ShowMarkup people={people} />
+        </div>
         <div className="review-row">
           <span>
             {nChanges} change{nChanges === 1 ? '' : 's'}
@@ -139,7 +186,9 @@ export function ReviewPane({ editor }: { editor: Editor }) {
                     {it.comment.resolved && <small> · resolved</small>}
                   </span>
                   <span className="review-quote">“{it.quote.length > 60 ? `${it.quote.slice(0, 59)}…` : it.quote}”</span>
-                  <span className="review-text">{it.comment.text}</span>
+                  <span className="review-text">
+                    <Mentions text={it.comment.text} people={people} />
+                  </span>
                   {it.comment.replies?.length ? (
                     <small className="review-replies">
                       {it.comment.replies.length} {it.comment.replies.length === 1 ? 'reply' : 'replies'}

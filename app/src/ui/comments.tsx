@@ -2,12 +2,13 @@
 // (the speech-bubble button, or Ctrl+Alt+M); the text is highlighted, and
 // clicking it opens the conversation to reply, resolve it (kept, greyed out,
 // until it's reopened) or delete it. All of a note's comments are listed
-// under it.
+// under it. Typing @ suggests people's names (as a label: nothing is sent
+// to anyone).
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
-import { type Comment, type Doc, type Selection, comments, makeComment } from '@crumpet/editor/model';
+import { type Comment, type Doc, type Selection, changes, comments, makeComment } from '@crumpet/editor/model';
 import { useAppState } from './hooks';
 
 type Open = { kind: 'new'; sel: Selection; rect: DOMRect } | { kind: 'thread'; id: string; el: HTMLElement };
@@ -17,6 +18,44 @@ function when(at: number): string {
   const d = new Date(at);
   const today = new Date().toDateString() === d.toDateString();
   return today ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: d.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+}
+
+/** Everyone who has written a comment, reply or change in the document, and you: the names @ suggests. */
+export function peopleIn(doc: Doc, you: string): string[] {
+  const names = new Set<string>([you]);
+  for (const { comment } of comments(doc)) {
+    names.add(comment.author);
+    for (const r of comment.replies ?? []) names.add(r.author);
+    for (const m of [comment.text, ...(comment.replies ?? []).map((r) => r.text)].join(' ').matchAll(/@([\p{Lu}][\p{L}'-]*(?: [\p{Lu}][\p{L}'-]*)?)/gu)) names.add(m[1]);
+  }
+  for (const c of changes(doc)) names.add(c.change.author);
+  return [...names].filter((n) => n && n !== 'Someone').sort((a, b) => a.localeCompare(b));
+}
+
+/** A comment's text with @names picked out (the longest known name first, else the word after @). */
+export function Mentions({ text, people }: { text: string; people: string[] }) {
+  const known = [...people].sort((a, b) => b.length - a.length).map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const re = new RegExp(`@(?:${known.length ? `${known.join('|')}|` : ''}[\\p{L}][\\p{L}'-]*)`, 'gu');
+  const out: React.ReactNode[] = [];
+  let at = 0;
+  for (const m of text.matchAll(re)) {
+    if (m.index! > at) out.push(text.slice(at, m.index));
+    out.push(
+      <span key={m.index} className="mention">
+        {m[0]}
+      </span>,
+    );
+    at = m.index! + m[0].length;
+  }
+  out.push(text.slice(at));
+  return <>{out}</>;
+}
+
+/** The name being typed after an @ just before the caret, if any. */
+function typingMention(value: string, caret: number): { start: number; query: string } | null {
+  const m = /(?:^|\s)@([\p{L}][\p{L}'-]*(?: [\p{L}'-]*)?)?$/u.exec(value.slice(0, caret));
+  if (!m) return null;
+  return { start: caret - (m[1]?.length ?? 0) - 1, query: m[1] ?? '' };
 }
 
 /** Opens a comment's conversation beside its text. */
@@ -34,9 +73,18 @@ export function CommentCard({ editor }: { editor: Editor | null }) {
   const author = state.settings.name.trim() || 'You';
   const [open, setOpen] = useState<Open | null>(null);
   const [value, setValue] = useState('');
+  const [caret, setCaret] = useState(0);
+  const [pick, setPick] = useState(0);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
+  const placeCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (placeCaret.current === null || !field.current) return;
+    field.current.focus();
+    field.current.setSelectionRange(placeCaret.current, placeCaret.current);
+    placeCaret.current = null;
+  });
   const latest = useRef(open);
   latest.current = open;
 
@@ -135,6 +183,20 @@ export function CommentCard({ editor }: { editor: Editor | null }) {
 
   if (!open || (open.kind === 'thread' && !thread)) return null;
   const messages = thread ? [thread, ...(thread.replies ?? [])] : [];
+  const people = editor ? peopleIn(editor.state.doc, author) : [author];
+  // @ names: suggestions for what's being typed after an @.
+  const mention = typingMention(value, caret);
+  const suggestions = mention ? people.filter((p) => p.toLowerCase().startsWith(mention.query.toLowerCase()) && p !== mention.query).slice(0, 6) : [];
+  const choose = (name: string) => {
+    if (!mention) return;
+    const next = `${value.slice(0, mention.start)}@${name} ${value.slice(caret)}`;
+    const pos = mention.start + name.length + 2;
+    setValue(next);
+    setCaret(pos);
+    setPick(0);
+    // The caret goes after the name as soon as it's drawn (before anything else is typed).
+    placeCaret.current = pos;
+  };
   return createPortal(
     <div ref={card} className="comment-card" role="dialog" aria-label={open.kind === 'new' ? 'New comment' : 'Comment'} style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }}>
       {thread?.resolved && <p className="comment-resolved">Resolved</p>}
@@ -144,7 +206,9 @@ export function CommentCard({ editor }: { editor: Editor | null }) {
             <b>{m.author || 'Someone'}</b>
             <small>{when(m.at)}</small>
           </div>
-          <p>{m.text}</p>
+          <p>
+            <Mentions text={m.text} people={people} />
+          </p>
         </div>
       ))}
       <textarea
@@ -153,14 +217,38 @@ export function CommentCard({ editor }: { editor: Editor | null }) {
         aria-label={open.kind === 'new' ? 'Comment' : 'Reply'}
         placeholder={open.kind === 'new' ? 'Add a comment' : 'Reply'}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          setValue(e.target.value);
+          setCaret(e.target.selectionStart ?? e.target.value.length);
+          setPick(0);
+        }}
+        onSelect={(e) => setCaret((e.target as HTMLTextAreaElement).selectionStart ?? 0)}
         onKeyDown={(e) => {
+          if (suggestions.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+            e.preventDefault();
+            setPick((pick + (e.key === 'ArrowDown' ? 1 : suggestions.length - 1)) % suggestions.length);
+            return;
+          }
+          if (suggestions.length && (e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey) {
+            e.preventDefault();
+            choose(suggestions[Math.min(pick, suggestions.length - 1)]);
+            return;
+          }
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             save();
           }
         }}
       />
+      {suggestions.length > 0 && (
+        <div className="mention-list" role="listbox" aria-label="People">
+          {suggestions.map((p, i) => (
+            <button key={p} type="button" role="option" aria-selected={i === pick} className={i === pick ? 'on' : ''} onMouseDown={(e) => e.preventDefault()} onClick={() => choose(p)}>
+              @{p}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="comment-actions">
         {thread && (
           <button
@@ -224,7 +312,7 @@ export function CommentList({ doc, editor }: { doc: Doc; editor: Editor | null }
             <button type="button" disabled={!editor} onClick={() => editor && openComment(editor, c.id)}>
               <span className="comment-quote">“{quote.length > 80 ? `${quote.slice(0, 79)}…` : quote}”</span>
               <span className="comment-line">
-                <b>{c.author || 'Someone'}:</b> {c.text}
+                <b>{c.author || 'Someone'}:</b> <Mentions text={c.text} people={[]} />
                 {c.replies?.length ? <small> · {c.replies.length} {c.replies.length === 1 ? 'reply' : 'replies'}</small> : null}
                 {c.resolved ? <small> · resolved</small> : null}
               </span>

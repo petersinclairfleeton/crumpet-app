@@ -3791,3 +3791,100 @@ test('reviewing pane: every change and comment with who and when, previous and n
   await expect(items).toHaveCount(1);
   await expect(editor.locator('.blk').first()).toHaveText('The big sea.');
 });
+
+test('track changes for everyone, locked with a password; show markup by person; @ names in comments', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ name: 'Robin' }));
+  await page.evaluate(async () => {
+    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
+    const md = 'The {++wide++}{>>Ann (2026-10-01 09:00Z)<<} sea and the {++grey++}{>>Ben (2026-10-01 09:00Z)<<} sky.\n\nThe {==lamp==}{>>Ann (2026-10-02 10:00Z): Lit?<<} burned.';
+    s.select(s.createNote({ title: 'Locked', doc: m.fromMarkdown(md) }).id);
+  });
+  const editor = page.locator('.note-editor');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
+    });
+  // Everyone's changes, saved in the note; then locked.
+  await page.getByRole('button', { name: 'Tracking options' }).click();
+  await page.getByRole('menuitemradio', { name: /Everyone/ }).click();
+  await expect(page.getByRole('button', { name: 'Tracking for everyone' })).toBeVisible();
+  await expect.poll(md).toMatch(/sky\. \{track=all\}\n/);
+  await page.getByRole('button', { name: 'Tracking for everyone' }).click();
+  await page.getByRole('button', { name: 'Lock tracking…' }).click();
+  await page.getByLabel('Password', { exact: true }).fill('gull');
+  await page.getByLabel('Password again').fill('gull');
+  await page.getByRole('button', { name: 'Lock', exact: true }).click();
+  await expect(page.getByRole('button', { name: /🔒 Tracking for everyone/ })).toBeVisible();
+  await expect.poll(md).toMatch(/\{track=all lock=[0-9a-f]{80}\}/);
+  // Typing is tracked; accepting isn't allowed while it's locked.
+  await editor.locator('.blk').nth(1).click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Late.');
+  await expect(editor.locator('ins.trk[data-author="Robin"]')).toHaveText(' Late.');
+  page.once('dialog', (d) => void d.accept());
+  await page.getByRole('region', { name: 'Tracked changes' }).getByRole('button', { name: 'Accept all' }).click();
+  await expect(editor.locator('ins.trk')).toHaveCount(3);
+  // The wrong password doesn't unlock it; the right one does.
+  await page.getByRole('button', { name: /Tracking for everyone/ }).click();
+  await page.getByRole('button', { name: 'Unlock tracking…' }).click();
+  await page.getByLabel('Password', { exact: true }).fill('tern');
+  await page.getByRole('button', { name: 'Unlock' }).click();
+  await expect(page.getByText('That isn’t the password.')).toBeVisible();
+  await page.getByLabel('Password', { exact: true }).fill('gull');
+  await page.getByRole('button', { name: 'Unlock' }).click();
+  await expect(page.getByRole('button', { name: 'Tracking for everyone' })).toBeVisible();
+  await expect.poll(md).toMatch(/\{track=all\}/);
+  // Show markup: hide Ben's.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'comments' }));
+  const pane = page.getByRole('tabpanel', { name: 'Review' });
+  await pane.getByRole('button', { name: /Show markup/ }).click();
+  await pane.getByRole('group', { name: 'Show markup' }).getByLabel('Ben').uncheck();
+  await expect(editor.locator('ins.trk[data-author="Ben"]')).toHaveCSS('text-decoration-line', 'none');
+  await expect(editor.locator('ins.trk[data-author="Ann"]')).toHaveCSS('text-decoration-line', 'underline');
+  await expect(pane.locator('.review-item')).toHaveCount(3);
+  // @ names: suggested, and picked out.
+  await editor.locator('mark.cmt').click();
+  const thread = page.getByRole('dialog', { name: 'Comment' });
+  await thread.getByRole('textbox', { name: 'Reply' }).fill('');
+  await thread.getByRole('textbox', { name: 'Reply' }).type('Yes, @A');
+  await expect(thread.getByRole('listbox', { name: 'People' })).toContainText('@Ann');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('it was.');
+  await thread.getByRole('button', { name: 'Reply' }).click();
+  await expect(thread.locator('.mention')).toHaveText('@Ann');
+  await expect.poll(md).toContain('Robin (');
+  await expect.poll(md).toContain('Yes, @Ann it was.');
+});
+
+test('combine reviewers’ copies: each reviewer’s changes tracked in their name', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.evaluate(async () => {
+    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
+    s.createNote({ title: 'Draft (Ann)', doc: m.fromMarkdown('The wide sea was grey.') });
+    s.createNote({ title: 'Draft (Ben)', doc: m.fromMarkdown('The big sea was grey and cold.') });
+    s.select(s.createNote({ title: 'Draft', doc: m.fromMarkdown('The big sea was grey.') }).id);
+  });
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('Control+p');
+  await page.keyboard.type('combine');
+  await page.keyboard.press('Enter');
+  const dlg = page.getByRole('dialog', { name: 'Combine reviewers’ copies' });
+  await dlg.getByLabel('Draft (Ann)').check();
+  await dlg.getByLabel('Reviewer of Draft (Ann)').fill('Ann');
+  await dlg.getByLabel('Draft (Ben)').check();
+  await dlg.getByLabel('Reviewer of Draft (Ben)').fill('Ben');
+  await dlg.getByRole('button', { name: 'Combine' }).click();
+  const pane = page.getByRole('region', { name: 'Pane' });
+  await expect(pane.getByLabel('Title')).toHaveValue('Draft (combined)');
+  const ed = pane.locator('.note-editor');
+  await expect(ed.locator('del.trk[data-author="Ann"]')).toHaveText('big');
+  await expect(ed.locator('ins.trk[data-author="Ann"]')).toHaveText('wide');
+  await expect(ed.locator('ins.trk[data-author="Ben"]')).toHaveText(' and cold');
+});

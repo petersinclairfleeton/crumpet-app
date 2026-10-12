@@ -614,6 +614,7 @@ export function runNode(run: Run, marks = false, noSpell: RegExp | null = null):
     // Track changes: added text underlined, deleted text struck through.
     const el = document.createElement(run.change.kind);
     el.className = 'trk';
+    el.dataset.author = run.change.author || 'Someone';
     const who = run.change.author || 'Someone';
     el.title = `${run.change.kind === 'ins' ? 'Added' : 'Deleted'} by ${who}${run.change.at ? `, ${new Date(run.change.at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}` : ''}`;
     el.appendChild(node);
@@ -625,6 +626,7 @@ export function runNode(run: Run, marks = false, noSpell: RegExp | null = null):
     mark.className = 'cmt';
     mark.dataset.comment = run.comment.id;
     if (run.comment.resolved) mark.dataset.resolved = '';
+    mark.dataset.author = run.comment.author || 'Someone';
     mark.appendChild(node);
     node = mark;
   }

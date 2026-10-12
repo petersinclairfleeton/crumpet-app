@@ -286,6 +286,14 @@ export interface ParaLook {
   /** Tab stops, in order: where a tab in the paragraph takes the text after it (past them, every half inch). */
   tabs?: TabStop[];
   /**
+   * The whole document's: on its first paragraph (as the first section's
+   * settings are). Track changes for everyone who edits it ('all'), and
+   * tracking locked: `lock` is a salted hash of the password ('open' when
+   * locked without one).
+   */
+  track?: 'all';
+  lock?: string;
+  /**
    * A section break before this paragraph (Word's Breaks > Section Breaks):
    * the new section starts on a new page, or carries on down the same one.
    * The section's columns and orientation, when they change here.
@@ -344,7 +352,7 @@ export function tabsFromText(text: string): TabStop[] | undefined {
   }
   return tidyTabs(out);
 }
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'drop', 'tabs', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'shade', 'drop', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -376,6 +384,8 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
   if (p.shade && /^#[0-9a-f]{6}$/i.test(p.shade)) out.shade = p.shade.toLowerCase();
   const tabs = tidyTabs(p.tabs);
   if (tabs) out.tabs = tabs;
+  if (p.track === 'all') out.track = 'all';
+  if (typeof p.lock === 'string' && /^(open|[0-9a-f]{16,128})$/.test(p.lock)) out.lock = p.lock;
   if (p.sect === 'page' || p.sect === 'cont') {
     out.sect = p.sect;
     if (out.cols !== undefined) out.cols = Math.max(1, Math.min(MAX_COLS, Math.round(out.cols)));

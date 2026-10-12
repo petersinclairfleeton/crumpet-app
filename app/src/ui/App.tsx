@@ -30,6 +30,7 @@ import { useWordSaving } from './uploads';
 import { ReminderAlerts } from './reminders';
 import { GoToHost, openGoTo } from './goto';
 import { PictureAltHost } from './picture';
+import { CombineHost } from './comparedocs';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -368,6 +369,7 @@ export function App() {
       <ReminderAlerts onOpen={openNote} />
       <GoToHost />
       <PictureAltHost />
+      <CombineHost />
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.
