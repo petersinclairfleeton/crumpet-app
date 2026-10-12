@@ -3356,7 +3356,7 @@ test('AutoCorrect: curly quotes, dashes, typos and capitals as you type; Ctrl+Z 
   await settings.getByLabel('“Curly” quotes and apostrophes').uncheck();
   await settings.getByLabel('Replace', { exact: true }).fill('lizzy');
   await settings.getByLabel('With', { exact: true }).fill('Elizabeth');
-  await settings.getByRole('button', { name: 'Add' }).click();
+  await settings.getByRole('button', { name: 'Add replacement' }).click();
   await expect(settings).toContainText('Elizabeth');
   await page.keyboard.press('Escape');
   await editor.click();
@@ -3477,4 +3477,84 @@ test('tab stops: Tab types a tab, set stops in the Tabs window or on the ruler, 
     return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
   });
   expect(md).toContain('Chapter one&#9;7 {tabs=1.5,r3dot}');
+});
+
+test('Go To (F5): pages, headings, footnotes and comments by number or one by one; next and previous footnote', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
+    const doc = `# One\n\nFirst^[Note A] words.\n\n# Two\n\nSecond^[Note B] and {==this==}{>>Ann: a comment<<}.\n\n# Three\n\nThird^[Note C]. {.pagebreak}\n\nLast page.`;
+    s.select(s.createNote({ title: 'Places', doc: md.fromMarkdown(doc) }).id);
+  });
+  const editor = page.locator('.note-editor');
+  await editor.locator('.blk').first().click();
+  const caretBlock = () => page.evaluate(() => (window.getSelection()?.anchorNode?.parentElement?.closest('[data-block]') as HTMLElement | null)?.textContent ?? '');
+  await page.keyboard.press('F5');
+  const go = page.getByRole('dialog', { name: 'Go to' });
+  // Not in page view: no page numbers, so it starts on headings.
+  await expect(go.getByRole('radio', { name: 'Page' })).toBeDisabled();
+  await expect(go.getByRole('radio', { name: 'Heading' })).toHaveAttribute('aria-checked', 'true');
+  await go.getByLabel('Heading number').fill('3');
+  await go.getByRole('button', { name: 'Go to', exact: true }).click();
+  await expect(go).toHaveCount(0);
+  await expect.poll(caretBlock).toBe('Three');
+  // Footnotes one by one, from the palette and the list under the note.
+  await page.keyboard.press('Control+p');
+  await page.keyboard.type('previous footnote');
+  await page.keyboard.press('Enter');
+  await expect.poll(caretBlock).toContain('Second');
+  await page.getByRole('region', { name: 'Footnotes' }).getByRole('button', { name: 'Previous footnote' }).click();
+  await expect.poll(caretBlock).toContain('First');
+  await page.getByRole('region', { name: 'Footnotes' }).getByRole('button', { name: 'Next footnote' }).click();
+  await expect.poll(caretBlock).toContain('Second');
+  // Comments, and a number too big.
+  await page.keyboard.press('F5');
+  await go.getByRole('radio', { name: 'Comment' }).click();
+  await go.getByLabel('Comment number').fill('4');
+  await go.getByRole('button', { name: 'Go to', exact: true }).click();
+  await expect(go.getByRole('status')).toHaveText('There is 1 comment.');
+  await page.keyboard.press('Escape');
+  // Pages, in page view: from the page number in the status bar.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true } }));
+  await expect(editor.locator('.pg')).toHaveCount(2);
+  await page.getByRole('group', { name: 'Page details' }).getByRole('button', { name: 'Page' }).click();
+  await go.getByLabel('Page number').fill('2');
+  await go.getByRole('button', { name: 'Go to', exact: true }).click();
+  await expect.poll(caretBlock).toContain('Third');
+});
+
+test('spelling: your dictionary and characters’ names are never marked, a language, and the check turned off', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: { getState(): { projects: { id: string }[] }; addCastMember(p: string, k: string, n: string): { id: string }; updateCastMember(p: string, id: string, patch: object): void } }).crumpet;
+    const p = c.getState().projects[0];
+    const m = c.addCastMember(p.id, 'character', 'Maraweth Quill');
+    c.updateCastMember(p.id, m.id, { aliases: ['Mazz'] });
+  });
+  const editor = page.locator('.note-editor');
+  await editor.locator('.blk').first().click();
+  await page.keyboard.type('Maraweth met Mazz by the zorbleck.');
+  await expect(editor.locator('.nosp')).toHaveText(['Maraweth', 'Mazz']);
+  await expect(editor.locator('.nosp').first()).toHaveAttribute('spellcheck', 'false');
+  // A word of your own, from the command palette with the caret on it.
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Control+p');
+  await page.keyboard.type('add zorbleck');
+  await page.keyboard.press('Enter');
+  await expect(editor.locator('.nosp')).toHaveText(['Maraweth', 'Mazz', 'zorbleck']);
+  // Settings: the word is listed; a language; then the check off.
+  await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Writing' }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settings.getByRole('group', { name: 'Your dictionary' })).toContainText('zorbleck');
+  await settings.getByLabel('Language').selectOption('en-GB');
+  await expect(editor).toHaveAttribute('lang', 'en-GB');
+  await settings.getByLabel('Check spelling as you type').uncheck();
+  await expect(editor).toHaveAttribute('spellcheck', 'false');
 });

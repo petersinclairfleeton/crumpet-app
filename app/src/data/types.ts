@@ -186,6 +186,8 @@ export interface Settings {
   guideSeen?: boolean;
   /** The colour of the paper notes and chapters are written on (#rrggbb); unset: the theme's own. */
   paper?: string;
+  /** Spelling: the browser's check on (unless `off`), its language, and words of your own it passes over. */
+  spelling?: { off?: boolean; lang?: string; words?: string[] };
   /** Show/hide ¶: formatting marks (spaces, tabs, paragraph ends) shown in notes and chapters. */
   showMarks?: boolean;
   /** AutoCorrect while typing: each kind on unless turned off, plus replacements of the person's own. */

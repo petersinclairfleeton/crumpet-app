@@ -2,6 +2,7 @@
 // with what it says written in a little card beside it, and listed under the
 // note so they can be read all together.
 
+import { goToPlace } from './goto';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
@@ -124,6 +125,16 @@ export function FootnoteList({ doc, editor }: { doc: Doc; editor: Editor | null 
   if (!list.length) return null;
   return (
     <section className="footnote-list" aria-label="Footnotes">
+      {editor && list.length > 1 && (
+        <div className="footnote-nav">
+          <button type="button" className="btn quiet" title="Previous footnote" onClick={() => goToPlace(editor, 'footnote', 'previous')}>
+            ‹ Previous footnote
+          </button>
+          <button type="button" className="btn quiet" title="Next footnote" onClick={() => goToPlace(editor, 'footnote', 'next')}>
+            Next footnote ›
+          </button>
+        </div>
+      )}
       <ol start={(editor?.footnoteStart ?? 0) + 1}>
         {list.map((f) => (
           <li key={`${f.block}:${f.offset}`}>

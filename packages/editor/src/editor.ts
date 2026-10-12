@@ -177,6 +177,42 @@ export class Editor {
     this.emit(null);
   }
 
+  /**
+   * The browser's spelling check: on or off, the language it checks in
+   * (where the browser supports it), and words it should pass over (your
+   * dictionary, characters' names), matched in any case.
+   */
+  setSpelling(opts: { on: boolean; lang?: string; words?: Iterable<string> }): void {
+    const root = this.view.root;
+    root.spellcheck = opts.on;
+    if (opts.lang) root.lang = opts.lang;
+    else root.removeAttribute('lang');
+    const words = [...new Set([...(opts.words ?? [])].map((w) => w.trim().toLowerCase()).filter((w) => w.length > 1))].sort((a, b) => b.length - a.length);
+    const source = opts.on && words.length ? `(?<![\\p{L}\\p{N}])(?:${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![\\p{L}\\p{N}])` : '';
+    if ((this.view.noSpell?.source ?? '') === source) return;
+    this.view.noSpell = source ? new RegExp(source, 'giu') : null;
+    const sel = this.keepSelection();
+    this.draw(this.state.doc, new Set(this.state.doc.blocks.map((b) => b.id)));
+    sel();
+  }
+
+  /** The word at the caret (or the selected text, if it's one word), for spelling commands. */
+  wordAtCaret(): string | null {
+    this.syncSelectionFromDom();
+    const s = this.state.selection;
+    const block = getBlock(this.state.doc, s.focus.block);
+    const text = runsText(block.runs);
+    if (!isCollapsed(s)) {
+      const sel = this.selectedText()?.trim() ?? '';
+      return /^[\p{L}\p{N}'’-]+$/u.test(sel) ? sel : null;
+    }
+    const at = s.focus.offset;
+    const before = /[\p{L}\p{N}'’-]*$/u.exec(text.slice(0, at))?.[0] ?? '';
+    const after = /^[\p{L}\p{N}'’-]*/u.exec(text.slice(at))?.[0] ?? '';
+    const word = (before + after).replace(/^['’-]+|['’-]+$/g, '');
+    return word || null;
+  }
+
   /** How many pages the text fills in page view. */
   get pages(): number {
     return this.paginator.pages;
@@ -1080,6 +1116,24 @@ export class Editor {
     this.state = { ...this.state, selection: caret(pos) };
     this.focusText();
     this.emit(null);
+  }
+
+  /** Puts the caret at `pos` and brings it into the middle of the view (Word's Go To). */
+  goTo(pos: Pos): void {
+    this.focusPos(pos);
+    const at = this.view.posToDom(pos);
+    const el = at ? (at.node instanceof Element ? at.node : at.node.parentElement) : this.view.blockElement(pos.block);
+    el?.scrollIntoView({ block: 'center' });
+  }
+
+  /** Page view: the caret to the top of page `n` (from 1). False if there's no such page. */
+  goToPage(n: number): boolean {
+    const page = this.view.root.querySelectorAll<HTMLElement>(':scope > .pg')[n - 1];
+    const first = page?.querySelector<HTMLElement>('[data-block]');
+    if (!page || !first) return false;
+    this.focusPos({ block: first.dataset.block!, offset: Number(first.dataset.from ?? 0) });
+    page.scrollIntoView({ block: 'start' });
+    return true;
   }
 
   focus(): void {

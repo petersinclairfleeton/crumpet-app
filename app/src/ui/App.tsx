@@ -28,6 +28,7 @@ import { CompareDocs } from './comparedocs';
 import { useFileIndex } from './fileindex';
 import { useWordSaving } from './uploads';
 import { ReminderAlerts } from './reminders';
+import { GoToHost, openGoTo } from './goto';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -178,6 +179,11 @@ export function App() {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         panesRef.current.open({ kind: 'graph', id: 'graph' }, 'tab');
+      }
+      // F5: Go To, as in Word (in the text being written).
+      if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !e.altKey && currentHelped()) {
+        e.preventDefault();
+        openGoTo(e.shiftKey ? 'heading' : 'page');
       }
       // Shift+F7: the thesaurus, as in Word.
       if (e.shiftKey && e.key === 'F7') {
@@ -359,6 +365,7 @@ export function App() {
       {touring && <Tour onDone={() => setTouring(false)} />}
       <SpeechBar />
       <ReminderAlerts onOpen={openNote} />
+      <GoToHost />
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.

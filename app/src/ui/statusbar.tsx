@@ -2,6 +2,7 @@
 // is on, the words (and how many are selected), the ruler, a list of the
 // headings to jump to, and zoom.
 
+import { openGoTo } from './goto';
 import { type RefObject, useEffect, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import { isHeading } from '@crumpet/editor/model';
@@ -72,9 +73,9 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
   return (
     <div className="status-bar" role="group" aria-label="Page details">
       {total > 0 && (
-        <span className="status-item" aria-label="Page">
+        <button type="button" className="status-item status-link" aria-label="Page" title="Go to a page, heading, footnote or comment (F5)" onClick={() => openGoTo('page')}>
           Page {page + pageOffset} of {Math.max(pageTotal ?? 0, total + pageOffset)}
-        </span>
+        </button>
       )}
       <span className="status-item" aria-label="Word count">
         {selected ? `${selected.toLocaleString()} of ${all.toLocaleString()} words` : `${all.toLocaleString()} word${all === 1 ? '' : 's'}`}

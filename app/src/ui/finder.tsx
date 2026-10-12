@@ -3,6 +3,8 @@
 // card, or to run any command. Typing > in the switcher turns it into the
 // palette. Enter opens in place, Ctrl+Enter in a new tab, Shift+Enter beside.
 
+import { ignoreWord, useAddWord } from './spelling';
+import { goToPlace, openGoTo } from './goto';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppState, useAppStore } from './hooks';
 import { type Match, rank } from '../data/fuzzy';
@@ -118,6 +120,7 @@ function useCommands(actions: Actions): Item[] {
   const set = (patch: Parameters<typeof store.updateLayout>[0]) => store.updateLayout(patch);
   const cmd = (label: string, run: () => void, where?: string, glyph = '›'): Item => ({ key: `cmd:${label}`, label, where, glyph, run: () => run() });
   const ed = helped?.editor ?? null;
+  const addWord = useAddWord();
   // Commands on the text run in the editor, with its selection as it was.
   const onText = (f: (e: NonNullable<typeof ed>) => void) => () => {
     if (!ed) return;
@@ -195,6 +198,22 @@ function useCommands(actions: Actions): Item[] {
       cmd('Center', onText((e) => e.setAlign('center'))),
       cmd('Align right', onText((e) => e.setAlign('right'))),
       cmd('Justify', onText((e) => e.setAlign('justify'))),
+      ...(() => {
+        const w = ed.wordAtCaret();
+        return w
+          ? [
+              cmd(`Spelling: add “${w}” to your dictionary`, () => addWord(w)),
+              cmd(`Spelling: ignore “${w}” everywhere for now`, () => ignoreWord(w)),
+            ]
+          : [];
+      })(),
+      cmd('Go to page, heading, footnote or comment…', () => openGoTo(ed.pageBoxes.length ? 'page' : 'heading'), 'F5'),
+      cmd('Next footnote', onText((e) => goToPlace(e, 'footnote', 'next'))),
+      cmd('Previous footnote', onText((e) => goToPlace(e, 'footnote', 'previous'))),
+      cmd('Next comment', onText((e) => goToPlace(e, 'comment', 'next'))),
+      cmd('Previous comment', onText((e) => goToPlace(e, 'comment', 'previous'))),
+      cmd('Next heading', onText((e) => goToPlace(e, 'heading', 'next'))),
+      cmd('Previous heading', onText((e) => goToPlace(e, 'heading', 'previous'))),
       cmd('Find and replace', () => {
         ed.focus();
         // As if Ctrl+H were pressed in the text: its pane opens find and replace.
