@@ -183,16 +183,29 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   const meta = snap.meta ?? { version: 1, stacks: [], notebooks: [] };
   if (meta.settings) tree.settings = meta.settings;
 
-  // ---- projects: folders in Projects/ holding a project.json
+  // ---- projects: the folders in Projects/, like notebooks in a stack. Each
+  // one's project.json (written by Crumpet) holds its name, outline, styles
+  // and so on; a folder without one (made by hand, or whose project.json
+  // hasn't arrived) is a project all the same, its files its chapters.
+  // A folder Crumpet recorded as a notebook (in a stack called Projects) stays one.
+  const recordedNotebooks = new Set(meta.notebooks.map((n) => n.folder));
   const projectDirs = new Map<string, Partial<ProjectJson>>();
+  for (const e of snap.entries) {
+    if (e.kind === 'folder' && parentOf(e.path) === PROJECTS && !baseName(e.path).startsWith('.') && !recordedNotebooks.has(e.path)) projectDirs.set(e.path, {});
+  }
   for (const [path, f] of Object.entries(snap.projectFiles ?? {})) {
     const json = parseProject(f.text);
     if (json) projectDirs.set(parentOf(path), json);
   }
+  /** The project a path is inside (at any depth), if any. */
+  const projectOf = (path: string): string | null => {
+    for (let p = path; p; p = parentOf(p)) if (projectDirs.has(p)) return p;
+    return null;
+  };
   /** A project's research folder (Projects/Book/Research), and notes in it. */
   const isResearchDir = (path: string) => baseName(path) === RESEARCH && projectDirs.has(parentOf(path));
   const researchOf = (path: string) => (isResearchDir(parentOf(path)) ? parentOf(parentOf(path)) : null);
-  const inProject = (path: string) => projectDirs.has(path) || projectDirs.has(parentOf(path)) || isResearchDir(parentOf(path));
+  const inProject = (path: string) => projectOf(path) !== null;
   // Project ids by folder, worked out once (the projects themselves are read further down).
   const projectIdOf = new Map<string, string>();
   {
@@ -357,7 +370,11 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
     const id = projectIdOf.get(dir)!;
     const jsonEntry = snap.entries.find((e) => e.path === `${dir}/${PROJECT_FILE}`);
     const was = base.tree.projects?.[id];
-    const files = Object.keys(snap.files).filter((p) => parentOf(p) === dir).sort();
+    // Its Markdown files are its chapters, in subfolders too (a subfolder is a part); Research holds notes.
+    const inResearch = (p: string) => p.startsWith(`${dir}/${RESEARCH}/`);
+    const files = Object.keys(snap.files)
+      .filter((p) => projectOf(p) === dir && !inResearch(p))
+      .sort((a, b) => (parentOf(a) === dir) !== (parentOf(b) === dir) ? (parentOf(a) === dir ? -1 : 1) : a < b ? -1 : 1);
     const chapterIds: string[] = [];
     for (const path of files) {
       const { file: f, modified } = snap.files[path];
@@ -395,7 +412,21 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       else continue;
       listed.add(item.id);
     }
-    for (const cid of chapterIds) if (!listed.has(cid)) outline.push({ type: 'chapter', id: cid });
+    // Chapters project.json doesn't list go at the end; those in a subfolder under a part named after it.
+    let lastPart: string | null = null;
+    for (const cid of chapterIds) {
+      if (listed.has(cid)) continue;
+      const sub = parentOf(where.chapters[cid]);
+      if (sub !== dir && sub !== lastPart) {
+        const pid = hashId('part', sub);
+        if (!listed.has(pid)) {
+          outline.push({ type: 'part', id: pid, title: sub.slice(dir.length + 1) });
+          listed.add(pid);
+        }
+      }
+      lastPart = sub;
+      outline.push({ type: 'chapter', id: cid });
+    }
     const modified = jsonEntry?.modified ?? 0;
     tree.projects[id] = {
       id,

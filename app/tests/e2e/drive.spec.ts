@@ -91,6 +91,24 @@ test('or choose any folder in Drive with Google’s picker', async ({ browser })
   await expect.poll(() => drive.paths(writing.id), { timeout: 15_000 }).toContain('.crumpet/vault.json');
 });
 
+test('a project folder in Drive shows up as a project, even one made without Crumpet', async ({ browser }) => {
+  const drive = new FakeDrive();
+  const root = drive.add('Crumpet', 'root', 'application/vnd.google-apps.folder');
+  const projects = drive.add('Projects', root.id, 'application/vnd.google-apps.folder');
+  const book = drive.add('My Book', projects.id, 'application/vnd.google-apps.folder');
+  drive.add('01 Opening.md', book.id, 'text/markdown', 'The lamp had not been lit.\n');
+  const page = await device(browser, drive);
+  await page.goto('/#connect');
+  await where(page).getByRole('button', { name: 'Continue with Google' }).click();
+  await where(page).getByRole('button', { name: /Your Crumpet folder/ }).click();
+  await page.keyboard.press('Escape');
+  await sidebar(page).getByRole('button', { name: /^My Book/ }).click({ timeout: 15_000 });
+  await expect(page.getByRole('region', { name: 'Outline' })).toContainText('Opening');
+  await expect(page.locator('.note-editor')).toContainText('The lamp had not been lit.');
+  await expect(sidebar(page).locator('.nb-row, .stack-row')).toHaveCount(0);
+  await expect.poll(() => vault(drive, 'Crumpet'), { timeout: 15_000 }).toContain('Projects/My Book/project.json');
+});
+
 // A folder on this computer: the browser's folder picker is faked with a
 // folder in the browser's own private file storage (which works the same way).
 const FAKE_FOLDER_PICKER = `window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('My notes', { create: true });`;
