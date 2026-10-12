@@ -119,8 +119,9 @@ export async function uploadFiles(provider: Provider): Promise<number> {
 }
 
 /** The attachments a document shows (pictures and files kept in Attachments). */
-export function attachmentsIn(blocks: { type: string; src?: string }[]): string[] {
-  return blocks.filter((b) => (b.type === 'image' || b.type === 'file') && b.src?.startsWith(`${ATTACHMENTS}/`)).map((b) => b.src!);
+export function attachmentsIn(blocks: { type: string; src?: string; pic?: { orig?: string } }[]): string[] {
+  // A picture's original file (before its background was removed or it was compressed) is kept for Reset picture.
+  return blocks.flatMap((b) => (b.type === 'image' || b.type === 'file' ? [b.src, b.pic?.orig] : [])).filter((s): s is string => !!s?.startsWith(`${ATTACHMENTS}/`));
 }
 
 /**

@@ -777,10 +777,12 @@ function pictureMenu(p: PicLook): HTMLElement {
   group('Picture style', [...PIC_STYLES.map((st) => button('style', STYLE_NAMES[st], STYLE_NAMES[st], st)), button('style', 'None', 'No picture style', '')]);
   group('Picture', [
     button('format', 'Corrections and effects…', 'Brightness, contrast, colour, see-through, artistic effects and a border'),
+    button('background', 'Remove background…', 'Take away a plain background round what the picture shows'),
+    button('compress', 'Compress…', 'Make the file smaller: fewer pixels, cropped parts thrown away'),
     button('alt', 'Alt text…', 'Describe the picture for people who can’t see it'),
     button('change', 'Change picture…', 'Another picture in its place, keeping its size and look'),
     button('size', 'Original size', 'Back to the picture’s own size'),
-    button('reset', 'Reset picture', 'Back to how it was inserted (keeps the alt text)'),
+    button('reset', 'Reset picture', 'Back to how it was inserted, the original file too (keeps the alt text)'),
   ]);
   group('', [button('delete', 'Delete picture')]);
   tools.appendChild(menu);

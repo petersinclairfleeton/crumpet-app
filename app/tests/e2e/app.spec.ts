@@ -3678,3 +3678,57 @@ test('pictures: crop by dragging an edge, to a ratio and a shape; styles; correc
   await menu('Remove crop');
   await expect.poll(() => noteMarkdown(page)).not.toContain('crop=');
 });
+
+test('pictures: remove a plain background, compress, and reset back to the original file', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 950 });
+  // A red square on a pale background, 300×200.
+  const square = 'iVBORw0KGgoAAAANSUhEUgAAASwAAADICAIAAADdvUsCAAACbElEQVR42u3TMQ0AMAhEUZTgX0rlsLDXQsNCh5d8BZd70V2SFgsTSBBKEEqCUIJQEoQShJIglCCUBKEEoSQIJQglQShBKAlCCUJJEEoQSoJQglAShBKEkiCUIJQEoQShJAglCCVBKEEoCUIJQkkQShBKglCCUBKEEoSSIJQglAShBKEkCCUIJUEoQSgJQglCSRBKEEqCUIJQEoQShJIglCCUBKEEoSQIR51MPeYtEEIIIYQQQigIIYQQQgghFIQQQgghhBAKQgghhBBCCAUhhBBCCCGEghBCCCGEEEJBCCGEEEIIoSCEEEIIIYRQEEIIIYQQQigIIYQQQgghFIQQQgghhBBCaAUIIYQQQgghFIQQQgghhBAKQgghhBBCCAUhhBBCCCGEghBCCCGEEEJBCCGEEEIIoSCEEEIIIYRQEEIIIYQQQigIIYQQQgghFIQQQgghhBAKQgghhBBCCCEUhBBCCCGEEApCCCGEEEIIBSGEEEIIIYSCEEIIIYQQQkEIIYQQQgihIIQQQgghhFAQQgghhBBCKAghhBBCCCEUhBBCCCGEEApCCCGEEEIIIXQYCCGEEEIIIRSEEEIIIYQQCkIIIYQQQggFIYQQQgghhIIQQgghhBBCQQghhBBCCKEghBBCCCGEUBBKEEqCUIJQEoQShJIglCCUILSCBKEEoSQIJQglQShBKAlCCUJJEEoQSoJQglAShBKEkiCUIJQEoQShJAglCCVBKEEoCUIJQkkQShBKglCCUBKEEoSSIJQglAShBKEkCCUIJUEoQSgJQglCSRBKEEqCUIJQEoQShJIglCCUBKEEoSQIpU+7Ol4aDrYiqsYAAAAASUVORK5CYII=';
+  await page.route('https://pics.example/**', (r) => r.fulfill({ contentType: 'image/png', body: (globalThis as unknown as { Buffer: { from(s: string, e: string): Uint8Array } }).Buffer.from(square, 'base64') as never }));
+  await page.evaluate(async () => {
+    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
+    s.select(s.createNote({ title: 'Square', doc: m.fromMarkdown('![Square](https://pics.example/square.png) {pic w=1}') }).id);
+  });
+  const blk = page.locator('.note-editor .blk-image');
+  const img = blk.locator('img');
+  await expect(img).toHaveJSProperty('complete', true);
+  const menu = async (name: string) => {
+    await img.hover();
+    await blk.getByRole('button', { name: 'Picture ▾' }).click();
+    await blk.getByRole('button', { name, exact: true }).click();
+  };
+  /** The see-through-ness (alpha) of the picture's pixel at x, y, as it's drawn from its file. */
+  const alphaAt = (x: number, y: number) =>
+    img.evaluate(async (el: HTMLImageElement, [px, py]) => {
+      const i = new Image();
+      i.src = el.src;
+      await i.decode();
+      const c = document.createElement('canvas');
+      c.width = i.naturalWidth;
+      c.height = i.naturalHeight;
+      const g = c.getContext('2d')!;
+      g.drawImage(i, 0, 0);
+      return g.getImageData(Math.round(px * i.naturalWidth), Math.round(py * i.naturalHeight), 1, 1).data[3];
+    }, [x, y]);
+  await menu('Remove background…');
+  const dlg = page.getByRole('dialog', { name: 'Remove background' });
+  await expect(dlg.getByLabel('Preview')).toBeVisible();
+  await dlg.getByRole('button', { name: 'Remove background' }).click();
+  await expect(dlg).toHaveCount(0);
+  await expect.poll(() => noteMarkdown(page)).toMatch(/!\[Square\]\(Attachments\/[a-z0-9]{7}-square-cut-out\.png\) \{pic w=1 orig="https:\/\/pics\.example\/square\.png"\}/);
+  await expect(img).toHaveJSProperty('complete', true);
+  expect(await alphaAt(0.05, 0.05)).toBe(0);
+  expect(await alphaAt(0.5, 0.5)).toBe(255);
+  // Compress for email: one inch wide at 96 pixels an inch.
+  await menu('Compress…');
+  const cmp = page.getByRole('dialog', { name: 'Compress picture' });
+  await cmp.getByLabel(/Email/).check();
+  await cmp.getByRole('button', { name: 'Compress' }).click();
+  await expect(cmp).toHaveCount(0);
+  await expect.poll(() => noteMarkdown(page)).toMatch(/-square-cut-out-small\.png\) \{pic w=1 orig="https:\/\/pics\.example\/square\.png"\}/);
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBe(96);
+  // Reset: the original file again.
+  await menu('Reset picture');
+  await expect.poll(() => noteMarkdown(page)).toBe('![Square](https://pics.example/square.png)\n');
+});

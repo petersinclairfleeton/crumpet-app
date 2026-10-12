@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryStorage } from '../../src/data/db';
-import { addFile, mediaUrl, safeFileName, setFileStorage, setRemoteFiles, uploadFiles } from '../../src/data/files';
+import { addFile, attachmentsIn, mediaUrl, safeFileName, setFileStorage, setRemoteFiles, uploadFiles } from '../../src/data/files';
 import { MemoryProvider } from '../../src/sync/provider';
 
 describe('attached files', () => {
@@ -64,5 +64,11 @@ describe('deleting notes', () => {
     expect(await storage.getFile(a.src)).toBeNull();
     await expect(cloud.readBytes(a.src)).rejects.toThrow();
     expect(await (await cloud.readBytes(shared.src)).text()).toBe('s');
+  });
+});
+
+describe('attachments in use', () => {
+  it('include a picture’s original file, kept for Reset picture', () => {
+    expect(attachmentsIn([{ type: 'image', src: 'Attachments/b-small.jpg', pic: { orig: 'Attachments/a.jpg' } }, { type: 'image', src: 'https://x.example/p.png', pic: { orig: 'https://x.example/q.png' } }, { type: 'paragraph' }])).toEqual(['Attachments/b-small.jpg', 'Attachments/a.jpg']);
   });
 });
