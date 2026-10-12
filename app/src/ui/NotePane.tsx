@@ -11,6 +11,7 @@ import { EditorHost } from './EditorHost';
 import { chooseFiles, isMac } from './editing';
 import { FindBar, useFindKey } from './find';
 import { Tour } from './Tour';
+import { openGuide } from './guide';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
@@ -431,8 +432,12 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
       </ol>
       <p className="welcome-tour">
         New here?{' '}
+        <button type="button" className="link-btn" onClick={openGuide}>
+          Read the guide
+        </button>{' '}
+        or{' '}
         <button type="button" className="link-btn" onClick={() => setTouring(true)}>
-          Show me around
+          take a quick tour
         </button>
       </p>
     </div>

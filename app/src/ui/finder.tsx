@@ -14,6 +14,7 @@ import { type Helped, useHelped, whenHelped } from './helpers';
 import { goToLater } from './booktoc';
 import { SLASH_ITEMS } from './slash';
 import { THEMES } from './themes';
+import { openGuide } from './guide';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
 import { REVISIONS, hasRevisions } from '../data/revisions';
 import { startReading, toggleDictation } from './speech';
@@ -151,6 +152,7 @@ function useCommands(actions: Actions): Item[] {
     cmd(state.settings.toolbar === 'always' ? 'Formatting bar only over selected text' : 'Always show the formatting bar', () => store.updateSettings({ toolbar: state.settings.toolbar === 'always' ? 'selection' : 'always' })),
     cmd(state.settings.typewriter?.scroll ? 'Typewriter mode off' : 'Typewriter mode', () => store.updateSettings({ typewriter: { ...state.settings.typewriter, scroll: !state.settings.typewriter?.scroll, fade: !state.settings.typewriter?.scroll } })),
     cmd('Settings', actions.openSettings),
+    cmd('Open the guide to Crumpet', openGuide),
     ...REVISIONS.map((r, i) => cmd(`Revision mode: ${r.name.toLowerCase()} round`, () => store.updateSettings({ revision: i + 1 }))),
     ...(state.settings.revision ? [cmd('Revision mode off', () => store.updateSettings({ revision: 0 }))] : []),
     ...THEMES.map((t) => cmd(`Theme: ${t.name}`, () => store.updateSettings({ theme: t.id }))),

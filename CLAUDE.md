@@ -195,6 +195,14 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `EditorHost.tsx` wraps the editor for notes;
     `Project.tsx` holds the outline, chapter, manuscript and side panes;
     `pages.tsx` is page view, headers and footers, and printing.
+    `guide.tsx`: the welcome guide (chapters with pictures of the app,
+    workflows, a start page): opens by itself on a device's first visit
+    (`shouldOpenGuide`; not under automation, `navigator.webdriver`), then
+    `settings.guideSeen`; again from the top bar's ? button, the command
+    palette or the welcome page (`openGuide()`). Its pictures are
+    `public/guide/*.jpg`, taken from the real app by
+    `tests/shots/guide.shots.ts`: retake them after the look changes with
+    `CHROMIUM_PATH=… npx playwright test -c playwright.shots.config.ts`.
     The formatting bar is one row (`toolbar.tsx`, extras under More) built
     in `editing.tsx` from `fonttools.tsx` (Font group), `paratools.tsx`
     (Paragraph group and window), `listtools.tsx` (bullet and numbering

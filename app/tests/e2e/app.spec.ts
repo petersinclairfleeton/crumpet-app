@@ -958,7 +958,7 @@ test('the formatting bar floats above selected text, can be pinned, and focus mo
 
 test('a first visit can take a short tour, and N starts a note', async ({ page }) => {
   await open(page);
-  await page.getByRole('button', { name: 'Show me around' }).click();
+  await page.getByRole('button', { name: 'take a quick tour' }).click();
   const tip = page.getByRole('dialog', { name: /^Tip 1 of/ });
   await expect(tip).toContainText('Your first note');
   await tip.getByRole('button', { name: 'Next' }).click();
@@ -968,6 +968,55 @@ test('a first visit can take a short tour, and N starts a note', async ({ page }
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('n');
   await expect(page.getByLabel('Title')).toBeFocused();
+});
+
+test('the guide: opens by itself on a first visit, chapter by chapter with pictures and workflows, and again from the ? button', async ({ page }) => {
+  // (The guide waits for automated browsers like this one to ask; here it behaves as for a person.)
+  await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
+  await open(page);
+  const guide = page.getByRole('dialog', { name: /the guide/ });
+  await expect(guide.getByRole('heading', { name: 'Welcome to Crumpet' })).toBeVisible();
+  // Its pictures are real files that load.
+  const loaded = () => guide.locator('.guide-shot img').evaluate((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0);
+  await expect.poll(loaded).toBe(true);
+  await guide.getByRole('button', { name: /^Next/ }).click();
+  await expect(guide.getByRole('heading', { name: 'Notes, notebooks and tags' })).toBeVisible();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(guide.getByRole('heading', { name: 'Books and long writing' })).toBeVisible();
+  // A second picture, and one shown full size.
+  await guide.getByRole('button', { name: /^Picture 2/ }).click();
+  await expect(guide.locator('figcaption')).toContainText('Cards');
+  await expect.poll(loaded).toBe(true);
+  await guide.locator('.guide-shot').click();
+  await expect(guide.getByRole('button', { name: 'Close the picture' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(guide.getByRole('button', { name: 'Close the picture' })).toHaveCount(0);
+  await expect(guide).toBeVisible();
+  // Workflows open one at a time.
+  await guide.getByRole('navigation').getByRole('button', { name: /Workflows/ }).click();
+  await expect(guide).toContainText('Click + next to Projects in the sidebar');
+  await guide.getByRole('button', { name: /Keep a journal/ }).click();
+  await expect(guide).toContainText('Click Today in the sidebar');
+  await expect(guide).not.toContainText('Click + next to Projects in the sidebar');
+  // Ready: a name, then a first note.
+  await guide.getByRole('button', { name: /^Next/ }).click();
+  await guide.getByLabel('Your name').fill('Alex Rowan');
+  await expect(sidebar(page).locator('.avatar')).toHaveText('AR');
+  await guide.getByRole('button', { name: /Write a note/ }).click();
+  await expect(guide).toHaveCount(0);
+  await expect(page.getByLabel('Title')).toBeFocused();
+  // Seen: it doesn't open by itself again, but the ? button and the command palette bring it back.
+  await page.reload();
+  await expect(list(page)).toBeVisible();
+  await expect(guide).toHaveCount(0);
+  await page.getByRole('button', { name: 'Guide to Crumpet' }).click();
+  await expect(guide.getByRole('heading', { name: 'Welcome to Crumpet' })).toBeVisible();
+  await guide.getByRole('button', { name: 'Close the guide' }).click();
+  await page.keyboard.press('Control+p');
+  await page.keyboard.type('guide');
+  await page.keyboard.press('Enter');
+  await expect(guide).toBeVisible();
 });
 
 test('pictures and files: add one from the note menu, with a caption, kept in the note as Markdown', async ({ page }) => {
