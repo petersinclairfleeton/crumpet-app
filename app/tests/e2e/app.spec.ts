@@ -3632,3 +3632,49 @@ test('pictures: resize from the corner, wrap text round, move in front, turn, al
   await blk.getByRole('button', { name: 'Reset picture' }).click();
   await expect.poll(() => noteMarkdown(page)).toContain('![A gull](https://pics.example/gull.png) {pic alt="A gull on a post"}');
 });
+
+test('pictures: crop by dragging an edge, to a ratio and a shape; styles; corrections and effects', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await notePicture(page, '![A gull](https://pics.example/gull.png)\n\nAfter the picture.');
+  const blk = page.locator('.note-editor .blk-image');
+  const img = blk.locator('img');
+  await expect(img).toHaveJSProperty('complete', true);
+  const menu = async (name: string) => {
+    await img.hover();
+    await blk.getByRole('button', { name: 'Picture ▾' }).click();
+    await blk.getByRole('button', { name, exact: true }).click();
+  };
+  // Crop: drag the left edge an inch in. The picture keeps its scale; its window is an inch narrower.
+  await menu('Crop');
+  await expect(blk).toHaveClass(/cropping/);
+  const edge = (await blk.locator('.pic-crop-h.l').boundingBox())!;
+  await page.mouse.move(edge.x + 3, edge.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(edge.x + 3 + 96, edge.y + 10, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => noteMarkdown(page)).toMatch(/\{pic w=3\.1[67] crop=0,0,0,0\.24\d?\}/);
+  await expect.poll(async () => Math.abs((await blk.locator('.pic-crop').boundingBox())!.width - 304)).toBeLessThan(2);
+  // Clicking elsewhere ends cropping.
+  await page.locator('.note-editor').getByText('After the picture.', { exact: true }).click();
+  await expect(blk).not.toHaveClass(/cropping/);
+  // Square, then oval, then a shadow.
+  await menu('Square');
+  await expect.poll(() => noteMarkdown(page)).toMatch(/crop=0,0\.25,0,0\.25/);
+  await expect.poll(async () => { const b = (await blk.locator('.pic-crop').boundingBox())!; return Math.abs(b.width - b.height) < 2; }).toBe(true);
+  await menu('Oval');
+  await expect(blk.locator('.pic-crop')).toHaveCSS('clip-path', /ellipse/);
+  await menu('Shadow');
+  await expect(blk.locator('.pic-box')).toHaveAttribute('data-style', 'shadow');
+  // Corrections and effects: brighter, black and white, a red border.
+  await menu('Corrections and effects…');
+  const fmt = page.getByRole('dialog', { name: 'Corrections and effects' });
+  await fmt.getByLabel(/Brightness/).fill('30');
+  await fmt.getByRole('button', { name: 'Black and white' }).click();
+  await fmt.getByRole('button', { name: 'Red' }).click();
+  await fmt.getByRole('button', { name: 'OK' }).click();
+  await expect(img).toHaveCSS('filter', 'brightness(1.3) grayscale(1)');
+  await expect.poll(() => noteMarkdown(page)).toMatch(/mask=oval style=shadow border=#c0392b bright=30 effect=grey/);
+  await menu('Remove crop');
+  await expect.poll(() => noteMarkdown(page)).not.toContain('crop=');
+});

@@ -272,18 +272,30 @@ class Writer {
     const id = this.rel(`${REL}/image`, `media/${name}`);
     const size = imageSize(got.bytes) ?? { width: 600, height: 400 };
     const p = b.pic ?? {};
-    // Its width as set (or its own), never wider than the page's text.
-    const want = p.w ? p.w * 96 : size.width;
-    const scale = Math.min(this.contentWidth, want) / size.width;
-    const cx = Math.round(size.width * scale * EMU_PER_PX);
-    const cy = Math.round(size.height * scale * EMU_PER_PX);
+    // What's left after cropping, at its width as set (or its own), never wider than the page's text.
+    const [ct, cr, cb, cl] = p.crop ?? [0, 0, 0, 0];
+    const shownW = size.width * (1 - cl - cr);
+    const shownH = size.height * (1 - ct - cb);
+    const want = p.w ? p.w * 96 : shownW;
+    const scale = Math.min(this.contentWidth, want) / shownW;
+    const cx = Math.round(shownW * scale * EMU_PER_PX);
+    const cy = Math.round(shownH * scale * EMU_PER_PX);
+    const pct = (v: number) => Math.round(v * 100000);
+    const srcRect = p.crop ? `<a:srcRect l="${pct(cl)}" t="${pct(ct)}" r="${pct(cr)}" b="${pct(cb)}"/>` : '';
+    // Corrections Word keeps on the picture itself: brightness and contrast, black and white, see-through.
+    const blipFx = (p.bright || p.contrast ? `<a:lum${p.bright ? ` bright="${p.bright * 1000}"` : ''}${p.contrast ? ` contrast="${p.contrast * 1000}"` : ''}/>` : '') + (p.effect === 'grey' ? '<a:grayscl/>' : '') + (p.fade ? `<a:alphaModFix amt="${(100 - p.fade) * 1000}"/>` : '');
+    const PRST: Record<string, string> = { oval: 'ellipse', rounded: 'roundRect', triangle: 'triangle', diamond: 'diamond', hexagon: 'hexagon', star: 'star5' };
+    const prst = (p.mask && PRST[p.mask]) || (p.style === 'rounded' ? 'roundRect' : 'rect');
+    const lineColor = p.border ?? (p.style === 'frame' ? '#2b2b2b' : p.style === 'white' || p.style === 'polaroid' ? '#ffffff' : undefined);
+    const ln = lineColor ? `<a:ln w="${p.style === 'white' || p.style === 'polaroid' ? 76200 : 38100}"><a:solidFill><a:srgbClr val="${lineColor.slice(1).toUpperCase()}"/></a:solidFill></a:ln>` : '';
+    const shadow = p.style === 'shadow' || p.style === 'white' || p.style === 'rounded' || p.style === 'polaroid' ? '<a:effectLst><a:outerShdw blurRad="101600" dist="38100" dir="5400000" algn="t" rotWithShape="0"><a:srgbClr val="000000"><a:alpha val="40000"/></a:srgbClr></a:outerShdw></a:effectLst>' : '';
     const alt = esc(p.alt || b.runs.map((r) => r.text).join('') || 'Picture');
     const docPr = `<wp:docPr id="${n}" name="Picture ${n}" descr="${alt}"/>`;
     const graphic =
       `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
       `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${n}" name="${name}"/><pic:cNvPicPr/></pic:nvPicPr>` +
-      `<pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
-      `<pic:spPr><a:xfrm${p.rot ? ` rot="${p.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>`;
+      `<pic:blipFill><a:blip r:embed="${id}"${blipFx ? `>${blipFx}</a:blip>` : '/>'}${srcRect}<a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+      `<pic:spPr><a:xfrm${p.rot ? ` rot="${p.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${ln}${shadow}</pic:spPr></pic:pic></a:graphicData></a:graphic>`;
     const EMU = 914400;
     const anchor = (pos: string, wrapXml: string, dist: string) => `<wp:anchor ${dist} simplePos="0" relativeHeight="${251659264 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>${pos}<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${wrapXml}${docPr}<wp:cNvGraphicFramePr/>${graphic}</wp:anchor>`;
     const drawing =
@@ -1038,7 +1050,34 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       }
     }
     const descr = (plain(all.find((k) => k.localName === 'docPr'), 'descr') ?? '').trim();
-    return tidyPic({ w: cx || undefined, rot, wrap, x, y, alt: descr || undefined });
+    // Cropped, cropped to a shape, corrected, see-through, a border, a shadow.
+    const src = all.find((k) => k.localName === 'srcRect');
+    const share = (name: string) => Math.max(0, Number(plain(src, name) ?? 0) / 100000);
+    const crop: [number, number, number, number] | undefined = src ? [share('t'), share('r'), share('b'), share('l')] : undefined;
+    const SHAPES: Record<string, PicLook['mask']> = { ellipse: 'oval', roundRect: 'rounded', triangle: 'triangle', diamond: 'diamond', hexagon: 'hexagon', star5: 'star' };
+    const prst = plain(all.find((k) => k.localName === 'prstGeom'), 'prst') ?? 'rect';
+    const lum = all.find((k) => k.localName === 'lum');
+    const alpha = all.find((k) => k.localName === 'alphaModFix');
+    const spPr = all.find((k) => k.localName === 'spPr');
+    const lnFill = spPr ? Array.from(spPr.getElementsByTagName('*')).find((k) => k.localName === 'ln') : undefined;
+    const rgb = lnFill ? Array.from(lnFill.getElementsByTagName('*')).find((k) => k.localName === 'srgbClr') : undefined;
+    const lnColor = plain(rgb, 'val');
+    return tidyPic({
+      w: cx || undefined,
+      rot,
+      wrap,
+      x,
+      y,
+      alt: descr || undefined,
+      crop,
+      mask: SHAPES[prst],
+      bright: lum ? Number(plain(lum, 'bright') ?? 0) / 1000 : undefined,
+      contrast: lum ? Number(plain(lum, 'contrast') ?? 0) / 1000 : undefined,
+      fade: alpha ? 100 - Number(plain(alpha, 'amt') ?? 100000) / 1000 : undefined,
+      effect: all.some((k) => k.localName === 'grayscl') ? 'grey' : undefined,
+      border: lnColor && /^[0-9a-f]{6}$/i.test(lnColor) ? `#${lnColor.toLowerCase()}` : undefined,
+      style: all.some((k) => k.localName === 'outerShdw') ? 'shadow' : undefined,
+    });
   };
 
   const readShape = async (drawing: Element): Promise<Block | null> => {

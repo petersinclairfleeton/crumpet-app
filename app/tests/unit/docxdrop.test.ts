@@ -91,3 +91,17 @@ describe('Word: pictures', () => {
     expect(pic.pic).toMatchObject({ w: 1.5, wrap: 'free', x: 1, y: -0.5 });
   });
 });
+
+describe('Word: picture crops and corrections', () => {
+  const PNG = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR4nGP4z8DwHwQZGBgAJ+wE/OXBtvUAAAAASUVORK5CYII='), (c) => c.charCodeAt(0));
+  it('go to Word as its own picture settings and come back', async () => {
+    const img = makeBlock('image', '', [], { src: 'Attachments/a.png', pic: { w: 2, crop: [0.1, 0.2, 0.1, 0.2], mask: 'oval', border: '#c0392b', bright: 20, contrast: -10, fade: 30, effect: 'grey', style: 'shadow' } });
+    const bytes = await toDocx([{ doc: { blocks: [img] } }], { title: 'T', media: async () => ({ bytes: PNG, type: 'image/png' }) });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<a:srcRect l="20000" t="10000" r="20000" b="10000"/>');
+    expect(xml).toContain('prst="ellipse"');
+    expect(xml).toContain('<a:lum bright="20000" contrast="-10000"/>');
+    const back = (await fromDocx(bytes, { saveMedia: async (n: string) => `Attachments/x-${n}` })).doc.blocks[0];
+    expect(back.pic).toMatchObject({ w: 2, crop: [0.1, 0.2, 0.1, 0.2], mask: 'oval', border: '#c0392b', bright: 20, contrast: -10, fade: 30, effect: 'grey', style: 'shadow' });
+  });
+});

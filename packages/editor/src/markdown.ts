@@ -23,7 +23,7 @@
 import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { readShapeLine, shapeLine, tidyShape } from './shape';
 import { isField } from './fields';
-import { picAttrs, readPicAttrs } from './picture';
+import { picAttrs, readPicAttrs, tidyPic } from './picture';
 import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
 
 // ---------------------------------------------------------------- writing
@@ -82,7 +82,8 @@ function blockLine(b: Block, number: number): string {
     const caption = runsPlain(b.runs).replace(/([\\\[\]])/g, '\\$1').replace(/\n/g, ' ');
     const line = `${b.type === 'image' ? '!' : ''}[${caption}](${linkTarget(b.src ?? '')})`;
     // A picture's size, wrapping, turn and alt text: {pic w=3 wrap=left …}, with its alignment.
-    if (b.type === 'image' && b.pic) return `${line} ${picAttrs(b.pic, b.align)}`;
+    const pic = b.type === 'image' ? tidyPic(b.pic) : undefined;
+    if (pic) return `${line} ${picAttrs(pic, b.align)}`;
     return b.align ? `${line} {.${b.align}}` : line;
   }
   // A scene break is Markdown's own section break.

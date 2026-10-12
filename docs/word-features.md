@@ -346,11 +346,11 @@ At the end there's a suggested order for building what's missing.
 | Feature | | Crumpet today |
 |---|---|---|
 | Resize | ✅ | Drag a picture's corner (it keeps its shape); Original size in its menu. |
-| Crop (to shape, to aspect ratio) | ❌ | |
-| Remove Background, Corrections, Colour, Artistic Effects, Transparency | ❌ | |
+| Crop (to shape, to aspect ratio) | ✅ | Drag the edges (Crop in the picture's menu), crop to a ratio (square, 4:3, 3:2, 16:9, 3:4) or to a shape (oval, rounded, triangle, diamond, hexagon, star); to and from Word. |
+| Remove Background, Corrections, Colour, Artistic Effects, Transparency | 🟡 | Corrections and effects window: brightness, contrast, colour, see-through, and six effects (black and white, sepia, washout, vintage, blur, negative). Brightness, contrast, black and white and see-through go to Word; colour and the other effects don't. No background removal yet. |
 | Compress | 🟡 | Pictures are sized down for Word and e-books, not on request. |
 | Change Picture, Reset | ✅ | In the picture's menu: another picture keeps the size and look; Reset goes back to how it was put in (keeping the alt text). |
-| Picture Styles, Border, Effects | ❌ | |
+| Picture Styles, Border, Effects | ✅ | Simple frame, white frame, shadow, rounded corners, soft edges and snapshot; a coloured border. Word gets the nearest it has (a line, a shadow, rounded corners). |
 | Alt Text | ✅ | Its own, apart from the caption (the caption serves when there's none); to and from Word and in e-books. |
 | Wrap, position, rotate | ❌ | Only shapes have these. |
 
@@ -464,11 +464,11 @@ Where: `packages/editor/src/editor.ts` (input), `commands.ts`, `view.ts`;
 Where: `view.ts` (`buildMedia`), `model.ts` (image blocks), `markdown.ts`, `app/src/data/docx.ts`; follow `shape.ts` for wrap, drag and turning.
 - [x] Resize by dragging a corner
 - [x] Wrap text round them, move anywhere, rotate (as shapes do)
-- [ ] Crop, to a shape and to a ratio
+- [x] Crop, to a shape and to a ratio
 - [x] Alt text of its own, apart from the caption
 - [x] Change picture, reset picture
-- [ ] Picture styles: frames, shadows, rounded corners, borders
-- [ ] Corrections: brightness, contrast, colour, transparency, artistic effects
+- [x] Picture styles: frames, shadows, rounded corners, borders
+- [x] Corrections: brightness, contrast, colour, transparency, artistic effects
 - [ ] Remove background
 - [ ] Compress on request
 

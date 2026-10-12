@@ -37,3 +37,16 @@ describe('pictures', () => {
     expect(after.blocks[0]).toMatchObject({ src: 'b.png', pic: { alt: 'Kept' } });
   });
 });
+
+describe('picture crops, styles and corrections', () => {
+  it('are saved and read back', () => {
+    const img = makeBlock('image', '', [], { src: 'a.png', pic: { w: 2, crop: [0.1, 0, 0.2, 0.05], mask: 'oval', style: 'shadow', border: '#2F6FD1', bright: 20, contrast: -10, sat: 30, fade: 25, effect: 'sepia' } });
+    const md = toMarkdown({ blocks: [img] });
+    expect(md).toBe('![](a.png) {pic w=2 crop=0.1,0,0.2,0.05 mask=oval style=shadow border=#2f6fd1 bright=20 contrast=-10 sat=30 fade=25 effect=sepia}\n');
+    expect(fromMarkdown(md).blocks[0].pic).toEqual(tidyPic(img.pic));
+  });
+
+  it('always leave something of the picture, and drop unknown choices', () => {
+    expect(tidyPic({ crop: [0.6, 0, 0.6, 0], mask: 'blob' as never, bright: 400, fade: 99 })).toEqual({ crop: [0.6, 0, 0.35, 0], bright: 100, fade: 90 });
+  });
+});

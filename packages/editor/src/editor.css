@@ -62,6 +62,27 @@
 /* The picture's frame: shrinks to the picture, turns with it, and holds its handles. */
 .pic-box { display: table; position: relative; margin: 0 auto; max-width: 100%; }
 .blk-image[data-align='left'] .pic-box { margin-left: 0; }
+/* The window a picture shows through: cropped, its sides cut off (the picture's own height for its width is --ar, set once it's loaded). */
+.pic-crop { display: block; position: relative; max-width: 100%; }
+.pic-crop.cropped { overflow: hidden; --k: calc(1 - var(--cl) - var(--cr)); }
+.blk-image .pic-crop.cropped img { width: calc(100% / var(--k)); max-width: none; max-height: none; height: auto; margin: calc(-100% * var(--ct) * var(--ar, 0.66) / var(--k)) 0 calc(-100% * var(--cb) * var(--ar, 0.66) / var(--k)) calc(-100% * var(--cl) / var(--k)); border-radius: 0; }
+.pic-crop[style*='--pborder']::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--pborder); pointer-events: none; }
+.pic-crop[style*='clip-path'] img, .pic-box[data-style] img { border-radius: 0; }
+/* Cropping: the edges to drag. */
+.pic-crop-h { display: none; position: absolute; z-index: 2; background: #111; border: 1px solid #fff; }
+.blk-image.cropping .pic-crop-h { display: block; }
+.blk-image.cropping .pic-crop { outline: 1px dashed var(--accent, #4a7); outline-offset: 2px; }
+.pic-crop-h.t, .pic-crop-h.b { left: 50%; width: 24px; height: 6px; margin-left: -12px; cursor: ns-resize; }
+.pic-crop-h.l, .pic-crop-h.r { top: 50%; width: 6px; height: 24px; margin-top: -12px; cursor: ew-resize; }
+.pic-crop-h.t { top: 0; } .pic-crop-h.b { bottom: 0; } .pic-crop-h.l { left: 0; } .pic-crop-h.r { right: 0; }
+/* Picture styles. */
+.pic-box[data-style='frame'] { border: 4px solid #2b2b2b; }
+.pic-box[data-style='white'] { padding: 10px; background: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); }
+.pic-box[data-style='shadow'] { filter: drop-shadow(0 6px 9px rgba(0, 0, 0, 0.35)); }
+.pic-box[data-style='rounded'] .pic-crop { overflow: hidden; border-radius: 16px; }
+.pic-box[data-style='rounded'] { border-radius: 16px; filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.22)); }
+.pic-box[data-style='soft'] .pic-crop { -webkit-mask-image: radial-gradient(ellipse at center, #000 55%, transparent 72%); mask-image: radial-gradient(ellipse at center, #000 55%, transparent 72%); }
+.pic-box[data-style='polaroid'] { padding: 10px 10px 34px; background: #fff; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28); }
 .blk-image[data-align='right'] .pic-box { margin-right: 0; }
 .pic-grip { position: absolute; z-index: 2; right: -5px; bottom: -5px; width: 10px; height: 10px; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); cursor: nwse-resize; opacity: 0; }
 .pic-rot { position: absolute; z-index: 2; left: 50%; top: -22px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); cursor: grab; opacity: 0; }

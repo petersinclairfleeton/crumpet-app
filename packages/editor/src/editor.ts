@@ -468,6 +468,8 @@ export class Editor {
     };
     if (record) this.history.record(t, doc);
     this.draw(doc);
+    // A picture being cropped keeps its edges showing when it's drawn again.
+    if (this.cropping) this.view.blockElement(this.cropping)?.classList.add('cropping');
     if (!keepDomSelection) this.view.writeSelection(this.state.selection);
     this.emit({ ops: t.ops, source });
   }
@@ -745,6 +747,7 @@ export class Editor {
     const action = el.dataset.picAction!;
     const tools = el.closest<HTMLElement>('.pic-tools');
     if (action === 'resize') return this.resizePicture(el, e.clientX);
+    if (action === 'crop-edge') return this.cropEdge(el, e.clientX, e.clientY);
     if (action === 'rotate') return this.rotatePicture(el);
     if (action === 'move') return this.movePicture(el, e.clientX, e.clientY);
     if (action === 'menu') {
@@ -758,7 +761,23 @@ export class Editor {
     else if (action === 'rot') this.setPicture(id, { rot: value === '0' ? 0 : (p.rot ?? 0) + Number(value) });
     else if (action === 'size') this.setPicture(id, { w: undefined });
     else if (action === 'reset') this.setPicture(id, p.alt ? { alt: p.alt } : {}, true);
-    else if (action === 'alt' || action === 'change') this.onPictureAction?.(id, action);
+    else if (action === 'alt' || action === 'change' || action === 'format') this.onPictureAction?.(id, action);
+    else if (action === 'crop') {
+      // Crop mode: the edges to drag, until Crop is clicked again (or anything else).
+      const on = !el.closest('.blk-image')!.classList.contains('cropping');
+      this.endCropping();
+      if (on) {
+        this.cropping = id;
+        // A width to crop within (cropping keeps the picture's scale).
+        if (!p.w) this.setPicture(id, { w: this.pictureWidth(el) });
+        this.view.blockElement(id)?.classList.add('cropping');
+      }
+    } else if (action === 'ratio') this.cropToRatio(id, el, Number(value));
+    else if (action === 'uncrop') {
+      const k = p.crop ? 1 - p.crop[1] - p.crop[3] : 1;
+      this.setPicture(id, { crop: undefined, ...(p.w ? { w: Math.round((p.w / k) * 100) / 100 } : {}) });
+    } else if (action === 'mask') this.setPicture(id, { mask: (value || undefined) as PicLook['mask'] });
+    else if (action === 'style') this.setPicture(id, { style: (value || undefined) as PicLook['style'] });
     else if (action === 'delete') {
       const ops: Op[] = [];
       if (blk.runs.length) ops.push({ type: 'remove', block: id, offset: 0, runs: blk.runs });
@@ -768,8 +787,78 @@ export class Editor {
     }
   }
 
-  /** The app's part of a picture's menu: alt text (a box to type it in) and Change picture (a file to choose). */
-  onPictureAction: ((id: string, action: 'alt' | 'change') => void) | null = null;
+  /** The app's part of a picture's menu: alt text (a box to type it in), Change picture (a file to choose), corrections and effects (a window). */
+  onPictureAction: ((id: string, action: 'alt' | 'change' | 'format') => void) | null = null;
+
+  /** The picture being cropped (its edges showing), if any. */
+  private cropping: string | null = null;
+
+  private endCropping(): void {
+    if (!this.cropping) return;
+    this.view.blockElement(this.cropping)?.classList.remove('cropping');
+    this.cropping = null;
+  }
+
+  /** The picture's own height for its width (from the file), or 2/3 until it's known. */
+  private pictureRatio(el: HTMLElement): number {
+    const img = el.closest<HTMLElement>('[data-block]')?.querySelector<HTMLImageElement>('.pic-box img');
+    return img?.naturalWidth ? img.naturalHeight / img.naturalWidth : 2 / 3;
+  }
+
+  /** Drags one edge of a picture being cropped: the picture stays the same scale, its window grows or shrinks. */
+  private cropEdge(handle: HTMLElement, startX: number, startY: number): void {
+    const el = handle.closest<HTMLElement>('[data-block]')!;
+    const id = el.dataset.block!;
+    const p = this.state.doc.blocks.find((b) => b.id === id)?.pic ?? {};
+    const win = el.querySelector<HTMLElement>('.pic-crop');
+    if (!win) return;
+    const side = handle.dataset.value as 't' | 'r' | 'b' | 'l';
+    const scale = zoomOf(win);
+    const [t0, r0, b0, l0] = p.crop ?? [0, 0, 0, 0];
+    const w0 = p.w ?? win.getBoundingClientRect().width / scale / 96;
+    // The whole picture's width and height at this scale, in inches.
+    const full = w0 / (1 - l0 - r0);
+    const tall = full * this.pictureRatio(el);
+    let next = { crop: [t0, r0, b0, l0] as [number, number, number, number], w: w0 };
+    const move = (ev: PointerEvent) => {
+      const dx = (ev.clientX - startX) / scale / 96;
+      const dy = (ev.clientY - startY) / scale / 96;
+      const c: [number, number, number, number] = [t0, r0, b0, l0];
+      const clamp = (v: number, other: number) => Math.max(0, Math.min(0.95 - other, v));
+      if (side === 'l') c[3] = clamp(l0 + dx / full, r0);
+      if (side === 'r') c[1] = clamp(r0 - dx / full, l0);
+      if (side === 't') c[0] = clamp(t0 + dy / tall, b0);
+      if (side === 'b') c[2] = clamp(b0 - dy / tall, t0);
+      next = { crop: c, w: full * (1 - c[1] - c[3]) };
+      win.classList.add('cropped');
+      (['--ct', '--cr', '--cb', '--cl'] as const).forEach((v, i) => win.style.setProperty(v, String(c[i])));
+      win.style.width = `${next.w}in`;
+      el.style.setProperty('--pw', `${next.w}in`);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      const round = (v: number) => Math.round(v * 1000) / 1000;
+      this.setPicture(id, { crop: next.crop.map(round) as [number, number, number, number], w: Math.round(next.w * 100) / 100 });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Crops a picture to an aspect ratio (width over height), from its middle, at the same scale. */
+  private cropToRatio(id: string, el: HTMLElement, ratio: number): void {
+    const p = this.state.doc.blocks.find((b) => b.id === id)?.pic ?? {};
+    const ar = this.pictureRatio(el);
+    const [, r0, , l0] = p.crop ?? [0, 0, 0, 0];
+    const full = (p.w ?? this.pictureWidth(el)) / (1 - l0 - r0);
+    // As much of the picture as fits the ratio: the sides cut off if it's wider, the top and bottom if it's taller.
+    const keepW = Math.min(1, ar * ratio);
+    const side = (1 - keepW) / 2;
+    const keepH = Math.min(1, 1 / (ar * ratio));
+    const top = (1 - keepH) / 2;
+    const round = (v: number) => Math.round(v * 1000) / 1000;
+    this.setPicture(id, { crop: [round(top), round(side), round(top), round(side)], w: Math.round(full * keepW * 100) / 100 });
+  }
 
   /** Changes a picture's look (size, wrapping, turn, alt text); `replace` sets it whole; `src` puts another picture in its place. */
   setPicture(id: string, patch: Partial<PicLook>, replace = false, src?: string): void {
@@ -1830,6 +1919,7 @@ export class Editor {
       src?.focus();
       return;
     }
+    if (this.cropping && (e.target as Element).closest?.('[data-block]') !== this.view.blockElement(this.cropping)) this.endCropping();
     const picAction = (e.target as Element).closest?.<HTMLElement>('[data-pic-action]');
     if (picAction && !this.isReadOnly) {
       e.preventDefault();
