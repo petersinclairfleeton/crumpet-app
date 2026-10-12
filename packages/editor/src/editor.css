@@ -168,6 +168,11 @@ span.tb[data-leader='line'] { background-image: linear-gradient(currentColor, cu
 @media print { .lk[data-hidden] { display: none !important; } }
 /* A field (a date that updates…): what it says now, on a light grey like Word's field shading. */
 span.fld::after { content: attr(data-v); background: var(--field-shade, rgba(127, 127, 127, 0.14)); border-radius: 2px; padding: 0 1px; }
+/* Bookmarks and index entries show nothing, except with Show/hide ¶ on. */
+span.fld[data-v='']::after { padding: 0; background: none; }
+.show-marks span.fld[data-field^='bm:']::after { content: '⌶'; color: var(--accent, #4a7); font-weight: 700; }
+.show-marks span.fld[data-field^='xe:']::after { content: '{XE ' attr(data-field) '}'; color: var(--muted, #888); font-size: 0.75em; }
+span.fld[data-target] { cursor: pointer; }
 /* Comments: the text they're on is highlighted. */
 mark.cmt { background: color-mix(in srgb, #f5c542 30%, transparent); color: inherit; border-bottom: 2px solid color-mix(in srgb, #e0a800 70%, transparent); border-radius: 2px; cursor: pointer; }
 mark.cmt.active { background: color-mix(in srgb, #f5c542 55%, transparent); }
@@ -370,3 +375,14 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
 .table-wrap tr.repeat-head :is(th, td) .cell-repeat { padding: var(--cell-pad, 6px 10px); color: inherit; }
 .table-menu .table-borders, .table-menu .table-lines { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; }
 .table-wrap.painting .cell { cursor: crosshair; }
+
+/* A table of contents' options button, and its looks: no dotted leaders, no page numbers; an index; a bibliography. */
+.toc-title { display: flex; align-items: center; gap: 6px; }
+.toc-options { margin-left: auto; font: inherit; font-size: 13px; line-height: 1; padding: 2px 6px; border: 1px solid transparent; border-radius: 5px; background: none; color: var(--muted, #888); cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.blk-toc:hover .toc-options, .toc-options:focus { opacity: 1; border-color: var(--line2, #ddd); }
+@media print { .toc-options { display: none; } }
+.toc-box.no-dots .toc-dots { border-bottom-color: transparent; }
+.toc-box.no-pages .toc-page, .toc-box.no-pages .toc-dots { display: none; }
+.toc-box.toc-index .toc-entry.toc-1, .toc-box.toc-figures .toc-entry { font-weight: 400; }
+.toc-box.toc-index .toc-entry.toc-2 { padding-left: 1.5em; }
+.toc-box.toc-sources .toc-entry { display: block; padding-left: 2em; text-indent: -2em; font-weight: 400; margin-bottom: 0.4em; }

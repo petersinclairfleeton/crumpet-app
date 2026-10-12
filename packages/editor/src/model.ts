@@ -241,6 +241,34 @@ export function styleAllowed(type: BlockType, style: string): boolean {
   return !!BLOCK_STYLES[type]?.includes(style) || (CUSTOM_TYPES.includes(type) && CUSTOM_STYLE.test(style));
 }
 
+/**
+ * A table of contents' settings, Word's Table of Contents dialog: the levels
+ * of headings listed, its title, page numbers and dotted leaders. With
+ * `kind` it's another list made from the text: a table of figures (captions
+ * labelled `label`), an index (of index entries) or a bibliography (of the
+ * sources cited).
+ */
+export interface TocLook {
+  levels?: number;
+  kind?: 'figures' | 'index' | 'sources';
+  label?: string;
+  title?: string;
+  noPages?: boolean;
+  noDots?: boolean;
+}
+
+export function tidyToc(t: Partial<TocLook> | undefined): TocLook | undefined {
+  if (!t || typeof t !== 'object') return undefined;
+  const out: TocLook = {};
+  if (typeof t.levels === 'number' && Number.isFinite(t.levels) && t.levels !== 3) out.levels = Math.max(1, Math.min(4, Math.round(t.levels)));
+  if (t.kind === 'figures' || t.kind === 'index' || t.kind === 'sources') out.kind = t.kind;
+  if (out.kind === 'figures') out.label = typeof t.label === 'string' && /^[A-Za-z][\w ]{0,30}$/.test(t.label) ? t.label : 'Figure';
+  if (typeof t.title === 'string' && t.title.trim()) out.title = t.title.replace(/["{}\n]/g, '').trim().slice(0, 60);
+  if (t.noPages) out.noPages = true;
+  if (t.noDots) out.noDots = true;
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Block types that are list items: they can be indented, and Enter continues them. */
 export const LIST_TYPES: readonly BlockType[] = ['todo', 'bullet', 'numbered'];
 export const MAX_INDENT = 6;
@@ -307,6 +335,8 @@ export interface BlockAttrs {
   shape?: ShapeLook;
   /** Maths or a diagram. */
   code?: CodeLook;
+  /** A table of contents' settings (or a table of figures, an index, a bibliography). */
+  tocl?: TocLook;
   /** Track changes: the paragraph break before this block was added, or deleted (still there until accepted). */
   brk?: Change;
   /** Pictures only: size, wrapping, position, turn and alt text (see picture.ts). */
@@ -357,6 +387,8 @@ export interface ParaLook {
   shade?: string;
   /** Word's Drop Cap: the first letter is this many lines tall (2 to 10), dropped into the text. */
   drop?: number;
+  /** Word's Add Text: in the table of contents at this level (1 to 4), or 0 for a heading kept out of it. */
+  outline?: number;
   /** Tab stops, in order: where a tab in the paragraph takes the text after it (past them, every half inch). */
   tabs?: TabStop[];
   /**
@@ -426,7 +458,7 @@ export function tabsFromText(text: string): TabStop[] | undefined {
   }
   return tidyTabs(out);
 }
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -451,6 +483,7 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
   }
   if (out.start !== undefined) out.start = Math.max(0, Math.round(out.start));
   if (out.drop !== undefined) out.drop = Math.max(2, Math.min(10, Math.round(out.drop)));
+  if (out.outline !== undefined) out.outline = Math.max(0, Math.min(4, Math.round(out.outline)));
   if (p.num && (NUM_FORMATS as readonly string[]).includes(p.num)) out.num = p.num;
   if (p.bullet && p.bullet in BULLETS) out.bullet = p.bullet;
   const border = tidyBorder(p.border);
@@ -752,6 +785,8 @@ export function normalizeLink(input: string): string | null {
   const t = input.trim();
   if (!t || /\s/.test(t)) return null;
   if (/^mailto:[^@\s]+@[^@\s]+$/i.test(t)) return t;
+  // A bookmark in the same document.
+  if (/^#bm:[A-Za-z_][\w-]{0,39}$/.test(t)) return t;
   const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(t) ? t : /^(www\.|[a-z0-9-]+(\.[a-z0-9-]+)+)(\/|$|:)/i.test(t) ? `https://${t}` : null;
   if (!withScheme) return null;
   try {
@@ -800,6 +835,7 @@ export function makeBlock(type: BlockType, text = '', marks: Mark[] = [], extra:
   if ((type !== 'image' && type !== 'file') || !block.src) delete block.src;
   if (type !== 'table' || !block.rows) delete block.rows;
   if (type !== 'table' || !block.tbl) delete block.tbl;
+  if (type !== 'toc' || !block.tocl) delete block.tocl;
   if (type !== 'shape' || !block.shape) delete block.shape;
   if (type !== 'code' || !block.code) delete block.code;
   if (!foldable(block) || !block.folded) delete block.folded;
@@ -814,7 +850,7 @@ export function docsEqual(a: Doc, b: Doc): boolean {
   return a.blocks.every((x, i) => {
     const y = b.blocks[i];
     if (x === y) return true;
-    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || (x.src ?? '') !== (y.src ?? '') || !!x.folded !== !!y.folded || !sameChange(x.brk, y.brk) || JSON.stringify(x.rows ?? null) !== JSON.stringify(y.rows ?? null) || JSON.stringify(x.tbl ?? null) !== JSON.stringify(y.tbl ?? null) || JSON.stringify(x.shape ?? null) !== JSON.stringify(y.shape ?? null) || JSON.stringify(x.code ?? null) !== JSON.stringify(y.code ?? null) || x.runs.length !== y.runs.length) return false;
+    if (x.id !== y.id || x.type !== y.type || !!x.checked !== !!y.checked || (x.indent ?? 0) !== (y.indent ?? 0) || (x.style ?? '') !== (y.style ?? '') || (x.align ?? 'left') !== (y.align ?? 'left') || (x.src ?? '') !== (y.src ?? '') || !!x.folded !== !!y.folded || !sameChange(x.brk, y.brk) || JSON.stringify(x.rows ?? null) !== JSON.stringify(y.rows ?? null) || JSON.stringify(x.tbl ?? null) !== JSON.stringify(y.tbl ?? null) || JSON.stringify(x.shape ?? null) !== JSON.stringify(y.shape ?? null) || JSON.stringify(x.code ?? null) !== JSON.stringify(y.code ?? null) || JSON.stringify(x.tocl ?? null) !== JSON.stringify(y.tocl ?? null) || x.runs.length !== y.runs.length) return false;
     return x.runs.every((r, j) => r.text === y.runs[j].text && sameFormat(r, y.runs[j]));
   });
 }

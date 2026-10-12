@@ -87,6 +87,13 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
   useOfferHelped(helped, paneRef);
 
   useTracking(readOnly || reading ? null : ed);
+  // Fields the app fills in: the title, author and dates.
+  const author = state.settings.name;
+  useEffect(() => {
+    if (!ed) return;
+    const day = (t?: number) => (t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : '');
+    ed.setFieldValues((name) => (name === 'title' ? (pageFields?.title ?? '') : name === 'author' ? author || '' : name === 'created' ? day(pageFields?.created) : name === 'saved' ? day(pageFields?.updated) : null));
+  }, [ed, pageFields?.title, pageFields?.created, pageFields?.updated, author]);
   useFontKeys(readOnly || reading ? null : ed, sheet);
   useDocFontsLoaded(ed);
   useParaKeys(readOnly || reading ? null : ed);

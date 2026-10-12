@@ -83,7 +83,15 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     borders, shading). A `toc` block is a table of contents. A paragraph
     styled `toggle` folds the lines after it (up to a blank line or heading)
     like a heading folds its section (`foldedUnder`); quotes styled `note`,
-    `tip`, `warning` or `important` are callouts. A `code` block is maths (LaTeX)
+    `tip`, `warning` or `important` are callouts. Fields (`fields.ts`): dates, document fields (`page`,
+    `words`, `title`…; title and author from the app through
+    `editor.setFieldValues`), and `seq:Figure` (captions' numbers),
+    `bm:Name` (bookmarks), `ref:Name[:text|page|dir]` (cross-references),
+    `xe:Term` (index entries), `cite:key`; the view works them out over the
+    whole document (`fillFields`). A `toc` block's `tocl` makes it a table
+    of figures, an index or a bibliography (`lists.ts`); `para.outline` is
+    Word's Add Text; `app/src/ui/references.tsx` is the References button
+    and its windows. A `code` block is maths (LaTeX)
     or a diagram (Mermaid): its source in a text area, drawn by the app's
     renderer (`setCodeRenderer`, `app/src/ui/coderender.ts`, KaTeX and
     Mermaid loaded when first needed); saved as ```` ```math ```` /

@@ -2,9 +2,11 @@
 // between DOM positions and model positions. Only blocks whose model object
 // changed are rebuilt; the rest of the DOM is left alone.
 
-import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection, TabStop } from './model';
+import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection, TabStop, TocLook } from './model';
 import { DEFAULT_TAB } from './model';
-import { FIELDS, fieldValue } from './fields';
+import { fieldKind, fieldLabel, fieldValue } from './fields';
+import { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
+export { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
 import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
 import { type ShapeLook, tidyShape } from './shape';
 import { MASK_CLIPS, PIC_MASKS, PIC_STYLES, type PicLook, type PicMask, type PicStyle, picFilter } from './picture';
@@ -67,6 +69,8 @@ export class View {
 
   /** Entries for a table of contents other than this document's headings (a book's, set by the app). */
   tocOverride: TocEntry[] | null = null;
+  /** A bibliography's lines: the sources cited, in the citation style (set by the app). */
+  sourcesList: (() => string[]) | null = null;
   /** Footnotes before this document's first (a book's earlier chapters), so its numbers run on. */
   footnoteStart = 0;
   /** Show/hide ¶: spaces, tabs and paragraph ends are shown (set with `setShowMarks`, which redraws). */
@@ -88,6 +92,7 @@ export class View {
    * moved; only for edits that keep the same blocks in the same order.
    */
   render(doc: Doc, force: Set<string> = new Set(), inPlace = false): void {
+    this.doc = doc;
     const live = new Set<string>();
     const built = new Set<string>();
     for (const block of doc.blocks) {
@@ -187,8 +192,12 @@ export class View {
     }
     // A table of contents lists the headings as they are now.
     if (doc.blocks.some((b) => b.type === 'toc')) {
-      const entries = this.tocOverride ?? tocEntries(doc);
-      for (const block of doc.blocks) if (block.type === 'toc') fillToc(this.rendered.get(block.id)!.el, entries);
+      for (const block of doc.blocks) {
+        if (block.type !== 'toc') continue;
+        const t = block.tocl;
+        const entries = t?.kind === 'figures' ? figureEntries(doc, t.label ?? 'Figure') : t?.kind === 'index' ? indexEntries(doc) : t?.kind === 'sources' ? (this.sourcesList?.() ?? []).map((text) => ({ level: 1, text, plain: true })) : (this.tocOverride ?? tocEntries(doc, t?.levels ?? 3)).filter((e) => e.level <= (t?.levels ?? 3));
+        fillToc(this.rendered.get(block.id)!.el, entries, t);
+      }
     }
     this.numberFootnotes();
     this.fillFields();
@@ -210,18 +219,99 @@ export class View {
     }
   }
 
-  /** What a field says, for fields the app knows (page numbers, words…); null for Crumpet's own (dates and times). */
+  /** What a field says, for fields the app knows (title, author, citations…); null for those worked out here. */
   fieldValue: ((name: string) => string | null) | null = null;
+  /** Page view: the page (from 0) a block is on, how many pages there are, and pages before the first (a chapter in a book). */
+  pageOfBlock: ((id: string) => number | undefined) | null = null;
+  pageCount = 1;
+  pageOffset = 0;
+  /** The document as last drawn. */
+  private doc: Doc | null = null;
 
-  /** Shows what each field says now. */
+  /**
+   * Shows what each field says now: dates, page numbers and counts; each
+   * caption's number (counting up through the text, label by label); and
+   * cross-references, from the bookmark each points to.
+   */
   fillFields(): void {
+    const doc = this.doc;
     const now = new Date();
-    this.root.querySelectorAll<HTMLElement>('span.fld').forEach((el) => {
+    const spans = Array.from(this.root.querySelectorAll<HTMLElement>('span.fld'));
+    if (!spans.length) return;
+    const counters = new Map<string, number>();
+    const numbers = new Map<HTMLElement, string>();
+    /** Each block's caption number ("Figure 2") and its seq numbers in order. */
+    const captionOf = new Map<string, string>();
+    const seqsOf = new Map<string, string[]>();
+    const bookmarks = new Map<string, string>();
+    for (const el of spans) {
       const name = el.dataset.field ?? '';
-      const v = this.fieldValue?.(name) ?? fieldValue(name, now);
+      const block = el.closest<HTMLElement>('[data-block]')?.dataset.block;
+      if (name.startsWith('seq:')) {
+        const label = name.slice(4);
+        const n = (counters.get(label) ?? 0) + 1;
+        counters.set(label, n);
+        numbers.set(el, String(n));
+        if (block) {
+          if (!captionOf.has(block)) captionOf.set(block, `${label} ${n}`);
+          seqsOf.set(block, [...(seqsOf.get(block) ?? []), String(n)]);
+        }
+      } else if (name.startsWith('bm:') && block && !bookmarks.has(name.slice(3))) bookmarks.set(name.slice(3), block);
+    }
+    const blockOf = (id: string) => doc?.blocks.find((b) => b.id === id);
+    /** A paragraph's text, its captions' numbers in place. */
+    const textOf = (id: string): string => {
+      const b = blockOf(id);
+      if (!b) return '';
+      const seqs = [...(seqsOf.get(id) ?? [])];
+      return b.runs
+        .filter((r) => r.change?.kind !== 'del' && r.footnote === undefined)
+        .map((r) => (r.field?.startsWith('seq:') ? (seqs.shift() ?? '') : r.field !== undefined ? '' : r.text))
+        .join('')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+    let words: number | null = null;
+    let chars: number | null = null;
+    const count = () => {
+      const text = (doc?.blocks ?? []).map((b) => b.runs.filter((r) => r.change?.kind !== 'del' && r.field === undefined && r.footnote === undefined).map((r) => r.text).join('')).join('\n');
+      words = (text.match(/[\p{L}\p{N}][\p{L}\p{N}'’-]*/gu) ?? []).length;
+      chars = text.replace(/\s/g, '').length;
+    };
+    const order = (id: string | undefined) => (id && doc ? doc.blocks.findIndex((b) => b.id === id) : -1);
+    for (const el of spans) {
+      const name = el.dataset.field ?? '';
+      const kind = fieldKind(name);
+      let v = '';
+      if (kind === 'date') v = fieldValue(name, now);
+      else if (kind === 'seq') v = numbers.get(el) ?? '';
+      else if (kind === 'doc') {
+        if (name === 'page') {
+          const pg = el.closest<HTMLElement>('.pg');
+          v = String((pg ? Number(pg.dataset.page) : 0) + 1 + this.pageOffset);
+        } else if (name === 'pages') v = String(this.pageCount + this.pageOffset);
+        else if (name === 'words' || name === 'chars') {
+          if (words === null) count();
+          v = String(name === 'words' ? words : chars);
+        } else v = this.fieldValue?.(name) ?? '';
+      } else if (kind === 'ref') {
+        const [, target, how = 'num'] = name.split(':');
+        const block = bookmarks.get(target);
+        if (!block) v = `(no bookmark “${target}”)`;
+        else if (how === 'text') v = textOf(block);
+        else if (how === 'page') {
+          const n = this.pageOfBlock?.(block);
+          v = n === undefined ? '#' : String(n + 1 + this.pageOffset);
+        } else if (how === 'dir') v = order(block) < order(el.closest<HTMLElement>('[data-block]')?.dataset.block) ? 'above' : 'below';
+        else {
+          const b = blockOf(block);
+          v = captionOf.get(block) ?? (b && /^heading/.test(b.type) ? textOf(block) : textOf(block).slice(0, 60) || target);
+        }
+        el.dataset.target = target;
+      } else if (kind === 'cite') v = this.fieldValue?.(name) ?? `(${name.slice(5)})`;
       if (el.dataset.v !== v) el.dataset.v = v;
-      el.title = FIELDS[name] ? `${FIELDS[name].replace(/ \(.*\)$/, '')}: updates by itself` : 'Field';
-    });
+      el.title = fieldLabel(name);
+    }
   }
 
   /** Footnotes are numbered in order through the whole note (or book). */
@@ -547,7 +637,10 @@ function buildBlock(block: Block, marks = false, noSpell: RegExp | null = null):
     box.className = 'toc-box';
     box.contentEditable = 'false';
     box.dataset.widget = 'toc';
-    el.setAttribute('aria-label', 'Table of contents');
+    const kind = block.tocl?.kind;
+    el.setAttribute('aria-label', kind === 'figures' ? 'Table of figures' : kind === 'index' ? 'Index' : kind === 'sources' ? 'Bibliography' : 'Table of contents');
+    if (block.tocl?.noDots) box.classList.add('no-dots');
+    if (block.tocl?.noPages) box.classList.add('no-pages');
     el.appendChild(box);
   }
   if (isHeading(block.type) || isToggle(block)) {
@@ -836,57 +929,69 @@ function pictureMenu(p: PicLook): HTMLElement {
  * something elsewhere (a chapter of the book, `chapter`), with its page
  * number when it's known from elsewhere.
  */
-export interface TocEntry {
-  id?: string;
-  chapter?: string;
-  level: number;
-  text: string;
-  page?: number;
-}
+const TOC_TITLES: Record<string, string> = { contents: 'Contents', figures: 'Table of figures', index: 'Index', sources: 'Bibliography' };
+const TOC_EMPTY: Record<string, string> = {
+  contents: 'Headings you add (Heading 1 to 3) are listed here.',
+  figures: 'Captions you add (Figure 1, Table 1…) are listed here.',
+  index: 'Words you mark as index entries are listed here, A to Z.',
+  sources: 'Sources you cite are listed here.',
+};
 
-/** The headings a table of contents lists (Heading 1 to 3, as Word's own does). */
-export function tocEntries(doc: Doc): TocEntry[] {
-  return doc.blocks
-    .filter((b) => (b.type === 'heading1' || b.type === 'heading2' || b.type === 'heading3') && b.runs.some((r) => r.text.trim() && r.change?.kind !== 'del'))
-    .map((b) => ({ id: b.id, level: Number(b.type.slice(-1)), text: b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote).map((r) => r.text).join('').trim() }));
-}
-
-function fillToc(el: HTMLElement, entries: TocEntry[]): void {
+function fillToc(el: HTMLElement, entries: TocEntry[], look?: TocLook): void {
   const box = el.querySelector<HTMLElement>('.toc-box');
   if (!box) return;
-  const key = JSON.stringify(entries);
+  const kind = look?.kind ?? 'contents';
+  const key = JSON.stringify([entries, look ?? null]);
   if (box.dataset.key === key) return;
   box.dataset.key = key;
   box.textContent = '';
   const head = document.createElement('div');
   head.className = 'toc-title';
-  head.textContent = 'Contents';
+  head.textContent = look?.title ?? TOC_TITLES[kind];
+  const opts = document.createElement('button');
+  opts.type = 'button';
+  opts.className = 'toc-options';
+  opts.dataset.tocOptions = '';
+  opts.tabIndex = -1;
+  opts.textContent = '⚙';
+  opts.title = `${TOC_TITLES[kind]} options`;
+  opts.setAttribute('aria-label', `${TOC_TITLES[kind]} options`);
+  head.appendChild(opts);
   box.appendChild(head);
   if (!entries.length) {
     const none = document.createElement('div');
     none.className = 'toc-none';
-    none.textContent = 'Headings you add (Heading 1 to 3) are listed here.';
+    none.textContent = TOC_EMPTY[kind];
     box.appendChild(none);
   }
+  box.classList.toggle('toc-index', kind === 'index');
+  box.classList.toggle('toc-figures', kind === 'figures');
+  box.classList.toggle('toc-sources', kind === 'sources');
   for (const e of entries) {
-    const row = document.createElement('a');
+    const row = document.createElement(e.plain ? 'div' : 'a');
     row.className = `toc-entry toc-${e.level}`;
-    row.href = `#${e.id ?? e.chapter ?? ''}`;
-    if (e.id) row.dataset.tocTarget = e.id;
-    if (e.chapter) row.dataset.tocChapter = e.chapter;
+    if (!e.plain) {
+      (row as HTMLAnchorElement).href = `#${e.id ?? e.chapter ?? ''}`;
+      if (e.id) row.dataset.tocTarget = e.id;
+      if (e.targets && e.targets.length > 1) row.dataset.tocTargets = e.targets.join(' ');
+      if (e.chapter) row.dataset.tocChapter = e.chapter;
+    }
     const text = document.createElement('span');
     text.className = 'toc-text';
     text.textContent = e.text;
-    const dots = document.createElement('span');
-    dots.className = 'toc-dots';
-    const page = document.createElement('span');
-    page.className = 'toc-page';
-    // A page number from elsewhere stays; one for a heading here is filled in by page view.
-    if (e.page !== undefined) {
-      page.textContent = String(e.page);
-      page.dataset.fixed = '';
+    row.appendChild(text);
+    if (!e.plain) {
+      const dots = document.createElement('span');
+      dots.className = 'toc-dots';
+      const page = document.createElement('span');
+      page.className = 'toc-page';
+      // A page number from elsewhere stays; one for a heading here is filled in by page view.
+      if (e.page !== undefined) {
+        page.textContent = String(e.page);
+        page.dataset.fixed = '';
+      }
+      row.append(dots, page);
     }
-    row.append(text, dots, page);
     box.appendChild(row);
   }
 }

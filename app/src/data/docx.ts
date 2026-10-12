@@ -8,7 +8,8 @@ import { type CellLook, TABLE_STYLES, type TableLook, type TableStyleKey, mergeA
 import { evaluateCell, formatValue, isFormula } from '@crumpet/editor/formula';
 import { cellPlain, cellRuns, cellText } from '@crumpet/editor/cells';
 import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
-import { WORD_PICTURES, fieldFromWord, fieldValue } from '@crumpet/editor/fields';
+import { FIELDS, fieldFromWord, fieldValue, wordInstr } from '@crumpet/editor/fields';
+import { figureEntries, indexEntries } from '@crumpet/editor/lists';
 import { type PicLook, tidyPic } from '@crumpet/editor/picture';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
 import { type CustomStyle, type PageSetup, type StyleDef, type StyleKey, paperInches } from './styles';
@@ -40,6 +41,8 @@ export interface DocxOptions {
   media?(src: string): Promise<{ bytes: Uint8Array; type: string } | null>;
   /** Styles of one's own the text uses, written as Word styles of the same names. */
   custom?: CustomStyle[];
+  /** A bibliography's lines (the sources cited, in the citation style). */
+  sources?(): string[];
 }
 
 /** A style of one's own's Word style id. */
@@ -164,6 +167,54 @@ class Writer {
     private contentWidth: number,
   ) {}
 
+  /** Fields' values as written (Word works them out again when the file opens): captions' numbers, and what each bookmark's cross-references show. */
+  private seqCount = new Map<string, number>();
+  private refText = new Map<string, { num: string; text: string }>();
+  private nextBookmark = 1;
+
+  prepareFields(parts: DocxPart[]): void {
+    const count = new Map<string, number>();
+    for (const p of parts)
+      for (const b of p.doc.blocks) {
+        let caption = '';
+        let text = '';
+        const marks: string[] = [];
+        for (const r of b.runs) {
+          if (r.change?.kind === 'del' || r.footnote !== undefined) continue;
+          if (r.field?.startsWith('seq:')) {
+            const label = r.field.slice(4);
+            const n = (count.get(label) ?? 0) + 1;
+            count.set(label, n);
+            caption ||= `${label} ${n}`;
+            text += String(n);
+          } else if (r.field?.startsWith('bm:')) marks.push(r.field.slice(3));
+          else if (r.field === undefined) text += r.text;
+        }
+        text = text.replace(/\s+/g, ' ').trim();
+        for (const m of marks) if (!this.refText.has(m)) this.refText.set(m, { num: caption || text.slice(0, 60), text });
+      }
+  }
+
+  /** What a field shows in the file. */
+  fieldShown(name: string): string {
+    if (name.startsWith('seq:')) {
+      const label = name.slice(4);
+      const n = (this.seqCount.get(label) ?? 0) + 1;
+      this.seqCount.set(label, n);
+      return String(n);
+    }
+    if (name.startsWith('ref:')) {
+      const [, target, how] = name.split(':');
+      const r = this.refText.get(target);
+      return how === 'page' ? '1' : how === 'dir' ? 'above' : how === 'text' ? (r?.text ?? '') : (r?.num ?? '');
+    }
+    if (name === 'page' || name === 'pages') return '1';
+    if (name === 'title') return this.opts.title;
+    if (name === 'author') return this.opts.author ?? '';
+    if (name.startsWith('xe:') || name.startsWith('cite:')) return '';
+    return fieldValue(name);
+  }
+
   countComments(parts: DocxPart[]): void {
     for (const p of parts) for (const b of p.doc.blocks) for (const r of b.runs) if (r.comment) this.commentLeft.set(r.comment.id, (this.commentLeft.get(r.comment.id) ?? 0) + 1);
   }
@@ -258,9 +309,15 @@ class Writer {
     }
     const props = this.props(r.marks, linked, r.look);
     if (r.field !== undefined) {
-      const pic = WORD_PICTURES[r.field];
-      const instr = pic ? ` ${r.field === 'time' ? 'TIME' : 'DATE'} \\@ &quot;${pic}&quot; ` : ' DATE ';
-      return `<w:fldSimple w:instr="${instr}"><w:r>${props}<w:t xml:space="preserve">${esc(fieldValue(r.field))}</w:t></w:r></w:fldSimple>`;
+      // A bookmark: Word's bookmark, at this spot.
+      if (r.field.startsWith('bm:')) {
+        const id = this.nextBookmark++;
+        return `<w:bookmarkStart w:id="${id}" w:name="${esc(r.field.slice(3))}"/><w:bookmarkEnd w:id="${id}"/>`;
+      }
+      const instr = wordInstr(r.field);
+      if (!instr) return '';
+      const shown = this.fieldShown(r.field);
+      return `<w:fldSimple w:instr="${esc(instr)}">${shown ? `<w:r>${props}<w:t xml:space="preserve">${esc(shown)}</w:t></w:r>` : ''}</w:fldSimple>`;
     }
     const body = r.text
       .replaceAll(FOOTNOTE, '')
@@ -381,13 +438,24 @@ class Writer {
   }
 
   /** Word's own Table of Contents field: Word fills in the page numbers when it updates the field (it asks on opening). */
-  toc(): string {
-    const tab = `<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="${Math.round((this.contentWidth / 96) * TWIPS)}"/></w:tabs>`;
-    const field = '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-3" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>';
+  /** The blocks being written now (a table of figures or an index lists what's in them). */
+  private current: Block[] = [];
+
+  toc(b?: Block): string {
+    const t = b?.tocl;
+    const tab = `<w:tabs><w:tab w:val="right" w:leader="${t?.noDots ? 'none' : 'dot'}" w:pos="${Math.round((this.contentWidth / 96) * TWIPS)}"/></w:tabs>`;
+    const kind = t?.kind;
+    const instr = kind === 'figures' ? ` TOC \\h \\z \\c "${t?.label ?? 'Figure'}" ` : kind === 'index' ? ' INDEX \\e "	" \\h "A" ' : kind === 'sources' ? ' BIBLIOGRAPHY ' : ` TOC \\o "1-${t?.levels ?? 3}" \\h \\z \\u${t?.noPages ? ' \\n' : ''} `;
+    const field = `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve">${instr.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>`;
     const end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>';
-    const entries = this.tocEntries.length ? this.tocEntries : [{ level: 1, text: '' }];
-    const lines = entries.map((e, i) => this.paragraph(`TOC${e.level}`, (i === 0 ? field : '') + (e.text ? `<w:r><w:t xml:space="preserve">${esc(e.text)}</w:t></w:r>` : '') + (i === entries.length - 1 ? end : ''), tab)).join('');
-    return `<w:sdt><w:sdtPr><w:docPartObj><w:docPartGallery w:val="Table of Contents"/><w:docPartUnique/></w:docPartObj></w:sdtPr><w:sdtContent>${this.paragraph('TOCHeading', '<w:r><w:t>Contents</w:t></w:r>')}${lines}</w:sdtContent></w:sdt>`;
+    const listed: { level: number; text: string }[] =
+      kind === 'figures' ? figureEntries({ blocks: this.current }, t?.label ?? 'Figure') : kind === 'index' ? indexEntries({ blocks: this.current }) : kind === 'sources' ? (this.opts.sources?.() ?? []).map((text) => ({ level: 1, text })) : this.tocEntries.filter((e) => e.level <= (t?.levels ?? 3));
+    const entries = listed.length ? listed : [{ level: 1, text: '' }];
+    const style = (level: number) => (kind === 'figures' ? 'TableofFigures' : kind === 'index' ? `Index${Math.min(2, level)}` : kind === 'sources' ? 'Bibliography' : `TOC${Math.min(3, level)}`);
+    const lines = entries.map((e, i) => this.paragraph(style(e.level), (i === 0 ? field : '') + (e.text ? `<w:r><w:t xml:space="preserve">${esc(e.text)}</w:t></w:r>` : '') + (i === entries.length - 1 ? end : ''), kind === 'sources' ? '' : tab)).join('');
+    const title = t?.title ?? (kind === 'figures' ? 'Table of figures' : kind === 'index' ? 'Index' : kind === 'sources' ? 'Bibliography' : 'Contents');
+    if (kind) return this.paragraph('TOCHeading', `<w:r><w:t>${esc(title)}</w:t></w:r>`) + lines;
+    return `<w:sdt><w:sdtPr><w:docPartObj><w:docPartGallery w:val="Table of Contents"/><w:docPartUnique/></w:docPartObj></w:sdtPr><w:sdtContent>${this.paragraph('TOCHeading', `<w:r><w:t>${esc(title)}</w:t></w:r>`)}${lines}</w:sdtContent></w:sdt>`;
   }
 
   table(b: Block): string {
@@ -472,6 +540,7 @@ class Writer {
   }
 
   async blocks(blocks: Block[], first: string): Promise<string> {
+    this.current = blocks;
     let out = '';
     let num = 0;
     let bul = 0;
@@ -507,7 +576,8 @@ class Writer {
         if (!bul) bul = newList(true);
         if (b.para?.bullet) this.lists[bul - 1].levels[lvl] = b.para.bullet;
       } else if (!isListType(b.type)) num = bul = 0;
-      const jc = b.align && JC[b.align] ? `<w:jc w:val="${JC[b.align]}"/>` : '';
+      // (Word's Add Text: the paragraph's level in the contents, which comes after the alignment.)
+      const jc = (b.align && JC[b.align] ? `<w:jc w:val="${JC[b.align]}"/>` : '') + (b.para?.outline ? `<w:outlineLvl w:val="${b.para.outline - 1}"/>` : b.para?.outline === 0 ? '<w:outlineLvl w:val="9"/>' : '');
       // Paragraph settings set by hand, each where Word expects it: keep and page break first, then spacing and indents.
       const p = b.para;
       const keep = (p?.keepNext ? '<w:keepNext/>' : '') + (p?.keepLines ? '<w:keepLines/>' : '');
@@ -552,7 +622,7 @@ class Writer {
           continue;
         case 'toc':
           if (lead) out += this.paragraph(null, '', lead);
-          out += this.toc();
+          out += this.toc(b);
           continue;
         case 'shape':
           out += this.shape(b, lead);
@@ -667,6 +737,10 @@ function stylesXml(font: string, size: number): string {
     para('ListParagraph', 'List Paragraph', '<w:spacing w:after="60"/><w:contextualSpacing/>', '') +
     `<w:style w:type="paragraph" w:styleId="TOCHeading"><w:name w:val="TOC Heading"/><w:basedOn w:val="Heading1"/><w:next w:val="Normal"/><w:uiPriority w:val="39"/><w:unhideWhenUsed/><w:qFormat/><w:pPr><w:pageBreakBefore w:val="0"/><w:outlineLvl w:val="9"/></w:pPr></w:style>` +
     [1, 2, 3].map((l) => `<w:style w:type="paragraph" w:styleId="TOC${l}"><w:name w:val="toc ${l}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="39"/><w:unhideWhenUsed/><w:pPr><w:spacing w:after="100"/><w:ind w:left="${(l - 1) * 220}" w:firstLine="0"/></w:pPr></w:style>`).join('') +
+    para('TableofFigures', 'table of figures', '<w:spacing w:after="60"/>', '') +
+    para('Index1', 'index 1', '<w:spacing w:after="0"/><w:ind w:left="220" w:hanging="220"/>', '') +
+    para('Index2', 'index 2', '<w:spacing w:after="0"/><w:ind w:left="440" w:hanging="220"/>', '') +
+    para('Bibliography', 'Bibliography', '<w:spacing w:after="120"/><w:ind w:left="720" w:hanging="720"/>', '') +
     para('TableText', 'Table Text', '<w:spacing w:before="40" w:after="40" w:line="240" w:lineRule="auto"/>', '') +
     para('Header', 'header', '<w:spacing w:after="0"/>', `<w:sz w:val="${Math.round(hp * 0.85)}"/>`) +
     para('Footer', 'footer', '<w:spacing w:after="0"/>', `<w:sz w:val="${Math.round(hp * 0.85)}"/>`) +
@@ -786,6 +860,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const contentIn = size.width - m.left - m.right;
   const w = new Writer(opts, contentIn * 96);
   w.countComments(parts);
+  w.prepareFields(parts);
   w.tocEntries = parts.flatMap((part) => [
     ...(part.heading ? [{ level: 1, text: part.heading }] : []),
     ...part.doc.blocks.filter((b) => b.type === 'heading1' || b.type === 'heading2' || b.type === 'heading3').map((b) => ({ level: Math.min(3, Number(b.type.slice(-1)) + (part.heading !== undefined ? 1 : 0)), text: b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote).map((r) => r.text).join('').trim() })),
@@ -856,7 +931,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     files.push({ name: 'word/commentsExtended.xml', data: utf8(commentsExtendedXml(w.comments)) });
   }
   const docRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${w.rels.map((r) => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"${r.external ? ' TargetMode="External"' : ''}/>`).join('')}</Relationships>`;
-  const hasToc = parts.some((part) => part.doc.blocks.some((b) => b.type === 'toc'));
+  const hasToc = parts.some((part) => part.doc.blocks.some((b) => b.type === 'toc' || b.runs.some((r) => r.field !== undefined && !(r.field in FIELDS))));
   // Tracking everyone's changes, and locked (without a password: Word can't check ours).
   const firstPara = parts[0]?.doc.blocks[0]?.para;
   const protect = firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
@@ -1392,6 +1467,12 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
           trackedChange = { kind: el.localName === 'ins' || el.localName === 'moveTo' ? 'ins' : 'del', author: (attr(el, 'author') ?? '').replace(/\s+/g, ' ').trim(), at: Number.isNaN(date) ? 0 : Math.floor(date / 60000) * 60000 };
           await readRuns(el, out, pics, marks, link);
           trackedChange = outer;
+          break;
+        }
+        case 'bookmarkStart': {
+          // A bookmark (not Word's own hidden ones, except those cross-references point at).
+          const name = attr(el, 'name') ?? '';
+          if (/^[A-Za-z][\w-]{0,39}$/.test(name) || /^_Ref\d+$/.test(name)) out.push({ text: FIELD, marks: [], field: `bm:${name}` });
           break;
         }
         case 'fldSimple': {

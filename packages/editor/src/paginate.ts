@@ -124,6 +124,9 @@ export class Paginator {
   /** How tall footnote `index` is at the foot of a page, in px; without it footnotes take no room. */
   noteHeight: ((index: number) => number) | null = null;
 
+  /** Called after the pages are laid out (fields showing page numbers are filled in again). */
+  onLaidOut: (() => void) | null = null;
+
   constructor(private root: HTMLElement) {}
 
   get active(): boolean {
@@ -454,6 +457,7 @@ export class Paginator {
 
     this.build(pages, blocks, colGap, g);
     this.pages = pages.length;
+    this.onLaidOut?.();
     return this.pages;
   }
 
@@ -512,9 +516,12 @@ export class Paginator {
     }
     // A table of contents shows the page each heading is on.
     for (const entry of root.querySelectorAll<HTMLElement>('[data-toc-target]')) {
-      const n = this.pageOf.get(entry.dataset.tocTarget!);
       const span = entry.querySelector('.toc-page:not([data-fixed])');
-      if (span && n !== undefined) span.textContent = String(this.pageOffset + n + 1);
+      if (!span) continue;
+      // An index entry marked in several places: each page once, in order.
+      const ids = entry.dataset.tocTargets ? entry.dataset.tocTargets.split(' ') : [entry.dataset.tocTarget!];
+      const pages = [...new Set(ids.map((id) => this.pageOf.get(id)).filter((n): n is number => n !== undefined))].sort((a, b) => a - b);
+      if (pages.length) span.textContent = pages.map((n) => String(this.pageOffset + n + 1)).join(', ');
     }
   }
 }
