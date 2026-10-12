@@ -23,6 +23,7 @@
 import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { readShapeLine, shapeLine, tidyShape } from './shape';
 import { isField } from './fields';
+import { picAttrs, readPicAttrs } from './picture';
 import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, type Look, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
 
 // ---------------------------------------------------------------- writing
@@ -80,6 +81,8 @@ function blockLine(b: Block, number: number): string {
   if (b.type === 'image' || b.type === 'file') {
     const caption = runsPlain(b.runs).replace(/([\\\[\]])/g, '\\$1').replace(/\n/g, ' ');
     const line = `${b.type === 'image' ? '!' : ''}[${caption}](${linkTarget(b.src ?? '')})`;
+    // A picture's size, wrapping, turn and alt text: {pic w=3 wrap=left …}, with its alignment.
+    if (b.type === 'image' && b.pic) return `${line} ${picAttrs(b.pic, b.align)}`;
     return b.align ? `${line} {.${b.align}}` : line;
   }
   // A scene break is Markdown's own section break.
@@ -568,14 +571,19 @@ export function fromMarkdown(md: string): Doc {
       blocks.push(makeBlock('table', '', [], { rows: tidy, ...(tbl ? { tbl } : {}) }));
       continue;
     }
-    // A picture, or a link to an attached file, alone on its line.
-    const media = /^ {0,3}(!?)\[((?:\\.|[^\]\\])*)\]\(\s*(<(?:\\.|[^>\\])*>|(?:\\.|[^\s)\\])+)(?:\s+"[^"]*")?\s*\)[ \t]*$/.exec(line);
-    if (media && !para.length && (media[1] || isAttachment(media[3]))) {
+    // A picture, or a link to an attached file, alone on its line (a picture perhaps with its {pic …} look).
+    const picked = classes.length ? { line } : readPicAttrs(line);
+    const media = /^ {0,3}(!?)\[((?:\\.|[^\]\\])*)\]\(\s*(<(?:\\.|[^>\\])*>|(?:\\.|[^\s)\\])+)(?:\s+"[^"]*")?\s*\)[ \t]*$/.exec(picked.line);
+    if (media && picked.pic && !media[1]) picked.pic = undefined;
+    if (media && !para.length && (media[1] || isAttachment(media[3])) && (picked.line === line || media[1])) {
       flushPara();
       listIndents = [];
       const src = decodeEntities(media[3].replace(/^<|>$/g, '').replace(/\\(.)/g, '$1')).replace(/%0A/g, '\n');
       const caption = decodeEntities(media[2].replace(/\\(.)/g, '$1'));
-      blocks.push(applyAttrs(makeBlock(media[1] ? 'image' : 'file', caption, [], { src }), classes));
+      const blk = applyAttrs(makeBlock(media[1] ? 'image' : 'file', caption, [], { src }), classes);
+      if (picked.pic) blk.pic = picked.pic;
+      if (picked.align) blk.align = picked.align as Align;
+      blocks.push(blk);
       continue;
     }
     const heading = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/.exec(line);

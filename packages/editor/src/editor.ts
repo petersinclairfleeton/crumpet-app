@@ -96,6 +96,7 @@ import {
   insertToc,
   insertShape,
   setShape,
+  setPic,
   insertCode,
   setCode,
   insertColumnBreak,
@@ -110,6 +111,7 @@ import { type AutoCorrectOptions, autoCorrect } from './autocorrect';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { type TocEntry, View, readTable } from './view';
 import { type ShapeKind, type ShapeLook } from './shape';
+import type { PicLook } from './picture';
 import { readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
 import { noteLink } from './markdown';
 import { type PageBox, type PageGeometry, Paginator } from './paginate';
@@ -733,6 +735,124 @@ export class Editor {
       if (next) this.focusPos({ block: next.id, offset: 0 });
       else this.view.root.focus();
     }
+  }
+
+  /** A picture's handles and its menu. */
+  private onPictureControl(el: HTMLElement, e: MouseEvent): void {
+    const id = el.closest<HTMLElement>('[data-block]')!.dataset.block!;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!blk || blk.type !== 'image') return;
+    const action = el.dataset.picAction!;
+    const tools = el.closest<HTMLElement>('.pic-tools');
+    if (action === 'resize') return this.resizePicture(el, e.clientX);
+    if (action === 'rotate') return this.rotatePicture(el);
+    if (action === 'move') return this.movePicture(el, e.clientX, e.clientY);
+    if (action === 'menu') {
+      tools?.classList.toggle('open');
+      return;
+    }
+    tools?.classList.remove('open');
+    const value = el.dataset.value ?? '';
+    const p = blk.pic ?? {};
+    if (action === 'wrap') this.setPicture(id, { wrap: value as PicLook['wrap'], ...(value === 'free' && !p.w ? { w: this.pictureWidth(el) } : {}) });
+    else if (action === 'rot') this.setPicture(id, { rot: value === '0' ? 0 : (p.rot ?? 0) + Number(value) });
+    else if (action === 'size') this.setPicture(id, { w: undefined });
+    else if (action === 'reset') this.setPicture(id, p.alt ? { alt: p.alt } : {}, true);
+    else if (action === 'alt' || action === 'change') this.onPictureAction?.(id, action);
+    else if (action === 'delete') {
+      const ops: Op[] = [];
+      if (blk.runs.length) ops.push({ type: 'remove', block: id, offset: 0, runs: blk.runs });
+      ops.push({ type: 'setAttrs', block: id, from: attrsOf(blk), to: blockAttrs('paragraph') });
+      this.dispatch({ ops, selectionBefore: this.state.selection, selectionAfter: caret({ block: id, offset: 0 }) }, 'command');
+      this.focusText();
+    }
+  }
+
+  /** The app's part of a picture's menu: alt text (a box to type it in) and Change picture (a file to choose). */
+  onPictureAction: ((id: string, action: 'alt' | 'change') => void) | null = null;
+
+  /** Changes a picture's look (size, wrapping, turn, alt text); `replace` sets it whole; `src` puts another picture in its place. */
+  setPicture(id: string, patch: Partial<PicLook>, replace = false, src?: string): void {
+    if (this.isReadOnly) return;
+    this.dispatch(setPic(this.state, id, patch, replace, src), 'command');
+  }
+
+  /** A picture's width as shown, in inches (unscaled). */
+  private pictureWidth(el: HTMLElement): number {
+    const img = el.closest<HTMLElement>('[data-block]')?.querySelector<HTMLImageElement>('.pic-box img');
+    if (!img) return 3;
+    return Math.round((img.getBoundingClientRect().width / zoomOf(img) / 96) * 100) / 100 || 3;
+  }
+
+  /** Drags a picture's corner to resize it (it keeps its shape). */
+  private resizePicture(grip: HTMLElement, startX: number): void {
+    const el = grip.closest<HTMLElement>('[data-block]')!;
+    const id = el.dataset.block!;
+    const img = el.querySelector<HTMLImageElement>('.pic-box img');
+    if (!img) return;
+    const scale = zoomOf(img);
+    const w = img.getBoundingClientRect().width / scale / 96;
+    const rot = ((this.state.doc.blocks.find((b) => b.id === id)?.pic?.rot ?? 0) * Math.PI) / 180;
+    let now = w;
+    const move = (ev: PointerEvent) => {
+      now = Math.max(0.3, w + ((ev.clientX - startX) / scale / 96) * (Math.abs(Math.cos(rot)) > 0.3 ? Math.sign(Math.cos(rot)) : 1));
+      img.style.width = `${now}in`;
+      img.style.maxHeight = 'none';
+      el.style.setProperty('--pw', `${now}in`);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (Math.abs(now - w) > 0.005) this.setPicture(id, { w: Math.round(now * 100) / 100 });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Drags the handle above a picture round to turn it (Shift: in steps of 15°). */
+  private rotatePicture(handle: HTMLElement): void {
+    const id = handle.closest<HTMLElement>('[data-block]')!.dataset.block!;
+    const frame = handle.closest<HTMLElement>('.pic-box');
+    if (!frame) return;
+    const r = frame.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const was = this.state.doc.blocks.find((b) => b.id === id)?.pic?.rot ?? 0;
+    let rot = was;
+    const move = (ev: PointerEvent) => {
+      const a = (Math.atan2(ev.clientX - cx, cy - ev.clientY) * 180) / Math.PI;
+      rot = ((Math.round(ev.shiftKey ? Math.round(a / 15) * 15 : a) % 360) + 360) % 360;
+      frame.style.transform = rot ? `rotate(${rot}deg)` : '';
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (rot !== was) this.setPicture(id, { rot });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Drags a picture that's in front of the text to anywhere on the page. */
+  private movePicture(handle: HTMLElement, startX: number, startY: number): void {
+    const el = handle.closest<HTMLElement>('[data-block]')!;
+    const id = el.dataset.block!;
+    const p = this.state.doc.blocks.find((b) => b.id === id)?.pic ?? {};
+    const scale = zoomOf(el);
+    const { x = 0, y = 0 } = p;
+    let at = { x, y };
+    const move = (ev: PointerEvent) => {
+      at = { x: x + (ev.clientX - startX) / scale / 96, y: y + (ev.clientY - startY) / scale / 96 };
+      el.style.setProperty('--px', `${at.x}in`);
+      el.style.setProperty('--py', `${at.y}in`);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (at.x !== x || at.y !== y) this.setPicture(id, { x: at.x, y: at.y });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   }
 
   /** Changes a shape's look (fill, line, wrapping, size). */
@@ -1709,6 +1829,11 @@ export class Editor {
       src?.closest('.code-wrap')?.classList.add('editing');
       src?.focus();
       return;
+    }
+    const picAction = (e.target as Element).closest?.<HTMLElement>('[data-pic-action]');
+    if (picAction && !this.isReadOnly) {
+      e.preventDefault();
+      return this.onPictureControl(picAction, e);
     }
     const shapeAction = (e.target as Element).closest?.<HTMLElement>('[data-shape-action]');
     if (shapeAction) {

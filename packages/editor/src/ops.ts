@@ -2,6 +2,7 @@
 // serialisable and has an exact inverse, which gives us undo/redo now and a
 // unit to send between devices for sync later.
 
+import { samePic, tidyPic } from './picture';
 import { sameTable, tidyTable } from './table';
 import { sameShape, tidyShape } from './shape';
 import {
@@ -73,6 +74,10 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
   if (b.style && styleAllowed(b.type, b.style)) a.style = b.style;
   if (b.align && b.align !== 'left') a.align = b.align;
   if ((b.type === 'image' || b.type === 'file') && b.src) a.src = b.src;
+  if (b.type === 'image') {
+    const pic = tidyPic(b.pic);
+    if (pic) a.pic = pic;
+  }
   if (b.type === 'table') {
     a.rows = tidyRows(b.rows);
     // Always present on a table (even when there's none), like `para`.
@@ -90,7 +95,7 @@ export function attrsOf(b: BlockAttrs): BlockAttrs {
 export function sameAttrs(a: BlockAttrs, b: BlockAttrs): boolean {
   const x = attrsOf(a);
   const y = attrsOf(b);
-  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk) && samePara(x.para, y.para) && sameTable(x.tbl, y.tbl) && sameShape(x.shape, y.shape) && JSON.stringify(x.code ?? null) === JSON.stringify(y.code ?? null);
+  return x.type === y.type && !!x.checked === !!y.checked && (x.indent ?? 0) === (y.indent ?? 0) && (x.style ?? '') === (y.style ?? '') && (x.align ?? 'left') === (y.align ?? 'left') && (x.src ?? '') === (y.src ?? '') && !!x.folded === !!y.folded && JSON.stringify(x.rows ?? null) === JSON.stringify(y.rows ?? null) && sameChange(x.brk, y.brk) && samePara(x.para, y.para) && sameTable(x.tbl, y.tbl) && sameShape(x.shape, y.shape) && samePic(x.pic, y.pic) && JSON.stringify(x.code ?? null) === JSON.stringify(y.code ?? null);
 }
 
 export function applyOp(doc: Doc, op: Op): Doc {

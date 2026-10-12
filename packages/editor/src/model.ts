@@ -218,6 +218,7 @@ export function isList(type: BlockType): boolean {
   return LIST_TYPES.includes(type);
 }
 
+import type { PicLook } from './picture';
 import type { TableLook } from './table';
 import type { ShapeLook } from './shape';
 
@@ -243,6 +244,8 @@ export interface BlockAttrs {
   code?: CodeLook;
   /** Track changes: the paragraph break before this block was added, or deleted (still there until accepted). */
   brk?: Change;
+  /** Pictures only: size, wrapping, position, turn and alt text (see picture.ts). */
+  pic?: PicLook;
   /** Pictures and files: where the file is (a path like "Attachments/abc-photo.jpg", or a web address). */
   src?: string;
   /** Spacing, indents and page breaks set on this paragraph by hand (Word's Paragraph settings). */

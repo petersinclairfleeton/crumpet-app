@@ -74,7 +74,7 @@ describe('Word documents', () => {
     const back = await fromDocx(bytes, { saveMedia: async (name) => (saved.push(name), `Attachments/x-${name}`) });
     expect(back.title).toBe('My essay');
     const b = back.doc.blocks;
-    expect(b.map((x) => x.type)).toEqual(['heading1', 'paragraph', 'bullet', 'bullet', 'numbered', 'numbered', 'todo', 'todo', 'quote', 'paragraph', 'paragraph', 'table', 'image', 'paragraph', 'paragraph']);
+    expect(b.map((x) => x.type)).toEqual(['heading1', 'paragraph', 'bullet', 'bullet', 'numbered', 'numbered', 'todo', 'todo', 'quote', 'paragraph', 'paragraph', 'table', 'image', 'paragraph']);
     expect(b[0].runs[0].text).toBe('Chapter <One>');
     expect(b[1].runs).toEqual(sample().blocks[1].runs);
     expect(b[3].indent).toBe(1);
@@ -84,7 +84,9 @@ describe('Word documents', () => {
     expect(b[10].style).toBe('scenebreak');
     expect(b[11].rows).toEqual([['Name', 'Age'], ['Ann', '3']]);
     expect(b[12]).toMatchObject({ type: 'image', src: 'Attachments/x-image1.png', runs: [{ text: 'A dot' }] });
-    expect(b[13]).toMatchObject({ style: 'caption', runs: [{ text: 'A dot' }] });
+    // Its caption comes back as its own (not a separate caption line), and alt text the same as the caption isn't kept twice.
+    expect(b[12].pic?.alt).toBeUndefined();
+    expect(b[13]).toMatchObject({ runs: [{ text: 'The end.' }] });
     expect(saved).toEqual(['image1.png']);
   });
 

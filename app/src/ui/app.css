@@ -1413,6 +1413,7 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .goto-kinds button.on { border-color: var(--accent); background: var(--accent-soft, var(--field)); font-weight: 600; }
 .goto-kinds button:disabled { opacity: 0.45; cursor: default; }
 .goto-error { margin: 0; }
+.alt-text { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--line2); border-radius: 6px; background: var(--page); color: var(--text); font: inherit; resize: vertical; }
 .footnote-nav { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 4px; }
 .footnote-nav .btn { font-size: 12px; padding: 2px 8px; }
 .tabs-grid { display: flex; gap: 18px; flex-wrap: wrap; }

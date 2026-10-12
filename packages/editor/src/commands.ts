@@ -61,6 +61,7 @@ import {
 import { type Op, applyOp, applyOps, attrsOf, blockAttrs, sameAttrs } from './ops';
 import type { BlockAttrs, BulletKind, NumFormat } from './model';
 import type { TableLook } from './table';
+import { type PicLook, tidyPic } from './picture';
 import { type ShapeKind, type ShapeLook, defaultShape, tidyShape } from './shape';
 
 export interface EditorState {
@@ -869,6 +870,17 @@ export function setShape(state: EditorState, id: string, patch: Partial<ShapeLoo
   const b = new Builder(state.doc);
   if (blk.type === 'shape') {
     const to = attrsOf({ ...blk, shape: tidyShape({ ...blk.shape, ...patch }) });
+    if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to });
+  }
+  return tx(state, b, state.selection);
+}
+
+/** Changes a picture's look (size, wrapping, position, turn, alt text); `replace` sets it whole instead of on top. A new `src` changes the picture itself. */
+export function setPic(state: EditorState, id: string, patch: Partial<PicLook>, replace = false, src?: string): Transaction {
+  const blk = getBlock(state.doc, id);
+  const b = new Builder(state.doc);
+  if (blk.type === 'image') {
+    const to = attrsOf({ ...blk, pic: tidyPic(replace ? patch : { ...blk.pic, ...patch }), ...(src ? { src } : {}) });
     if (!sameAttrs(attrsOf(blk), to)) b.step({ type: 'setAttrs', block: id, from: attrsOf(blk), to });
   }
   return tx(state, b, state.selection);

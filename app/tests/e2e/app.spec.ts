@@ -3558,3 +3558,77 @@ test('spelling: your dictionary and characters’ names are never marked, a lang
   await settings.getByLabel('Check spelling as you type').uncheck();
   await expect(editor).toHaveAttribute('spellcheck', 'false');
 });
+
+/** A plain 400×200 picture, served at https://pics.example/… in the tests that need one. */
+const PICTURE = 'iVBORw0KGgoAAAANSUhEUgAAAZAAAADICAIAAABJdyC1AAACBUlEQVR42u3UMQ0AAAgEsVeHMDQhEBUMJE2q4IZL9QC8EAkAwwIwLMCwAAwLwLAAwwIwLADDAgwLwLAADAswLADDAjAswLAADAvAsADDAjAsAMMCDAvAsAAMCzAsAMMCMCzAsAAMCzAsFQDDAjAswLAADAvAsADDAjAsAMMCDAvAsAAMCzAsAMMCMCzAsAAMC8CwAMMCMCwAwwIMC8CwAAwLMCwAwwIwLMCwAAwLMCwVAMMCMCzAsAAMC8CwAMMCMCwAwwIMC8CwAAwLMCwAwwIwLMCwAAwLwLAAwwIwLADDAgwLwLAADAswLADDAjAswLAADAswLADDAjAswLAADAvAsADDAjAsAMMCDAvAsAAMCzAsAMMCMCzAsAAMC8CwAMMCMCwAwwIMC8CwAAwLMCwAwwIwLMCwAAwLMCwAwwIwLMCwAAwLwLAAwwIwLADDAgwLwLAADAswLADDAjAswLAADAvAsADDAjAsAMMCDAvAsAAMCzAsAMMCMCzAsAAMCzAsAMMCMCzAsAAMC8CwAMMCMCwAwwIMC8CwAAwLMCwAwwIwLMCwAAwLwLAAwwIwLADDAgwLwLAADAswLADDAjAswLAADAswLADDAjAswLAADAvAsADDAjAsAMMCDAvAsAAMCzAsAMMCMCzAsAAMC8CwAMMCMCwAwwIMC8CwAAwLMCyAOwubCPkie7TR8wAAAABJRU5ErkJggg==';
+
+async function notePicture(page: Page, md: string) {
+  await page.route('https://pics.example/**', (r) => r.fulfill({ contentType: 'image/png', body: (globalThis as unknown as { Buffer: { from(s: string, e: string): Uint8Array } }).Buffer.from(PICTURE, 'base64') as never }));
+  await page.evaluate(async (text) => {
+    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
+    s.select(s.createNote({ title: 'Pictures', doc: m.fromMarkdown(text) }).id);
+  }, md);
+}
+
+async function noteMarkdown(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+    return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
+  });
+}
+
+test('pictures: resize from the corner, wrap text round, move in front, turn, alt text and reset', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 950 });
+  await notePicture(page, '![A gull](https://pics.example/gull.png)\n\nThe harbour was quiet that morning, and the gulls stood on every post along the wall, looking out to sea as if they were waiting for someone to come home.');
+  const blk = page.locator('.note-editor .blk-image');
+  const img = blk.locator('img');
+  await expect(img).toHaveJSProperty('complete', true);
+  // Drag the corner: 1.5 inches narrower.
+  await img.hover();
+  const grip = blk.locator('.pic-grip');
+  const box = (await grip.boundingBox())!;
+  const before = (await img.boundingBox())!.width;
+  await page.mouse.move(box.x + 5, box.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 5 - 144, box.y + 5, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => noteMarkdown(page)).toMatch(/\{pic w=2\.67\}/);
+  expect(Math.round((await img.boundingBox())!.width)).toBe(Math.round(before - 144));
+  // The menu: text wraps round it on the right.
+  await img.hover();
+  await blk.getByRole('button', { name: 'Picture ▾' }).click();
+  await blk.getByRole('button', { name: 'Square, on the right' }).click();
+  await expect(blk).toHaveAttribute('data-wrap', 'right');
+  await expect(blk).toHaveCSS('float', 'right');
+  // Turn it, and give it alt text of its own.
+  await img.hover();
+  await blk.getByRole('button', { name: 'Picture ▾' }).click();
+  await blk.getByRole('button', { name: 'Right 90°' }).click();
+  await img.hover();
+  await blk.getByRole('button', { name: 'Picture ▾' }).click();
+  await blk.getByRole('button', { name: 'Alt text…' }).click();
+  const alt = page.getByRole('dialog', { name: 'Alt text' });
+  await alt.getByLabel('Describe the picture').fill('A gull on a post');
+  await alt.getByRole('button', { name: 'OK' }).click();
+  await expect(img).toHaveAttribute('alt', 'A gull on a post');
+  await expect.poll(() => noteMarkdown(page)).toContain('{pic w=2.67 wrap=right rot=90 alt="A gull on a post"}');
+  // In front of the text, dragged by ✥.
+  await img.hover();
+  await blk.getByRole('button', { name: 'Picture ▾' }).click();
+  await blk.getByRole('button', { name: 'In front of text' }).click();
+  await img.hover();
+  const mv = (await blk.locator('.pic-move').boundingBox())!;
+  await page.mouse.move(mv.x + 10, mv.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(mv.x + 10 + 96, mv.y + 10 + 48, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(() => noteMarkdown(page)).toMatch(/wrap=free x=(0.99|1|1.01) y=0.(49|5|51) rot=90/);
+  // Reset: back to how it was put in, keeping the alt text.
+  await img.hover();
+  await blk.getByRole('button', { name: 'Picture ▾' }).click();
+  await blk.getByRole('button', { name: 'Reset picture' }).click();
+  await expect.poll(() => noteMarkdown(page)).toContain('![A gull](https://pics.example/gull.png) {pic alt="A gull on a post"}');
+});

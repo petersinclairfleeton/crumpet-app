@@ -509,6 +509,16 @@ function buildBlock(block: Block, marks = false, noSpell: RegExp | null = null):
     el.appendChild(box);
   }
   if (block.type === 'image' || block.type === 'file') el.appendChild(buildMedia(block));
+  if (block.type === 'image') {
+    // Wrapping round it, or in front of the text at its place.
+    const p = block.pic ?? {};
+    el.dataset.wrap = p.wrap ?? 'inline';
+    if (p.w) el.style.setProperty('--pw', `${p.w}in`);
+    if (p.wrap === 'free') {
+      el.style.setProperty('--px', `${p.x ?? 0}in`);
+      el.style.setProperty('--py', `${p.y ?? 0}in`);
+    }
+  }
   if (block.type === 'table') el.appendChild(buildTable(block));
   if (block.type === 'shape') {
     el.dataset.wrap = block.shape?.wrap ?? 'inline';
@@ -640,13 +650,29 @@ function buildMedia(block: Block): HTMLElement {
     else void r.then(apply, () => box.classList.add('missing'));
   };
   if (block.type === 'image') {
+    const p = block.pic ?? {};
     const img = document.createElement('img');
-    img.alt = block.runs.map((r) => r.text).join('');
+    img.alt = p.alt ?? block.runs.map((r) => r.text).join('');
     img.draggable = false;
     img.decoding = 'async';
+    if (p.w) img.style.width = `${p.w}in`;
     img.addEventListener('error', () => box.classList.add('missing'));
     show((url) => (img.src = url));
-    box.appendChild(img);
+    // The picture in a frame that turns with it, with a corner to drag to resize, a handle to turn it and (in front of the text) one to move it.
+    const frame = document.createElement('span');
+    frame.className = 'pic-box';
+    if (p.rot) frame.style.transform = `rotate(${p.rot}deg)`;
+    const handle = (cls: string, action: string, title: string, text = '') => {
+      const h = document.createElement('span');
+      h.className = cls;
+      h.dataset.picAction = action;
+      h.title = title;
+      h.textContent = text;
+      return h;
+    };
+    frame.append(img, handle('pic-grip', 'resize', 'Drag to resize'), handle('pic-rot', 'rotate', 'Drag to turn (Shift: in steps of 15°)'), handle('pic-move', 'move', 'Drag to move', '✥'));
+    box.appendChild(frame);
+    box.appendChild(pictureMenu(p.wrap ?? 'inline'));
   } else {
     const a = document.createElement('a');
     a.className = 'file-chip';
@@ -658,6 +684,56 @@ function buildMedia(block: Block): HTMLElement {
     box.appendChild(a);
   }
   return box;
+}
+
+/** The Picture ▾ menu under a picture: wrapping, turning, size, alt text, change, reset, delete. */
+function pictureMenu(wrap: string): HTMLElement {
+  const tools = document.createElement('span');
+  tools.className = 'table-tools shape-tools pic-tools';
+  const button = (action: string, label: string, title = label, value?: string) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.picAction = action;
+    if (value !== undefined) b.dataset.value = value;
+    b.textContent = label;
+    b.title = title;
+    b.tabIndex = -1;
+    if (action === 'wrap' && value === wrap) b.classList.add('on');
+    return b;
+  };
+  tools.append(button('menu', 'Picture ▾', 'Wrapping, turning, size and alt text'));
+  const menu = document.createElement('span');
+  menu.className = 'table-menu';
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'Picture');
+  const group = (name: string, items: HTMLElement[]) => {
+    const g = document.createElement('span');
+    g.className = 'table-menu-group';
+    if (name) {
+      const h = document.createElement('span');
+      h.className = 'table-menu-head';
+      h.textContent = name;
+      g.append(h);
+    }
+    g.append(...items);
+    menu.appendChild(g);
+  };
+  group('Wrap text', [
+    button('wrap', 'In line with text', 'In line with text', 'inline'),
+    button('wrap', 'Square, on the left', 'Text wraps round it, on the left', 'left'),
+    button('wrap', 'Square, on the right', 'Text wraps round it, on the right', 'right'),
+    button('wrap', 'In front of text', 'In front of the text, anywhere: drag ✥ to move it', 'free'),
+  ]);
+  group('Rotate', [button('rot', 'Left 90°', 'Turn left 90°', '-90'), button('rot', 'Right 90°', 'Turn right 90°', '90'), button('rot', 'Straight', 'Not turned', '0')]);
+  group('Picture', [
+    button('alt', 'Alt text…', 'Describe the picture for people who can’t see it'),
+    button('change', 'Change picture…', 'Another picture in its place, keeping its size and look'),
+    button('size', 'Original size', 'Back to the picture’s own size'),
+    button('reset', 'Reset picture', 'Back to how it was inserted (keeps the alt text)'),
+  ]);
+  group('', [button('delete', 'Delete picture')]);
+  tools.appendChild(menu);
+  return tools;
 }
 
 // ---------------------------------------------------------------- table of contents

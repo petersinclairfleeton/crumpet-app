@@ -9,6 +9,7 @@ import { type Change, type Doc, changes } from '@crumpet/editor/model';
 import { REVISIONS, revisionColor } from '../data/revisions';
 import { useAppState, useAppStore } from './hooks';
 import { useSpelling } from './spelling';
+import { usePictureActions } from './picture';
 
 interface Open {
   where: { block: string; from: number; to: number };
@@ -36,6 +37,7 @@ export function useTracking(editor: Editor | null): void {
     if (editor) editor.revisionColor = color;
   }, [editor, color]);
   useSpelling(editor);
+  usePictureActions(editor);
   // AutoCorrect, as Settings → Writing says.
   const autocorrect = state.settings.autocorrect;
   useEffect(() => {

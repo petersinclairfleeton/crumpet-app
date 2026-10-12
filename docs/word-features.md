@@ -210,11 +210,11 @@ At the end there's a suggested order for building what's missing.
 | Line Numbers | ❌ | |
 | Hyphenation | ❌ | |
 | Paragraph: Indent, Spacing | ✅ | |
-| Wrap Text | 🟡 | For shapes and text boxes: in line, square left or right, in front of the text. Not behind the text, not "tight", and not for pictures. |
-| Position | 🟡 | Shapes can be dragged anywhere; placed from their paragraph, not the page. Pictures can't be moved off their line. |
+| Wrap Text | 🟡 | For pictures, shapes and text boxes: in line, square left or right, in front of the text. Not behind the text, and not "tight". |
+| Position | 🟡 | Pictures and shapes in front of the text can be dragged anywhere; placed from their paragraph, not the page. |
 | Bring Forward / Send Backward | ❌ | |
 | Align, Group | ❌ | |
-| Rotate | 🟡 | Shapes and text boxes only, not pictures. |
+| Rotate | ✅ | Pictures, shapes and text boxes: by the handle above them, or 90° from their menu. |
 
 ## References
 
@@ -345,13 +345,13 @@ At the end there's a suggested order for building what's missing.
 
 | Feature | | Crumpet today |
 |---|---|---|
-| Resize | ❌ | Pictures are shown at the width of the text. |
+| Resize | ✅ | Drag a picture's corner (it keeps its shape); Original size in its menu. |
 | Crop (to shape, to aspect ratio) | ❌ | |
 | Remove Background, Corrections, Colour, Artistic Effects, Transparency | ❌ | |
 | Compress | 🟡 | Pictures are sized down for Word and e-books, not on request. |
-| Change Picture, Reset | ❌ | |
+| Change Picture, Reset | ✅ | In the picture's menu: another picture keeps the size and look; Reset goes back to how it was put in (keeping the alt text). |
 | Picture Styles, Border, Effects | ❌ | |
-| Alt Text | 🟡 | The caption is used as the alt text; no separate alt text. |
+| Alt Text | ✅ | Its own, apart from the caption (the caption serves when there's none); to and from Word and in e-books. |
 | Wrap, position, rotate | ❌ | Only shapes have these. |
 
 ### Shape Format
@@ -462,11 +462,11 @@ Where: `packages/editor/src/editor.ts` (input), `commands.ts`, `view.ts`;
 
 **2. Pictures**
 Where: `view.ts` (`buildMedia`), `model.ts` (image blocks), `markdown.ts`, `app/src/data/docx.ts`; follow `shape.ts` for wrap, drag and turning.
-- [ ] Resize by dragging a corner
-- [ ] Wrap text round them, move anywhere, rotate (as shapes do)
+- [x] Resize by dragging a corner
+- [x] Wrap text round them, move anywhere, rotate (as shapes do)
 - [ ] Crop, to a shape and to a ratio
-- [ ] Alt text of its own, apart from the caption
-- [ ] Change picture, reset picture
+- [x] Alt text of its own, apart from the caption
+- [x] Change picture, reset picture
 - [ ] Picture styles: frames, shadows, rounded corners, borders
 - [ ] Corrections: brightness, contrast, colour, transparency, artistic effects
 - [ ] Remove background
