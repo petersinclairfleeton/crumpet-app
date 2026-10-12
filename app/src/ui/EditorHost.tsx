@@ -113,7 +113,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
         {!floating && !narrow && <FormatTools fit editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}
         <span className="grow" />
         {!readOnly && !reading && <RevisionChip />}
-        {!readOnly && !reading && <TrackToggle />}
+        {!readOnly && !reading && <TrackToggle editor={ed} />}
         {!narrow && !readOnly && !reading && (
           <button
             type="button"

@@ -824,7 +824,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
           <RevisionChip />
-          <TrackToggle />
+          <TrackToggle editor={active} />
           <button type="button" className="icon-btn" aria-label="Find and replace" data-tip={`Find and replace · ${isMac ? '⌘F' : 'Ctrl+F'}`} onClick={() => setFinding(true)}>
             <IconSearch size={16} />
           </button>

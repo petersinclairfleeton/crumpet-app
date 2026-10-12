@@ -772,7 +772,11 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   }
   const docRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${w.rels.map((r) => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"${r.external ? ' TargetMode="External"' : ''}/>`).join('')}</Relationships>`;
   const hasToc = parts.some((part) => part.doc.blocks.some((b) => b.type === 'toc'));
-  const settings = `${XML}<w:settings ${NS}>${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+  // Tracking everyone's changes, and locked (without a password: Word can't check ours).
+  const firstPara = parts[0]?.doc.blocks[0]?.para;
+  const protect = firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
+  const trackAll = firstPara?.track === 'all' ? '<w:trackRevisions/>' : '';
+  const settings = `${XML}<w:settings ${NS}>${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const core = `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(opts.title)}</dc:title><dc:creator>${esc(opts.author ?? '')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
   const types =
@@ -1581,7 +1585,22 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   }
   // Trailing empty paragraphs aren't wanted.
   while (blocks.length > 1 && blocks[blocks.length - 1].type === 'paragraph' && !blocks[blocks.length - 1].runs.length && !blocks[blocks.length - 1].style) blocks.pop();
-  return { title: title || coreTitle, doc: { blocks: blocks.length ? blocks : [makeBlock('paragraph')] } };
+  const out = blocks.length ? blocks : [makeBlock('paragraph')];
+  // Word's "track changes" (and locked to tracked changes): kept on the first paragraph, as Crumpet keeps them.
+  const wordSettings = parseXml(files.get('word/settings.xml'));
+  const setting = (name: string) => Array.from(wordSettings?.getElementsByTagNameNS(W_NS, name) ?? [])[0];
+  const track = setting('trackRevisions');
+  const protection = setting('documentProtection');
+  const locked = !!protection && attr(protection, 'edit') === 'trackedChanges' && /^(1|true|on)$/.test(attr(protection, 'enforcement') ?? '');
+  if ((track && attr(track, 'val') !== 'false' && attr(track, 'val') !== '0') || locked) {
+    let first = out[0];
+    if (first.type !== 'paragraph' && first.type !== 'quote' && !first.type.startsWith('heading') && first.type !== 'bullet' && first.type !== 'numbered' && first.type !== 'todo') {
+      first = makeBlock('paragraph');
+      out.unshift(first);
+    }
+    first.para = tidyPara({ ...first.para, track: 'all', ...(locked ? { lock: 'open' } : {}) });
+  }
+  return { title: title || coreTitle, doc: { blocks: out } };
 }
 
 /** The id of a gallery table style in Word ("CrumpetBlue", shown as "Crumpet Blue"). */

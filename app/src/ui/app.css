@@ -1123,6 +1123,12 @@ body.pane-resizing iframe { pointer-events: none; }
 /* Track changes: the switch in the toolbar, the bar of changes, and a change's card. */
 .track-toggle { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid transparent; border-radius: 14px; background: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .track-toggle:hover { background: var(--field); color: var(--text); }
+.track-wrap { position: relative; display: inline-flex; align-items: center; }
+.track-more { height: 28px; padding: 0 4px; border: none; background: none; color: var(--muted); font-size: 11px; cursor: pointer; }
+.track-more:hover { color: var(--text); }
+.track-wrap .popover { right: 0; left: auto; }
+.track-lock { display: flex; flex-direction: column; gap: 8px; width: 260px; padding: 6px; }
+.track-lock input { height: 30px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); }
 .track-toggle.on { border-color: color-mix(in srgb, #2e8b57 50%, transparent); background: color-mix(in srgb, #2e8b57 12%, transparent); color: #22744a; font-weight: 600; }
 @media (prefers-color-scheme: dark) { .track-toggle.on { color: #6fd29a; } }
 .changes-bar { display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, #2e8b57 7%, var(--page)); font-size: 13px; color: var(--text); }
@@ -1435,6 +1441,18 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .review-actions { display: flex; justify-content: flex-end; gap: 4px; margin-top: 6px; }
 .review-actions .btn { padding: 2px 8px; font-size: 12px; }
 .comment-list li.resolved { opacity: 0.6; }
+.show-markup { position: relative; }
+.show-markup > .btn { padding: 3px 8px; font-size: 12px; }
+.show-markup-body { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; gap: 4px; min-width: 200px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--page); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14); }
+.mention { color: var(--accent-ink, var(--accent)); font-weight: 600; }
+.mention-list { display: flex; flex-direction: column; margin: 4px 0; border: 1px solid var(--line2); border-radius: 6px; overflow: hidden; }
+.mention-list button { all: unset; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+.mention-list button.on, .mention-list button:hover { background: var(--field); }
+.combine-search { height: 32px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 6px; background: var(--page); color: var(--text); }
+.combine-list { list-style: none; margin: 0; padding: 4px; max-height: 300px; overflow: auto; border: 1px solid var(--line2); border-radius: 6px; display: flex; flex-direction: column; gap: 4px; }
+.combine-list li { display: flex; flex-direction: column; gap: 4px; }
+.combine-list li > input { margin-left: 26px; height: 28px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); }
+.review-people { margin-top: 4px; font-size: 11px; font-weight: 700; color: var(--muted); }
 .comment-resolved { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .pic-format-grid { display: flex; gap: 16px; flex-wrap: wrap; }
 .pic-preview { flex: 0 0 180px; height: 140px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: var(--field); background-image: linear-gradient(45deg, rgba(127,127,127,0.18) 25%, transparent 25%, transparent 75%, rgba(127,127,127,0.18) 75%), linear-gradient(45deg, rgba(127,127,127,0.18) 25%, transparent 25%, transparent 75%, rgba(127,127,127,0.18) 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }

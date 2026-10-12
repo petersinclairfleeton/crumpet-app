@@ -105,3 +105,15 @@ describe('Word: picture crops and corrections', () => {
     expect(back.pic).toMatchObject({ w: 2, crop: [0.1, 0.2, 0.1, 0.2], mask: 'oval', border: '#c0392b', bright: 20, contrast: -10, fade: 30, effect: 'grey', style: 'shadow' });
   });
 });
+
+describe('Word: tracking for everyone, locked', () => {
+  it('goes to Word as its own settings and comes back', async () => {
+    const p = makeBlock('paragraph', 'Text', [], { para: { track: 'all', lock: 'open' } });
+    const bytes = await toDocx([{ doc: { blocks: [p] } }], { title: 'T' });
+    const settings = new TextDecoder().decode((await readZip(bytes)).get('word/settings.xml'));
+    expect(settings).toContain('<w:trackRevisions/>');
+    expect(settings).toContain('w:edit="trackedChanges" w:enforcement="1"');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks[0].para).toMatchObject({ track: 'all', lock: 'open' });
+  });
+});

@@ -261,16 +261,16 @@ At the end there's a suggested order for building what's missing.
 | Comments: new, reply (threaded), show | ✅ | Listed in the right sidebar too. |
 | Comments: resolve | ✅ | Kept, greyed out, until reopened; to and from Word ("done"). |
 | Comments: delete, previous/next | ✅ | Delete on the comment's card; previous and next in the Reviewing pane, Go To and the command palette. |
-| Comments: @mentions | ❌ | Needs sharing first. |
+| Comments: @mentions | ✅ | Typing @ in a comment suggests names (people in the document, and you); shown picked out. A label only: nothing is sent. |
 | Track Changes on/off | ✅ | Plus Crumpet's own revision colours. |
-| Track Changes: just mine / Lock Tracking | ❌ | |
+| Track Changes: just mine / Lock Tracking | ✅ | Just mine (this device) or everyone's (saved in the document), and Lock tracking with a password: it can't be turned off, nor changes accepted or rejected, until unlocked. To and from Word (Word gets the lock without the password). |
 | Display for Review (Simple / All Markup / No Markup / Original) | ✅ | In the Reviewing pane, the changes bar and the command palette. |
-| Show Markup (choose what's shown, by person) | ❌ | |
+| Show Markup (choose what's shown, by person) | ✅ | In the Reviewing pane: insertions and deletions, comments, and each person's. |
 | Reviewing Pane (all changes in a list) | ✅ | The right sidebar's Review tab: every change and comment in order, with who and when, Accept or Reject each. |
 | Accept, Reject (one, or all) | ✅ | |
 | Previous / Next change | ✅ | In the Reviewing pane, Go To (F5) and the command palette. |
 | Compare two versions | ✅ | Word by word, or as a copy with the differences as tracked changes. |
-| Combine (several reviewers' copies into one) | ❌ | |
+| Combine (several reviewers' copies into one) | ✅ | From the command palette: choose the copies and who each is from; a new note with each reviewer's changes tracked in their name. Text only (formatting isn't compared). |
 | Block Authors, Restrict Editing | ❌ | |
 | Hide Ink | ➖ | There's no ink. |
 | Resume Assistant | ➖ | Retired. |
@@ -478,11 +478,11 @@ Where: `app/src/ui/changes.tsx`, `comments.tsx`, `rightside.tsx`, `comparedocs.t
 - [x] Reviewing pane: every change and comment listed, with who and when
 - [x] Previous/next change; previous/next comment
 - [x] Resolved comments kept (greyed out, reopen), also to and from Word
-- [ ] Track just my changes, or everyone's
-- [ ] Lock tracking (with a password)
-- [ ] Show markup by kind and by person
-- [ ] @ names in comments (a label only; nothing is sent)
-- [ ] Combine several reviewers' copies into one
+- [x] Track just my changes, or everyone's
+- [x] Lock tracking (with a password)
+- [x] Show markup by kind and by person
+- [x] @ names in comments (a label only; nothing is sent)
+- [x] Combine several reviewers' copies into one
 
 **4. Fonts and paragraphs**
 Where: `model.ts` (`Look`, `Mark`, `ParaLook`), `markdown.ts`, `docx.ts`, `app/src/ui/fonttools.tsx`, `listtools.tsx`, `paratools.tsx`.
