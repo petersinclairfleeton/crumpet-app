@@ -32,6 +32,7 @@ import { GoToHost, openGoTo } from './goto';
 import { PictureAltHost } from './picture';
 import { CombineHost } from './comparedocs';
 import { FontDialogHost } from './fontdialog';
+import { PasteOptionsHost } from './clipboard';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -372,6 +373,7 @@ export function App() {
       <PictureAltHost />
       <CombineHost />
       <FontDialogHost />
+      <PasteOptionsHost />
       {state.temporary && (
         <p className="banner" role="status">
           This browser isn’t letting Crumpet save, so notes will be lost when you close the page. Private windows often do this.

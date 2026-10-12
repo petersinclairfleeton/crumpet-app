@@ -3936,3 +3936,63 @@ test('Font window: small caps, a wavy coloured underline, spacing and hidden tex
   await page.keyboard.press('ControlOrMeta+Shift+8');
   await expect(hidden).toBeVisible();
 });
+
+test('paste options after pasting, the clipboard history, and sorting paragraphs', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Pasted', 'Start ');
+  const body = page.locator('.note-editor');
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    dt.setData('text/html', '<b><span style="font-family:Lora;color:#cc0000">bold red</span></b>');
+    dt.setData('text/plain', 'bold red');
+    document.querySelector('.note-editor')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+  });
+  await expect(body.locator('.lk')).toHaveText('bold red');
+  // Merge formatting: still bold, but the look of the text where it went.
+  await page.getByRole('button', { name: 'Paste options' }).click();
+  await page.getByRole('menuitem', { name: 'Merge formatting' }).click();
+  await expect(body.locator('.lk')).toHaveCount(0);
+  await expect(body.locator('strong')).toHaveText('bold red');
+  // Text only.
+  await page.getByRole('button', { name: 'Paste options' }).click();
+  await page.getByRole('menuitem', { name: 'Text only' }).click();
+  await expect(body.locator('strong')).toHaveCount(0);
+  await expect(body).toHaveText('Start bold red');
+  // The chip goes once you type on.
+  await page.keyboard.type('!');
+  await expect(page.getByRole('button', { name: 'Paste options' })).toHaveCount(0);
+  // Copy keeps Crumpet's own formatting, and is kept in the Clipboard tab.
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('pear');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Apple');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('banana');
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('ControlOrMeta+b');
+  await page.evaluate(() => {
+    const dt = new DataTransfer();
+    document.querySelector('.note-editor')!.dispatchEvent(new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
+    (window as unknown as { copied: string }).copied = dt.getData('application/x-crumpet-markdown');
+  });
+  expect(await page.evaluate(() => (window as unknown as { copied: string }).copied)).toBe('**banana**\n');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'clipboard' }));
+  const clip = page.getByRole('tabpanel', { name: 'Clipboard' });
+  await expect(clip.getByRole('list', { name: 'Copied' }).locator('li')).toHaveText([/banana/]);
+  // Paste it again from the Clipboard tab, at the end, with its bold.
+  await body.click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.press('Enter');
+  await clip.getByRole('button', { name: /banana/ }).click();
+  await expect(body.locator('strong')).toHaveCount(2);
+  // Sort the last four paragraphs, A to Z.
+  await page.keyboard.press('Shift+ArrowUp');
+  await page.keyboard.press('Shift+ArrowUp');
+  await page.keyboard.press('Shift+ArrowUp');
+  await page.keyboard.press('Shift+Home');
+  await (await toolButton(page, 'Sort paragraphs…')).click();
+  await page.getByRole('dialog', { name: 'Sort paragraphs' }).getByRole('button', { name: 'Sort' }).click();
+  await expect(body.locator('.blk')).toHaveText(['Start bold red!', 'Apple', 'banana', 'banana', 'pear']);
+});

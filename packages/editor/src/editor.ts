@@ -77,6 +77,9 @@ import {
   trackedDelete,
   resolveChanges,
   insertBlocks,
+  sliceDoc,
+  sortParagraphs,
+  type SortBy,
   trackedSplit,
   trackedJoin,
   setTableRows,
@@ -115,7 +118,17 @@ import { type TocEntry, View, readTable } from './view';
 import { type ShapeKind, type ShapeLook } from './shape';
 import type { PicLook } from './picture';
 import { readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
-import { noteLink } from './markdown';
+import { fromMarkdown, noteLink, toMarkdown } from './markdown';
+
+/** The clipboard's type for Crumpet's own text, as Markdown. */
+const CRUMPET_TYPE = 'application/x-crumpet-markdown';
+
+/** What's pasted: the plain text, and Crumpet's own Markdown or HTML when there is any. */
+export interface Pasted {
+  text: string;
+  md?: string;
+  html?: string;
+}
 import { type PageBox, type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
 
@@ -2073,27 +2086,79 @@ export class Editor {
       this.onFiles(files);
       return;
     }
-    // Formatted text (from a web page, Word, Google Docs): kept with its headings, lists and formatting.
-    const html = e.clipboardData?.getData('text/html');
-    if (html && this.htmlToBlocks && !this.isReadOnly && !plain) {
-      let blocks = this.htmlToBlocks(html);
-      if (blocks?.length) {
-        if (this.tracking) {
-          const change = makeChange('ins', this.tracking.author);
-          blocks = blocks.map((b, i) => ({ ...b, runs: b.runs.map((r) => ({ ...r, change })), ...(i > 0 ? { brk: change } : {}) }));
-          // Pasting over a selection marks it deleted first.
-          if (!isCollapsed(this.state.selection)) this.dispatch(trackedDelete(this.state, 1, this.tracking.author));
-        }
-        this.dispatch(insertBlocks(this.state, blocks));
-        return;
-      }
-    }
-    const text = e.clipboardData?.getData('text/plain')?.replaceAll(FOOTNOTE, '').replaceAll(FIELD, '');
-    if (!text) return;
-    this.reviseLook();
-    if (this.tracking) return this.dispatch(trackedInsertText(this.state, text, this.tracking.author));
-    this.dispatch(pasteLink(this.state, text) ?? insertText(this.state, text));
+    const text = e.clipboardData?.getData('text/plain')?.replaceAll(FOOTNOTE, '').replaceAll(FIELD, '') ?? '';
+    // Copied from Crumpet: its own formatting, as Markdown.
+    const md = e.clipboardData?.getData(CRUMPET_TYPE) ?? '';
+    const html = e.clipboardData?.getData('text/html') ?? '';
+    this.paste({ text, md, html }, plain ? 'text' : 'keep');
   }
+
+  /** The clipboard's type for Crumpet's own text (Markdown), so copying and pasting within Crumpet keeps everything. */
+  static readonly CLIPBOARD_TYPE = CRUMPET_TYPE;
+
+  /** What was last pasted, and how far back to undo to paste it again another way. */
+  private lastPaste: { what: Pasted; depth: number } | null = null;
+
+  /** After a paste: the app offers Keep formatting, Merge formatting and Text only (Word's Paste Options). */
+  onPasted: ((formatted: boolean) => void) | null = null;
+
+  /**
+   * Pastes text: formatted (Crumpet's own, or HTML from a web page, Word or
+   * Google Docs, with its headings, lists and formatting), merged (lists,
+   * bold and italic kept, but the text taking on the look where it goes), or
+   * plain text only.
+   */
+  paste(what: Pasted, mode: 'keep' | 'merge' | 'text' = 'keep'): void {
+    if (this.isReadOnly) return;
+    const depth = this.history.depth;
+    let blocks: Block[] | null = null;
+    if (mode !== 'text') {
+      if (what.md) blocks = fromMarkdown(what.md).blocks;
+      else if (what.html && this.htmlToBlocks) blocks = this.htmlToBlocks(what.html);
+    }
+    if (blocks?.length) {
+      if (mode === 'merge') blocks = blocks.map((b) => ({ ...b, style: undefined, align: undefined, para: undefined, runs: b.runs.map(({ look: _look, ...r }) => r) }));
+      if (this.tracking) {
+        const change = makeChange('ins', this.tracking.author);
+        blocks = blocks.map((b, i) => ({ ...b, runs: b.runs.map((r) => ({ ...r, change })), ...(i > 0 ? { brk: change } : {}) }));
+        // Pasting over a selection marks it deleted first.
+        if (!isCollapsed(this.state.selection)) this.dispatch(trackedDelete(this.state, 1, this.tracking.author));
+      }
+      this.dispatch(insertBlocks(this.state, blocks));
+    } else {
+      if (!what.text) return;
+      this.reviseLook();
+      if (this.tracking) this.dispatch(trackedInsertText(this.state, what.text, this.tracking.author));
+      else this.dispatch(pasteLink(this.state, what.text) ?? insertText(this.state, what.text));
+    }
+    this.lastPaste = { what, depth };
+    this.onPasted?.(!!(what.md || (what.html && this.htmlToBlocks)));
+  }
+
+  /** Pastes what was last pasted again, another way (Word's Paste Options). */
+  pasteAgain(mode: 'keep' | 'merge' | 'text'): void {
+    const last = this.lastPaste;
+    if (!last) return;
+    while (this.history.depth > last.depth && this.history.canUndo) this.undo();
+    this.paste(last.what, mode);
+  }
+
+  /** Word's Sort: the selected paragraphs in order (see sortParagraphs). */
+  sortParagraphs(by: SortBy = 'text', descending = false): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(sortParagraphs(this.state, by, descending), 'command');
+  }
+
+  /** The selection as Markdown (with its formatting), or null when nothing is selected. */
+  selectedMarkdown(): string | null {
+    this.syncSelectionFromDom();
+    const doc = sliceDoc(this.state);
+    return doc ? toMarkdown(doc) : null;
+  }
+
+  /** Something was copied or cut (for the app's clipboard history). */
+  onCopied: ((text: string, md: string) => void) | null = null;
 
   /** Links the selection (or the link under the caret) to `href`; empty or null removes it. Returns false if `href` isn't a valid link. */
   setLink(href: string | null): boolean {
@@ -2120,6 +2185,11 @@ export class Editor {
     if (text == null) return;
     e.preventDefault();
     e.clipboardData?.setData('text/plain', text.replaceAll(FOOTNOTE, ''));
+    // Crumpet's own formatting goes too, for pasting back into Crumpet.
+    const doc = sliceDoc(this.state);
+    const md = doc ? toMarkdown(doc) : '';
+    if (md) e.clipboardData?.setData(CRUMPET_TYPE, md);
+    this.onCopied?.(text.replaceAll(FOOTNOTE, ''), md);
   }
 
   private onCut(e: ClipboardEvent): void {

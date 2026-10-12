@@ -1206,6 +1206,68 @@ export function resolveChanges(state: EditorState, accept: boolean, where?: { bl
  * paragraph at the caret, the rest follow it as paragraphs of their own, and
  * the text after the caret ends up after the last one.
  */
+export type SortBy = 'text' | 'number' | 'date';
+
+/**
+ * Word's Sort: the selected paragraphs (whole ones) put in order of their
+ * text, the first number in them, or the date they start with; A to Z or Z
+ * to A. Empty paragraphs go last. Pictures, tables and the like stay where they are.
+ */
+export function sortParagraphs(state: EditorState, by: SortBy = 'text', descending = false): Transaction {
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const start = blockIndex(state.doc, from.block);
+  const end = blockIndex(state.doc, to.block);
+  const b = new Builder(state.doc);
+  const slots = state.doc.blocks.slice(start, end + 1).filter((x) => !isMedia(x.type) && !isWidget(x.type));
+  const key = (x: Block): string | number | null => {
+    const text = runsText(x.runs).trim();
+    if (!text) return null;
+    if (by === 'number') {
+      const m = /-?\d[\d,]*(\.\d+)?/.exec(text);
+      return m ? Number(m[0].replace(/,/g, '')) : null;
+    }
+    if (by === 'date') {
+      const t = Date.parse(text.split(/[,;]| - /)[0]);
+      return Number.isNaN(t) ? null : t;
+    }
+    return text.toLocaleLowerCase();
+  };
+  const sorted = [...slots].sort((x, y) => {
+    const a = key(x);
+    const c = key(y);
+    if (a === null || c === null) return a === c ? 0 : a === null ? 1 : -1;
+    const n = typeof a === 'number' && typeof c === 'number' ? a - c : String(a).localeCompare(String(c), undefined, { numeric: true });
+    return descending ? -n : n;
+  });
+  // Each paragraph's place takes the text and settings of the one sorted into it.
+  slots.forEach((slot, i) => {
+    const want = sorted[i];
+    if (want === slot) return;
+    const cur = getBlock(b.doc, slot.id);
+    if (cur.runs.length) b.step({ type: 'remove', block: cur.id, offset: 0, runs: cur.runs });
+    const now = getBlock(b.doc, slot.id);
+    if (!sameAttrs(attrsOf(now), attrsOf(want))) b.step({ type: 'setAttrs', block: now.id, from: attrsOf(now), to: attrsOf(want) });
+    if (want.runs.length) b.step({ type: 'insert', block: slot.id, offset: 0, runs: want.runs });
+  });
+  const last = getBlock(b.doc, state.doc.blocks[end].id);
+  return tx(state, b, { anchor: { block: state.doc.blocks[start].id, offset: 0 }, focus: { block: last.id, offset: runsLength(last.runs) } });
+}
+
+/** The selected part of the document, as blocks of its own (the first and last cut to the selection). */
+export function sliceDoc(state: EditorState): Doc | null {
+  if (isCollapsed(state.selection)) return null;
+  const { from, to } = orderedRange(state.doc, state.selection);
+  const start = blockIndex(state.doc, from.block);
+  const end = blockIndex(state.doc, to.block);
+  const blocks = state.doc.blocks.slice(start, end + 1).map((b, i, all) => {
+    const len = runsLength(b.runs);
+    const a = i === 0 ? from.offset : 0;
+    const z = i === all.length - 1 ? to.offset : len;
+    return a === 0 && z === len ? b : { ...b, runs: sliceRuns(b.runs, a, z) };
+  });
+  return { blocks };
+}
+
 export function insertBlocks(state: EditorState, blocks: Block[]): Transaction | null {
   if (!blocks.length) return null;
   const b = new Builder(state.doc);
