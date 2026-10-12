@@ -207,7 +207,14 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     floating `SpeechBar`.
     `thesaurus.tsx` (+ `data/thesaurus.ts`): the right sidebar's Thesaurus
     tab (Datamuse and the Free Dictionary API; Shift+F7). `painter.ts`:
-    Word's format painter.
+    Word's format painter. Styles of one's own are `StyleSheet.custom`
+    (`data/styles.ts`: `sheetStyles`, `blockStyleKey`; a paragraph's style
+    `c-name`, `{.c-name}` in the file), with `hidden` and `order` for the
+    menu; `reveal.tsx` is Reveal formatting (in the Styles pane);
+    `similar.tsx` selects text with similar formatting (`editor.applyToAll`
+    formats every place as one undo step); `selectionpane.tsx` is the right
+    sidebar's Selection tab (pictures and shapes hidden with `hide`). Find's
+    wildcards, formatting and special characters are in `editor/src/find.ts`.
     `comparedocs.tsx` (+ `data/compare.ts`): comparing two notes or chapters
     (word by word), or a copy with the differences as tracked changes.
     `EditorHost.tsx` wraps the editor for notes;

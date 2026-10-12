@@ -1,8 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
 import { PageToggle } from './pages';
-import { StylesDialog } from './styles-ui';
-import type { StyleKey } from '../data/styles';
+import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useNav } from './hooks';
 import { allTags, displayTitle, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
@@ -42,11 +41,12 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const [menu, setMenu] = useState(false);
   const [addingTag, setAddingTag] = useState(false);
   const [reading, setReading] = useState(false);
-  const [stylesOpen, setStylesOpen] = useState<StyleKey | boolean>(false);
+  const [stylesOpen, setStylesOpen] = useState<string | boolean>(false);
   const [printing, setPrinting] = useState(false);
   const [finding, setFinding] = useState(false);
   const onFindKey = useFindKey(() => setFinding(true));
   const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
+  const styleSources = useStyleSources('notes');
   const pageSetup = state.settings.notePage ?? defaultPage();
   const paged = !!state.settings.pageView?.notes;
 
@@ -375,6 +375,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           targets={[{ id: note.id, doc: note.doc, editor: editorRef.current }]}
           onReplaceDoc={(id, doc) => store.setDoc(id, doc)}
           author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
+          sheet={sheet}
           onClose={() => setFinding(false)}
         />
       )}
@@ -387,6 +388,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           onPage={(notePage) => store.updateSettings({ notePage })}
           onClose={() => setStylesOpen(false)}
           initial={typeof stylesOpen === 'string' ? stylesOpen : undefined}
+          sources={styleSources}
+          onDefault={() => store.updateSettings({ defaultStyles: sheet })}
         />
       )}
       <EditorHost

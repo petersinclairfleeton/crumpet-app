@@ -352,3 +352,6 @@ del.trk { text-decoration: line-through; text-decoration-color: #c0392b; color: 
 .code-preview svg { max-width: 100%; height: auto; }
 .code-error { color: var(--danger, #c0392b); font: 12.5px ui-monospace, monospace; white-space: pre-wrap; text-align: left; }
 @media print { .code-src, .code-head { display: none !important; } .code-wrap { background: none !important; } }
+
+/* Pictures and shapes hidden in the Selection pane. */
+.blk[data-hidden-obj] { display: none !important; }

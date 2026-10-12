@@ -10,7 +10,7 @@ import { makeBlock, type Doc } from '@crumpet/editor/model';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { matchIds } from '@crumpet/editor/diff';
 import type { Tree } from '../sync/tree';
-import type { PageSetup, StyleSheet } from './styles';
+import { type PageSetup, type StyleDef, type StyleKey, type StyleSheet, fullSheet } from './styles';
 import type { Persisted, Storage } from './db';
 import { attachmentsIn, forgetFiles } from './files';
 import { type StatsElsewhere, dayKey, recordEdit, wordsIn, wordsToday } from './stats';
@@ -878,10 +878,18 @@ export class AppStore {
   }
 
   /** A new project with one chapter, opened. */
+  /** A Word document's own styles, added to the notes' styles (those already there are kept as they are). */
+  addNoteStyles(styles: { id: string; name: string; base: StyleKey; def: Partial<StyleDef> }[]): void {
+    const sheet = fullSheet(this.state.settings.noteStyles, 'crumpet');
+    const have = new Set((sheet.custom ?? []).map((c) => c.id));
+    const add = styles.filter((x) => !have.has(x.id)).map((x) => ({ id: x.id, name: x.name, base: x.base, def: { ...sheet.styles[x.base], ...x.def } }));
+    if (add.length) this.updateSettings({ noteStyles: { ...sheet, custom: [...(sheet.custom ?? []), ...add] } });
+  }
+
   createProject(name: string): Project {
     const t = this.now();
     const first = this.makeChapter('', 'Chapter 1', t);
-    const project: Project = { id: newId(), name: name.trim() || 'Untitled project', goal: null, outline: [{ type: 'chapter', id: first.id }], createdAt: t, updatedAt: t };
+    const project: Project = { id: newId(), name: name.trim() || 'Untitled project', goal: null, outline: [{ type: 'chapter', id: first.id }], createdAt: t, updatedAt: t, ...(this.state.settings.defaultStyles ? { styles: structuredClone(this.state.settings.defaultStyles) } : {}) };
     first.projectId = project.id;
     this.set({ projects: [...this.state.projects, project], chapters: [...this.state.chapters, first] });
     this.save(this.storage.putProject(project));

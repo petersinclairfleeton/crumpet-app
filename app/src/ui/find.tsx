@@ -8,14 +8,19 @@ import type { Editor } from '@crumpet/editor/editor';
 import type { Doc } from '@crumpet/editor/model';
 import { caret } from '@crumpet/editor/model';
 import { applyOps } from '@crumpet/editor/ops';
-import { type Match, findMatches, replaceMatches } from '@crumpet/editor/find';
+import { type FindFormat, type FindOptions, type Match, findMatches, replaceMatches } from '@crumpet/editor/find';
+import type { Mark } from '@crumpet/editor/model';
+import { type StyleSheet, blockStyleKey, sheetStyles } from '../data/styles';
 import { IconChevronDown, IconClose } from './icons';
+import { Popover } from './Sidebar';
 
 /** Something to search: a note or chapter, with its editor if it's open. */
 export interface FindTarget {
   id: string;
   doc: Doc;
   editor: Editor | null;
+  /** Its name, for the list of results (a chapter's title). */
+  label?: string;
 }
 
 interface Props {
@@ -30,7 +35,43 @@ interface Props {
   scopes?: { id: string; label: string }[];
   scope?: string;
   onScope?(id: string): void;
+  /** The styles in use, to find text in one paragraph style. */
+  sheet?: StyleSheet;
   onClose(): void;
+}
+
+/** Word's special characters, for the Special menu. */
+const SPECIALS: [string, string, boolean][] = [
+  ['^t', 'Tab character', true],
+  ['^l', 'Line break', true],
+  ['^?', 'Any character', false],
+  ['^#', 'Any digit', false],
+  ['^$', 'Any letter', false],
+  ['^w', 'White space', false],
+  ['^s', 'No-break space', true],
+  ['^+', 'Em dash', true],
+  ['^=', 'En dash', true],
+  ['^f', 'Footnote mark', false],
+  ['^&', 'What was found', true],
+  ['^^', 'Caret character', true],
+];
+
+const MARK_NAMES: [Mark, string][] = [
+  ['bold', 'Bold'],
+  ['italic', 'Italic'],
+  ['underline', 'Underline'],
+  ['strike', 'Strikethrough'],
+];
+
+/** A match's words with a little of what's round them, for the list of results. */
+export function matchContext(doc: Doc, m: Match, room = 28): [string, string, string] {
+  const b = doc.blocks.find((x) => x.id === m.block);
+  const text = (b?.runs.map((r) => r.text).join('') ?? '').replace(/[\u2063\ufffc]/g, ' ');
+  let before = text.slice(Math.max(0, m.from - room), m.from);
+  let after = text.slice(m.to, m.to + room);
+  if (m.from > room) before = `…${before.replace(/^\S*\s/, '')}`;
+  if (m.to + room < text.length) after = `${after.replace(/\s\S*$/, '')}…`;
+  return [before, text.slice(m.from, m.to), after];
 }
 
 const canHighlight = typeof CSS !== 'undefined' && 'highlights' in CSS && typeof Highlight !== 'undefined';
@@ -46,11 +87,20 @@ export function useFindKey(onOpen: (replace: boolean) => void) {
   };
 }
 
-export function FindBar({ targets, onReplaceDoc, onGoTo, author, scopes, scope, onScope, onClose }: Props) {
+export function FindBar({ targets, onReplaceDoc, onGoTo, author, scopes, scope, onScope, sheet, onClose }: Props) {
   const [query, setQuery] = useState(() => window.getSelection()?.toString().split('\n')[0].slice(0, 200) ?? '');
   const [replacement, setReplacement] = useState('');
   const [matchCase, setMatchCase] = useState(false);
   const [wholeWord, setWholeWord] = useState(false);
+  const [wildcards, setWildcards] = useState(false);
+  const [more, setMore] = useState(false);
+  const [marks, setMarks] = useState<Mark[]>([]);
+  const [highlighted, setHighlighted] = useState(false);
+  const [styleKey, setStyleKey] = useState('');
+  const [menu, setMenu] = useState<'format' | 'special' | null>(null);
+  const [results, setResults] = useState(false);
+  const lastField = useRef<'find' | 'replace'>('find');
+  const replaceInput = useRef<HTMLInputElement>(null);
   const [index, setIndex] = useState(0);
   const [tick, setTick] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -70,7 +120,12 @@ export function FindBar({ targets, onReplaceDoc, onGoTo, author, scopes, scope, 
     return () => offs.forEach((off) => off());
   }, [editorKey]);
 
-  const opts = useMemo(() => ({ matchCase, wholeWord }), [matchCase, wholeWord]);
+  const format = useMemo<FindFormat | undefined>(() => {
+    if (!marks.length && !highlighted && !styleKey) return undefined;
+    return { ...(marks.length ? { marks } : {}), ...(highlighted ? { highlight: true } : {}), ...(styleKey && sheet ? { block: (b) => blockStyleKey(sheet, b) === styleKey } : {}) };
+  }, [marks, highlighted, styleKey, sheet]);
+  const opts = useMemo<FindOptions>(() => ({ matchCase, wholeWord, wildcards, ...(format ? { format } : {}) }), [matchCase, wholeWord, wildcards, format]);
+  const looking = !!query || !!format;
   const found = useMemo(
     () => targets.map((t) => ({ target: t, matches: t.editor ? t.editor.find(query, opts) : findMatches(t.doc, query, opts) })),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,6 +215,7 @@ export function FindBar({ targets, onReplaceDoc, onGoTo, author, scopes, scope, 
           aria-label="Find"
           placeholder="Find"
           value={query}
+          onFocus={() => (lastField.current = 'find')}
           onChange={(e) => {
             setQuery(e.target.value);
             setIndex(0);
@@ -172,7 +228,7 @@ export function FindBar({ targets, onReplaceDoc, onGoTo, author, scopes, scope, 
           }}
         />
         <span className="find-count" aria-live="polite">
-          {query ? (all.length ? `${at + 1} of ${all.length}` : 'None') : ''}
+          {looking ? (all.length ? `${at + 1} of ${all.length}` : 'None') : ''}
         </span>
         <button type="button" className="icon-btn" aria-label="Previous match" data-tip="Previous (Shift+Enter)" disabled={!all.length} onClick={() => step(-1)}>
           <IconChevronDown size={14} className="flip" />
@@ -186,6 +242,8 @@ export function FindBar({ targets, onReplaceDoc, onGoTo, author, scopes, scope, 
       </div>
       <div className="find-row">
         <input
+          ref={replaceInput}
+          onFocus={() => (lastField.current = 'replace')}
           type="text"
           aria-label="Replace with"
           placeholder="Replace with"
@@ -212,6 +270,9 @@ export function FindBar({ targets, onReplaceDoc, onGoTo, author, scopes, scope, 
         <label>
           <input type="checkbox" checked={wholeWord} onChange={(e) => setWholeWord(e.target.checked)} /> Whole words
         </label>
+        <button type="button" className="link-btn" aria-expanded={more} onClick={() => setMore(!more)}>
+          {more ? 'Fewer options' : 'More options'}
+        </button>
         {scopes && onScope && (
           <span className="segmented small" role="group" aria-label="Look in">
             {scopes.map((s) => (
@@ -222,6 +283,107 @@ export function FindBar({ targets, onReplaceDoc, onGoTo, author, scopes, scope, 
           </span>
         )}
       </div>
+      {more && (
+        <div className="find-row find-options">
+          <label>
+            <input type="checkbox" checked={wildcards} onChange={(e) => (setWildcards(e.target.checked), setIndex(0))} /> Use wildcards
+          </label>
+          <span className="tool-drop">
+            <button type="button" className={`btn small${format ? ' on' : ''}`} aria-expanded={menu === 'format'} onClick={() => setMenu(menu === 'format' ? null : 'format')}>
+              Format ▾
+            </button>
+            {menu === 'format' && (
+              <Popover label="Find formatting" onClose={() => setMenu(null)}>
+                <div className="find-format" role="group" aria-label="Find formatting">
+                  {MARK_NAMES.map(([m, name]) => (
+                    <label key={m} className="check-row">
+                      <input type="checkbox" checked={marks.includes(m)} onChange={(e) => (setMarks(e.target.checked ? [...marks, m] : marks.filter((x) => x !== m)), setIndex(0))} /> {name}
+                    </label>
+                  ))}
+                  <label className="check-row">
+                    <input type="checkbox" checked={highlighted} onChange={(e) => (setHighlighted(e.target.checked), setIndex(0))} /> Highlighted
+                  </label>
+                  {sheet && (
+                    <label className="field">
+                      <span>Paragraph style</span>
+                      <select aria-label="In paragraph style" value={styleKey} onChange={(e) => (setStyleKey(e.target.value), setIndex(0))}>
+                        <option value="">Any</option>
+                        {sheetStyles(sheet).map((x) => (
+                          <option key={x.key} value={x.key}>
+                            {x.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {format && (
+                    <button type="button" className="btn quiet small" onClick={() => (setMarks([]), setHighlighted(false), setStyleKey(''))}>
+                      No formatting
+                    </button>
+                  )}
+                </div>
+              </Popover>
+            )}
+          </span>
+          <span className="tool-drop">
+            <button type="button" className="btn small" aria-expanded={menu === 'special'} onClick={() => setMenu(menu === 'special' ? null : 'special')}>
+              Special ▾
+            </button>
+            {menu === 'special' && (
+              <Popover label="Special characters" onClose={() => setMenu(null)}>
+                <div className="find-special" role="menu">
+                  {SPECIALS.filter(([code, , both]) => both || lastField.current === 'find' || code !== '^&').map(([code, name]) => (
+                    <button
+                      key={code}
+                      type="button"
+                      role="menuitem"
+                      className="menu-item"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setMenu(null);
+                        if (lastField.current === 'replace') {
+                          setReplacement(replacement + code);
+                          replaceInput.current?.focus();
+                        } else {
+                          setQuery(query + code);
+                          setIndex(0);
+                          input.current?.focus();
+                        }
+                      }}
+                    >
+                      <span className="grow">{name}</span>
+                      <kbd>{code}</kbd>
+                    </button>
+                  ))}
+                </div>
+              </Popover>
+            )}
+          </span>
+          <label>
+            <input type="checkbox" checked={results} onChange={(e) => setResults(e.target.checked)} /> List results
+          </label>
+        </div>
+      )}
+      {more && results && looking && (
+        <ol className="find-results" aria-label="Results">
+          {all.slice(0, 500).map(({ target, match }, i) => {
+            const [before, word, after] = matchContext(target.editor?.state.doc ?? target.doc, match);
+            return (
+              <li key={`${target.id}:${match.block}:${match.from}`}>
+                <button type="button" aria-current={i === at} onClick={() => setIndex(i)}>
+                  {targets.length > 1 && target.label && <span className="find-result-where">{target.label}</span>}
+                  <span className="find-result-text">
+                    {before}
+                    <mark>{word}</mark>
+                    {after}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+          {all.length > 500 && <li className="muted">And {all.length - 500} more</li>}
+        </ol>
+      )}
     </div>
   );
 }

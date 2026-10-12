@@ -141,6 +141,8 @@ export interface Settings {
   noteSize?: number;
   /** The named styles notes use; Crumpet's own when unset. */
   noteStyles?: StyleSheet;
+  /** Styles new projects start with (Word's Set as Default); the manuscript set when unset. */
+  defaultStyles?: StyleSheet;
   notePage?: PageSetup;
   /** Words written each day on this device. */
   stats?: WritingStats;
@@ -211,7 +213,7 @@ export interface LayoutPrefs {
   listWidth?: number;
   /** The right sidebar (outline, styles, comments, links): shown, which tab, and its width. */
   right?: boolean;
-  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard';
+  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects';
   rightWidth?: number;
   /** The writing area's panes and their tabs (a `Workspace` from `panes.ts`, checked when read). */
   panes?: unknown;

@@ -5,13 +5,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { fullSheet, manuscriptPage } from '../data/styles';
 import { chapterPages, rememberPages } from '../data/pagecount';
 import { type PageFields, PageToggle, PageView } from './pages';
-import { StylesDialog, useSheetClass } from './styles-ui';
+import { StylesDialog, useSheetClass, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { chapterWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
 import { dayKey, wordsToday } from '../data/stats';
 import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
-import type { PageSetup, StyleKey, StyleSheet } from '../data/styles';
+import type { PageSetup, StyleSheet } from '../data/styles';
 import { useOfferHelped } from './helpers';
 import { bookEntries, footnotesBefore, goToLater, useBookToc, useFootnoteStart } from './booktoc';
 import type { TocEntry } from '@crumpet/editor/view';
@@ -528,11 +528,12 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const editorRef = useRef<Editor | null>(null);
   const [chapterEditor, setChapterEditor] = useState<Editor | null>(null);
   const [goalOpen, setGoalOpen] = useState(false);
-  const [stylesOpen, setStylesOpen] = useState<StyleKey | boolean>(false);
+  const [stylesOpen, setStylesOpen] = useState<string | boolean>(false);
   const [finding, setFinding] = useState(false);
   const [findScope, setFindScope] = useState<'chapter' | 'book'>('chapter');
   const onFindKey = useFindKey(() => setFinding(true));
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
+  const styleSources = useStyleSources(project.id);
   const pageSetup = project.page ?? manuscriptPage();
   const paged = state.settings.pageView?.projects ?? true;
   const list = projectChapters(project, state.chapters);
@@ -657,7 +658,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
     </p>
   );
 
-  const bookTargets = list.map(({ chapter: c }) => ({ id: c.id, doc: c.doc, editor: c.id === chapter.id ? chapterEditor : null }));
+  const bookTargets = list.map(({ chapter: c }) => ({ id: c.id, doc: c.doc, editor: c.id === chapter.id ? chapterEditor : null, label: c.title || 'Untitled chapter' }));
   return (
     <section className="pane find-host" aria-label="Chapter" onKeyDown={onFindKey}>
       {finding && (
@@ -672,6 +673,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
           ]}
           scope={findScope}
           onScope={(id) => setFindScope(id as 'chapter' | 'book')}
+          sheet={sheet}
           onClose={() => setFinding(false)}
         />
       )}
@@ -685,6 +687,8 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
           onClose={() => setStylesOpen(false)}
           chapters
           initial={typeof stylesOpen === 'string' ? stylesOpen : undefined}
+          sources={styleSources}
+          onDefault={() => store.updateSettings({ defaultStyles: sheet })}
         />
       )}
       <EditorHost
@@ -695,7 +699,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         pagePlace={{ offset, chapterStart: true, total: offset + (pages || 1) + after }}
         chapters
         onPages={onPages}
-        onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)}
+        onEditStyles={(key?: string) => setStylesOpen(key ?? true)}
         onSheet={(styles) => store.setProjectStyles(project.id, styles)}
         docId={chapter.id}
         doc={chapter.doc}
@@ -739,11 +743,12 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   // The right sidebar's helpers work on the chapter being written in.
   const msRef = useRef<HTMLElement>(null);
   const activeId = Object.keys(editors).find((id) => editors[id] === active) ?? project.id;
-  const helped = useMemo(() => (active ? { editor: active, docId: activeId, sheet: fullSheet(project.styles, 'manuscript'), onSheet: (styles: StyleSheet) => store.setProjectStyles(project.id, styles), onEditStyles: (key?: StyleKey) => setStylesOpen(key ?? true) } : null), [active, activeId, project.id, project.styles, store]);
+  const helped = useMemo(() => (active ? { editor: active, docId: activeId, sheet: fullSheet(project.styles, 'manuscript'), onSheet: (styles: StyleSheet) => store.setProjectStyles(project.id, styles), onEditStyles: (key?: string) => setStylesOpen(key ?? true) } : null), [active, activeId, project.id, project.styles, store]);
   useOfferHelped(helped, msRef);
   const [linkOpen, setLinkOpen] = useState(false);
-  const [stylesOpen, setStylesOpen] = useState<StyleKey | boolean>(false);
+  const [stylesOpen, setStylesOpen] = useState<string | boolean>(false);
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
+  const styleSources = useStyleSources(project.id);
   const styles = useSheetClass(sheet);
   const pageSetup = project.page ?? manuscriptPage();
   const paged = state.settings.pageView?.projects ?? true;
@@ -795,9 +800,10 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
     <section ref={msRef} className="pane find-host" aria-label="Manuscript" onKeyDown={onFindKey}>
       {finding && (
         <FindBar
-          targets={order.map((c) => ({ id: c.id, doc: c.doc, editor: editors[c.id] ?? null }))}
+          targets={order.map((c) => ({ id: c.id, doc: c.doc, editor: editors[c.id] ?? null, label: c.title || 'Untitled chapter' }))}
           onReplaceDoc={(id, doc) => store.setChapterDoc(id, doc)}
           author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
+          sheet={sheet}
           onClose={() => setFinding(false)}
         />
       )}
@@ -811,6 +817,8 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           onClose={() => setStylesOpen(false)}
           chapters
           initial={typeof stylesOpen === 'string' ? stylesOpen : undefined}
+          sources={styleSources}
+          onDefault={() => store.updateSettings({ defaultStyles: sheet })}
         />
       )}
       <div className={`note-pane manuscript ${styles}`}>
@@ -820,7 +828,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               <IconBack size={18} />
             </button>
           )}
-          {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
+          {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
           <RevisionChip />
@@ -844,12 +852,12 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
         </div>
         {narrow && active && (
           <KeyboardBar host={scroll}>
-            <FormatTools compact editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
+            <FormatTools compact editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
           </KeyboardBar>
         )}
         {floating && active && (
           <SelectionBar host={scroll}>
-            <FormatTools compact attach={false} editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: StyleKey) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
+            <FormatTools compact attach={false} editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
           </SelectionBar>
         )}
         {linkOpen && active && <LinkBar editor={active} onClose={() => setLinkOpen(false)} />}

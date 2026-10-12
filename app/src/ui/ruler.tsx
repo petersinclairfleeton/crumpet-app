@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import { type TabStop, tidyTabs } from '@crumpet/editor/model';
 import { TAB_ALIGN_NAMES } from './tabstops';
-import { PX_PER_IN, type StyleSheet, styleKeyOf } from '../data/styles';
+import { PX_PER_IN, type StyleSheet, blockStyleKey, styleDefFor } from '../data/styles';
 
 type Marker = 'first' | 'left' | 'right';
 const KINDS: TabStop['align'][] = ['left', 'center', 'right', 'decimal'];
@@ -52,7 +52,7 @@ export function Ruler({ editor, width: baseWidth, boxes, margins: baseMargins, s
   const margins = box?.margins ? { left: box.margins.left / PX_PER_IN, right: box.margins.right / PX_PER_IN } : baseMargins;
   const inches = width / PX_PER_IN;
   const blk = editor.currentBlock();
-  const def = sheet?.styles[styleKeyOf(blk)];
+  const def = sheet ? styleDefFor(sheet, blockStyleKey(sheet, blk)) : undefined;
   const left = blk.para?.left ?? def?.leftIndent ?? 0;
   const first = blk.para?.first ?? def?.firstIndent ?? 0;
   const right = blk.para?.right ?? 0;

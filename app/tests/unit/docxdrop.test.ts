@@ -151,3 +151,26 @@ describe('Word: multilevel lists, border styles and widow control', () => {
     expect(back[2].para).toMatchObject({ border: 'tblr', bstyle: 'double', bcolor: '#2f6fd1', nowidow: true });
   });
 });
+
+describe('Word: styles of your own', () => {
+  it('go to Word as styles of the same name, and come back as styles of your own', async () => {
+    const def = { font: null, size: 13, bold: false, italic: true, caps: false, align: 'center' as const, spaceBefore: 6, spaceAfter: 12, lineSpacing: 1.15, firstIndent: 0, leftIndent: 0.5 };
+    const custom = [{ id: 'c-letter', name: 'Letter', base: 'normal' as const, def }, { id: 'c-part-head', name: 'Part head', base: 'heading2' as const, def: { ...def, bold: true } }];
+    const blocks = [makeBlock('paragraph', 'Dear Mara,', [], { style: 'c-letter' }), makeBlock('heading2', 'Part one', [], { style: 'c-part-head' }), makeBlock('paragraph', 'Plain')];
+    const bytes = await toDocx([{ doc: { blocks } }], { title: 'T', custom });
+    const files = await readZip(bytes);
+    const styles = new TextDecoder().decode(files.get('word/styles.xml'));
+    expect(styles).toContain('w:customStyle="1" w:styleId="MyLetter"><w:name w:val="Letter"/><w:basedOn w:val="Normal"/>');
+    expect(styles).toContain('w:styleId="MyPartHead"><w:name w:val="Part head"/><w:basedOn w:val="Heading2"/>');
+    expect(new TextDecoder().decode(files.get('word/document.xml'))).toContain('<w:pStyle w:val="MyLetter"/>');
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks.map((b) => [b.type, b.style])).toEqual([
+      ['paragraph', 'c-letter'],
+      ['heading2', 'c-part-head'],
+      ['paragraph', undefined],
+    ]);
+    const letter = back.styles?.find((x) => x.id === 'c-letter');
+    expect(letter).toMatchObject({ name: 'Letter', base: 'normal', def: { size: 13, italic: true, align: 'center', spaceBefore: 6, spaceAfter: 12, leftIndent: 0.5 } });
+    expect(back.styles?.find((x) => x.id === 'c-part-head')?.base).toBe('heading2');
+  });
+});

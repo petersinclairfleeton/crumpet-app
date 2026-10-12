@@ -101,9 +101,9 @@ At the end there's a suggested order for building what's missing.
 | Styles gallery | ✅ | The style menu on the bar (Normal, Title, Headings 1–4, Quote, Caption, Epigraph, Scene break and more). |
 | Styles pane | ✅ | Right sidebar: each style as it looks and how often it's used. |
 | Modify a style, update to match selection | ✅ | |
-| Create a new style of your own | ❌ | The list of styles is fixed. |
-| Style Inspector / Reveal Formatting | ❌ | |
-| Manage Styles (import, export, hide, order) | 🟡 | Style sets can be applied (Crumpet, Manuscript, Book, Modern); no managing beyond that. |
+| Create a new style of your own | ✅ | Styles pane → New style… (from the text at the caret), or + New style in the styles window: a name, the style it's based on, and its look. Saved on the paragraph as `{.c-name}`; to Word as a style of the same name, and a Word file's own styles come in as yours. |
+| Style Inspector / Reveal Formatting | ✅ | Styles pane → Reveal formatting: the font and paragraph at the caret, with what's set by hand marked apart from what comes from the style. |
+| Manage Styles (import, export, hide, order) | ✅ | In the styles window: show or hide a style in the menu, move it up or down, delete your own, and copy all the styles from notes or another project. |
 
 ### Editing
 
@@ -111,12 +111,12 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Find | ✅ | In a note, a chapter or the whole book, with matches highlighted. |
 | Find options: match case, whole words | ✅ | |
-| Advanced Find: wildcards, formatting, special characters (¶, tab, page break) | ❌ | |
+| Advanced Find: wildcards, formatting, special characters (¶, tab, page break) | ✅ | Find → More options: Word's wildcards (? * [ ] @ {n,m} < > and groups, \1 in the replacement), formatting (bold, italic, underline, strikethrough, highlighted, a paragraph style, with or without words) and special characters (^t, ^l, ^#, ^$, ^&…). Not ^p: paragraph marks can't be found or replaced. |
 | Replace, Replace all | ✅ | Can be undone, and is tracked when Track Changes is on. |
 | Go To (page, section, footnote, comment…) | ✅ | F5, the command palette, or the page number in page view: a page, heading, footnote or comment by number (or +1 / -2), or the previous or next one. No sections, lines or bookmarks yet. |
 | Select all | ✅ | |
-| Select objects, text with similar formatting | ❌ | |
-| Selection Pane | ❌ | |
+| Select objects, text with similar formatting | ✅ | More → Select text with similar formatting, or a style's "Select all instances" in the Styles pane: the places light up, with a bar to make them bold, italic, underlined, highlighted, plain or another style at once. |
+| Selection Pane | ✅ | The right sidebar's Selection tab: pictures, shapes, text boxes, maths and diagrams, to go to, hide and show (Word is told they're hidden; it doesn't tell Crumpet back yet). |
 
 ### Voice, Editor, Add-ins, Copilot
 
@@ -190,7 +190,7 @@ At the end there's a suggested order for building what's missing.
 | Colours, Fonts (for the whole document) | 🟡 | Done by modifying styles one by one. |
 | Paragraph Spacing presets | 🟡 | Comes with the style sets; no separate menu. |
 | Effects | ❌ | |
-| Set as Default | 🟡 | Styles are kept per project; no "use these for every new document". |
+| Set as Default | ✅ | The styles window's "Set as default for new projects" (kept on this device). |
 | Watermark ("DRAFT", "CONFIDENTIAL") | ❌ | |
 | Page Colour | 🟡 | The paper colour you write on is an app setting; it isn't saved in the document or printed. |
 | Page Borders | ❌ | |
@@ -292,7 +292,7 @@ At the end there's a suggested order for building what's missing.
 | Gridlines | ❌ | |
 | Navigation Pane: headings | ✅ | Right sidebar's outline, and the status bar. |
 | Navigation Pane: pages (thumbnails) | ❌ | |
-| Navigation Pane: results | 🟡 | Find highlights matches and counts them; no list of results with their text around them. |
+| Navigation Pane: results | ✅ | Find → More options → List results: each match with the words round it (and its chapter, across a book); click one to go there. |
 | Zoom, 100%, Page Width | ✅ | 25%–300% and "Fit". |
 | Zoom: One Page, Multiple Pages | ❌ | Pages are always one under the other. |
 | New Window | 🟡 | Panes and tabs do much the same inside one window. |
@@ -500,14 +500,14 @@ Where: `model.ts` (`Look`, `Mark`, `ParaLook`), `markdown.ts`, `docx.ts`, `app/s
 
 **5. Styles, find and selecting**
 Where: `app/src/data/styles.ts`, `ui/stylespane.tsx`, `ui/styles-ui.tsx`, `ui/find.tsx`, `packages/editor/src/find.ts`.
-- [ ] Create your own styles
-- [ ] Reveal formatting (Style Inspector)
-- [ ] Manage styles: copy between documents, hide, order
-- [ ] Set as default for new documents
-- [ ] Advanced find: wildcards, formatting, special characters
-- [ ] Find results list with the words around each match
-- [ ] Select text with similar formatting
-- [ ] Selection pane (shapes, pictures, text boxes)
+- [x] Create your own styles
+- [x] Reveal formatting (Style Inspector)
+- [x] Manage styles: copy between documents, hide, order
+- [x] Set as default for new documents
+- [x] Advanced find: wildcards, formatting, special characters
+- [x] Find results list with the words around each match
+- [x] Select text with similar formatting
+- [x] Selection pane (shapes, pictures, text boxes)
 
 **6. Tables**
 Where: `packages/editor/src/table.ts`, `cells.ts`, `view.ts` (the Table menu), `paginate.ts`, `markdown.ts`, `docx.ts`.

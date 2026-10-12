@@ -2,6 +2,8 @@
 // decrease and increase indent, show/hide ¶, and the Paragraph window with
 // every spacing, indent and page-break setting.
 
+import { selectSimilar } from './similar';
+import type { StyleSheet } from '../data/styles';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
@@ -66,7 +68,7 @@ function SpacingTool({ ed, off, onMore }: { ed: Editor | null; off: boolean; onM
 }
 
 /** The Paragraph group, as toolbar items (see OverflowRow). */
-export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem[]; dialog: React.ReactNode } {
+export function useParaItems(ed: Editor | null, off: boolean, sheet?: StyleSheet): { items: ToolItem[]; dialog: React.ReactNode } {
   const [open, setOpen] = useState(false);
   const [tabs, setTabs] = useState(false);
   const [sorting, setSorting] = useState(false);
@@ -109,6 +111,7 @@ export function useParaItems(ed: Editor | null, off: boolean): { items: ToolItem
         ),
       },
       simple('sort', 1, 'Sort paragraphs…', <span className="glyph-sort">A↓Z</span>, () => setSorting(true)),
+      simple('similar', 1, 'Select text with similar formatting', <span className="glyph-similar">⁂</span>, () => ed && selectSimilar(ed, sheet)),
       simple('paragraph', 1, 'Paragraph settings…', ICON_PARA_WINDOW, () => setOpen(true)),
     ],
     dialog:
