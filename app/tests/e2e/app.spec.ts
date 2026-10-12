@@ -2792,7 +2792,7 @@ test('quick switcher, command palette and bookmarks', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
   await page.keyboard.type('bold');
   await page.keyboard.press('Enter');
-  await expect(pane.locator('.note-editor strong')).toHaveText('bold words');
+  await expect(pane.locator('.note-editor strong')).toHaveText('Bold words');
   // Bookmark it, and it's in the sidebar to open again.
   await page.keyboard.press('Control+p');
   await page.keyboard.type('bookmark this note');
@@ -3337,4 +3337,52 @@ test('on an iPhone: the Home Screen guide, no zooming into boxes, and swiping in
   await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
   await expect(guide).toHaveCount(0);
   await context.close();
+});
+
+test('AutoCorrect: curly quotes, dashes, typos and capitals as you type; Ctrl+Z takes one back; each can be turned off', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Corrected', 'she said "teh end"--then... (c) i agree.');
+  const editor = page.locator('.note-editor');
+  await expect(editor).toContainText('She said “the end”—then… © I agree.');
+  // Ctrl+Z straight after a correction takes back just that.
+  await page.keyboard.type(' ok "');
+  await expect(editor).toContainText('I agree. Ok “');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(editor).toContainText('I agree. Ok "');
+  // Turned off in Settings → Writing, with a replacement of your own.
+  await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Writing' }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await settings.getByLabel('“Curly” quotes and apostrophes').uncheck();
+  await settings.getByLabel('Replace', { exact: true }).fill('lizzy');
+  await settings.getByLabel('With', { exact: true }).fill('Elizabeth');
+  await settings.getByRole('button', { name: 'Add' }).click();
+  await expect(settings).toContainText('Elizabeth');
+  await page.keyboard.press('Escape');
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.type(' lizzy\'s "x" ');
+  await expect(editor).toContainText('Elizabeth\'s "x"');
+});
+
+test('show/hide ¶: dots for spaces and a ¶ at each paragraph end, from the bar or Ctrl+Shift+8', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Marks', 'One two');
+  const editor = page.locator('.note-editor');
+  await expect(editor.locator('.mk-sp')).toHaveCount(0);
+  await (await toolButton(page, /Show\/hide ¶|Show formatting marks/)).click();
+  await expect(editor).toHaveClass(/show-marks/);
+  await expect(editor.locator('.mk-sp')).toHaveCount(1);
+  const pilcrow = await editor.locator('.blk .text').first().evaluate((el) => getComputedStyle(el, '::after').content);
+  expect(pilcrow).toBe('"¶"');
+  // The text itself is unchanged, and typing still works.
+  await editor.click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' three');
+  await expect(editor.locator('.mk-sp')).toHaveCount(2);
+  await expect(editor).toContainText('One two three');
+  await page.keyboard.press('ControlOrMeta+Shift+8');
+  await expect(editor).not.toHaveClass(/show-marks/);
+  await expect(editor.locator('.mk-sp')).toHaveCount(0);
 });

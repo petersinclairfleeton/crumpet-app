@@ -64,6 +64,8 @@ export class View {
   tocOverride: TocEntry[] | null = null;
   /** Footnotes before this document's first (a book's earlier chapters), so its numbers run on. */
   footnoteStart = 0;
+  /** Show/hide ¶: spaces, tabs and paragraph ends are shown (set with `setShowMarks`, which redraws). */
+  showMarks = false;
 
   constructor(public root: HTMLElement) {
     root.contentEditable = 'true';
@@ -98,7 +100,7 @@ export class View {
         this.rendered.set(block.id, { block, el: old.el });
         continue;
       }
-      const el = buildBlock(block);
+      const el = buildBlock(block, this.showMarks);
       if (old) old.el.replaceWith(el);
       this.rendered.set(block.id, { block, el });
     }
@@ -291,11 +293,26 @@ export class View {
   }
 }
 
+/** Text with its spaces and tabs in spans, for Show/hide ¶ (the text itself is unchanged). */
+function markedText(text: string): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  for (const part of text.split(/([ \t\u00a0])/)) {
+    if (!part) continue;
+    if (part === ' ' || part === '\t' || part === '\u00a0') {
+      const span = document.createElement('span');
+      span.className = part === ' ' ? 'mk-sp' : part === '\t' ? 'mk-tab' : 'mk-nb';
+      span.textContent = part;
+      frag.appendChild(span);
+    } else frag.appendChild(document.createTextNode(part));
+  }
+  return frag;
+}
+
 function textEl(blockEl: HTMLElement): HTMLElement {
   return blockEl.querySelector<HTMLElement>(':scope > .text') ?? blockEl;
 }
 
-function buildBlock(block: Block): HTMLElement {
+function buildBlock(block: Block, marks = false): HTMLElement {
   const el = document.createElement(TAGS[block.type]);
   el.className = `blk blk-${block.type}`;
   el.dataset.block = block.id;
@@ -392,14 +409,18 @@ function buildBlock(block: Block): HTMLElement {
   if (!block.runs.length) {
     text.appendChild(document.createElement('br'));
   }
-  for (const run of block.runs) text.appendChild(runNode(run));
+  for (const run of block.runs) text.appendChild(runNode(run, marks));
   el.appendChild(text);
   return el;
 }
 
-/** A run of text as the page shows it: its marks, look, footnote, change, comment and link around it. */
-export function runNode(run: Run): Node {
-  let node: Node = document.createTextNode(run.text);
+/**
+ * A run of text as the page shows it: its marks, look, footnote, change,
+ * comment and link around it. `marks` (Show/hide ¶): each space, tab and
+ * non-breaking space is a span of its own, which CSS draws a dot or arrow on.
+ */
+export function runNode(run: Run, marks = false): Node {
+  let node: Node = marks && /[ \t\u00a0]/.test(run.text) ? markedText(run.text) : document.createTextNode(run.text);
   for (const mark of [...run.marks].reverse()) {
     const wrap = document.createElement(MARK_TAGS[mark]);
     wrap.appendChild(node);
