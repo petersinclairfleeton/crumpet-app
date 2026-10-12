@@ -125,13 +125,21 @@ export function layout(tree: Tree, prev: Layout): Layout {
     prev.notes,
   );
   // Chapters are numbered in outline order, so they sort the same way anywhere.
+  // One kept in a subfolder of its project (put there by hand) stays where it is.
   const chapters: Record<string, string> = {};
   for (const p of Object.values(tree.projects)) {
+    const dir = projects[p.id];
+    const inSub = (id: string) => {
+      const was = prev.chapters?.[id];
+      return was !== undefined && was.startsWith(`${dir}/`) && parentOf(was) !== dir && !was.startsWith(`${dir}/${RESEARCH}/`);
+    };
     const ids = chapterOrder(tree, p.id);
-    const width = Math.max(2, String(ids.length).length);
-    ids.forEach((id, i) => {
+    for (const id of ids.filter(inSub)) chapters[id] = prev.chapters[id];
+    const flat = ids.filter((id) => !inSub(id));
+    const width = Math.max(2, String(flat.length).length);
+    flat.forEach((id, i) => {
       const c = tree.chapters[id];
-      chapters[id] = join(projects[p.id], `${String(i + 1).padStart(width, '0')} ${safeName(c.title || 'Untitled')}.md`);
+      chapters[id] = join(dir, `${String(i + 1).padStart(width, '0')} ${safeName(c.title || 'Untitled')}.md`);
     });
   }
   return { stacks, notebooks, notes, projects, chapters };

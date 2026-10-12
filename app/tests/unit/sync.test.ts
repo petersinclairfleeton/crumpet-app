@@ -550,6 +550,37 @@ describe('syncing projects', () => {
     expect(mac.store.getState().chapters[0].title).toBe('Beginning');
   });
 
+  it('reads any folder in Projects as a project, like a notebook in a stack, even without its project.json', async () => {
+    const { cloud, mac } = await pair();
+    await cloud.write('Projects/My Book/01 Opening.md', 'The lamp had not been lit.\n');
+    await cloud.write('Projects/My Book/02 Salt.md', 'The sea came in.\n');
+    await cloud.write('Projects/My Book/Part Two/Storm.md', 'Thunder.\n');
+    await cloud.write('Projects/My Book/Research/Map.md', 'North is up.\n');
+    await mac.engine.sync();
+    const st = mac.store.getState();
+    expect(st.projects.map((x) => x.name)).toEqual(['My Book']);
+    expect(st.notebooks).toEqual([]);
+    const p = st.projects[0];
+    expect(outline(mac.store, p.id)).toEqual(['Opening', 'Salt', '[Part Two]', 'Storm']);
+    expect(toMarkdown(mac.store.chapter(st.chapters.find((c) => c.title === 'Storm')!.id)!.doc)).toContain('Thunder.');
+    expect(st.notes.find((n) => n.title === 'Map')?.projectId).toBe(p.id);
+    // Crumpet adds its project.json; the files stay where they are, the one in a subfolder too.
+    expect(fileList(cloud)).toEqual([
+      '.crumpet/vault.json',
+      'Projects/My Book/01 Opening.md',
+      'Projects/My Book/02 Salt.md',
+      'Projects/My Book/Part Two/Storm.md',
+      'Projects/My Book/Research/Map.md',
+      'Projects/My Book/project.json',
+    ]);
+    // Written to in Crumpet, the chapter in the subfolder is saved back there.
+    const storm = mac.store.getState().chapters.find((c) => c.title === 'Storm')!;
+    mac.store.setChapterDoc(storm.id, md('Thunder, then rain.\n'));
+    mac.store.flush();
+    await mac.engine.sync();
+    expect(cloud.files.get('Projects/My Book/Part Two/Storm.md')!.text).toContain('Thunder, then rain.');
+  });
+
   it('lives alongside a stack that happens to be called Projects', async () => {
     const { cloud, mac, phone } = await pair();
     const st = mac.store.createStack('Projects');
