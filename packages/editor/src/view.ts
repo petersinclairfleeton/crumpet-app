@@ -2,7 +2,8 @@
 // between DOM positions and model positions. Only blocks whose model object
 // changed are rebuilt; the rest of the DOM is left alone.
 
-import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection } from './model';
+import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection, TabStop } from './model';
+import { DEFAULT_TAB } from './model';
 import { FIELDS, fieldValue } from './fields';
 import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
 import { type ShapeLook, tidyShape } from './shape';
@@ -83,6 +84,7 @@ export class View {
    */
   render(doc: Doc, force: Set<string> = new Set(), inPlace = false): void {
     const live = new Set<string>();
+    const built = new Set<string>();
     for (const block of doc.blocks) {
       live.add(block.id);
       const old = this.rendered.get(block.id);
@@ -102,6 +104,7 @@ export class View {
         continue;
       }
       const el = buildBlock(block, this.showMarks);
+      built.add(block.id);
       if (old) old.el.replaceWith(el);
       this.rendered.set(block.id, { block, el });
     }
@@ -114,6 +117,7 @@ export class View {
     // Put elements in document order, moving only what is out of place.
     if (!inPlace) this.order(doc);
     this.decorate(doc);
+    this.layoutTabs(doc, built);
   }
 
   private order(doc: Doc): void {
@@ -176,6 +180,20 @@ export class View {
     this.fillFields();
     const empty = doc.blocks.length === 1 && runsLength(doc.blocks[0].runs) === 0 && doc.blocks[0].type === 'paragraph';
     this.root.toggleAttribute('data-empty', empty);
+  }
+
+  /**
+   * Sizes each tab to reach its tab stop: the paragraph's own stops (left,
+   * centred, right or decimal), then every half inch. Measured from the
+   * left margin, as Word does. Only paragraphs with tabs are touched.
+   */
+  layoutTabs(doc: Doc, only?: Set<string>): void {
+    for (const block of doc.blocks) {
+      if (only && !only.has(block.id)) continue;
+      if (!block.runs.some((r) => r.text.includes('\t'))) continue;
+      const el = this.rendered.get(block.id)?.el;
+      if (el?.isConnected) layoutBlockTabs(el, block.para?.tabs ?? []);
+    }
   }
 
   /** What a field says, for fields the app knows (page numbers, words…); null for Crumpet's own (dates and times). */
@@ -309,19 +327,94 @@ export class View {
   }
 }
 
-/** Text with its spaces and tabs in spans, for Show/hide ¶ (the text itself is unchanged). */
-function markedText(text: string): DocumentFragment {
+/**
+ * Text with each tab in a span of its own (sized to reach its tab stop by
+ * `layoutTabs`), and for Show/hide ¶ (`marks`) each space too. The text
+ * itself is unchanged.
+ */
+function markedText(text: string, marks: boolean): DocumentFragment {
   const frag = document.createDocumentFragment();
-  for (const part of text.split(/([ \t\u00a0])/)) {
+  for (const part of text.split(marks ? /([ \t\u00a0])/ : /(\t)/)) {
     if (!part) continue;
     if (part === ' ' || part === '\t' || part === '\u00a0') {
       const span = document.createElement('span');
-      span.className = part === ' ' ? 'mk-sp' : part === '\t' ? 'mk-tab' : 'mk-nb';
+      span.className = part === ' ' ? 'mk-sp' : part === '\t' ? (marks ? 'tb mk-tab' : 'tb') : 'mk-nb';
       span.textContent = part;
       frag.appendChild(span);
     } else frag.appendChild(document.createTextNode(part));
   }
   return frag;
+}
+
+const PX_PER_INCH = 96;
+
+/** Sizes the tabs in one paragraph (see View.layoutTabs). */
+function layoutBlockTabs(el: HTMLElement, stops: TabStop[]): void {
+  const text = el.querySelector<HTMLElement>(':scope > .text');
+  const tabs = Array.from(text?.querySelectorAll<HTMLElement>('span.tb') ?? []);
+  if (!text || !tabs.length) return;
+  for (const t of tabs) t.style.paddingLeft = '0px';
+  const box = el.getBoundingClientRect();
+  if (!box.width || !el.offsetWidth) return;
+  // Page view may be zoomed: measure in the text's own pixels.
+  const scale = box.width / el.offsetWidth;
+  const origin = box.left - parseFloat(getComputedStyle(el).marginLeft || '0') * scale;
+  const last = stops.length ? stops[stops.length - 1].at * PX_PER_INCH : 0;
+  const range = document.createRange();
+  tabs.forEach((t, i) => {
+    const x = (t.getBoundingClientRect().left - origin) / scale;
+    const stop = stops.find((s) => s.at * PX_PER_INCH > x + 0.5);
+    let at: number;
+    let align: TabStop['align'] = 'left';
+    if (stop) {
+      at = stop.at * PX_PER_INCH;
+      align = stop.align;
+    } else {
+      const step = DEFAULT_TAB * PX_PER_INCH;
+      at = Math.max(last, Math.floor(x / step) * step);
+      while (at <= x + 0.5) at += step;
+    }
+    let w = at - x;
+    if (align !== 'left') {
+      // The text after the tab, up to the next tab: centred on the stop, ending there, or with its decimal point there.
+      const next = tabs[i + 1];
+      range.setStartAfter(t);
+      if (next) range.setEndBefore(next);
+      else range.setEnd(text, text.childNodes.length);
+      let seg = range.getBoundingClientRect().width / scale;
+      if (align === 'decimal') {
+        const text = range.toString();
+        const dot = text.search(/[.,]/);
+        if (dot >= 0) {
+          const part = document.createRange();
+          part.setStart(range.startContainer, range.startOffset);
+          const pos = textPoint(range, dot);
+          if (pos) {
+            part.setEnd(pos.node, pos.offset);
+            seg = part.getBoundingClientRect().width / scale;
+          }
+        }
+        w -= seg;
+      } else w -= align === 'center' ? seg / 2 : seg;
+    }
+    t.style.paddingLeft = `${Math.max(1, w)}px`;
+    if (stop?.leader) t.dataset.leader = stop.leader;
+    else delete t.dataset.leader;
+  });
+}
+
+/** The DOM point `n` characters into a range's text. */
+function textPoint(range: Range, n: number): { node: Text; offset: number } | null {
+  const walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT);
+  let seen = 0;
+  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+    if (!range.intersectsNode(node)) continue;
+    const start = node === range.startContainer ? range.startOffset : 0;
+    const len = node.data.length - start;
+    if (seen + len >= n) return { node, offset: start + (n - seen) };
+    seen += len;
+  }
+  return null;
 }
 
 function textEl(blockEl: HTMLElement): HTMLElement {
@@ -441,7 +534,7 @@ function buildBlock(block: Block, marks = false): HTMLElement {
  * non-breaking space is a span of its own, which CSS draws a dot or arrow on.
  */
 export function runNode(run: Run, marks = false): Node {
-  let node: Node = marks && /[ \t\u00a0]/.test(run.text) ? markedText(run.text) : document.createTextNode(run.text);
+  let node: Node = run.text.includes('\t') || (marks && /[ \u00a0]/.test(run.text)) ? markedText(run.text, marks) : document.createTextNode(run.text);
   for (const mark of [...run.marks].reverse()) {
     const wrap = document.createElement(MARK_TAGS[mark]);
     wrap.appendChild(node);

@@ -241,7 +241,14 @@ export class Editor {
     if (this.paged && !this.isComposing) {
       const before = this.layoutKey();
       const sel = this.keepSelection();
-      this.holdingHeight(() => this.paginator.update());
+      this.holdingHeight(() => {
+        // Fonts may have changed size: tabs are measured again first (in one flow).
+        if (this.state.doc.blocks.some((b) => b.runs.some((r) => r.text.includes('\t')))) {
+          this.paginator.clear();
+          this.view.layoutTabs(this.state.doc);
+        }
+        this.paginator.update();
+      });
       sel();
       if (this.layoutKey() !== before) this.emit(null);
     }
@@ -1022,6 +1029,11 @@ export class Editor {
     this.dispatch(insertField(this.state, name), 'command');
   }
 
+  /** Measures tabs again (after fonts load, say), outside page view; page view does it in `repaginate`. */
+  relayoutTabs(): void {
+    if (!this.paged) this.view.layoutTabs(this.state.doc);
+  }
+
   /** Shows what each field says now (e.g. after midnight, or when the app's own fields change). */
   updateFields(): void {
     this.view.fillFields();
@@ -1544,10 +1556,15 @@ export class Editor {
     }
     const mod = isMac ? e.metaKey : e.ctrlKey;
     if (e.key === 'Tab') {
-      // Tab nests list items (Shift+Tab un-nests); elsewhere it does nothing rather than leaving the note.
+      // Tab nests list items (Shift+Tab un-nests); elsewhere it types a tab, which goes to the next tab stop (as in Word).
       e.preventDefault();
       this.syncSelectionFromDom();
-      this.dispatch(indent(this.state, e.shiftKey ? -1 : 1), 'command');
+      const nest = indent(this.state, e.shiftKey ? -1 : 1);
+      if (nest) this.dispatch(nest, 'command');
+      else if (!e.shiftKey && !this.isReadOnly && INLINE_TYPES.has(getBlock(this.state.doc, this.state.selection.focus.block).type)) {
+        this.reviseLook();
+        this.dispatch(this.tracking ? trackedInsertText(this.state, '\t', this.tracking.author) : insertText(this.state, '\t'));
+      }
       return;
     }
     if (!mod) return;

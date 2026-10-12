@@ -3,7 +3,7 @@
 // needs (styles, lists, footnotes, pictures, headers and footers) and read
 // back what Crumpet can show.
 
-import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, FIELD, runsText, sliceRuns, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
+import { type Block, type BlockType, type Change, type Comment, type CommentReply, type Doc, type Look, type Mark, type ParaLook, type Run, type TabStop, type BulletKind, type NumFormat, BULLETS, FOOTNOTE, FIELD, runsText, sliceRuns, tidyLook, tidyPara, commentId, makeBlock, normalizeRuns, sortMarks, tidyRows } from '@crumpet/editor/model';
 import { TABLE_STYLES, type TableLook, type TableStyleKey, mergeAt, tableStyleColors, tidyTable } from '@crumpet/editor/table';
 import { cellRuns, cellText } from '@crumpet/editor/cells';
 import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
@@ -433,7 +433,9 @@ class Writer {
       const ind = p && (left !== undefined || p.right !== undefined || p.first !== undefined) ? `<w:ind${left !== undefined ? ` w:left="${tw(left)}"` : ''}${p.right !== undefined ? ` w:right="${tw(p.right)}"` : ''}${p.first !== undefined ? (p.first < 0 ? ` w:hanging="${tw(-p.first)}"` : ` w:firstLine="${tw(p.first)}"`) : ''}/>` : '';
       const sides = p?.border ? ([['t', 'top'], ['l', 'left'], ['b', 'bottom'], ['r', 'right']] as const).filter(([c]) => p.border!.includes(c)).map(([, side]) => `<w:${side} w:val="single" w:sz="4" w:space="4" w:color="auto"/>`).join('') : '';
       const box = (sides ? `<w:pBdr>${sides}</w:pBdr>` : '') + (p?.shade ? `<w:shd w:val="clear" w:color="auto" w:fill="${p.shade.slice(1).toUpperCase()}"/>` : '');
-      const layout = box + spacing + ind;
+      const LEADER = { dot: 'dot', dash: 'hyphen', line: 'underscore' } as const;
+      const tabs = p?.tabs ? `<w:tabs>${p.tabs.map((t) => `<w:tab w:val="${t.align}"${t.leader ? ` w:leader="${LEADER[t.leader]}"` : ''} w:pos="${tw(t.at)}"/>`).join('')}</w:tabs>` : '';
+      const layout = box + tabs + spacing + ind;
       switch (b.type) {
         case 'image': {
           const pic = await this.picture(b);
@@ -1283,6 +1285,14 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     if (align && !b.align) b.align = align;
     // Spacing, indents and page breaks set on the paragraph itself (not by its style); list items keep their own indents.
     const para: ParaLook = isListType(b.type) ? { ...listPara } : {};
+    // Tab stops set on the paragraph (a "clear" one only undoes a style's, which we don't keep).
+    const tabsEl = child(ppr, 'tabs');
+    const tabEls = (tabsEl ? kids(tabsEl) : []).filter((t) => t.localName === 'tab' && attr(t, 'val') !== 'clear' && attr(t, 'val') !== 'bar' && attr(t, 'val') !== 'num');
+    if (tabEls.length) {
+      const ALIGN: Record<string, TabStop['align']> = { left: 'left', start: 'left', center: 'center', right: 'right', end: 'right', decimal: 'decimal' };
+      const LEAD: Record<string, TabStop['leader']> = { dot: 'dot', middleDot: 'dot', hyphen: 'dash', underscore: 'line', heavy: 'line' };
+      para.tabs = tabEls.map((t) => ({ at: Number(attr(t, 'pos') ?? 0) / TWIPS, align: ALIGN[attr(t, 'val') ?? 'left'] ?? 'left', ...(LEAD[attr(t, 'leader') ?? ''] ? { leader: LEAD[attr(t, 'leader')!] } : {}) }));
+    }
     const sp = child(ppr, 'spacing');
     const twPt = (v: string | null) => (v !== null && Number.isFinite(+v) ? +v / 20 : undefined);
     if (sp) {

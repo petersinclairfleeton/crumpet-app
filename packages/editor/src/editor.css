@@ -98,6 +98,12 @@
 sup.fn { font-size: 0.7em; line-height: 0; vertical-align: super; color: var(--accent, #2a6); cursor: pointer; font-variant-numeric: lining-nums; }
 sup.fn::after { content: attr(data-n); padding: 0 1px; }
 sup.fn:hover { text-decoration: underline; }
+/* A tab: its character takes no room; the gap to its tab stop is padding (set by layoutTabs), filled with dots, dashes or a line for a leader. */
+span.tb { tab-size: 0; -moz-tab-size: 0; }
+span.tb[data-leader] { background-clip: padding-box; background-repeat: repeat-x; }
+span.tb[data-leader='dot'] { background-image: radial-gradient(circle, currentColor 0.06em, transparent 0.075em); background-size: 0.4em 0.4em; background-position: 0 82%; }
+span.tb[data-leader='dash'] { background-image: linear-gradient(to right, currentColor 55%, transparent 55%); background-size: 0.5em 0.06em; background-position: 0 78%; }
+span.tb[data-leader='line'] { background-image: linear-gradient(currentColor, currentColor); background-size: 100% 0.06em; background-position: 0 80%; }
 /* A drop cap (Word's Insert > Drop Cap): the first letter sunk into the first lines. */
 .blk[data-drop]::first-letter { float: left; font-size: calc(var(--drop) * 1.3em); line-height: 1; margin: 0.05em 0.08em 0 0; }
 @supports (initial-letter: 2) or (-webkit-initial-letter: 2) {
