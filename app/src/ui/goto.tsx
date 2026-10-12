@@ -5,16 +5,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
-import { type Pos, comments, footnotes, isHeading } from '@crumpet/editor/model';
+import { type Pos, changes, comments, footnotes, isHeading } from '@crumpet/editor/model';
 import { currentHelped } from './helpers';
 import { IconClose } from './icons';
 
-export type GoToKind = 'page' | 'heading' | 'footnote' | 'comment';
+export type GoToKind = 'page' | 'heading' | 'footnote' | 'comment' | 'change';
 const KINDS: [GoToKind, string][] = [
   ['page', 'Page'],
   ['heading', 'Heading'],
   ['footnote', 'Footnote'],
   ['comment', 'Comment'],
+  ['change', 'Change'],
 ];
 
 /** The places of one kind in the text, in order. */
@@ -22,6 +23,7 @@ function places(editor: Editor, kind: Exclude<GoToKind, 'page'>): Pos[] {
   const doc = editor.state.doc;
   if (kind === 'heading') return doc.blocks.filter((b) => isHeading(b.type)).map((b) => ({ block: b.id, offset: 0 }));
   if (kind === 'footnote') return footnotes(doc).map((f) => ({ block: f.block, offset: f.offset }));
+  if (kind === 'change') return changes(doc).map((c) => ({ block: c.block, offset: Math.max(0, c.from) }));
   return comments(doc).map((c) => ({ block: c.block, offset: c.offset }));
 }
 

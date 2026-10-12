@@ -1507,8 +1507,18 @@ test('comments: select text, comment, reply, see them listed, and resolve', asyn
   // Still there after a reload; the toolbar button works too.
   await page.reload();
   await expect(body.locator('mark.cmt')).toHaveText('stood on the hill');
+  // Resolve: kept, greyed out (and saved with a tick), until it's reopened.
   await body.locator('mark.cmt').click();
   await page.getByRole('dialog', { name: 'Comment' }).getByRole('button', { name: 'Resolve' }).click();
+  await expect(body.locator('mark.cmt')).toHaveAttribute('data-resolved', '');
+  await expect(listed).toContainText('resolved');
+  await expect.poll(md).toMatch(/The one by the river\.<<\}\{>>✓<<\}\.\n$/);
+  await body.locator('mark.cmt').click();
+  await expect(page.getByRole('dialog', { name: 'Comment' })).toContainText('Resolved');
+  await page.getByRole('dialog', { name: 'Comment' }).getByRole('button', { name: 'Reopen' }).click();
+  await expect(body.locator('mark.cmt')).not.toHaveAttribute('data-resolved', '');
+  // Delete takes it away.
+  await page.getByRole('dialog', { name: 'Comment' }).getByRole('button', { name: 'Delete' }).click();
   await expect(body.locator('mark.cmt')).toHaveCount(0);
   await expect(listed).toHaveCount(0);
   await expect.poll(md).toBe('The castle stood on the hill.\n');
@@ -3731,4 +3741,53 @@ test('pictures: remove a plain background, compress, and reset back to the origi
   // Reset: the original file again.
   await menu('Reset picture');
   await expect.poll(() => noteMarkdown(page)).toBe('![Square](https://pics.example/square.png)\n');
+});
+
+test('reviewing pane: every change and comment with who and when, previous and next, markup views', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.evaluate(async () => {
+    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void; updateLayout(p: object): void } }).crumpet;
+    const md = 'The {--big--}{>>Ann (2026-10-01 09:00Z)<<}{++wide++}{>>Ann (2026-10-01 09:01Z)<<} sea.\n\nThe {==lighthouse==}{>>Ben (2026-10-02 10:00Z): Which one?<<} stood.\n\nAnd {++then night came++}{>>Ben (2026-10-02 10:05Z)<<}.';
+    s.select(s.createNote({ title: 'Review', doc: m.fromMarkdown(md) }).id);
+    s.updateLayout({ right: true, rightTab: 'comments' });
+  });
+  const pane = page.getByRole('tabpanel', { name: 'Review' });
+  const items = pane.getByRole('list', { name: 'Changes and comments' }).locator('.review-item');
+  await expect(items).toHaveCount(4);
+  await expect(items.nth(0)).toContainText('Ann deleted');
+  await expect(items.nth(0)).toContainText('big');
+  await expect(items.nth(1)).toContainText('Ann added');
+  await expect(items.nth(2)).toContainText('Ben commented');
+  await expect(items.nth(2)).toContainText('Which one?');
+  await expect(items.nth(3)).toContainText('then night came');
+  await expect(pane).toContainText('3 changes');
+  await expect(pane).toContainText('1 comment');
+  // Next change, from the top.
+  const editor = page.locator('.note-editor');
+  await editor.locator('.blk').first().click();
+  await page.keyboard.press('ControlOrMeta+Home');
+  const caretText = () => page.evaluate(() => (window.getSelection()?.anchorNode?.parentElement?.closest('[data-block]') as HTMLElement | null)?.textContent ?? '');
+  await pane.getByRole('button', { name: 'Next change' }).click();
+  await pane.getByRole('button', { name: 'Next change' }).click();
+  await pane.getByRole('button', { name: 'Next change' }).click();
+  await expect.poll(caretText).toContain('then night came');
+  // Markup views.
+  await pane.getByLabel('Markup view').selectOption('none');
+  await expect(editor).toHaveAttribute('data-markup', 'none');
+  await expect(editor.locator('del.trk').first()).toBeHidden();
+  await pane.getByLabel('Markup view').selectOption('original');
+  await expect(editor.locator('ins.trk').first()).toBeHidden();
+  await expect(editor.locator('del.trk').first()).toBeVisible();
+  await pane.getByLabel('Markup view').selectOption('simple');
+  await expect(editor.locator('.blk').first()).toHaveCSS('box-shadow', /192, 57, 43/);
+  await pane.getByLabel('Markup view').selectOption('all');
+  await expect(editor).not.toHaveAttribute('data-markup');
+  // Accept one from the pane, reject the rest.
+  await items.nth(3).getByRole('button', { name: 'Accept' }).click();
+  await expect(items).toHaveCount(3);
+  await pane.getByRole('button', { name: 'Reject all' }).click();
+  await expect(items).toHaveCount(1);
+  await expect(editor.locator('.blk').first()).toHaveText('The big sea.');
 });

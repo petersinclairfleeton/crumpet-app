@@ -8,6 +8,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { type Change, type Doc, changes } from '@crumpet/editor/model';
 import { REVISIONS, revisionColor } from '../data/revisions';
 import { useAppState, useAppStore } from './hooks';
+import { MarkupSelect } from './review';
 import { useSpelling } from './spelling';
 import { usePictureActions } from './picture';
 
@@ -38,6 +39,15 @@ export function useTracking(editor: Editor | null): void {
   }, [editor, color]);
   useSpelling(editor);
   usePictureActions(editor);
+  // Markup view: how changes and comments are shown.
+  const markup = state.settings.markup ?? 'all';
+  useEffect(() => {
+    if (!editor) return;
+    if (markup === 'all') delete editor.view.root.dataset.markup;
+    else editor.view.root.dataset.markup = markup;
+    // What's shown takes more or less room on the pages.
+    editor.repaginate();
+  }, [editor, markup]);
   // AutoCorrect, as Settings → Writing says.
   const autocorrect = state.settings.autocorrect;
   useEffect(() => {
@@ -85,6 +95,7 @@ export function ChangesBar({ doc, editor }: { doc: Doc; editor: Editor | null })
         {n} tracked change{n === 1 ? '' : 's'}
       </span>
       <span className="grow" />
+      <MarkupSelect />
       <button type="button" className="btn" onClick={() => editor.resolveChanges(false)}>
         Reject all
       </button>

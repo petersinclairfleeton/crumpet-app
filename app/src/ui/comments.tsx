@@ -1,7 +1,8 @@
 // Comments, like Word's and Google Docs': select some text and add a remark
 // (the speech-bubble button, or Ctrl+Alt+M); the text is highlighted, and
-// clicking it opens the conversation to reply or resolve it. All of a note's
-// comments are listed under it.
+// clicking it opens the conversation to reply, resolve it (kept, greyed out,
+// until it's reopened) or delete it. All of a note's comments are listed
+// under it.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -136,6 +137,7 @@ export function CommentCard({ editor }: { editor: Editor | null }) {
   const messages = thread ? [thread, ...(thread.replies ?? [])] : [];
   return createPortal(
     <div ref={card} className="comment-card" role="dialog" aria-label={open.kind === 'new' ? 'New comment' : 'Comment'} style={at ? { top: at.top, left: at.left } : { visibility: 'hidden', top: 0, left: 0 }}>
+      {thread?.resolved && <p className="comment-resolved">Resolved</p>}
       {messages.map((m, i) => (
         <div key={i} className="comment-msg">
           <div className="comment-who">
@@ -164,13 +166,27 @@ export function CommentCard({ editor }: { editor: Editor | null }) {
           <button
             type="button"
             className="btn"
-            title="Done with this: take the comment away"
+            title={thread.resolved ? 'Open this comment again' : 'Done with this: kept, greyed out, until it’s reopened'}
+            onClick={() => {
+              const { resolved: _was, ...rest } = thread;
+              editor?.setComment(thread.id, thread.resolved ? rest : { ...thread, resolved: true });
+              if (!thread.resolved) close();
+            }}
+          >
+            {thread.resolved ? 'Reopen' : 'Resolve'}
+          </button>
+        )}
+        {thread && (
+          <button
+            type="button"
+            className="btn quiet"
+            title="Take the comment away"
             onClick={() => {
               editor?.setComment(thread.id, null);
               close();
             }}
           >
-            Resolve
+            Delete
           </button>
         )}
         <span className="grow" />
@@ -204,12 +220,13 @@ export function CommentList({ doc, editor }: { doc: Doc; editor: Editor | null }
       <h2>Comments</h2>
       <ul>
         {list.map(({ comment: c, quote }) => (
-          <li key={c.id}>
+          <li key={c.id} className={c.resolved ? 'resolved' : undefined}>
             <button type="button" disabled={!editor} onClick={() => editor && openComment(editor, c.id)}>
               <span className="comment-quote">“{quote.length > 80 ? `${quote.slice(0, 79)}…` : quote}”</span>
               <span className="comment-line">
                 <b>{c.author || 'Someone'}:</b> {c.text}
                 {c.replies?.length ? <small> · {c.replies.length} {c.replies.length === 1 ? 'reply' : 'replies'}</small> : null}
+                {c.resolved ? <small> · resolved</small> : null}
               </span>
             </button>
           </li>

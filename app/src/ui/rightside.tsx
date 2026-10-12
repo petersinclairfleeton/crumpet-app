@@ -1,13 +1,14 @@
 // The right sidebar, like Obsidian's: helpers for what you're writing, each
-// in a tab: the headings outline, the Styles pane, comments, and links.
+// in a tab: the headings outline, the Styles pane, the Reviewing pane
+// (changes and comments), and links.
 
 import { useEffect, useState } from 'react';
-import { type Block, comments } from '@crumpet/editor/model';
+import type { Block } from '@crumpet/editor/model';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useNav } from './hooks';
 import { useHelped } from './helpers';
 import { StylesPane } from './stylespane';
-import { CommentList } from './comments';
+import { ReviewPane } from './review';
 import { FoldButton } from './fold';
 import { SnapshotsPanel } from './snapshots';
 import { backlinks, findByTitle, linkedTitles } from '../data/links';
@@ -20,7 +21,7 @@ export type RightTab = 'outline' | 'styles' | 'comments' | 'links' | 'snapshots'
 const TABS: { key: RightTab; label: string }[] = [
   { key: 'outline', label: 'Outline' },
   { key: 'styles', label: 'Styles' },
-  { key: 'comments', label: 'Comments' },
+  { key: 'comments', label: 'Review' },
   { key: 'links', label: 'Links' },
   { key: 'snapshots', label: 'Snapshots' },
   { key: 'writing', label: 'Writing' },
@@ -55,7 +56,7 @@ export function RightSidebar() {
         <FoldButton what="right" />
       </header>
       <div className="right-body" role="tabpanel" aria-label={TABS.find((t) => t.key === tab)!.label}>
-        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <Comments editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : tab === 'thesaurus' ? <ThesaurusTab editor={helped.editor} /> : <Links docId={helped.docId} />}
+        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <ReviewPane editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : tab === 'thesaurus' ? <ThesaurusTab editor={helped.editor} /> : <Links docId={helped.docId} />}
       </div>
     </aside>
   );
@@ -105,12 +106,6 @@ function Outline({ editor, docId }: { editor: Editor; docId: string }) {
       ))}
     </ul>
   );
-}
-
-function Comments({ editor }: { editor: Editor }) {
-  const doc = editor.state.doc;
-  if (!comments(doc).length) return <p className="right-empty">No comments yet. Select some text and choose Comment to add one.</p>;
-  return <CommentList doc={doc} editor={editor} />;
 }
 
 /** Notes this one links to, and notes that link to it. */

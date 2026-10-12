@@ -680,7 +680,8 @@ function commentsXml(list: WrittenComment[]): string {
 
 /** Which comments are replies to which: Word's threads. */
 function commentsExtendedXml(list: WrittenComment[]): string {
-  const body = list.map(({ id, replies }) => `<w15:commentEx w15:paraId="${paraId(id)}" w15:done="0"/>` + replies.map((r) => `<w15:commentEx w15:paraId="${paraId(r)}" w15:paraIdParent="${paraId(id)}" w15:done="0"/>`).join('')).join('');
+  // A resolved comment is "done" in Word, its replies too.
+  const body = list.map(({ id, replies, comment }) => `<w15:commentEx w15:paraId="${paraId(id)}" w15:done="${comment.resolved ? 1 : 0}"/>` + replies.map((r) => `<w15:commentEx w15:paraId="${paraId(r)}" w15:paraIdParent="${paraId(id)}" w15:done="${comment.resolved ? 1 : 0}"/>`).join('')).join('');
   return XML + `<w15:commentsEx xmlns:w15="${W15_NS}" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w15">${body}</w15:commentsEx>`;
 }
 
@@ -959,10 +960,14 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const extendedPath = [...rels.values()].find((p) => /commentsExtended\.xml$/.test(p));
   const extended = parseXml(extendedPath ? files.get(extendedPath) : undefined);
   const parentOf = new Map<string, string>();
+  /** Comments Word marks done (resolved), by their last paragraph's id. */
+  const doneParas = new Set<string>();
   for (const x of Array.from(extended?.getElementsByTagName('*') ?? []).filter((e) => e.localName === 'commentEx')) {
     const own = x.getAttributeNS(W15_NS, 'paraId') ?? x.getAttribute('w15:paraId');
     const parent = x.getAttributeNS(W15_NS, 'paraIdParent') ?? x.getAttribute('w15:paraIdParent');
     if (own && parent) parentOf.set(own.toUpperCase(), parent.toUpperCase());
+    const done = x.getAttributeNS(W15_NS, 'done') ?? x.getAttribute('w15:done');
+    if (own && done === '1') doneParas.add(own.toUpperCase());
   }
   const raw = Array.from(parseXml(commentsPath ? files.get(commentsPath) : undefined)?.getElementsByTagNameNS(W_NS, 'comment') ?? []).map((c) => {
     const date = Date.parse(attr(c, 'date') ?? '');
@@ -1008,6 +1013,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const replies = [...legacy, ...(replyTo.get(r.xmlId) ?? [])].sort((a, b) => a.at - b.at);
     const comment: Comment = { id: commentId(r.author, r.at, text), author: r.author, at: r.at, text };
     if (replies.length) comment.replies = replies;
+    if (doneParas.has(r.paraId)) comment.resolved = true;
     notesById.set(r.xmlId, comment);
   }
   const openComments: string[] = [];

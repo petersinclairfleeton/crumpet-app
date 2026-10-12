@@ -5,6 +5,7 @@
 
 import { ignoreWord, useAddWord } from './spelling';
 import { goToPlace, openGoTo } from './goto';
+import { MARKUP_VIEWS } from './review';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppState, useAppStore } from './hooks';
 import { type Match, rank } from '../data/fuzzy';
@@ -141,7 +142,7 @@ function useCommands(actions: Actions): Item[] {
     cmd(layout.sidebar === 'hidden' ? 'Show the sidebar' : 'Hide the sidebar', () => set({ sidebar: layout.sidebar === 'hidden' ? 'full' : 'hidden' }), `${mod}\\`),
     cmd(layout.list === false ? 'Show the note list' : 'Hide the note list', () => set({ list: layout.list === false }), `${isMac ? '⌘⇧' : 'Ctrl+Shift+'}\\`),
     cmd(layout.right ? 'Hide the right sidebar' : 'Show the right sidebar', () => set({ right: !layout.right }), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}\\`),
-    ...(['outline', 'styles', 'comments', 'links', 'snapshots'] as const).map((t) => cmd(`Show ${t === 'styles' ? 'the Styles pane' : t}`, () => set({ right: true, rightTab: t }))),
+    ...(['outline', 'styles', 'links', 'snapshots'] as const).map((t) => cmd(`Show ${t === 'styles' ? 'the Styles pane' : t}`, () => set({ right: true, rightTab: t }))),
     cmd('Text statistics, highlighting and session target', () => set({ right: true, rightTab: 'writing' })),
     cmd('Thesaurus and definitions', () => set({ right: true, rightTab: 'thesaurus' }), isMac ? '⇧F7' : 'Shift+F7'),
     cmd('Split right', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'right')),
@@ -212,6 +213,10 @@ function useCommands(actions: Actions): Item[] {
       cmd('Previous footnote', onText((e) => goToPlace(e, 'footnote', 'previous'))),
       cmd('Next comment', onText((e) => goToPlace(e, 'comment', 'next'))),
       cmd('Previous comment', onText((e) => goToPlace(e, 'comment', 'previous'))),
+      cmd('Next change', onText((e) => goToPlace(e, 'change', 'next'))),
+      cmd('Previous change', onText((e) => goToPlace(e, 'change', 'previous'))),
+      ...MARKUP_VIEWS.map(([v, name]) => cmd(`Show ${name.toLowerCase()}`, () => store.updateSettings({ markup: v }))),
+      cmd('Reviewing pane: every change and comment', () => set({ right: true, rightTab: 'comments' })),
       cmd('Next heading', onText((e) => goToPlace(e, 'heading', 'next'))),
       cmd('Previous heading', onText((e) => goToPlace(e, 'heading', 'previous'))),
       cmd('Find and replace', () => {

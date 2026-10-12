@@ -134,6 +134,17 @@ describe('Word comments', () => {
     expect(runs.find((r) => r.comment)!.comment).toEqual(c);
   });
 
+  it('resolved ones are "done" in Word, and come back resolved', async () => {
+    const c = { ...makeComment('Ann', 'Fixed?', Date.UTC(2026, 9, 7, 9, 32)), replies: [{ author: 'Bo', at: Date.UTC(2026, 9, 7, 10, 0), text: 'Yes' }], resolved: true };
+    const a = makeBlock('paragraph', '');
+    a.runs = [{ text: 'Some text', marks: [], comment: c }];
+    const bytes = await toDocx([{ doc: { blocks: [a] } }], { title: 'T' });
+    const threads = new TextDecoder().decode((await readZip(bytes)).get('word/commentsExtended.xml'));
+    expect(threads.match(/w15:done="1"/g)).toHaveLength(2);
+    const back = await fromDocx(bytes);
+    expect(back.doc.blocks[0].runs[0].comment).toEqual(c);
+  });
+
   it('read older files whose replies are extra lines in the comment', async () => {
     const c = { ...makeComment('Ann Lee', 'Which hill?', Date.UTC(2026, 9, 7, 9, 32)) };
     const a = makeBlock('paragraph', '');
