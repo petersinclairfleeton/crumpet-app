@@ -2313,6 +2313,108 @@ test('multilevel lists from the gallery and of your own, border line styles and 
   await expect.poll(md).toMatch(/Boxed \{[^}]*\.nowidow[^}]*bstyle=double[^}]*\}|Boxed \{[^}]*bstyle=double[^}]*\.nowidow[^}]*\}/);
 });
 
+test('tables: sort, a formula, lines in a cell, cell settings, style options, quick and drawn tables, converting to and from text, and the heading row on each page', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Ages', 'People:');
+  await page.keyboard.press('Enter');
+  // A 2 × 4 table from the grid (the heading row and three more).
+  await (await toolButton(page, 'Table')).click();
+  await page.getByRole('gridcell', { name: '2 by 4' }).click();
+  const table = page.locator('.note-editor .blk-table table').first();
+  await expect(table.locator('tr')).toHaveCount(4);
+  for (const text of ['Name', 'Age', 'Tom', '9', 'Ann', '31']) {
+    await page.keyboard.type(text);
+    await page.keyboard.press('Tab');
+  }
+  const menu = async (name: string) => {
+    await page.getByRole('button', { name: 'Table ▾' }).first().click();
+    await page.locator('.table-menu button', { hasText: new RegExp(`^${name.replace(/[()*]/g, '\\$&')}$`) }).first().click();
+  };
+  // The last row: a total, worked out.
+  await page.keyboard.type('Total');
+  await page.keyboard.press('Tab');
+  await menu('=SUM(ABOVE)');
+  await expect(table.locator('td').last()).toHaveAttribute('data-value', '40');
+  // Sort by age, largest first (the total row stays at the foot once it's marked as one).
+  await menu('Total row');
+  await expect(table).toHaveClass(/total-row/);
+  await table.locator('.cell[data-r="1"][data-c="1"]').click();
+  await menu('Sort Z→A');
+  await expect(table.locator('tr').nth(1)).toContainText('Ann');
+  await expect(table.locator('tr').nth(3)).toContainText('Total');
+  // Two lines in a cell, a bullet, and the cell's own settings.
+  await table.locator('.cell[data-r="1"][data-c="0"]').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('- teacher');
+  await menu('In middle');
+  await expect(table.locator('td').filter({ hasText: 'Ann' })).toHaveCSS('vertical-align', 'middle');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toContain('| Ann&#10;• teacher | 31 |');
+  await expect.poll(md).toContain('cell=1-0:v=middle');
+  await expect.poll(md).toContain('=SUM(ABOVE)');
+  // Back to plain lines, parted by tabs.
+  await menu('Convert to text');
+  await expect(page.locator('.note-editor .blk-table')).toHaveCount(0);
+  await expect(page.locator('.note-editor .blk').nth(1)).toHaveText('Name\tAge');
+  // …and back into a table: select the lines, then Convert text to table.
+  await page.locator('.note-editor .blk').nth(1).click();
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Shift+ArrowDown');
+  await page.keyboard.press('Shift+ArrowDown');
+  await page.keyboard.press('Shift+End');
+  await (await toolButton(page, 'Table')).click();
+  await page.getByRole('button', { name: 'Convert text to table…' }).click();
+  await page.getByRole('dialog', { name: 'Convert text to table' }).getByRole('button', { name: 'OK' }).click();
+  await expect(page.locator('.note-editor .blk-table tr')).toHaveCount(3);
+  // A quick table, and a drawn one.
+  await page.keyboard.press('ControlOrMeta+End');
+  await (await toolButton(page, 'Table')).click();
+  await page.getByRole('button', { name: 'Matrix' }).click();
+  await expect(page.locator('.note-editor .blk-table table.first-col')).toHaveCount(1);
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.locator('.note-editor .blk').last().click();
+  await (await toolButton(page, 'Table')).click();
+  await page.getByRole('button', { name: 'Draw table…' }).click();
+  const draw = page.getByRole('dialog', { name: 'Draw table' });
+  const box = (await draw.locator('.draw-box').boundingBox())!;
+  // A third line down the box: four columns.
+  await page.mouse.move(box.x + box.width * 0.85, box.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.85, box.y + box.height - 10, { steps: 5 });
+  await page.mouse.up();
+  await expect(draw).toContainText('3 rows × 4 columns');
+  await draw.getByRole('button', { name: 'Insert table' }).click();
+  const drawn = page.locator('.note-editor .blk-table table').last();
+  await expect(drawn.locator('tr').first().locator('th')).toHaveCount(4);
+  await expect(drawn.locator('col')).toHaveCount(4);
+  // A long table in page view: its heading row again at the top of the next page.
+  await page.evaluate(() => {
+    const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void; updateSettings(p: object): void } };
+    const rows = [['Day', 'Note'], ...Array.from({ length: 60 }, (_, i) => [`${i + 1}`, 'Calm sea'])];
+    w.crumpet.setDoc(w.crumpet.getState().selectedId, { blocks: [{ id: 'long1', type: 'table', runs: [], rows }, { id: 'after1', type: 'paragraph', runs: [] }] });
+    w.crumpet.updateSettings({ pageView: { notes: true } });
+  });
+  await expect.poll(() => page.locator('.note-editor .pg').count(), { timeout: 10000 }).toBeGreaterThan(1);
+  const pages = await page.locator('.note-editor .pg').count();
+  await expect(page.locator('.note-editor .blk-table[data-cont] tr.repeat-head')).toHaveCount(pages - 1);
+  await expect(page.locator('.note-editor .blk-table[data-cont] tr.repeat-head').first()).toContainText('Day');
+  // Typing in a row on a later page is kept.
+  const later = page.locator('.note-editor .blk-table[data-cont] .cell[data-c="1"]').last();
+  await later.click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' and bright');
+  await page.keyboard.press('Tab');
+  await expect.poll(md).toContain('| 60 | Calm sea and bright |');
+});
+
 test('table layout and design: merge and split cells, shade a cell, align a column, banding, lines and the heading row', async ({ page }) => {
   await open(page);
   await newNote(page, 'Cast', 'Who is who:');

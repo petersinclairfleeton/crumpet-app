@@ -149,7 +149,9 @@ export class Paginator {
         continue;
       }
       const head = last.get(id);
-      if (head) {
+      if (head && head.classList.contains('blk-table')) {
+        joinTable(head, el);
+      } else if (head) {
         const into = textEl(head);
         const from = textEl(el);
         while (from.firstChild) into.appendChild(from.firstChild);
@@ -236,7 +238,8 @@ export class Paginator {
           keepLines: el.dataset.keepLines !== undefined,
           noWidow: el.dataset.nowidow !== undefined,
           heading: /^H[1-6]$/.test(el.tagName),
-          whole: !!el.querySelector('[data-widget], .media') || el.classList.contains('blk-table') || el.classList.contains('blk-toc'),
+          // (A table splits between its rows.)
+          whole: el.classList.contains('blk-table') ? false : !!el.querySelector('[data-widget], .media') || el.classList.contains('blk-toc'),
           notes: this.noteHeight
             ? Array.from(el.querySelectorAll<HTMLElement>('sup.fn')).map((f) => {
                 const r = f.getBoundingClientRect();
@@ -246,6 +249,15 @@ export class Paginator {
         };
       }
     });
+    /** A table carried on to another page or column gets its heading row again at the top: how tall that is. */
+    const repeatHeight = (i: number): number => {
+      const el = info[i].el;
+      if (!el.classList.contains('blk-table')) return 0;
+      const table = el.querySelector('table');
+      if (!table?.hasAttribute('data-repeat')) return 0;
+      const head = table.rows[0];
+      return head ? head.getBoundingClientRect().height / scale : 0;
+    };
     const leadOf = (i: number): number => {
       const b = info[i];
       if (b.lead === undefined) {
@@ -261,7 +273,7 @@ export class Paginator {
       if (!b.lines) {
         const si = sections.findIndex((s) => i >= s.start && i <= s.end);
         const top = wrappers[si].getBoundingClientRect().top;
-        b.lines = lineStarts(b.el, (v) => (v - top) / scale);
+        b.lines = b.el.classList.contains('blk-table') ? tableLines(b.el, (v) => (v - top) / scale) : lineStarts(b.el, (v) => (v - top) / scale);
       }
       return b.lines;
     };
@@ -308,7 +320,7 @@ export class Paginator {
       while (i <= s.end) {
         const b = info[i];
         const col = out[c];
-        if (start === null) start = k ? lineTop(linesOf(i), k) - leadOf(i) : b.top;
+        if (start === null) start = k ? lineTop(linesOf(i), k) - leadOf(i) - repeatHeight(i) : b.top;
         // A page break before this paragraph (unless it's at the top of a page already).
         if (b.pageBefore && k === 0 && !(top === 0 && c === 0 && !col.length)) {
           pageBreak = true;
@@ -476,8 +488,8 @@ export class Paginator {
             const r = rest.get(piece.i)!;
             const el = r.el;
             if (piece.to !== null) {
-              // The rest of the paragraph goes on in a continuation box.
-              const cont = splitBlock(el, piece.to - r.from, piece.to);
+              // The rest of the paragraph (or table) goes on in a continuation box.
+              const cont = el.classList.contains('blk-table') ? splitTable(el, piece.to - r.from, piece.to) : splitBlock(el, piece.to - r.from, piece.to);
               rest.set(piece.i, { el: cont, from: piece.to });
             }
             if (piece.from === 0) this.pageOf.set(blocks[piece.i].dataset.block!, n);
@@ -505,6 +517,90 @@ export class Paginator {
       if (span && n !== undefined) span.textContent = String(this.pageOffset + n + 1);
     }
   }
+}
+
+/** A table's rows as its "lines": where each starts (its row number) and its top and bottom. Rows inside a merged cell go with the row it starts on. */
+function tableLines(block: HTMLElement, y: (v: number) => number): Line[] {
+  const table = block.querySelector('table');
+  const rows = table ? Array.from(table.rows).filter((tr) => !tr.classList.contains('repeat-head')) : [];
+  const out: Line[] = [];
+  let coveredTo = -1;
+  rows.forEach((tr, k) => {
+    const box = tr.getBoundingClientRect();
+    if (k <= coveredTo && out.length) out[out.length - 1].bottom = y(box.bottom);
+    else out.push({ offset: k, top: y(box.top), bottom: y(box.bottom) });
+    for (const cell of Array.from(tr.cells)) if (cell.rowSpan > 1) coveredTo = Math.max(coveredTo, k + cell.rowSpan - 1);
+  });
+  if (!out.length) {
+    const box = block.getBoundingClientRect();
+    return [{ offset: 0, top: y(box.top), bottom: y(box.bottom) }];
+  }
+  out[0].offset = 0;
+  // The last row reaches the foot of the block (the table's tools under it go with it).
+  out[out.length - 1].bottom = Math.max(out[out.length - 1].bottom, y(block.getBoundingClientRect().bottom) - 0.01);
+  return out;
+}
+
+/**
+ * Splits a table before its row `at` (counting this part's own rows): the
+ * rest go into a continuation element, with the heading row repeated at its
+ * top when the table repeats it (a copy that can't be typed in), and the
+ * table's tools move along to the last part.
+ */
+function splitTable(el: HTMLElement, at: number, from: number): HTMLElement {
+  const table = el.querySelector('table')!;
+  const own = Array.from(table.rows).filter((tr) => !tr.classList.contains('repeat-head'));
+  const cont = document.createElement(el.tagName);
+  cont.className = el.className;
+  for (const a of ['block', 'style', 'align']) if (el.dataset[a] !== undefined) cont.dataset[a] = el.dataset[a];
+  cont.setAttribute(CONT, '');
+  cont.dataset.from = String(from);
+  const wrap = document.createElement('div');
+  wrap.className = 'table-wrap';
+  wrap.contentEditable = 'false';
+  wrap.dataset.widget = 'table';
+  const scroll = document.createElement('div');
+  scroll.className = 'table-scroll';
+  const next = table.cloneNode(false) as HTMLTableElement;
+  const cols = table.querySelector('colgroup');
+  if (cols) next.appendChild(cols.cloneNode(true));
+  const body = document.createElement('tbody');
+  next.appendChild(body);
+  // The heading row again: the first of the table's rows, wherever it is now.
+  const first = (el.hasAttribute(CONT) ? null : own[0]) ?? table.querySelector<HTMLTableRowElement>('tr.repeat-head');
+  if (table.hasAttribute('data-repeat') && first) {
+    const head = first.cloneNode(true) as HTMLTableRowElement;
+    head.classList.add('repeat-head');
+    head.setAttribute('aria-hidden', 'true');
+    head.querySelectorAll('.col-grip').forEach((g) => g.remove());
+    head.querySelectorAll<HTMLElement>('.cell').forEach((c) => {
+      c.className = 'cell-repeat';
+      c.contentEditable = 'false';
+      c.removeAttribute('role');
+      delete c.dataset.r;
+      delete c.dataset.c;
+    });
+    body.appendChild(head);
+  }
+  for (const tr of own.slice(at)) body.appendChild(tr);
+  scroll.appendChild(next);
+  wrap.appendChild(scroll);
+  const tools = el.querySelector('.table-tools');
+  if (tools) wrap.appendChild(tools);
+  cont.appendChild(wrap);
+  el.setAttribute('data-split', '');
+  el.after(cont);
+  return cont;
+}
+
+/** Puts a table's continued rows (and its tools) back in its first part. */
+function joinTable(head: HTMLElement, cont: HTMLElement): void {
+  const into = head.querySelector('table')?.tBodies[0] ?? head.querySelector('table');
+  const rows = Array.from(cont.querySelectorAll<HTMLTableRowElement>('table tr')).filter((tr) => !tr.classList.contains('repeat-head'));
+  if (into) for (const tr of rows) into.appendChild(tr);
+  const tools = cont.querySelector('.table-tools');
+  const wrap = head.querySelector('.table-wrap');
+  if (tools && wrap) wrap.appendChild(tools);
 }
 
 /** The text part of a block (list items and checkboxes have more around it). */

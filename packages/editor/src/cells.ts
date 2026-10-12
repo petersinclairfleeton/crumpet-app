@@ -13,7 +13,8 @@ export function cellRuns(text: string): Run[] {
 
 /** Runs as a cell's text. */
 export function cellText(runs: Run[]): string {
-  return inlineMarkdown(normalizeRuns(runs)).replace(/[\r\n]+/g, ' ');
+  // Lines within a cell are kept (as &#10; in the file).
+  return inlineMarkdown(normalizeRuns(runs)).replace(/\r/g, '');
 }
 
 /** A cell's text without its formatting (for counting words and searching). */
@@ -69,12 +70,16 @@ export function domRuns(root: HTMLElement): Run[] {
   const runs: Run[] = [];
   const walk = (node: Node, marks: Mark[], look: Look, link: string | undefined) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      const text = (node.textContent ?? '').replace(/[\r\n]+/g, ' ');
+      const text = (node.textContent ?? '').replace(/\r/g, '');
       if (text) runs.push({ text, marks: sortMarks([...new Set(marks)]), ...(tidyLook(look) ? { look: tidyLook(look) } : {}), ...(link ? { link } : {}) });
       return;
     }
     if (!(node instanceof HTMLElement)) return;
-    if (node.tagName === 'BR') return;
+    // A line break in the cell (the browser's last one only holds an empty line open).
+    if (node.tagName === 'BR') {
+      if (node !== root.lastChild || node.previousSibling?.nodeName === 'BR') runs.push({ text: '\n', marks: sortMarks([...new Set(marks)]) });
+      return;
+    }
     const m = TAG_MARKS[node.tagName];
     const style = node.style;
     const more: Mark[] = [...marks, ...(m ? [m] : [])];

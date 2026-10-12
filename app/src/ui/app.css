@@ -1534,9 +1534,13 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .tools .tool { display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; }
 .tools .more-tools { position: relative; }
 .tools .more-tools > button { font-size: 12.5px; font-weight: 600; padding: 0 8px; white-space: nowrap; }
-.tools .more-tools .popover { left: 0; right: auto; top: 34px; min-width: 230px; max-height: 70vh; overflow-y: auto; }
+.tools .more-tools .popover { left: 0; right: auto; top: 34px; min-width: 230px; max-height: 70vh; overflow-y: auto; overflow-x: hidden; }
 .more-menu { display: flex; flex-direction: column; gap: 2px; }
-.more-row { display: flex; align-items: center; gap: 4px; }
+.more-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+/* A tool's own menu, opened inside More, unfolds in the list under its button (a floating one would be cut off). */
+.tools .more-tools .more-menu .tool-drop { display: contents; }
+.more-row > .more-label { order: 1; }
+.tools .more-tools .more-menu .tool-drop .popover { position: static; order: 2; flex: 0 0 100%; width: 100%; box-sizing: border-box; min-width: 0; max-height: none; overflow: visible; margin: 2px 0 6px; box-shadow: none; background: var(--field); }
 .more-row > .menu-item { flex: 1; justify-content: flex-start; width: auto; height: auto; min-height: 32px; font-weight: 400; color: var(--text); font-size: 13px; }
 .more-row > .menu-item.on { color: var(--accent-ink); }
 .menu-glyph { display: inline-flex; justify-content: center; min-width: 20px; font-weight: 700; }
@@ -2054,3 +2058,26 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .selection-pane .sel-name { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .selection-pane li.off .sel-go { opacity: 0.5; cursor: default; }
 .selection-pane .sel-all { display: flex; gap: 6px; padding: 8px 12px; border-top: 1px solid var(--line); }
+
+/* Insert > Table: the size grid, Draw table's box. */
+.table-pick-menu { width: 190px; }
+.table-pick-menu .menu-item { white-space: normal; }
+.more-menu .table-pick-menu { width: auto; }
+.table-pick { padding: 8px 10px 4px; }
+.table-pick-size { margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.table-grid { display: flex; flex-direction: column; gap: 2px; }
+.table-grid-row { display: flex; gap: 2px; }
+.table-grid button { width: 18px; height: 18px; padding: 0; border: 1px solid var(--line2, #ccc); border-radius: 2px; background: var(--page); cursor: pointer; }
+.table-grid button.on { background: var(--accent-soft); border-color: var(--accent); }
+.draw-table { width: min(500px, 100%); }
+.draw-box { position: relative; border: 2px solid var(--text); background: var(--page); cursor: crosshair; touch-action: none; margin: 0 auto; max-width: 100%; }
+.draw-line { position: absolute; padding: 0; border: none; background: transparent; cursor: pointer; }
+.draw-line.row { left: 0; right: 0; height: 8px; }
+.draw-line.col { top: 0; bottom: 0; width: 8px; }
+.draw-line.row::after { content: ''; position: absolute; left: 0; right: 0; top: 3px; height: 2px; background: var(--text); }
+.draw-line.col::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: var(--text); }
+.draw-line:hover::after { background: var(--danger, #c0392b); }
+.draw-pencil { position: absolute; background: var(--accent); pointer-events: none; }
+.radio-list label { display: flex; align-items: center; gap: 6px; }
+.sep-other { width: 3em; margin-left: 4px; }
+.para-foot .grow, .para-foot .muted.grow { flex: 1; }

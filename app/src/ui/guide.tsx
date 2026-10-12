@@ -67,7 +67,7 @@ const CHAPTERS: Chapter[] = [
     title: 'Writing and formatting',
     lede: 'Everything Word can do, without the clutter: it’s there when you need it.',
     points: [
-      { title: 'Type / for anything', text: 'Headings, lists, checklists, tables, pictures, footnotes, maths and diagrams: type / at the start of a line and pick.' },
+      { title: 'Type / for anything', text: 'Headings, lists, checklists, tables, pictures, footnotes, maths and diagrams: type / at the start of a line and pick. The Table button draws tables, makes them from text, or starts from a calendar or list; in a cell, =SUM(ABOVE) adds up the numbers above it.' },
       { title: 'Format as you go', text: `Select text and a formatting bar appears. Click Aa in the corner to keep it on screen, with fonts, colours, styles and more; ${mod}D opens the Font window (small caps, underline styles, spacing, effects), and Multilevel list numbers an outline as Chapter 1, 1.1, 1.1.1 or a pattern of your own. Make styles of your own from the Styles tab in the right sidebar.` },
       { title: 'Put right as you type', text: `AutoCorrect curls quotes, makes dashes, fixes typos like “teh” and starts sentences with a capital (${mod}Z takes one back). Settings → Writing turns each off and keeps your own dictionary; characters’ names are never marked as misspelt.` },
       { title: 'Link your notes', text: 'Type [[ and a note’s name to link to it. Every note shows the notes that link to it, and the Graph shows them all.' },
