@@ -88,7 +88,7 @@ export function layout(tree: Tree, prev: Layout): Layout {
   const taken = new Map<string, Set<string>>();
   const take = (dir: string, name: string) => {
     let set = taken.get(dir);
-    if (!set) taken.set(dir, (set = new Set(dir ? [TRASH, META_DIR] : [TRASH, META_DIR, ATTACHMENTS.toLowerCase()])));
+    if (!set) taken.set(dir, (set = new Set(dir ? [TRASH, META_DIR] : [TRASH, META_DIR, ATTACHMENTS.toLowerCase(), PROJECTS.toLowerCase()])));
     if (set.has(name.toLowerCase())) return false;
     set.add(name.toLowerCase());
     return true;

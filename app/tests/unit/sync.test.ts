@@ -581,7 +581,22 @@ describe('syncing projects', () => {
     expect(cloud.files.get('Projects/My Book/Part Two/Storm.md')!.text).toContain('Thunder, then rain.');
   });
 
-  it('lives alongside a stack that happens to be called Projects', async () => {
+  it('a project folder an earlier version filed as a notebook (in a stack called Projects) becomes a project', async () => {
+    const { cloud, mac } = await pair();
+    const meta = { version: 1, stacks: [{ id: 's1', name: 'Projects', folder: 'Projects', created: 1 }], notebooks: [{ id: 'n1', name: 'My Book', color: '#888888', folder: 'Projects/My Book', created: 1 }] };
+    await cloud.write('.crumpet/vault.json', JSON.stringify(meta));
+    await cloud.write('Projects/My Book/01 Opening.md', '---\nid: c1\ntitle: Opening\n---\n\nThe lamp had not been lit.\n');
+    await mac.engine.sync();
+    const st = mac.store.getState();
+    expect(st.projects.map((x) => x.name)).toEqual(['My Book']);
+    expect(st.chapters.map((c) => c.title)).toEqual(['Opening']);
+    expect(st.stacks).toEqual([]);
+    expect(st.notebooks).toEqual([]);
+    expect(st.notes).toEqual([]);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Projects/My Book/01 Opening.md', 'Projects/My Book/project.json']);
+  });
+
+  it('lives alongside a stack that happens to be called Projects (in a folder of its own)', async () => {
     const { cloud, mac, phone } = await pair();
     const st = mac.store.createStack('Projects');
     const nb = mac.store.createNotebook('Ideas', st.id);
@@ -589,7 +604,7 @@ describe('syncing projects', () => {
     mac.store.createProject('Novel');
     mac.store.flush();
     await mac.engine.sync();
-    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Projects/Ideas/An idea.md', 'Projects/Novel/01 Chapter 1.md', 'Projects/Novel/project.json']);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Projects 2/Ideas/An idea.md', 'Projects/Novel/01 Chapter 1.md', 'Projects/Novel/project.json']);
     await phone.engine.sync();
     expect(shape(phone.store)).toEqual(shape(mac.store));
     expect(phone.store.getState().notes.map((n) => n.title)).toEqual(['An idea']);
