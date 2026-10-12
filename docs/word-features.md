@@ -68,14 +68,14 @@ At the end there's a suggested order for building what's missing.
 | Font, size, grow / shrink | ✅ | |
 | Bold, italic, underline, strikethrough | ✅ | |
 | Subscript, superscript | ✅ | |
-| Underline styles (double, dotted, wavy, coloured) | ❌ | One kind of underline only. |
-| Double strikethrough, small caps, all caps, hidden text | ❌ | All caps exists only as part of a style. |
-| Text effects (outline, shadow, glow, reflection) | ❌ | |
+| Underline styles (double, dotted, wavy, coloured) | ✅ | Single, double, thick, dotted, dashed, wavy, in any colour (the Font window); to and from Word. |
+| Double strikethrough, small caps, all caps, hidden text | ✅ | In the Font window; hidden text shows only with Show/hide ¶ and isn't printed; to and from Word. |
+| Text effects (outline, shadow, glow, reflection) | ✅ | Outline, shadow, glow, reflection, emboss, engrave (the Text effects button). Outline, shadow, emboss and engrave go to Word; glow and reflection don't. Reflection shows in Chrome, Edge and Safari only. |
 | Highlight, font colour | ✅ | |
 | Change case | ✅ | Sentence case, lowercase, UPPERCASE, Capitalise Each Word, tOGGLE. |
 | Clear formatting | ✅ | |
-| Font dialog: character spacing, kerning | ❌ | |
-| Font dialog: OpenType ligatures, number styles | ❌ | |
+| Font dialog: character spacing, kerning | ✅ | Ctrl+D or the button at the end of the Font group: expanded or condensed spacing, raised or lowered, kerning; spacing and position go to Word. |
+| Font dialog: OpenType ligatures, number styles | ✅ | Ligatures, number spacing, number forms, stylistic sets (where the font has them). Crumpet only: not sent to Word. |
 
 ### Paragraph
 
@@ -486,11 +486,11 @@ Where: `app/src/ui/changes.tsx`, `comments.tsx`, `rightside.tsx`, `comparedocs.t
 
 **4. Fonts and paragraphs**
 Where: `model.ts` (`Look`, `Mark`, `ParaLook`), `markdown.ts`, `docx.ts`, `app/src/ui/fonttools.tsx`, `listtools.tsx`, `paratools.tsx`.
-- [ ] Small caps, all caps, double strikethrough, hidden text
-- [ ] Underline styles (double, dotted, dashed, wavy, coloured)
-- [ ] A Font window: character spacing and kerning
-- [ ] Ligatures and number styles (OpenType)
-- [ ] Text effects (outline, shadow, glow, reflection)
+- [x] Small caps, all caps, double strikethrough, hidden text
+- [x] Underline styles (double, dotted, dashed, wavy, coloured)
+- [x] A Font window: character spacing and kerning
+- [x] Ligatures and number styles (OpenType)
+- [x] Text effects (outline, shadow, glow, reflection)
 - [ ] Paste options menu after pasting (keep, merge, text only)
 - [ ] Clipboard history
 - [ ] Multilevel list gallery, and defining your own

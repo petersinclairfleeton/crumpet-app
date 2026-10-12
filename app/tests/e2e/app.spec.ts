@@ -3888,3 +3888,51 @@ test('combine reviewers’ copies: each reviewer’s changes tracked in their na
   await expect(ed.locator('ins.trk[data-author="Ann"]')).toHaveText('wide');
   await expect(ed.locator('ins.trk[data-author="Ben"]')).toHaveText(' and cold');
 });
+
+test('Font window: small caps, a wavy coloured underline, spacing and hidden text; text effects', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1500, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Fonts', 'The lighthouse keeper');
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('Control+d');
+  const dlg = page.getByRole('dialog', { name: 'Font' });
+  await dlg.getByLabel('Small caps').check();
+  await dlg.getByLabel('Underline style').selectOption('wavy');
+  await dlg.getByLabel('Underline colour').fill('#c0392b');
+  await dlg.getByRole('tab', { name: 'Advanced' }).click();
+  await dlg.getByLabel('Spacing', { exact: true }).selectOption('expanded');
+  await dlg.getByLabel('Spacing by').fill('2');
+  await dlg.getByLabel('Number forms').selectOption('oldstyle');
+  await dlg.getByRole('button', { name: 'OK' }).click();
+  const span = page.locator('.note-editor .lk').first();
+  await expect(span).toHaveCSS('font-variant-caps', 'small-caps');
+  await expect(span).toHaveCSS('text-decoration-style', 'wavy');
+  await expect(span).toHaveCSS('letter-spacing', /2\.6|2\.66/);
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
+    });
+  await expect.poll(md).toBe('[The lighthouse keeper]{caps=small ul=wavy ulc=#c0392b sp=2 num=oldstyle}\n');
+  // Text effects from the bar: a glow.
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('Shift+Home');
+  await (await toolButton(page, 'Text effects')).click();
+  await page.getByRole('menuitemradio', { name: /Glow/ }).click();
+  await expect.poll(md).toContain('fx=glow');
+  // Hidden text: gone until Show/hide ¶.
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('A secret note');
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('Control+d');
+  await dlg.getByLabel('Hidden (shown with ¶)').check();
+  await dlg.getByRole('button', { name: 'OK' }).click();
+  const hidden = page.locator('.note-editor .lk[data-hidden]');
+  await expect(hidden).toBeHidden();
+  await page.keyboard.press('ControlOrMeta+Shift+8');
+  await expect(hidden).toBeVisible();
+});

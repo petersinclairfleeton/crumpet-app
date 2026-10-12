@@ -81,6 +81,7 @@ import {
   trackedJoin,
   setTableRows,
   setLook,
+  setLooks,
   lookValue,
   clearFormatting,
   changeCase,
@@ -1198,6 +1199,18 @@ export class Editor {
     if (cell) return void setCellLook(cell, key, value);
     this.syncSelectionFromDom();
     this.dispatch(setLook(this.state, key, value), 'command');
+  }
+
+  /** Several parts of the look at once (Word's Font window), as one step to undo. */
+  setLooks(patch: Partial<Record<LookKey, string | number | null>>): void {
+    if (this.isReadOnly) return;
+    const cell = this.activeCell();
+    if (cell) {
+      for (const [k, v] of Object.entries(patch) as [LookKey, string | number | null][]) setCellLook(cell, k, v);
+      return;
+    }
+    this.syncSelectionFromDom();
+    this.dispatch(setLooks(this.state, patch), 'command');
   }
 
   /** One part of the look at the caret or across the selection; undefined when mixed or unset. */

@@ -591,6 +591,27 @@ export function runNode(run: Run, marks = false, noSpell: RegExp | null = null):
       span.style.fontSize = l.size ? `${l.size * 0.65}pt` : '0.65em';
       span.style.lineHeight = '0';
     }
+    // Word's Font window: capitals, strikethrough and underline styles, hidden, spacing, raised or lowered, OpenType, effects.
+    if (l.caps === 'small') span.style.fontVariantCaps = 'small-caps';
+    if (l.caps === 'all') span.style.textTransform = 'uppercase';
+    const lines = [l.ul ? 'underline' : '', l.dstrike ? 'line-through' : ''].filter(Boolean);
+    if (lines.length) {
+      span.dataset.lines = '';
+      span.style.textDecorationLine = lines.join(' ');
+      span.style.textDecorationStyle = l.dstrike && !l.ul ? 'double' : l.ul === 'thick' || l.ul === 'single' || !l.ul ? 'solid' : l.ul;
+      if (l.ul === 'thick') span.style.textDecorationThickness = '0.12em';
+      if (l.ulc) span.style.textDecorationColor = l.ulc;
+      span.style.textUnderlineOffset = '0.15em';
+    }
+    if (l.hidden) span.dataset.hidden = '';
+    if (l.sp) span.style.letterSpacing = `${l.sp}pt`;
+    if (l.pos && !l.va) span.style.verticalAlign = `${l.pos}pt`;
+    if (l.nokern) span.style.fontKerning = 'none';
+    if (l.lig) span.style.fontVariantLigatures = { none: 'none', common: 'common-ligatures no-contextual', contextual: 'common-ligatures contextual', all: 'common-ligatures contextual discretionary-ligatures historical-ligatures' }[l.lig];
+    const numeric = [l.num === 'oldstyle' ? 'oldstyle-nums' : l.num === 'lining' ? 'lining-nums' : '', l.nsp === 'tabular' ? 'tabular-nums' : l.nsp === 'proportional' ? 'proportional-nums' : ''].filter(Boolean);
+    if (numeric.length) span.style.fontVariantNumeric = numeric.join(' ');
+    if (l.ss) span.style.fontFeatureSettings = `"ss${String(l.ss).padStart(2, '0')}"`;
+    if (l.fx) span.dataset.fx = l.fx;
     span.appendChild(node);
     node = span;
   }

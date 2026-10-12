@@ -392,6 +392,20 @@ export function setLook(state: EditorState, key: LookKey, value: string | number
   return tx(state, b, state.selection);
 }
 
+/** Several parts of the look at once (Word's Font window), as one step to undo. */
+export function setLooks(state: EditorState, patch: Partial<Record<LookKey, string | number | null>>): Transaction {
+  let s = state;
+  const ops: Op[] = [];
+  let storedLook: Look | null | undefined;
+  for (const [key, value] of Object.entries(patch) as [LookKey, string | number | null][]) {
+    const t = setLook(s, key, value);
+    ops.push(...t.ops);
+    if (t.storedLook !== undefined) storedLook = t.storedLook;
+    s = { ...s, doc: applyOps(s.doc, t.ops), storedLook: t.storedLook !== undefined ? t.storedLook : s.storedLook };
+  }
+  return { ops, selectionBefore: state.selection, selectionAfter: state.selection, kind: 'other', ...(storedLook !== undefined ? { storedLook } : {}) };
+}
+
 function sameRunsFormat(a: Run[], b: Run[]): boolean {
   return a.length === b.length && a.every((r, i) => r.text === b[i].text && sameFormat(r, b[i]));
 }

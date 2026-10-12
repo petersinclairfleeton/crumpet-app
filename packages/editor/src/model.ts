@@ -41,9 +41,67 @@ export interface Look {
   highlight?: string;
   /** Superscript or subscript. */
   va?: 'super' | 'sub';
+  /** Word's Font window: small capitals or all capitals. */
+  caps?: 'small' | 'all';
+  /** Double strikethrough, and hidden text (shown only with Show/hide ¶), as 1. */
+  dstrike?: 1;
+  hidden?: 1;
+  /** An underline of a style of its own (and its colour, as #rrggbb). */
+  ul?: 'single' | 'double' | 'dotted' | 'dashed' | 'wavy' | 'thick';
+  ulc?: string;
+  /** Character spacing (expanded, or condensed when below 0) and raised or lowered by, in points. */
+  sp?: number;
+  pos?: number;
+  /** OpenType: kerning off (1), ligatures, number forms and spacing, a stylistic set (1 to 20). */
+  nokern?: 1;
+  lig?: 'none' | 'common' | 'contextual' | 'all';
+  num?: 'lining' | 'oldstyle';
+  nsp?: 'tabular' | 'proportional';
+  ss?: number;
+  /** A text effect. */
+  fx?: 'outline' | 'shadow' | 'glow' | 'reflect' | 'emboss' | 'engrave';
 }
 export type LookKey = keyof Look;
-export const LOOK_KEYS: LookKey[] = ['font', 'size', 'color', 'highlight', 'va'];
+export const LOOK_KEYS: LookKey[] = ['font', 'size', 'color', 'highlight', 'va', 'caps', 'dstrike', 'hidden', 'ul', 'ulc', 'sp', 'pos', 'nokern', 'lig', 'num', 'nsp', 'ss', 'fx'];
+
+/** The words each of a look's settings may be (the rest are numbers, colours or names). */
+const LOOK_WORDS: Partial<Record<LookKey, readonly string[]>> = {
+  va: ['super', 'sub'],
+  caps: ['small', 'all'],
+  ul: ['single', 'double', 'dotted', 'dashed', 'wavy', 'thick'],
+  lig: ['none', 'common', 'contextual', 'all'],
+  num: ['lining', 'oldstyle'],
+  nsp: ['tabular', 'proportional'],
+  fx: ['outline', 'shadow', 'glow', 'reflect', 'emboss', 'engrave'],
+};
+
+/** Whether `v` is something look setting `k` can be. */
+export function lookValueOk(k: LookKey, v: unknown): boolean {
+  if (v === undefined || v === null || v === '') return false;
+  if (LOOK_WORDS[k]) return LOOK_WORDS[k]!.includes(v as string);
+  switch (k) {
+    case 'font':
+      return typeof v === 'string';
+    case 'size':
+      return typeof v === 'number' && v > 0 && v <= 400;
+    case 'color':
+    case 'highlight':
+    case 'ulc':
+      return typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+    case 'dstrike':
+    case 'hidden':
+    case 'nokern':
+      return v === 1;
+    case 'sp':
+      return typeof v === 'number' && v >= -10 && v <= 50 && v !== 0;
+    case 'pos':
+      return typeof v === 'number' && v >= -50 && v <= 50 && v !== 0;
+    case 'ss':
+      return typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 20;
+    default:
+      return false;
+  }
+}
 
 /** A look with nothing unset left in it, or undefined if it's empty. */
 export function tidyLook(l: Look | undefined): Look | undefined {
