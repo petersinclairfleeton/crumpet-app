@@ -4,6 +4,7 @@
 // tracked changes are shown as if accepted.
 
 import { fieldValue } from '@crumpet/editor/fields';
+import { MASK_CLIPS, picFilter } from '@crumpet/editor/picture';
 import { type Block, type Doc, type Run, BULLETS, isList, tidyRows } from '@crumpet/editor/model';
 import { isCovered, mergeAt, tableStyleColors } from '@crumpet/editor/table';
 import { cellRuns } from '@crumpet/editor/cells';
@@ -151,7 +152,8 @@ class Book {
           const caption = runs(b.runs);
           // Its alt text (or caption), its width (as a share of the page, so it fits any screen) and its turn.
           const p = b.pic;
-          const style = [p?.w ? `width: ${Math.min(100, Math.round((p.w / 6.5) * 100))}%` : '', p?.rot ? `transform: rotate(${p.rot}deg)` : ''].filter(Boolean).join('; ');
+          const filter = p ? picFilter(p) : '';
+          const style = [p?.w ? `width: ${Math.min(100, Math.round((p.w / 6.5) * 100))}%` : '', p?.rot ? `transform: rotate(${p.rot}deg)` : '', filter ? `filter: ${filter}` : '', p?.fade ? `opacity: ${1 - p.fade / 100}` : '', p?.mask ? `clip-path: ${MASK_CLIPS[p.mask]}` : ''].filter(Boolean).join('; ');
           const float = p?.wrap === 'left' || p?.wrap === 'right' ? ` class="float-${p.wrap}"` : '';
           if (href) out += `<figure${float}><img src="${esc(href)}" alt="${esc(p?.alt ?? b.runs.map((r) => r.text).join(''))}"${style ? ` style="${style}"` : ''}/>${caption ? `<figcaption>${caption}</figcaption>` : ''}</figure>`;
           else if (caption) out += `<p class="caption">${caption}</p>`;

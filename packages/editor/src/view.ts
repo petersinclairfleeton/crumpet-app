@@ -7,6 +7,7 @@ import { DEFAULT_TAB } from './model';
 import { FIELDS, fieldValue } from './fields';
 import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
 import { type ShapeLook, tidyShape } from './shape';
+import { MASK_CLIPS, PIC_MASKS, PIC_STYLES, type PicLook, type PicMask, type PicStyle, picFilter } from './picture';
 import { fillCell, readCell } from './cells';
 import { BULLETS, foldedUnder, isHeading, isList, isToggle, listLabels, runsLength, tidyCode } from './model';
 
@@ -655,12 +656,42 @@ function buildMedia(block: Block): HTMLElement {
     img.alt = p.alt ?? block.runs.map((r) => r.text).join('');
     img.draggable = false;
     img.decoding = 'async';
-    if (p.w) img.style.width = `${p.w}in`;
+    // Cropped: the picture in a window of its width, the sides cut off (crop.ts's shares, as CSS variables).
+    const crop = document.createElement('span');
+    crop.className = 'pic-crop';
+    if (p.crop) {
+      const [t, r, b, l] = p.crop;
+      crop.classList.add('cropped');
+      crop.style.setProperty('--ct', String(t));
+      crop.style.setProperty('--cr', String(r));
+      crop.style.setProperty('--cb', String(b));
+      crop.style.setProperty('--cl', String(l));
+      if (p.w) crop.style.width = `${p.w}in`;
+    } else if (p.w) img.style.width = `${p.w}in`;
+    // The picture's height for its width, once known (cropping top and bottom needs it).
+    const ratio = () => img.naturalWidth && crop.style.setProperty('--ar', String(img.naturalHeight / img.naturalWidth));
+    img.addEventListener('load', ratio);
+    if (p.mask) crop.style.clipPath = MASK_CLIPS[p.mask];
+    if (p.border) crop.style.setProperty('--pborder', p.border);
+    const filter = picFilter(p);
+    if (filter) img.style.filter = filter;
+    if (p.fade) img.style.opacity = String(1 - p.fade / 100);
     img.addEventListener('error', () => box.classList.add('missing'));
     show((url) => (img.src = url));
+    crop.appendChild(img);
+    // The edges to drag while cropping.
+    for (const side of ['t', 'r', 'b', 'l']) {
+      const h = document.createElement('span');
+      h.className = `pic-crop-h ${side}`;
+      h.dataset.picAction = 'crop-edge';
+      h.dataset.value = side;
+      h.title = 'Drag to crop';
+      crop.appendChild(h);
+    }
     // The picture in a frame that turns with it, with a corner to drag to resize, a handle to turn it and (in front of the text) one to move it.
     const frame = document.createElement('span');
     frame.className = 'pic-box';
+    if (p.style) frame.dataset.style = p.style;
     if (p.rot) frame.style.transform = `rotate(${p.rot}deg)`;
     const handle = (cls: string, action: string, title: string, text = '') => {
       const h = document.createElement('span');
@@ -670,9 +701,9 @@ function buildMedia(block: Block): HTMLElement {
       h.textContent = text;
       return h;
     };
-    frame.append(img, handle('pic-grip', 'resize', 'Drag to resize'), handle('pic-rot', 'rotate', 'Drag to turn (Shift: in steps of 15°)'), handle('pic-move', 'move', 'Drag to move', '✥'));
+    frame.append(crop, handle('pic-grip', 'resize', 'Drag to resize'), handle('pic-rot', 'rotate', 'Drag to turn (Shift: in steps of 15°)'), handle('pic-move', 'move', 'Drag to move', '✥'));
     box.appendChild(frame);
-    box.appendChild(pictureMenu(p.wrap ?? 'inline'));
+    box.appendChild(pictureMenu(p));
   } else {
     const a = document.createElement('a');
     a.className = 'file-chip';
@@ -686,8 +717,20 @@ function buildMedia(block: Block): HTMLElement {
   return box;
 }
 
+/** The aspect ratios a picture can be cropped to, width over height. */
+const PIC_RATIOS: [string, number][] = [
+  ['Square', 1],
+  ['4:3', 4 / 3],
+  ['3:2', 3 / 2],
+  ['16:9', 16 / 9],
+  ['Portrait 3:4', 3 / 4],
+];
+const MASK_NAMES: Record<PicMask, string> = { oval: 'Oval', rounded: 'Rounded', triangle: 'Triangle', diamond: 'Diamond', hexagon: 'Hexagon', star: 'Star' };
+const STYLE_NAMES: Record<PicStyle, string> = { frame: 'Simple frame', white: 'White frame', shadow: 'Shadow', rounded: 'Rounded corners', soft: 'Soft edges', polaroid: 'Snapshot' };
+
 /** The Picture ▾ menu under a picture: wrapping, turning, size, alt text, change, reset, delete. */
-function pictureMenu(wrap: string): HTMLElement {
+function pictureMenu(p: PicLook): HTMLElement {
+  const wrap = p.wrap ?? 'inline';
   const tools = document.createElement('span');
   tools.className = 'table-tools shape-tools pic-tools';
   const button = (action: string, label: string, title = label, value?: string) => {
@@ -698,7 +741,7 @@ function pictureMenu(wrap: string): HTMLElement {
     b.textContent = label;
     b.title = title;
     b.tabIndex = -1;
-    if (action === 'wrap' && value === wrap) b.classList.add('on');
+    if ((action === 'wrap' && value === wrap) || (action === 'mask' && value === (p.mask ?? '')) || (action === 'style' && value === (p.style ?? ''))) b.classList.add('on');
     return b;
   };
   tools.append(button('menu', 'Picture ▾', 'Wrapping, turning, size and alt text'));
@@ -725,7 +768,15 @@ function pictureMenu(wrap: string): HTMLElement {
     button('wrap', 'In front of text', 'In front of the text, anywhere: drag ✥ to move it', 'free'),
   ]);
   group('Rotate', [button('rot', 'Left 90°', 'Turn left 90°', '-90'), button('rot', 'Right 90°', 'Turn right 90°', '90'), button('rot', 'Straight', 'Not turned', '0')]);
+  group('Crop', [
+    button('crop', 'Crop', 'Drag the edges to crop; click Crop again (or anywhere else) when done'),
+    ...PIC_RATIOS.map(([name, r]) => button('ratio', name, `Crop to ${name.toLowerCase()}`, String(r))),
+    button('uncrop', 'Remove crop', 'The whole picture again'),
+  ]);
+  group('Crop to shape', [...PIC_MASKS.map((m) => button('mask', MASK_NAMES[m], `Crop to ${MASK_NAMES[m].toLowerCase()}`, m)), button('mask', 'No shape', 'Not cropped to a shape', '')]);
+  group('Picture style', [...PIC_STYLES.map((st) => button('style', STYLE_NAMES[st], STYLE_NAMES[st], st)), button('style', 'None', 'No picture style', '')]);
   group('Picture', [
+    button('format', 'Corrections and effects…', 'Brightness, contrast, colour, see-through, artistic effects and a border'),
     button('alt', 'Alt text…', 'Describe the picture for people who can’t see it'),
     button('change', 'Change picture…', 'Another picture in its place, keeping its size and look'),
     button('size', 'Original size', 'Back to the picture’s own size'),

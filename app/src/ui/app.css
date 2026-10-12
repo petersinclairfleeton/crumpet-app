@@ -1413,6 +1413,16 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .goto-kinds button.on { border-color: var(--accent); background: var(--accent-soft, var(--field)); font-weight: 600; }
 .goto-kinds button:disabled { opacity: 0.45; cursor: default; }
 .goto-error { margin: 0; }
+.pic-format-grid { display: flex; gap: 16px; flex-wrap: wrap; }
+.pic-preview { flex: 0 0 180px; height: 140px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: var(--field); background-image: linear-gradient(45deg, rgba(127,127,127,0.18) 25%, transparent 25%, transparent 75%, rgba(127,127,127,0.18) 75%), linear-gradient(45deg, rgba(127,127,127,0.18) 25%, transparent 25%, transparent 75%, rgba(127,127,127,0.18) 75%); background-size: 16px 16px; background-position: 0 0, 8px 8px; }
+.pic-preview img { max-width: 100%; max-height: 100%; }
+.pic-sliders { flex: 1 1 200px; display: flex; flex-direction: column; gap: 8px; }
+.pic-effects { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
+.pic-effect { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px; border: 1px solid var(--line2); border-radius: 6px; background: none; color: var(--text); cursor: pointer; }
+.pic-effect.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.pic-effect img { width: 100%; height: 44px; object-fit: cover; border-radius: 3px; }
+.pic-effect small { font-size: 11px; }
+.swatch.none { background: linear-gradient(135deg, transparent 45%, #c0392b 45%, #c0392b 55%, transparent 55%), var(--page); border: 1px solid var(--line2); }
 .alt-text { width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--line2); border-radius: 6px; background: var(--page); color: var(--text); font: inherit; resize: vertical; }
 .footnote-nav { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 4px; }
 .footnote-nav .btn { font-size: 12px; padding: 2px 8px; }
