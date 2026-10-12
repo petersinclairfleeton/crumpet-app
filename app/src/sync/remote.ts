@@ -186,12 +186,13 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   // ---- projects: the folders in Projects/, like notebooks in a stack. Each
   // one's project.json (written by Crumpet) holds its name, outline, styles
   // and so on; a folder without one (made by hand, or whose project.json
-  // hasn't arrived) is a project all the same, its files its chapters.
-  // A folder Crumpet recorded as a notebook (in a stack called Projects) stays one.
-  const recordedNotebooks = new Set(meta.notebooks.map((n) => n.folder));
+  // hasn't arrived) is a project all the same, its files its chapters. (The
+  // folder is kept for projects: a stack called Projects goes in "Projects 2".
+  // Earlier versions read a project folder without its project.json as a
+  // notebook and recorded it in vault.json; it's a project now regardless.)
   const projectDirs = new Map<string, Partial<ProjectJson>>();
   for (const e of snap.entries) {
-    if (e.kind === 'folder' && parentOf(e.path) === PROJECTS && !baseName(e.path).startsWith('.') && !recordedNotebooks.has(e.path)) projectDirs.set(e.path, {});
+    if (e.kind === 'folder' && parentOf(e.path) === PROJECTS && !baseName(e.path).startsWith('.')) projectDirs.set(e.path, {});
   }
   for (const [path, f] of Object.entries(snap.projectFiles ?? {})) {
     const json = parseProject(f.text);
@@ -236,7 +237,8 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   const metaStack = new Map(meta.stacks.map((s) => [s.folder, s]));
   const metaNotebook = new Map(meta.notebooks.map((n) => [n.folder, n]));
   // The Projects folder itself isn't a notebook, unless it's also used as one.
-  if (projectDirs.size && !metaStack.has(PROJECTS) && !metaNotebook.has(PROJECTS) && !hasNotes.has(PROJECTS) && !hasFolders.has(PROJECTS)) folders.delete(PROJECTS);
+  // (Every folder in it is a project, so it's never a stack, even one recorded as such by an earlier version.)
+  if (!hasNotes.has(PROJECTS)) folders.delete(PROJECTS);
   const top = (p: string) => p.split('/')[0];
   const isStack = (p: string) => !p.includes('/') && (metaStack.has(p) || (!metaNotebook.has(p) && !hasNotes.has(p) && hasFolders.has(p)));
   const sorted = [...folders].sort();
