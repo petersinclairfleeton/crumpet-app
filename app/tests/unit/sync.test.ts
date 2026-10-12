@@ -596,6 +596,19 @@ describe('syncing projects', () => {
     expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Projects/My Book/01 Opening.md', 'Projects/My Book/project.json']);
   });
 
+  it('says when a project lists chapters whose files it can’t see (Google hides files Crumpet didn’t make)', async () => {
+    const { cloud, mac } = await pair();
+    await cloud.write('Projects/Test Novel/project.json', JSON.stringify({ id: 'p1', name: 'Test Novel', outline: [{ type: 'chapter', id: 'c1' }, { type: 'chapter', id: 'c2' }] }));
+    await cloud.write('Projects/Test Novel/01 Opening.md', '---\nid: c1\ntitle: Opening\n---\n\nThe lamp.\n');
+    await mac.engine.sync();
+    expect(mac.engine.getStatus().unseen).toEqual([{ project: 'Test Novel', chapters: 1 }]);
+    expect(mac.store.getState().chapters.map((c) => c.title)).toEqual(['Opening']);
+    // Once it's there, nothing to say.
+    await cloud.write('Projects/Test Novel/02 Salt.md', '---\nid: c2\ntitle: Salt\n---\n\nSalt.\n');
+    await mac.engine.sync();
+    expect(mac.engine.getStatus().unseen).toEqual([]);
+  });
+
   it('lives alongside a stack that happens to be called Projects (in a folder of its own)', async () => {
     const { cloud, mac, phone } = await pair();
     const st = mac.store.createStack('Projects');

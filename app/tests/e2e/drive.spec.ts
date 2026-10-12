@@ -109,6 +109,21 @@ test('a project folder in Drive shows up as a project, even one made without Cru
   await expect.poll(() => vault(drive, 'Crumpet'), { timeout: 15_000 }).toContain('Projects/My Book/project.json');
 });
 
+test('chapters a project lists but Crumpet can’t open are pointed out, with what to do', async ({ browser }) => {
+  const drive = new FakeDrive();
+  const root = drive.add('Crumpet', 'root', 'application/vnd.google-apps.folder');
+  const projects = drive.add('Projects', root.id, 'application/vnd.google-apps.folder');
+  const book = drive.add('Test Novel', projects.id, 'application/vnd.google-apps.folder');
+  drive.add('project.json', book.id, 'application/json', JSON.stringify({ id: 'p1', name: 'Test Novel', outline: [{ type: 'chapter', id: 'c1' }, { type: 'chapter', id: 'hidden' }] }));
+  drive.add('01 Opening.md', book.id, 'text/markdown', '---\nid: c1\ntitle: Opening\n---\n\nThe lamp.\n');
+  const page = await device(browser, drive);
+  await page.goto('/#connect');
+  await where(page).getByRole('button', { name: 'Continue with Google' }).click();
+  await where(page).getByRole('button', { name: /Your Crumpet folder/ }).click();
+  await expect(where(page).getByRole('note')).toContainText('Test Novel: 1 chapter', { timeout: 15_000 });
+  await expect(where(page).getByRole('status')).toContainText('1 chapter can’t be opened');
+});
+
 // A folder on this computer: the browser's folder picker is faked with a
 // folder in the browser's own private file storage (which works the same way).
 const FAKE_FOLDER_PICKER = `window.showDirectoryPicker = async () => (await navigator.storage.getDirectory()).getDirectoryHandle('My notes', { create: true });`;
