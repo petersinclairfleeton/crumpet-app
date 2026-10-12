@@ -277,7 +277,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             {BUILT_IN_CLIENT_ID ? 'Connect Google Drive' : 'Save to a folder'}
           </button>
         )}
-        {sync.config && sync.status?.phase === 'error' && sync.status.error?.kind !== 'offline' && (
+        {sync.config && ((sync.status?.phase === 'error' && sync.status.error?.kind !== 'offline') || !!sync.status?.unseen?.length) && (
           <button type="button" className="link-btn foot-link" onClick={() => setSettingsOpen(true)}>
             Fix…
           </button>

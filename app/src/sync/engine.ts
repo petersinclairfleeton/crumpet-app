@@ -17,7 +17,7 @@ import { type Layout, META_FILE, PROJECT_FILE, RESEARCH, fullLayout, join, layou
 import { mergeTrees } from './merge';
 import { type NoteFile, writeNoteFile } from './notefile';
 import { type Provider, ProviderError } from './provider';
-import { type Base, type FileCache, type ProjectCache, type Snapshot, emptyBase, readRemote, remoteTree, writeMeta, writeProject } from './remote';
+import { type Base, type FileCache, type ProjectCache, type Snapshot, type Unseen, emptyBase, readRemote, remoteTree, writeMeta, writeProject } from './remote';
 import { type TChapter, type TNote, type Tree, fullTree, localTree, sameChapter, sameNote } from './tree';
 import { type StatsCache, syncStats } from './stats';
 import { syncSnapshots } from './snapshots';
@@ -47,6 +47,8 @@ export interface SyncStatus {
   error: { message: string; kind: ProviderError['kind'] } | null;
   /** Conflicted copies made by the last sync. */
   conflicts: number;
+  /** Chapters the folder's projects list but whose files Crumpet can't see (see remote.ts). */
+  unseen?: Unseen[];
 }
 
 export interface SyncOptions {
@@ -140,8 +142,8 @@ export class SyncEngine {
   private async run(): Promise<void> {
     this.setStatus({ phase: 'syncing' });
     try {
-      const conflicts = await this.once();
-      this.setStatus({ phase: 'idle', lastSynced: this.now(), error: null, conflicts });
+      const { conflicts, unseen } = await this.once();
+      this.setStatus({ phase: 'idle', lastSynced: this.now(), error: null, conflicts, unseen });
     } catch (err) {
       const e = err instanceof ProviderError ? err : new ProviderError(err instanceof Error ? err.message : String(err));
       this.setStatus({ phase: 'error', error: { message: e.message, kind: e.kind } });
@@ -149,12 +151,12 @@ export class SyncEngine {
     }
   }
 
-  private async once(): Promise<number> {
+  private async once(): Promise<{ conflicts: number; unseen: Unseen[] }> {
     const saved = (await this.persistence.load()) ?? { base: emptyBase(), cache: {}, meta: null, lastSynced: 0 };
     // State saved by an earlier version may not know about projects yet.
     const state: SyncState = { ...saved, base: { ...saved.base, tree: fullTree(saved.base.tree), layout: fullLayout(saved.base.layout) } };
     const snap = await readRemote(this.provider, state.cache, state.meta, state.projectFiles ?? {});
-    const { tree: remote, layout: at } = remoteTree(snap, state.base);
+    const { tree: remote, layout: at, unseen } = remoteTree(snap, state.base);
     // Every file gone at once is far more likely a missing or disconnected folder than a decision to delete everything.
     const count = (t: Tree) => Object.keys(t.notes).length + Object.keys(t.chapters).length;
     if (!count(remote) && !snap.meta && count(state.base.tree)) {
@@ -192,7 +194,7 @@ export class SyncEngine {
     }
     await this.persistence.save({ base: { tree: merged, layout: want, ids: pushed.ids }, cache: pushed.cache, meta: pushed.meta, projectFiles: pushed.projectFiles, stats: counted.cache, snapshots: snaps.known, lastSynced: this.now() });
     if (!unchanged) this.again = true;
-    return copies.length;
+    return { conflicts: copies.length, unseen };
   }
 }
 

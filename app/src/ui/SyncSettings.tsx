@@ -50,6 +50,26 @@ export function SyncSettings() {
             Disconnect
           </button>
         </div>
+        {config.kind === 'drive' && !!s?.unseen?.length && (
+          <div className="sync-unseen" role="note">
+            <b>Some chapters in your Drive folder can’t be opened by Crumpet</b>
+            <ul>
+              {s.unseen.map((u) => (
+                <li key={u.project}>
+                  {u.project}: {u.chapters} chapter{u.chapters === 1 ? '' : 's'}
+                </li>
+              ))}
+            </ul>
+            <p className="sync-hint">
+              Google only lets Crumpet open files that Crumpet itself saved to Drive. These were saved another way, most likely by Google Drive for desktop (for example from the Mac app before it was signed in to Google), so Google hides them from Crumpet, and won’t let it change or delete them either. Open them on the device that has them, signed in with Continue with Google, and Crumpet saves them again where every device can see them. Then delete the old copies in Google Drive.
+            </p>
+          </div>
+        )}
+        {config.kind === 'folder' && desktop && BUILT_IN_CLIENT_ID && (
+          <p className="sync-hint">
+            A folder that Google Drive for desktop keeps in step isn’t enough to see these notes on the Crumpet website: Google doesn’t let Crumpet open files saved that way. To have them on every device, Disconnect and choose Continue with Google instead.
+          </p>
+        )}
         {error && <p className="sync-line bad">{error}</p>}
       </div>
     );
@@ -136,7 +156,9 @@ export function statusText(s: SyncStatus | null): string {
   if (s.phase === 'error') return s.error?.kind === 'offline' ? 'Offline. Changes are kept here and sync when you’re back.' : (s.error?.message ?? 'Sync stopped.');
   if (!s.lastSynced) return 'Not synced yet.';
   const conflicts = s.conflicts ? ` ${s.conflicts} conflicted ${s.conflicts === 1 ? 'copy' : 'copies'} made.` : '';
-  return `Synced ${ago(s.lastSynced)}.${conflicts}`;
+  const hidden = s.unseen?.reduce((n, u) => n + u.chapters, 0) ?? 0;
+  const unseen = hidden ? ` ${hidden} chapter${hidden === 1 ? '' : 's'} can’t be opened.` : '';
+  return `Synced ${ago(s.lastSynced)}.${conflicts}${unseen}`;
 }
 
 function ago(t: number): string {

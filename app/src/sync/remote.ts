@@ -177,7 +177,14 @@ export function writeMeta(tree: Tree, l: Layout): string {
 }
 
 /** The files as a tree, and where each thing is. */
-export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: Layout } {
+/** A project whose project.json lists chapters with no file Crumpet can see (Google hides files it didn't make). */
+export interface Unseen {
+  project: string;
+  chapters: number;
+}
+
+export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: Layout; unseen: Unseen[] } {
+  const unseen: Unseen[] = [];
   const tree = emptyTree();
   const where = emptyLayout();
   const meta = snap.meta ?? { version: 1, stacks: [], notebooks: [] };
@@ -408,6 +415,8 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
     const present = new Set(chapterIds);
     const outline: OutlineItem[] = [];
     const listed = new Set<string>();
+    const hidden = (Array.isArray(json.outline) ? json.outline : []).filter((x) => x?.type === 'chapter' && typeof x.id === 'string' && !present.has(x.id)).length;
+    if (hidden) unseen.push({ project: nameFor(baseName(dir), typeof json.name === 'string' ? json.name : was?.name), chapters: hidden });
     for (const item of Array.isArray(json.outline) ? json.outline : []) {
       if (item?.type === 'part' && typeof item.id === 'string' && !listed.has(item.id)) outline.push({ type: 'part', id: item.id, title: String(item.title ?? '') });
       else if (item?.type === 'chapter' && present.has(item.id) && !listed.has(item.id)) outline.push({ type: 'chapter', id: item.id });
@@ -444,7 +453,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
     };
     where.projects[id] = dir;
   }
-  return { tree, layout: where };
+  return { tree, layout: where, unseen };
 }
 
 /** A folder's name: its recorded name when the folder still fits it, else the folder's own name. */
