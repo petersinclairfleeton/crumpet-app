@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Doc } from '@crumpet/editor/model';
-import { readWordFile } from '../data/wordfiles';
 import { useAppState, useAppStore, useSync, keep, remember } from './hooks';
 import { statusText } from './SyncSettings';
 import { SettingsDialog } from './Settings';
@@ -13,13 +12,14 @@ import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from
 import { toMarkdown } from '@crumpet/editor/markdown';
 import { StatsDialog, useTodayWords } from './stats-ui';
 import { FoldButton } from './fold';
-import { type Folder, type FolderDrop, bothDrops, folderDrag, tabDrag, useFolderDrop, useNoteDrop } from './tabdrag';
+import { type Folder, type FolderDrop, bothDrops, folderDrag, tabDrag, useFileDrop, useFolderDrop, useNoteDrop } from './tabdrag';
+import { chooseUploads, uploadFiles } from './uploads';
 import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
 import { boardDoc, emptyBoard } from '../data/board';
-import { IconBell, IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { IconBell, IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenView(view: View): void;
@@ -76,11 +76,22 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const toTrash = (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && store.trashNote(n.id));
   const toFavorites = (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && !n.favorite && store.toggleFavorite(n.id));
   const toTag = (tag: string) => (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && store.addTag(n.id, tag));
+  // Files from the computer: each becomes a note (in a notebook, or a project's research), and the last one opens.
+  const upload = (where: { notebookId?: string | null; projectId?: string }) => async (files: File[]) => {
+    const made = await uploadFiles(store, files, where);
+    const last = made[made.length - 1];
+    if (!last) return;
+    if (where.projectId) {
+      onOpenView({ kind: 'project', id: where.projectId });
+      store.openResearch(last.id);
+    } else onOpenNote(last.id);
+  };
+
   // Notes dropped on a project become its research (out of the Trash, if they were in it).
   const toProject = (id: string) => (ids: string[]) =>
     live(ids).forEach((n) => {
       if (n.trashedAt !== null) store.restoreNote(n.id);
-      if (n.projectId !== id) store.setNoteProject(n.id, id);
+      if (n.projectId !== id) store.setResearchProject(n.id, id);
     });
 
   const toggleStack = (id: string) => {
@@ -113,7 +124,10 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           </span>
           New Note
         </button>
-        <TemplateMenu onTemplate={onTemplate} onImport={onImport} />
+        <button type="button" className="icon-btn upload-btn" aria-label="Upload files" title="Upload files: pictures, PDFs, Word documents and more" onClick={() => chooseUploads(upload({}))}>
+          <IconUpload size={14} />
+        </button>
+        <TemplateMenu onTemplate={onTemplate} onImport={onImport} onUpload={() => chooseUploads(upload({}))} />
       </div>
 
       <Bookmarks />
@@ -131,7 +145,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
       )}
 
       <section className="side-section">
-        <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null && !n.projectId).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
+        <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null && !n.projectId).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong files={upload({ notebookId: null })} />
         <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
         <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
         <SideRow icon={<IconGraph size={13} />} label="Graph" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
@@ -199,6 +213,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
               onDrop: (f) => store.moveProject(f.id, p.id),
             }}
             drop={toProject(p.id)}
+            files={upload({ projectId: p.id })}
             icon={<IconBook size={13} />}
             label={p.name}
             count={projectWords(p, state.chapters) || undefined}
@@ -344,17 +359,18 @@ function TagRows({ nodes, depth, active, onOpenView, onDropTag }: { nodes: TagNo
   return <>{rows(nodes, depth)}</>;
 }
 
-function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean; drag?: Tab; drop?(ids: string[]): void; folder?: { accept(f: Folder): FolderDrop | null; onDrop(f: Folder, how: FolderDrop): void } }) {
+function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean; drag?: Tab; drop?(ids: string[]): void; folder?: { accept(f: Folder): FolderDrop | null; onDrop(f: Folder, how: FolderDrop): void }; files?(files: File[]): void }) {
   const drop = useNoteDrop(props.drop);
+  const files = useFileDrop(props.files);
   const folder = useFolderDrop(props.folder?.accept ?? (() => null), props.folder?.onDrop ?? (() => {}));
   return (
     <button
       type="button"
-      className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}${drop.over || folder.over === 'into' ? ' drop-over' : ''}${folder.over === 'before' ? ' drop-before' : ''}`}
+      className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}${drop.over || files.over || folder.over === 'into' ? ' drop-over' : ''}${folder.over === 'before' ? ' drop-before' : ''}`}
       aria-current={props.active ? 'page' : undefined}
       onClick={props.onClick}
       {...(props.drag ? tabDrag(props.drag) : {})}
-      {...bothDrops(folder.props, drop.props)}
+      {...bothDrops(files.props, folder.props, drop.props)}
     >
       {props.icon}
       <span className="grow ellipsis">{props.label}</span>
@@ -516,7 +532,7 @@ function NotebookRow({ nb, count, depth, active, onOpen }: { nb: Notebook; count
       if (!n) continue;
       if (n.trashedAt !== null) store.restoreNote(id);
       // Research for a project comes out of it, into this notebook.
-      if (store.note(id)?.projectId) store.setNoteProject(id, null, nb.id);
+      if (store.note(id)?.projectId) store.setResearchProject(id, null, nb.id);
       else if (n.notebookId !== nb.id) store.moveNote(id, nb.id);
     }
   });
@@ -525,11 +541,19 @@ function NotebookRow({ nb, count, depth, active, onOpen }: { nb: Notebook; count
     (f) => (f.kind === 'notebook' && f.id !== nb.id ? 'before' : null),
     (f) => store.moveNotebook(f.id, nb.stackId && store.stack(nb.stackId) ? nb.stackId : null, nb.id),
   );
+  // Files from the computer dropped here become notes in this notebook.
+  const files = useFileDrop(async (list) => {
+    const made = await uploadFiles(store, list, { notebookId: nb.id });
+    if (made.length) {
+      onOpen();
+      store.select(made[made.length - 1].id);
+    }
+  });
   return (
     <div className="nb">
-      <div className={`side-row nb-row${active ? ' active' : ''}${drop.over ? ' drop-over' : ''}${place.over ? ' drop-before' : ''}`} style={{ paddingLeft: 8 + depth * 18 }}
+      <div className={`side-row nb-row${active ? ' active' : ''}${drop.over || files.over ? ' drop-over' : ''}${place.over ? ' drop-before' : ''}`} style={{ paddingLeft: 8 + depth * 18 }}
         {...folderDrag({ kind: 'notebook', id: nb.id }, nb.name)}
-        {...bothDrops(place.props, drop.props)}
+        {...bothDrops(files.props, place.props, drop.props)}
         onContextMenu={(e) => {
           e.preventDefault();
           setMode('menu');
@@ -719,7 +743,7 @@ function compact(n: number): string {
 }
 
 /** New from a template: the ready-made ones, and your own (notes in a "Templates" notebook). */
-function TemplateMenu({ onTemplate, onImport }: { onTemplate(t: { title: string; body: string }): void; onImport(note: { title: string; doc: Doc }): void }) {
+function TemplateMenu({ onTemplate, onImport, onUpload }: { onTemplate(t: { title: string; body: string }): void; onImport(note: { title: string; doc: Doc }): void; onUpload(): void }) {
   const state = useAppState();
   const [open, setOpen] = useState(false);
   const nb = state.notebooks.find((n) => n.name.toLowerCase() === TEMPLATES_NOTEBOOK.toLowerCase());
@@ -754,22 +778,10 @@ function TemplateMenu({ onTemplate, onImport }: { onTemplate(t: { title: string;
             className="menu-item"
             onClick={() => {
               setOpen(false);
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = '.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-              input.onchange = async () => {
-                const file = input.files?.[0];
-                if (!file) return;
-                try {
-                  onImport(await readWordFile(file));
-                } catch (err) {
-                  alert(err instanceof Error ? err.message : 'That file couldn’t be opened.');
-                }
-              };
-              input.click();
+              onUpload();
             }}
           >
-            Open a Word document…
+            Upload files… <small className="menu-hint">Word, PDF, pictures…</small>
           </button>
           <button
             type="button"

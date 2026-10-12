@@ -17,6 +17,7 @@ import { Popover } from './Sidebar';
 import { sameBookmark, toggleBookmark } from '../data/bookmarks';
 import { GraphView } from './graph';
 import { dragged, startTabDrag, useDragging } from './tabdrag';
+import { hasFiles, uploadFiles } from './uploads';
 
 // ---------------------------------------------------------------- the workspace
 
@@ -334,9 +335,40 @@ function GroupView({ group, only = false, narrow, onBack, onNewNote, onNewProjec
     follow(store, t);
   };
 
+  // Files from the computer: each becomes a note, opened in a new pane at the edge it's dropped on, or a new tab.
+  const onFiles = (side: Side, index?: number) => async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = Array.from(e.dataTransfer.files);
+    setZone(null);
+    setBarAt(null);
+    const made = await uploadFiles(store, files);
+    made.forEach((n, i) => ctl.update((w) => (i === 0 ? drop(w, { kind: 'note', id: n.id }, group.id, side, undefined, index) : drop(w, { kind: 'note', id: n.id }, w.active, 'center'))));
+    if (made.length) follow(store, { kind: 'note', id: made[made.length - 1].id });
+  };
+  /** Where files from the computer would go: the middle of a note is the editor's (a picture dropped into the text). */
+  const fileSide = (e: React.DragEvent): Side | null => {
+    if (dragged || !hasFiles(e)) return null;
+    const s = sideAt(e, e.currentTarget as HTMLElement);
+    return s === 'center' && tab ? null : s;
+  };
+
   const body = (
     <div
       className="pane-body"
+      onDragOverCapture={(e) => {
+        const s = fileSide(e);
+        if (s) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = 'copy';
+        }
+        if (!dragged && s !== zone) setZone(s);
+      }}
+      onDropCapture={(e) => {
+        const s = fileSide(e);
+        if (s) onFiles(s)(e);
+      }}
       onDragOver={(e) => {
         if (!dragged) return;
         e.preventDefault();
@@ -351,7 +383,7 @@ function GroupView({ group, only = false, narrow, onBack, onNewNote, onNewProjec
     >
       {tab ? <TabView key={`${tab.kind}:${tab.id}`} tab={tab} narrow={narrow} onBack={onBack} onNewNote={onNewNote} onNewProject={onNewProject} onClose={() => close(group.active)} /> : <EmptyPane onNewNote={onNewNote} onNewProject={onNewProject} />}
       {dragging && <div className="pane-drop-catcher" aria-hidden="true" />}
-      {dragging && zone && <div className={`pane-drop ${zone}`} aria-hidden="true" />}
+      {zone && <div className={`pane-drop ${zone}`} aria-hidden="true" />}
     </div>
   );
   if (only) return <section className="pane-group active only">{body}</section>;
@@ -363,9 +395,9 @@ function GroupView({ group, only = false, narrow, onBack, onNewNote, onNewProjec
         role="tablist"
         aria-label="Tabs"
         onDragOver={(e) => {
-          if (!dragged) return;
+          if (!dragged && !hasFiles(e)) return;
           e.preventDefault();
-          e.dataTransfer.dropEffect = dragged.from ? 'move' : 'copy';
+          e.dataTransfer.dropEffect = dragged?.from ? 'move' : 'copy';
           const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('.pane-tab'));
           let at = items.length;
           for (const [i, el] of items.entries()) {
@@ -380,7 +412,7 @@ function GroupView({ group, only = false, narrow, onBack, onNewNote, onNewProjec
         onDragLeave={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setBarAt(null);
         }}
-        onDrop={(e) => onDrop('center', barAt ?? undefined)(e)}
+        onDrop={(e) => (dragged ? onDrop('center', barAt ?? undefined)(e) : hasFiles(e) && onFiles('center', barAt ?? undefined)(e))}
       >
         {group.tabs.map((t, i) => (
           <div key={`${t.kind}:${t.id}`} className={`pane-tab-wrap${barAt === i ? ' drop-before' : ''}${barAt === group.tabs.length && i === group.tabs.length - 1 ? ' drop-after' : ''}`}>

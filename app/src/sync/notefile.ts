@@ -7,6 +7,7 @@
 //   tags: [draft, chapter-1]
 //   favorite: true
 //   reminder: 2026-10-10T09:00:00.000Z
+//   file: Attachments/k3j9a2x-Report.docx   (an uploaded file the note is)
 //   created: 2026-10-05T09:12:00.000Z
 //   updated: 2026-10-05T10:40:12.000Z
 //   ---
@@ -33,13 +34,15 @@ export interface NoteFile {
   body: string;
   /** A reminder ("ISO date", with " done" once dealt with), as the sync keeps it. */
   reminder?: string;
+  /** An uploaded file the note is: its path in Attachments. */
+  file?: string;
   /** Chapters only: status, synopsis and word goal. */
   status?: string;
   synopsis?: string;
   goal?: number | null;
 }
 
-const KNOWN = new Set(['id', 'title', 'tags', 'favorite', 'reminder', 'reminder-done', 'created', 'updated', 'trashed', 'from', 'status', 'synopsis', 'goal']);
+const KNOWN = new Set(['id', 'title', 'tags', 'favorite', 'reminder', 'reminder-done', 'file', 'created', 'updated', 'trashed', 'from', 'status', 'synopsis', 'goal']);
 
 export function writeNoteFile(f: NoteFile): string {
   const lines = ['---'];
@@ -52,6 +55,7 @@ export function writeNoteFile(f: NoteFile): string {
     lines.push(`reminder: ${at}`);
     if (done) lines.push('reminder-done: true');
   }
+  if (f.file) lines.push(`file: ${scalar(f.file)}`);
   if (f.created !== null) lines.push(`created: ${date(f.created)}`);
   if (f.updated !== null) lines.push(`updated: ${date(f.updated)}`);
   if (f.trashed !== null) lines.push(`trashed: ${date(f.trashed)}`);
@@ -112,6 +116,9 @@ export function parseNoteFile(text: string): NoteFile {
         break;
       case 'title':
         f.title = parseScalar(raw);
+        break;
+      case 'file':
+        if (parseScalar(raw)) f.file = parseScalar(raw);
         break;
       case 'from':
         f.from = parseScalar(raw) || null;

@@ -55,6 +55,7 @@ const CHAPTERS: Chapter[] = [
       { title: 'Notebooks and stacks', text: 'Group notes in notebooks, and notebooks in stacks. Drag a note onto a notebook in the sidebar to file it; drag notebooks onto a stack to put them in it, or above one another to change their order.' },
       { title: 'Tags and favourites', text: 'Add tags under a note’s title (tags can nest, like book/characters), and star the notes you keep coming back to.' },
       { title: 'Find anything', text: `Search every note, chapter, PDF and picture from the top bar (${mod}K). ${mod}O jumps to any note by name; ${mod}P lists every command.` },
+      { title: 'Upload anything', text: 'The ↑ button next to New Note uploads files, or drag them from your computer onto a notebook, the list or a pane. Pictures, PDFs, video and sound show as they are; Word documents open to edit and are saved back as Word documents.' },
       { title: 'Right-click for more', text: 'Right-click a note to rename, move, tag, duplicate, open it beside another, or put it in the Trash.' },
     ],
     pictures: [pic('notes', 'The note list and an open note with headings, a list and tags', 'A note with headings and a list, filed in the Ideas notebook and tagged #idea.')],
@@ -112,7 +113,7 @@ const CHAPTERS: Chapter[] = [
     title: 'Sharing and finishing',
     lede: 'When it’s ready to leave the house.',
     points: [
-      { title: 'Word, PDF and e-book', text: 'Download a note or a whole book as a Word document, print it or save it as a PDF, or make an e-book (ePub). Word files open in Crumpet too, comments and tracked changes included.' },
+      { title: 'Word, PDF and e-book', text: 'Download a note or a whole book as a Word document, print it or save it as a PDF, or make an e-book (ePub). Word files you upload open as Word documents, comments and tracked changes included, and are saved back as .docx.' },
       { title: 'Snapshots and versions', text: 'Take a snapshot before a big edit; Crumpet also keeps earlier versions as you write, and can compare any two.' },
       { title: 'Read it aloud', text: 'Hear your writing read back to catch what your eyes skip, or dictate instead of typing.' },
     ],
@@ -187,7 +188,7 @@ const WORKFLOWS: Workflow[] = [
     icon: <IconPen size={20} />,
     steps: [
       'Download the chapter or book as a Word document and send it.',
-      'When it comes back, open it in Crumpet (the arrow next to New Note → Open a Word document…): their comments and tracked changes come too.',
+      'When it comes back, upload it (the ↑ button next to New Note, or drag it onto Crumpet): it opens as a Word document, with their comments and tracked changes, and stays one as you work on it.',
       'Go through them one by one: accept or reject each change, and reply to comments.',
       'Not sure what changed? Compare two versions word by word from the command palette (Compare…).',
     ],

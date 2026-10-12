@@ -10,7 +10,8 @@ import { allTags } from '../data/selectors';
 import { InlineInput, Popover } from './Sidebar';
 import { IconStarFilled, IconTag, IconTrash } from './icons';
 import { FoldButton } from './fold';
-import { tabDrag } from './tabdrag';
+import { tabDrag, useFileDrop } from './tabdrag';
+import { uploadFiles } from './uploads';
 import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import { usePanes } from './panes';
 import { IconCards, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
@@ -25,6 +26,11 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
   const state = useAppState();
   const store = useAppStore();
   const searching = !!state.query.trim();
+  // Files from the computer dropped on the list: notes here (in the notebook being looked at), the last one open.
+  const fileDrop = useFileDrop(async (files) => {
+    const made = await uploadFiles(store, files);
+    if (made.length) onOpenNote(made[made.length - 1].id);
+  });
   const trash = state.view.kind === 'trash' && !searching;
   const sort: SortBy = trash ? 'edited' : (state.settings.sort ?? 'edited');
   const notes = state.view.kind === 'reminders' && !searching ? listedNotes(state) : sortNotes(listedNotes(state), sort);
@@ -75,7 +81,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
   const title = searching ? 'Search results' : viewTitle(state.view, state);
 
   return (
-    <section className="list" aria-label="Notes">
+    <section className={`list${fileDrop.over ? ' files-over' : ''}`} aria-label="Notes" {...fileDrop.props}>
       <header className="list-head">
         <div className="list-title">
           {nb && <NotebookIcon color={nb.color} size={15} cut="var(--list-bg)" />}

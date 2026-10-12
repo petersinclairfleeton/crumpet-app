@@ -44,6 +44,12 @@ export interface Note {
   extra?: string;
   /** A reminder: when, and whether it's been dealt with. */
   reminder?: { at: number; done?: boolean };
+  /**
+   * An uploaded file this note is (a picture, PDF, Word document...): its
+   * path in Attachments. Shown as what it is; a Word document is edited here
+   * and saved back to its file.
+   */
+  file?: string;
 }
 
 /** Crumpet's own looks follow the device (system) or are fixed light or dark; the rest are styles of their own. */

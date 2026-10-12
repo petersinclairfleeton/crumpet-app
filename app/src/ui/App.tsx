@@ -25,6 +25,7 @@ import { useTodayWords } from './stats-ui';
 import { SpeechBar, startReading, toggleDictation } from './speech';
 import { CompareDocs } from './comparedocs';
 import { useFileIndex } from './fileindex';
+import { useWordSaving } from './uploads';
 import { ReminderAlerts } from './reminders';
 import type { View } from '../data/types';
 
@@ -44,6 +45,7 @@ export function App() {
   const panesRef = useRef(panes);
   panesRef.current = panes;
   useFileIndex();
+  useWordSaving();
 
   useEffect(() => {
     const mq = window.matchMedia(NARROW);
