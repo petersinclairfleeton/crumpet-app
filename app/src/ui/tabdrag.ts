@@ -35,7 +35,7 @@ export function tabDrag(tab: Tab, notes?: string[]): { draggable: true; onDragSt
 export function draggedNotes(): string[] {
   if (!dragged) return [];
   if (dragged.notes?.length) return dragged.notes;
-  return dragged.tab.kind === 'note' ? [dragged.tab.id] : [];
+  return dragged.tab.kind === 'note' || dragged.tab.kind === 'research' ? [dragged.tab.id] : [];
 }
 
 /**
@@ -77,4 +77,85 @@ export function useDragging(): boolean {
     return () => void dragListeners.delete(setOn);
   }, []);
   return on;
+}
+
+// ---------- moving notebooks, stacks and projects around the sidebar ----------
+
+/** A sidebar folder being dragged: a notebook or stack (projects are dragged as tabs). */
+export type Folder = { kind: 'notebook' | 'stack' | 'project'; id: string };
+const FOLDER_MIME = 'application/x-crumpet-folder';
+let folder: Folder | null = null;
+
+/** The props that let a notebook or stack be dragged to another place in the sidebar. */
+export function folderDrag(f: { kind: 'notebook' | 'stack'; id: string }, name: string): { draggable: true; onDragStart(e: React.DragEvent): void } {
+  return {
+    draggable: true,
+    onDragStart: (e) => {
+      e.stopPropagation();
+      folder = f;
+      e.dataTransfer.setData(FOLDER_MIME, JSON.stringify(f));
+      e.dataTransfer.setData('text/plain', name);
+      e.dataTransfer.effectAllowed = 'move';
+      dragListeners.forEach((l) => l(true));
+      const end = () => {
+        folder = null;
+        dragListeners.forEach((l) => l(false));
+        window.removeEventListener('dragend', end, true);
+      };
+      window.addEventListener('dragend', end, true);
+      window.addEventListener('drop', () => setTimeout(end), { capture: true, once: true });
+    },
+  };
+}
+
+/** The notebook, stack or project being dragged, if any. */
+export function draggedFolder(): Folder | null {
+  if (folder) return folder;
+  return dragged?.tab.kind === 'project' && !dragged.from ? { kind: 'project', id: dragged.tab.id } : null;
+}
+
+/** Where a dragged folder would go: just above this row, or into it. */
+export type FolderDrop = 'before' | 'into';
+
+/**
+ * The props that let a sidebar row take a notebook, stack or project dropped
+ * on it (`accept` says how, or null for not at all), and how one is over it
+ * now (to show a line above it, or light it up).
+ */
+export function useFolderDrop(accept: (f: Folder) => FolderDrop | null, onDrop: (f: Folder, how: FolderDrop) => void): { over: FolderDrop | null; props: Pick<React.HTMLAttributes<HTMLElement>, 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'> } {
+  const [over, setOver] = useState<FolderDrop | null>(null);
+  const how = (e: React.DragEvent): FolderDrop | null => {
+    const f = draggedFolder();
+    const h = f ? accept(f) : null;
+    if (!h) return null;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    return h;
+  };
+  return {
+    over,
+    props: {
+      onDragEnter: (e) => setOver(how(e)),
+      onDragOver: (e) => {
+        const h = how(e);
+        if (h !== over) setOver(h);
+      },
+      onDragLeave: (e) => {
+        if (!(e.currentTarget as Node).contains(e.relatedTarget as Node | null)) setOver(null);
+      },
+      onDrop: (e) => {
+        const f = draggedFolder();
+        const h = how(e);
+        setOver(null);
+        if (f && h) onDrop(f, h);
+      },
+    },
+  };
+}
+
+/** Event props from several drop helpers on one element: each handler runs in turn. */
+export function bothDrops(...all: Partial<Pick<React.HTMLAttributes<HTMLElement>, 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'>>[]): Pick<React.HTMLAttributes<HTMLElement>, 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop'> {
+  const run = (k: 'onDragOver' | 'onDragEnter' | 'onDragLeave' | 'onDrop') => (e: React.DragEvent<HTMLElement>) => all.forEach((p) => p[k]?.(e));
+  return { onDragOver: run('onDragOver'), onDragEnter: run('onDragEnter'), onDragLeave: run('onDragLeave'), onDrop: run('onDrop') };
 }

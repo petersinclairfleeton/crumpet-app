@@ -7,13 +7,13 @@ import { SettingsDialog } from './Settings';
 import { canUseFolder } from '../sync/folder';
 import { openReminders } from '../data/reminders';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
-import { tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectWords, recentNotes, sameView } from '../data/selectors';
+import { tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectWords, projectsInOrder, recentNotes, sameView } from '../data/selectors';
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
 import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from '../data/templates';
 import { toMarkdown } from '@crumpet/editor/markdown';
 import { StatsDialog, useTodayWords } from './stats-ui';
 import { FoldButton } from './fold';
-import { tabDrag, useNoteDrop } from './tabdrag';
+import { type Folder, type FolderDrop, bothDrops, folderDrag, tabDrag, useFolderDrop, useNoteDrop } from './tabdrag';
 import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
@@ -50,7 +50,18 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
-  const { loose, stacks } = notebookTree(state.stacks, state.notebooks);
+  const order = state.settings.sideOrder;
+  const { loose, stacks } = notebookTree(state.stacks, state.notebooks, order);
+  const projects = projectsInOrder(state.projects, order);
+  // Notebooks, stacks and projects dropped on their heading go to the top (a notebook out of its stack).
+  const notebooksHead = useFolderDrop(
+    (f) => (f.kind === 'notebook' || f.kind === 'stack' ? 'into' : null),
+    (f) => (f.kind === 'notebook' ? store.moveNotebook(f.id, null, loose.find((n) => n.id !== f.id)?.id ?? null) : store.moveStack(f.id, stacks[0]?.stack.id ?? null)),
+  );
+  const projectsHead = useFolderDrop(
+    (f) => (f.kind === 'project' ? 'into' : null),
+    (f) => store.moveProject(f.id, projects[0]?.id ?? null),
+  );
   const counts = noteCounts(state.notes);
   const tags = tagTree(state.notes);
   const recent = recentNotes(state.notes);
@@ -65,6 +76,12 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const toTrash = (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && store.trashNote(n.id));
   const toFavorites = (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && !n.favorite && store.toggleFavorite(n.id));
   const toTag = (tag: string) => (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && store.addTag(n.id, tag));
+  // Notes dropped on a project become its research (out of the Trash, if they were in it).
+  const toProject = (id: string) => (ids: string[]) =>
+    live(ids).forEach((n) => {
+      if (n.trashedAt !== null) store.restoreNote(n.id);
+      if (n.projectId !== id) store.setNoteProject(n.id, id);
+    });
 
   const toggleStack = (id: string) => {
     const next = collapsed.includes(id) ? collapsed.filter((n) => n !== id) : [...collapsed, id];
@@ -150,7 +167,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           </>
         )}
 
-        <div className="side-heading">
+        <div className={`side-heading${projectsHead.over ? ' drop-over' : ''}`} {...projectsHead.props}>
           <span>Projects</span>
           <button type="button" className="icon-btn" aria-label="New project" title="New project" onClick={() => setCreating(creating === 'project' ? null : 'project')}>
             <IconPlus size={13} />
@@ -174,9 +191,14 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             </button>
           </div>
         )}
-        {state.projects.map((p) => (
+        {projects.map((p) => (
           <SideRow
             key={p.id}
+            folder={{
+              accept: (f) => (f.kind === 'project' && f.id !== p.id ? 'before' : null),
+              onDrop: (f) => store.moveProject(f.id, p.id),
+            }}
+            drop={toProject(p.id)}
             icon={<IconBook size={13} />}
             label={p.name}
             count={projectWords(p, state.chapters) || undefined}
@@ -187,7 +209,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           />
         ))}
 
-        <div className="side-heading">
+        <div className={`side-heading${notebooksHead.over ? ' drop-over' : ''}`} {...notebooksHead.props}>
           <span>Notebooks</span>
           <button type="button" className="icon-btn" aria-label="New notebook or stack" title="New notebook or stack" aria-expanded={creating === 'menu'} onClick={() => setCreating(creating ? null : 'menu')}>
             <IconPlus size={13} />
@@ -322,16 +344,17 @@ function TagRows({ nodes, depth, active, onOpenView, onDropTag }: { nodes: TagNo
   return <>{rows(nodes, depth)}</>;
 }
 
-function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean; drag?: Tab; drop?(ids: string[]): void }) {
+function SideRow(props: { icon?: React.ReactNode; label: string; count?: number; countLabel?: string; active: boolean; onClick(): void; strong?: boolean; indent?: boolean; drag?: Tab; drop?(ids: string[]): void; folder?: { accept(f: Folder): FolderDrop | null; onDrop(f: Folder, how: FolderDrop): void } }) {
   const drop = useNoteDrop(props.drop);
+  const folder = useFolderDrop(props.folder?.accept ?? (() => null), props.folder?.onDrop ?? (() => {}));
   return (
     <button
       type="button"
-      className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}${drop.over ? ' drop-over' : ''}`}
+      className={`side-row${props.active ? ' active' : ''}${props.strong ? ' strong' : ''}${props.indent ? ' indent' : ''}${drop.over || folder.over === 'into' ? ' drop-over' : ''}${folder.over === 'before' ? ' drop-before' : ''}`}
       aria-current={props.active ? 'page' : undefined}
       onClick={props.onClick}
       {...(props.drag ? tabDrag(props.drag) : {})}
-      {...drop.props}
+      {...bothDrops(folder.props, drop.props)}
     >
       {props.icon}
       <span className="grow ellipsis">{props.label}</span>
@@ -365,10 +388,17 @@ function StackGroup({
   const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'add' | 'delete'>(null);
   const [adding, setAdding] = useState(false);
   const close = () => setMenu(null);
+  // A notebook dropped here goes into the stack (at the end); a stack, just above this one.
+  const drop = useFolderDrop(
+    (f) => (f.kind === 'notebook' ? 'into' : f.kind === 'stack' && f.id !== stack.id ? 'before' : null),
+    (f) => (f.kind === 'notebook' ? store.moveNotebook(f.id, stack.id, null) : store.moveStack(f.id, stack.id)),
+  );
   return (
     <div className="stack">
       <div
-        className={`side-row stack-row${active({ kind: 'stack', id: stack.id }) ? ' active' : ''}`}
+        className={`side-row stack-row${active({ kind: 'stack', id: stack.id }) ? ' active' : ''}${drop.over === 'into' ? ' drop-over' : ''}${drop.over === 'before' ? ' drop-before' : ''}`}
+        {...folderDrag({ kind: 'stack', id: stack.id }, stack.name)}
+        {...drop.props}
         onContextMenu={(e) => {
           e.preventDefault();
           setMenu('menu');
@@ -483,15 +513,23 @@ function NotebookRow({ nb, count, depth, active, onOpen }: { nb: Notebook; count
   const drop = useNoteDrop((ids) => {
     for (const id of ids) {
       const n = store.note(id);
-      if (!n || n.projectId) continue;
+      if (!n) continue;
       if (n.trashedAt !== null) store.restoreNote(id);
-      if (n.notebookId !== nb.id) store.moveNote(id, nb.id);
+      // Research for a project comes out of it, into this notebook.
+      if (store.note(id)?.projectId) store.setNoteProject(id, null, nb.id);
+      else if (n.notebookId !== nb.id) store.moveNote(id, nb.id);
     }
   });
+  // Another notebook dropped here goes just above this one, in the same stack.
+  const place = useFolderDrop(
+    (f) => (f.kind === 'notebook' && f.id !== nb.id ? 'before' : null),
+    (f) => store.moveNotebook(f.id, nb.stackId && store.stack(nb.stackId) ? nb.stackId : null, nb.id),
+  );
   return (
     <div className="nb">
-      <div className={`side-row nb-row${active ? ' active' : ''}${drop.over ? ' drop-over' : ''}`} style={{ paddingLeft: 8 + depth * 18 }}
-        {...drop.props}
+      <div className={`side-row nb-row${active ? ' active' : ''}${drop.over ? ' drop-over' : ''}${place.over ? ' drop-before' : ''}`} style={{ paddingLeft: 8 + depth * 18 }}
+        {...folderDrag({ kind: 'notebook', id: nb.id }, nb.name)}
+        {...bothDrops(place.props, drop.props)}
         onContextMenu={(e) => {
           e.preventDefault();
           setMode('menu');

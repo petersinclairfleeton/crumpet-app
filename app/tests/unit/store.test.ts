@@ -4,7 +4,7 @@ import { makeBlock } from '@crumpet/editor/model';
 import { MemoryStorage, openStorage } from '../../src/data/db';
 import { BUILT_IN_TEMPLATES, longDate } from '../../src/data/templates';
 import { AppStore, DATA_VERSION, cleanTag, visibleIn } from '../../src/data/store';
-import { groupByDate, listedNotes, matches, matchingNotebooks, notebookTree, preview, projectChapters, projectGoal, projectWords, wordCount } from '../../src/data/selectors';
+import { groupByDate, inOrder, listedNotes, matches, matchingNotebooks, moveInOrder, notebookTree, preview, projectChapters, projectGoal, projectWords, wordCount } from '../../src/data/selectors';
 import type { Note, Notebook } from '../../src/data/types';
 
 const DAY = 86_400_000;
@@ -480,5 +480,16 @@ describe('version history', () => {
     store.takeSnapshot(note.id, 'Keep');
     store.deleteForever(note.id);
     expect(store.getState().snapshots.map((s) => s.name)).toEqual(['Keep']);
+  });
+});
+
+describe('the sidebar order', () => {
+  it('sorts by the dragged order, then by name; moving puts a thing just above another', () => {
+    const things = [{ id: 'c', name: 'Cherry' }, { id: 'a', name: 'Apple' }, { id: 'b', name: 'Banana' }];
+    expect(inOrder(things, undefined).map((t) => t.id)).toEqual(['a', 'b', 'c']);
+    expect(inOrder(things, ['c']).map((t) => t.id)).toEqual(['c', 'a', 'b']);
+    expect(moveInOrder(['a', 'b', 'c'], 'c', 'a')).toEqual(['c', 'a', 'b']);
+    expect(moveInOrder(['a', 'b', 'c'], 'a', null)).toEqual(['b', 'c', 'a']);
+    expect(moveInOrder(['a', 'b', 'c'], 'a', 'c')).toEqual(['b', 'a', 'c']);
   });
 });

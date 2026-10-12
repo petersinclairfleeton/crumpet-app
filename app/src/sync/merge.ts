@@ -39,7 +39,8 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
     const newer = (r?.updated ?? 0) > (l?.updated ?? 0) ? r : l;
     const noteStyles = jsonField(b?.noteStyles, l?.noteStyles, r?.noteStyles, newer?.noteStyles);
     const notePage = jsonField(b?.notePage, l?.notePage, r?.notePage, newer?.notePage);
-    if (noteStyles || notePage) tree.settings = { ...withValue('noteStyles', noteStyles), ...withValue('notePage', notePage), updated: Math.max(l?.updated ?? 0, r?.updated ?? 0) };
+    const sideOrder = jsonField(b?.sideOrder, l?.sideOrder, r?.sideOrder, newer?.sideOrder);
+    if (noteStyles || notePage || sideOrder) tree.settings = { ...withValue('noteStyles', noteStyles), ...withValue('notePage', notePage), ...withValue('sideOrder', sideOrder), updated: Math.max(l?.updated ?? 0, r?.updated ?? 0) };
   }
 
   for (const id of keys(base.stacks, local.stacks, remote.stacks)) {

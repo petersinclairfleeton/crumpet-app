@@ -698,6 +698,22 @@ describe('shared settings', () => {
     await phone.engine.sync();
     expect(phone.store.getState().settings.notePage).toBeUndefined();
   });
+
+  it('the sidebar order (notebooks, stacks and projects as dragged) reaches other devices', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const a = mac.store.createNotebook('Apple');
+    const z = mac.store.createNotebook('Zebra');
+    const kitchen = mac.store.createStack('Kitchen');
+    mac.store.moveNotebook(z.id, null, a.id);
+    mac.store.moveNotebook(a.id, kitchen.id, null);
+    await mac.engine.sync();
+    await phone.engine.sync();
+    const s = phone.store.getState();
+    expect(s.settings.sideOrder?.notebooks?.indexOf(z.id)).toBeLessThan(s.settings.sideOrder!.notebooks!.indexOf(a.id));
+    expect(s.notebooks.find((n) => n.id === a.id)?.stackId).toBe(kitchen.id);
+  });
 });
 
 describe('project research', () => {
