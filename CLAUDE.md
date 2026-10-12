@@ -23,10 +23,19 @@ design; this file is how we work and where things are.
 
 1. Work on the session's branch (restart it from `origin/main` after each
    merge, so every PR is fresh).
-2. Run every check (below), and look at new screens with a screenshot.
-3. Commit, push, open the PR (what's new in plain words, how it was tested),
+2. **Keep the welcome guide up to date, in the same PR.** When a change
+   alters something the guide describes (`app/src/ui/guide.tsx`: its
+   chapters, points, captions and workflows), or adds a feature people
+   would want to hear about, update the guide's text as part of the change,
+   and retake its pictures if what they show has changed
+   (`CHROMIUM_PATH=… npx playwright test -c playwright.shots.config.ts`,
+   adding to `tests/shots/guide.shots.ts` for a new picture). Check every
+   sentence in it is still true. Say in the PR what changed in the guide (or
+   that nothing needed to).
+3. Run every check (below), and look at new screens with a screenshot.
+4. Commit, push, open the PR (what's new in plain words, how it was tested),
    then merge it with a merge commit.
-4. Merging to `main` publishes the web app to GitHub Pages
+5. Merging to `main` publishes the web app to GitHub Pages
    (https://petersinclairfleeton.github.io/crumpet-app/) through
    `.github/workflows/pages.yml`, which also runs the unit tests and a type
    check. Check the run went green.
