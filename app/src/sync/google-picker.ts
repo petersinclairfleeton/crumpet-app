@@ -2,6 +2,8 @@
 // there is also what gives Crumpet access to it: Crumpet never browses your
 // Drive itself.
 
+import { desktop } from '../data/desktop';
+
 const FOLDER = 'application/vnd.google-apps.folder';
 
 /** Set when Crumpet is built (see docs/google-drive-setup.md). Both are public values. */
@@ -9,7 +11,8 @@ const API_KEY: string = (import.meta.env?.VITE_GOOGLE_API_KEY as string | undefi
 const APP_ID: string = (import.meta.env?.VITE_GOOGLE_APP_ID as string | undefined) ?? '';
 
 // The project number is what lets picking a folder grant Crumpet access to it.
-export const canPickFolder = !!API_KEY && !!APP_ID;
+// (Not in the Mac app: Google's picker only opens on the website's own address.)
+export const canPickFolder = !!API_KEY && !!APP_ID && !desktop;
 
 interface PickerBuilder {
   addView(v: unknown): PickerBuilder;

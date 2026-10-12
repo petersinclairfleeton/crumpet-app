@@ -6,7 +6,8 @@
 // The window is Mac-native: the sidebar shows the real see-through blur of
 // the desktop behind it, and the red, yellow and green buttons sit in it.
 
-const { app, BrowserWindow, Menu, clipboard, net, protocol, shell } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, ipcMain, net, protocol, session, shell } = require('electron');
+const google = require('./google.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -50,13 +51,31 @@ function openClip(url) {
     win.focus();
   } else pendingClip = data;
 }
+/** An address handed to the app: Google sending someone back after signing in, or a clip. */
+function openUrl(url) {
+  if (google.handleRedirect(url)) {
+    // Back from the browser: the app comes to the front.
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+    return;
+  }
+  openClip(url);
+}
 // (Before the app is ready: a click on the bookmark may be what started it.)
 app.on('open-url', (e, url) => {
   e.preventDefault();
-  openClip(url);
+  openUrl(url);
 });
 // Windows and Linux pass the address on the command line.
-process.argv.forEach(openClip);
+process.argv.forEach(openUrl);
+
+// Google Drive, for the page: signing in and access tokens (see google.cjs).
+ipcMain.handle('google-sign-in', (_e, clientId) => google.signIn(String(clientId)));
+ipcMain.handle('google-token', (_e, clientId, fresh) => google.getToken(String(clientId), !!fresh));
+ipcMain.handle('google-sign-out', () => google.signOut());
 
 function createWindow() {
   const bounds = savedBounds();
@@ -171,7 +190,7 @@ function menu() {
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', (_e, argv) => {
-    argv.forEach(openClip);
+    argv.forEach(openUrl);
     if (!win) return;
     if (win.isMinimized()) win.restore();
     win.focus();
@@ -186,6 +205,15 @@ else {
       if (!file.startsWith(WEB)) return new Response('Not found', { status: 404 });
       if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(WEB, 'index.html');
       return net.fetch(pathToFileURL(file).toString());
+    });
+    // Drive's API answers the website's address; the app's own (app://crumpet) is let through too.
+    session.defaultSession.webRequest.onHeadersReceived({ urls: ['https://www.googleapis.com/*'] }, (details, done) => {
+      const headers = { ...details.responseHeaders };
+      const has = (name) => Object.keys(headers).some((k) => k.toLowerCase() === name);
+      if (!has('access-control-allow-origin')) headers['Access-Control-Allow-Origin'] = [ORIGIN];
+      if (!has('access-control-allow-headers')) headers['Access-Control-Allow-Headers'] = ['Authorization, Content-Type'];
+      if (!has('access-control-allow-methods')) headers['Access-Control-Allow-Methods'] = ['GET, POST, PATCH, DELETE, OPTIONS'];
+      done({ responseHeaders: headers });
     });
     menu();
     createWindow();
