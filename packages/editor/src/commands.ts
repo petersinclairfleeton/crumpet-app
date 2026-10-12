@@ -653,7 +653,7 @@ export function insertColumnBreak(state: EditorState): Transaction {
 }
 
 /** Word's Section Breaks: what follows the caret is a new section, on a new page or carrying on down this one. */
-export function insertSectionBreak(state: EditorState, kind: 'page' | 'cont'): Transaction {
+export function insertSectionBreak(state: EditorState, kind: 'page' | 'cont' | 'odd' | 'even'): Transaction {
   return insertBreak(state, { sect: kind });
 }
 
@@ -677,7 +677,7 @@ function insertBreak(state: EditorState, patch: Partial<ParaLook>): Transaction 
  * the paragraph its section break is on; for the first section, on the
  * very first paragraph).
  */
-export type SectionPatch = Partial<Pick<ParaLook, 'cols' | 'orient' | 'mt' | 'mb' | 'ml' | 'mr' | 'sect'>>;
+export type SectionPatch = Partial<Pick<ParaLook, 'cols' | 'orient' | 'mt' | 'mb' | 'ml' | 'mr' | 'pw' | 'ph' | 'sect'>>;
 
 export function setSection(state: EditorState, patch: SectionPatch): Transaction {
   const b = new Builder(state.doc);
@@ -711,7 +711,7 @@ export function setAllSections(state: EditorState, cols: number): Transaction {
       if (i > 0 || cols === 1 || isMedia(blk.type) || isWidget(blk.type)) return;
     }
     const keep = i === 0 ? { sect: 'page' as const, cols: cols > 1 ? cols : undefined } : { sect: blk.para!.sect, cols: undefined };
-    const para = tidyPara({ ...blk.para, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined, ...keep });
+    const para = tidyPara({ ...blk.para, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined, pw: undefined, ph: undefined, ...keep });
     // A first paragraph whose section break only held settings that are gone now: no break at all.
     const tidy = i === 0 && para && para.sect && Object.keys(para).length === 1 ? tidyPara({ ...para, sect: undefined }) : para;
     const to = attrsOf({ ...blk, para: tidy });

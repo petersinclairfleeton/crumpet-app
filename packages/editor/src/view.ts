@@ -95,6 +95,9 @@ export class View {
    */
   render(doc: Doc, force: Set<string> = new Set(), inPlace = false): void {
     this.doc = doc;
+    // Hyphenation (the whole document's, on its first paragraph): the browser breaks words in the language of the text.
+    this.root.classList.toggle('hyphenate', !!doc.blocks[0]?.para?.hyph);
+    if (!this.root.lang) this.root.lang = (typeof navigator !== 'undefined' && navigator.language) || 'en';
     const live = new Set<string>();
     const built = new Set<string>();
     for (const block of doc.blocks) {
@@ -590,6 +593,11 @@ function buildBlock(block: Block, marks = false, noSpell: RegExp | null = null):
       if (p.mb !== undefined) el.dataset.mb = String(p.mb);
       if (p.ml !== undefined) el.dataset.ml = String(p.ml);
       if (p.mr !== undefined) el.dataset.mr = String(p.mr);
+      // The section's own paper, in inches.
+      if (p.pw !== undefined && p.ph !== undefined) {
+        el.dataset.pw = String(p.pw);
+        el.dataset.ph = String(p.ph);
+      }
     }
     if (p.drop && !isList(block.type)) {
       // A drop cap: the first letter, this many lines tall.

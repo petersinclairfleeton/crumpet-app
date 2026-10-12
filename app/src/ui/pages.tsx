@@ -345,16 +345,10 @@ export function PageSetupForm({ page, onChange, chapters = false }: { page: Page
   );
   return (
     <div className="style-form page-form" role="group" aria-label="Page">
-      <label className="field">
+      <div className="field">
         <span>Page size</span>
-        <select aria-label="Page size" value={page.size} onChange={(e) => onChange({ ...page, size: e.target.value as PageSetup['size'] })}>
-          {PAGE_SIZES.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </label>
+        <PaperPicker label="Page size" value={page} onChange={(p) => onChange({ ...page, ...p })} />
+      </div>
       <div className="field">
         <span>Orientation</span>
         <div className="segmented small" role="group" aria-label="Orientation">
@@ -379,6 +373,50 @@ export function PageSetupForm({ page, onChange, chapters = false }: { page: Page
         <p className="sync-hint">In page view, double-click the top or bottom of a page to write in its header or footer.</p>
         <HFOptions hf={pageHF(page)} chapters={chapters} onChange={(hf) => onChange({ ...page, hf })} />
       </div>
+    </div>
+  );
+}
+
+const metricPaper = typeof navigator !== 'undefined' && !/^en-(US|CA)|^es-(US|MX)/.test(navigator.language || 'en-US');
+
+/** A paper size: one of the usual ones, or a size of one's own (width and height). */
+export function PaperPicker({ label, value, onChange, disabled = false }: { label: string; value: Pick<PageSetup, 'size' | 'w' | 'h'>; onChange(p: Pick<PageSetup, 'size' | 'w' | 'h'>): void; disabled?: boolean }) {
+  const unit = metricPaper ? 'cm' : 'in';
+  const show = (inches: number | undefined) => (inches ? String(Math.round((metricPaper ? inches * 2.54 : inches) * 100) / 100) : '');
+  const read = (v: string) => (Number(v) > 0 ? (metricPaper ? Number(v) / 2.54 : Number(v)) : undefined);
+  const current = PAGE_SIZES.find((s) => s.id === value.size) ?? PAGE_SIZES[0];
+  return (
+    <div className="paper-picker">
+      <select
+        aria-label={label}
+        value={value.size}
+        disabled={disabled}
+        onChange={(e) => {
+          const size = e.target.value as PageSetup['size'];
+          // A size of one's own starts from the one chosen before.
+          onChange(size === 'custom' ? { size, w: value.w ?? current.width, h: value.h ?? current.height } : { size, w: undefined, h: undefined });
+        }}
+      >
+        {PAGE_SIZES.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+          </option>
+        ))}
+        <option value="custom">A size of your own…</option>
+      </select>
+      {value.size === 'custom' && (
+        <span className="paper-own">
+          <label>
+            <span>Width</span>
+            <input type="number" aria-label="Paper width" min={1} step={0.1} disabled={disabled} value={show(value.w)} onChange={(e) => onChange({ ...value, w: read(e.target.value) })} />
+          </label>
+          <label>
+            <span>Height</span>
+            <input type="number" aria-label="Paper height" min={1} step={0.1} disabled={disabled} value={show(value.h)} onChange={(e) => onChange({ ...value, h: read(e.target.value) })} />
+          </label>
+          <small>{unit}</small>
+        </span>
+      )}
     </div>
   );
 }

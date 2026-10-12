@@ -201,14 +201,14 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Margins | ✅ | Per section too. |
 | Orientation | ✅ | Per section too. |
-| Size | 🟡 | Letter, A4, A5, 6 × 9 in book, Legal. No custom size, and one size for the whole document. |
+| Size | ✅ | Letter, A4, A5, A3, B5, 6 × 9 and pocket books, Executive, Legal, Tabloid, or a size of your own; per section too. |
 | Columns | ✅ | Per section, balanced before a continuous break. |
 | Breaks: page, column | ✅ | |
-| Breaks: text wrapping | ❌ | |
+| Breaks: text wrapping | ✅ | Layout → Breaks → Text wrapping: the text after it goes below a picture beside it. |
 | Section breaks: next page, continuous | ✅ | |
-| Section breaks: even page, odd page | ❌ | |
-| Line Numbers | ❌ | |
-| Hyphenation | ❌ | |
+| Section breaks: even page, odd page | ✅ | A blank page is put in when needed. |
+| Line Numbers | ✅ | Continuous, or restarting each page or section; every line or every 2nd, 5th, 10th. Headings and tables aren't numbered. |
+| Hyphenation | ✅ | Automatic (the browser's own word breaking, by the document's language), or optional hyphens (Ctrl+-). |
 | Paragraph: Indent, Spacing | ✅ | |
 | Wrap Text | 🟡 | For pictures, shapes and text boxes: in line, square left or right, in front of the text. Not behind the text, and not "tight". |
 | Position | 🟡 | Pictures and shapes in front of the text can be dragged anywhere; placed from their paragraph, not the page. |
@@ -385,7 +385,7 @@ At the end there's a suggested order for building what's missing.
 | Different First Page | ✅ | Also a different first page for each chapter. |
 | Different Odd & Even pages | ✅ | |
 | Link to Previous (different headers per section) | ❌ | One set of headers and footers for the whole document. |
-| Header/footer position (distance from the edge) | ❌ | |
+| Header/footer position (distance from the edge) | ✅ | Page Setup → Layout. |
 | Go to Header / Footer | ✅ | By double-clicking. |
 | Page number formats (1, 2, 3 / i, ii, iii…) | ✅ | |
 
@@ -543,13 +543,13 @@ Where: `model.ts` (footnotes), `paginate.ts`, `app/src/ui/booktoc.ts`, `footnote
 
 **8. Page layout and design**
 Where: `paginate.ts`, `app/src/ui/pagesetup.tsx`, `layouttools.tsx`, `pages.tsx`, `headers.tsx`, `data/headers.ts`, `data/styles.ts`, `print.tsx`, `docx.ts`.
-- [ ] Hyphenation (automatic and manual)
+- [x] Hyphenation (automatic and manual)
 - [ ] Headers and footers per section (Link to Previous)
-- [ ] Header and footer distance from the edge
-- [ ] Odd page / even page section breaks
-- [ ] Custom paper sizes, and size per section
-- [ ] Line numbers
-- [ ] Text wrapping break
+- [x] Header and footer distance from the edge
+- [x] Odd page / even page section breaks
+- [x] Custom paper sizes, and size per section
+- [x] Line numbers
+- [x] Text wrapping break
 - [ ] Watermark (text or picture)
 - [ ] Page colour saved in the document, printed and sent to Word
 - [ ] Page borders

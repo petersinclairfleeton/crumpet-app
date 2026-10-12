@@ -18,6 +18,8 @@ const svg = (d: string) => (
 const ICON_BREAK = svg('M5 3v5h14V3M5 21v-5h14v5M3 12h3M9 12h2M14 12h2M19 12h2');
 const ICON_COLS = svg('M4 5h6M4 9h6M4 13h6M4 17h6M14 5h6M14 9h6M14 13h6M14 17h6');
 const ICON_ORIENT = svg('M7 3h8l3 3v15H7zM3 14h4M5 12l-2 2 2 2');
+const ICON_LINES = svg('M9 5h11M9 10h11M9 15h11M9 20h11M4 4v2M3.5 9.5h1M4 14v2M3.5 19.5h1');
+const ICON_HYPH = svg('M3 8h7M3 12h9M3 16h7M15 12h3M13 8h8M13 16h8');
 
 function Drop({ label, glyph, off, children }: { label: string; glyph: React.ReactNode; off: boolean; children(close: () => void): React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -118,6 +120,17 @@ function layoutItems(ed: Editor | null, off: boolean): ToolItem[] {
               <button type="button" className="menu-item" onClick={act(close, () => ed?.insertSectionBreak('cont'))}>
                 Continuous
               </button>
+              <button type="button" className="menu-item" onClick={act(close, () => ed?.insertSectionBreak('odd'))}>
+                Odd page
+              </button>
+              <button type="button" className="menu-item" onClick={act(close, () => ed?.insertSectionBreak('even'))}>
+                Even page
+              </button>
+              <hr className="menu-sep" />
+              <span className="menu-head">Text</span>
+              <button type="button" className="menu-item" title="The text after it starts below any picture or shape it's wrapping round" onClick={act(close, () => ed?.insertField('wrapbreak'))}>
+                Text wrapping
+              </button>
             </div>
           )}
         </Drop>
@@ -138,6 +151,72 @@ function layoutItems(ed: Editor | null, off: boolean): ToolItem[] {
               <p className="menu-note">For this section (the whole document, until you add a section break).</p>
             </div>
           )}
+        </Drop>
+      ),
+    },
+    {
+      key: 'linenumbers', label: 'Line numbers',
+      pri: 1,
+      node: (
+        <Drop label="Line numbers" glyph={ICON_LINES} off={off}>
+          {(close) => {
+            const p = ed?.docPara() ?? {};
+            const now = !p.lnum ? 'none' : p.lnr === 'cont' ? 'cont' : p.lnr === 'sect' ? 'sect' : 'page';
+            const pick = (v: 'none' | 'cont' | 'page' | 'sect') => act(close, () => ed?.setDocPara(v === 'none' ? { lnum: undefined, lnr: undefined } : { lnum: p.lnum ?? 1, lnr: v === 'page' ? undefined : v }));
+            return (
+              <div className="menu-list">
+                {(
+                  [
+                    ['none', 'None'],
+                    ['cont', 'Continuous'],
+                    ['page', 'Restart each page'],
+                    ['sect', 'Restart each section'],
+                  ] as const
+                ).map(([v, l]) => (
+                  <button key={v} type="button" role="menuitemradio" aria-checked={now === v} className={`menu-item${now === v ? ' on' : ''}`} onClick={pick(v)}>
+                    {l}
+                  </button>
+                ))}
+                <label className="menu-row line-every">
+                  Number every
+                  <select aria-label="Number every" value={p.lnum ?? 1} disabled={!p.lnum} onChange={(e) => ed?.setDocPara({ lnum: Number(e.target.value) })}>
+                    {[1, 2, 5, 10].map((n) => (
+                      <option key={n} value={n}>
+                        {n === 1 ? 'line' : `${n} lines`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="menu-note">In the margin, in page view (and printed).</p>
+              </div>
+            );
+          }}
+        </Drop>
+      ),
+    },
+    {
+      key: 'hyphenation', label: 'Hyphenation',
+      pri: 1,
+      node: (
+        <Drop label="Hyphenation" glyph={ICON_HYPH} off={off}>
+          {(close) => {
+            const on = !!ed?.docPara().hyph;
+            return (
+              <div className="menu-list">
+                <button type="button" role="menuitemradio" aria-checked={!on} className={`menu-item${!on ? ' on' : ''}`} onClick={act(close, () => ed?.setDocPara({ hyph: undefined }))}>
+                  None
+                </button>
+                <button type="button" role="menuitemradio" aria-checked={on} className={`menu-item${on ? ' on' : ''}`} onClick={act(close, () => ed?.setDocPara({ hyph: true }))}>
+                  Automatic
+                </button>
+                <hr className="menu-sep" />
+                <button type="button" className="menu-item" title="A hyphen that shows only when the word breaks at the end of a line" onClick={act(close, () => ed?.typeText('\u00ad'))}>
+                  Optional hyphen here <small className="menu-key">{mod}-</small>
+                </button>
+                <p className="menu-note">Automatic breaks long words at the ends of lines, in the language of the text.</p>
+              </div>
+            );
+          }}
         </Drop>
       ),
     },

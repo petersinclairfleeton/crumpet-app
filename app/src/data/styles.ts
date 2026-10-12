@@ -361,18 +361,26 @@ export function sheetId(sheet: StyleSheet): string {
 
 // ---------------------------------------------------------------- pages
 
-export type PageSize = 'letter' | 'a4' | 'a5' | 'book' | 'legal';
+export type PageSize = 'letter' | 'a4' | 'a5' | 'book' | 'legal' | 'a3' | 'b5' | 'executive' | 'tabloid' | 'pocket' | 'custom';
 
 export const PAGE_SIZES: { id: PageSize; name: string; width: number; height: number }[] = [
   { id: 'letter', name: 'US Letter (8.5 × 11 in)', width: 8.5, height: 11 },
   { id: 'a4', name: 'A4 (21 × 29.7 cm)', width: 8.27, height: 11.69 },
   { id: 'a5', name: 'A5 (14.8 × 21 cm)', width: 5.83, height: 8.27 },
   { id: 'book', name: 'Book (6 × 9 in)', width: 6, height: 9 },
+  { id: 'pocket', name: 'Pocket book (5 × 8 in)', width: 5, height: 8 },
+  { id: 'b5', name: 'B5 (17.6 × 25 cm)', width: 6.93, height: 9.84 },
+  { id: 'executive', name: 'Executive (7.25 × 10.5 in)', width: 7.25, height: 10.5 },
   { id: 'legal', name: 'US Legal (8.5 × 14 in)', width: 8.5, height: 14 },
+  { id: 'a3', name: 'A3 (29.7 × 42 cm)', width: 11.69, height: 16.54 },
+  { id: 'tabloid', name: 'Tabloid (11 × 17 in)', width: 11, height: 17 },
 ];
 
 export interface PageSetup {
   size: PageSize;
+  /** A size of one's own ('custom'): width and height in inches, standing upright. */
+  w?: number;
+  h?: number;
   /** Inches. */
   margins: { top: number; right: number; bottom: number; left: number };
   /** Older setups only: a page number in the footer. Headers and footers are in `hf`. */
@@ -411,7 +419,7 @@ export function pageSize(p: PageSetup): { width: number; height: number } {
 }
 
 /** The paper's width and height in inches, turned for landscape. */
-export function paperInches(p: Pick<PageSetup, 'size' | 'landscape'> | undefined): { width: number; height: number } {
-  const s = PAGE_SIZES.find((x) => x.id === p?.size) ?? PAGE_SIZES[0];
+export function paperInches(p: Pick<PageSetup, 'size' | 'landscape' | 'w' | 'h'> | undefined): { width: number; height: number } {
+  const s = p?.size === 'custom' && p.w && p.h ? { width: Math.min(p.w, p.h), height: Math.max(p.w, p.h) } : (PAGE_SIZES.find((x) => x.id === p?.size) ?? PAGE_SIZES[0]);
   return p?.landscape ? { width: s.height, height: s.width } : { width: s.width, height: s.height };
 }

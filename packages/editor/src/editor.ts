@@ -368,6 +368,9 @@ export class Editor {
    */
   private draw(doc: Doc, force?: Set<string>): void {
     if (this.paged && this.isComposing) return;
+    // Line numbers (the whole document's, on its first paragraph).
+    const p0 = doc.blocks[0]?.para;
+    this.paginator.lineNumbers = p0?.lnum ? { every: p0.lnum, restart: p0.lnr ?? 'page' } : null;
     if (this.paged) {
       if (!force?.size && this.drawInPlace(doc)) return;
       const sel = this.keepSelection();
@@ -1406,12 +1409,23 @@ export class Editor {
   }
 
   /** Word's Section Breaks: Next Page, or Continuous. */
-  insertSectionBreak(kind: 'page' | 'cont'): void {
+  insertSectionBreak(kind: 'page' | 'cont' | 'odd' | 'even'): void {
     this.syncSelectionFromDom();
     this.dispatch(insertSectionBreak(this.state, kind), 'command');
   }
 
   /** Columns and orientation for the section the caret is in. */
+  /** The whole document's hyphenation and line numbers (kept on its first paragraph). */
+  setDocPara(patch: Partial<Pick<ParaLook, 'hyph' | 'lnum' | 'lnr'>>): void {
+    if (this.isReadOnly) return;
+    this.dispatch(setDocPara(this.state, patch), 'command');
+  }
+
+  /** The whole document's settings kept on its first paragraph. */
+  docPara(): ParaLook {
+    return this.state.doc.blocks[0]?.para ?? {};
+  }
+
   setSection(patch: SectionPatch): void {
     this.syncSelectionFromDom();
     this.dispatch(setSection(this.state, patch), 'command');
@@ -2207,6 +2221,7 @@ export class Editor {
     else if (e.shiftKey && e.code === 'KeyE') this.setAlign('center');
     else if (e.shiftKey && e.code === 'KeyR') this.setAlign('right');
     else if (e.shiftKey && e.code === 'KeyJ') this.setAlign('justify');
+    else if (key === '-' && !e.shiftKey && !e.altKey && !this.isReadOnly) this.typeText('\u00ad');
     else if (key === 'b') this.toggleMark('bold');
     else if (key === 'i') this.toggleMark('italic');
     else if (key === 'u') this.toggleMark('underline');
