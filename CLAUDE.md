@@ -237,8 +237,18 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   links from the web clipper (passed to the page by `preload.cjs`'s `onClip`).
   `preload.cjs` tells the page (`window.crumpetDesktop`, read by
   `app/src/data/desktop.ts`), which sets `data-shell='mac'` on the page for the
-  window's styles (`app.css`, "The Mac app") and leaves out Google sign-in
-  (Google only signs in on the website's address; a folder works instead).
+  window's styles (`app.css`, "The Mac app") and leaves out Google's folder
+  picker. Google Drive sign-in in the Mac app (`desktop/google.cjs`): Google's
+  page opens in the browser (PKCE, an iOS-type client, no secret) and comes
+  back to `com.googleusercontent.apps.<id>:/oauth2redirect`; the refresh token
+  is kept with `safeStorage`; the page gets access tokens through
+  `crumpetDesktop.google` (`app/src/sync/desktop-auth.ts`). Its client id is
+  `VITE_GOOGLE_MAC_CLIENT_ID` in `app/.env` (same Google project as the
+  website, so drive.file covers both); `electron-builder.config.cjs` declares
+  the address to macOS. Without the id the Mac app offers only a folder.
+  Google only lets Crumpet see files a Crumpet sign-in made: files that reach
+  its Drive folder another way (Google Drive for desktop, uploads) are hidden
+  from it.
   `.github/workflows/mac.yml` builds it on GitHub's Macs on every change
   (one app for Apple silicon and Intel, signed ad hoc, no Apple Developer ID
   yet) and publishes it as the latest release; Settings → Clipper & app
@@ -271,8 +281,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   guesses the pages of headings in chapters not laid out yet (from their
   words) until they have been.
 - The Mac app isn't signed with an Apple Developer ID (macOS asks to confirm it
-  once), and has no Google sign-in (a synced folder instead); its fonts come
-  from the internet (the Mac's own font is used offline).
+  once); its Google sign-in needs `VITE_GOOGLE_MAC_CLIENT_ID` (docs step 4b),
+  and was tested on Linux with a stand-in for Google, not on a real Mac; its
+  fonts come from the internet (the Mac's own font is used offline).
 - Not built yet: native iPhone/iPad apps, Dropbox/OneDrive/iCloud as
   services of their own (they need app keys from their makers; on a computer,
   a folder they keep in step works instead), sharing. Reminders only nudge

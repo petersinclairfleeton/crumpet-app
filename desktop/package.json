@@ -8,7 +8,7 @@
   "author": "Peter Sinclair-Fleeton",
   "scripts": {
     "start": "electron .",
-    "pack:mac": "electron-builder --mac dir --universal --publish never"
+    "pack:mac": "electron-builder -c electron-builder.config.cjs --mac dir --universal --publish never"
   },
   "devDependencies": {
     "electron": "^44.7.0",
@@ -25,6 +25,8 @@
     "files": [
       "main.cjs",
       "preload.cjs",
+      "google.cjs",
+      "google-scheme.cjs",
       "package.json"
     ],
     "extraResources": [

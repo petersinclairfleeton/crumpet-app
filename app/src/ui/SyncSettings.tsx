@@ -88,7 +88,7 @@ export function SyncSettings() {
       <span>Where your notes live</span>
       <p className="sync-where">On this device only.</p>
       <div className="sync-actions">
-        {!desktop && (
+        {(!desktop || BUILT_IN_CLIENT_ID) && (
           <button type="button" className="btn google" disabled={state.connecting || !BUILT_IN_CLIENT_ID} onClick={() => run(() => sync.signInToGoogle())}>
             <GoogleMark />
             {state.connecting ? 'Opening Google…' : 'Continue with Google'}
@@ -100,14 +100,14 @@ export function SyncSettings() {
           </button>
         )}
       </div>
-      {desktop ? (
+      {desktop && !BUILT_IN_CLIENT_ID ? (
         <p className="sync-hint">
-          Keep your notes as Markdown files in a folder on this computer. To have them on your other devices too, pick a folder that iCloud Drive, Dropbox, OneDrive or Google Drive for desktop keeps in step (for Google Drive, the folder Crumpet uses on the website).
+          Keep your notes as Markdown files in a folder on this computer. To have them on your other devices too, pick a folder that iCloud Drive, Dropbox or OneDrive keeps in step.
         </p>
       ) : (
       <p className="sync-hint">
         {BUILT_IN_CLIENT_ID
-          ? 'Keep your notes as Markdown files in a folder in your Google Drive, and see them on all your devices. Crumpet can only see that folder.'
+          ? `Keep your notes as Markdown files in a folder in your Google Drive, and see them on all your devices.${desktop ? ' Google’s sign-in opens in your browser, then brings you back here.' : ''} Crumpet can only see the files it makes there.`
           : 'Google Drive isn’t set up in this copy of Crumpet yet.'}
         {canUseFolder
           ? ' Or keep them in a folder on this computer: pick one that Dropbox, OneDrive or iCloud Drive keeps in step to have them on your other devices too.'

@@ -49,7 +49,7 @@ jobs:
         run: |
           npm ci
           npm version "1.0.${{ github.run_number }}" --no-git-tag-version
-          npx electron-builder --mac dir --universal --publish never
+          npx electron-builder -c electron-builder.config.cjs --mac dir --universal --publish never
 
       - name: Sign it (ad hoc) and make the download
         working-directory: desktop/release
@@ -75,7 +75,7 @@ jobs:
             1. Download **Crumpet-Mac.dmg**, open it, and drag Crumpet into Applications.
             2. Open Crumpet. The first time, macOS says it can't check it: open System Settings → Privacy & Security, scroll down, and click **Open Anyway**. (It isn't signed with an Apple Developer ID yet.)
 
-            Your notes are kept on the Mac. To have them on your other devices too, choose Settings → Account & sync → "Use a folder on this computer" and pick a folder that iCloud Drive, Dropbox, OneDrive or Google Drive for desktop keeps in step.
+            Your notes are kept on the Mac. To have them on your other devices too, choose Settings → Account & sync → **Continue with Google** (the same Google Drive folder as the website), or "Use a folder on this computer".
           files: |
             desktop/release/Crumpet-Mac.dmg
             desktop/release/Crumpet-Mac.zip

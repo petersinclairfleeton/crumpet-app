@@ -62,6 +62,27 @@ VITE_GOOGLE_APP_ID=123456789012
 
 The project number is also the number at the start of the client ID.
 
+## 4b. The Mac app's own sign-in
+
+The Mac app signs in to Google through the person's browser, with a client of
+its own in the **same** Google Cloud project (so the files it makes in Drive
+are Crumpet's, and the website sees them, and the other way round).
+
+1. **Google Auth Platform → Clients → Create client**, type **iOS** (Google's
+   type for Mac apps too).
+2. Name `Crumpet for Mac`, **Bundle ID** `app.crumpet.notes`. Leave the rest
+   empty. Create, and copy the client ID (`….apps.googleusercontent.com`).
+   There is no client secret for this type: nothing secret goes in the app.
+3. Add it to `app/.env`:
+
+   ```
+   VITE_GOOGLE_MAC_CLIENT_ID=1234-mac.apps.googleusercontent.com
+   ```
+
+The next Mac build (it happens on its own when `main` changes) then shows
+**Continue with Google** in Settings → Account & sync. Without the line, the
+Mac app keeps offering only a folder on the computer.
+
 ## 5. Publish the app
 
 1. In the GitHub repository: **Settings → Pages → Build and deployment →

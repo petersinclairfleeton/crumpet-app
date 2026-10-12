@@ -12,6 +12,7 @@ import { FolderProvider, chooseFolder, folderAllowed } from './folder';
 import { pickFolder } from './google-picker';
 import { SyncEngine, type SyncState, type SyncStatus } from './engine';
 import { GoogleAuth, SignInNeeded } from './google-auth';
+import { DesktopGoogleAuth } from './desktop-auth';
 import { type Provider, ProviderError } from './provider';
 import { uploadFiles } from '../data/files';
 import { desktop } from '../data/desktop';
@@ -46,15 +47,30 @@ const STATE = 'state';
 const POLL_MS = 60_000;
 const DEFAULT_FOLDER = 'Crumpet';
 
-/** Crumpet's Google OAuth client id, set when the app is built (see docs/google-drive-setup.md). Public, not a secret. */
-// (Not in the desktop app: Google only signs in on the website's own address. A folder works there instead.)
-export const BUILT_IN_CLIENT_ID: string = desktop ? '' : ((import.meta.env?.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '');
+/**
+ * Crumpet's Google OAuth client id, set when the app is built (see
+ * docs/google-drive-setup.md). Public, not a secret. The Mac app has a client
+ * of its own (Google's kind for Mac apps) in the same Google project, so the
+ * files it makes are Crumpet's on every device.
+ */
+export const BUILT_IN_CLIENT_ID: string = desktop
+  ? desktop.google
+    ? ((import.meta.env?.VITE_GOOGLE_MAC_CLIENT_ID as string | undefined) ?? '')
+    : ''
+  : ((import.meta.env?.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '');
+
+type Auth = GoogleAuth | DesktopGoogleAuth;
+
+/** Signing in to Google: in the browser on the website, through the person's browser in the Mac app. */
+function makeAuth(clientId: string): Auth {
+  return desktop?.google ? new DesktopGoogleAuth(clientId, desktop.google) : new GoogleAuth(clientId);
+}
 
 export class SyncConnection {
   private state: ConnectionState = { config: null, status: null, connecting: false, choosing: null };
   private listeners = new Set<() => void>();
   private engine: SyncEngine | null = null;
-  private auth: GoogleAuth | null = null;
+  private auth: Auth | null = null;
   private stopEngine: (() => void) | null = null;
   private poll: ReturnType<typeof setInterval> | null = null;
 
@@ -91,7 +107,7 @@ export class SyncConnection {
     if (!BUILT_IN_CLIENT_ID) throw new ProviderError('Google sign-in isn’t set up in this copy of Crumpet.', 'other');
     this.set({ connecting: true });
     try {
-      const auth = new GoogleAuth(BUILT_IN_CLIENT_ID);
+      const auth = makeAuth(BUILT_IN_CLIENT_ID);
       await auth.signIn().catch((e) => {
         throw new ProviderError(e instanceof Error ? e.message : String(e), 'auth');
       });
@@ -194,7 +210,7 @@ export class SyncConnection {
     if (this.makeProvider) provider = this.makeProvider(config);
     else if (config.kind === 'folder') provider = new FolderProvider(config.handle);
     else {
-      this.auth ??= new GoogleAuth(config.clientId);
+      this.auth ??= makeAuth(config.clientId);
       provider = new DriveProvider({ getToken: this.tokenFn(this.auth), rootId: config.folderId });
     }
     const engine = new SyncEngine(
@@ -239,7 +255,7 @@ export class SyncConnection {
     this.engine = null;
   }
 
-  private tokenFn(auth: GoogleAuth) {
+  private tokenFn(auth: Auth) {
     return async (fresh?: boolean) => {
       try {
         return await auth.getToken(fresh);
