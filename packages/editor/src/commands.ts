@@ -659,6 +659,21 @@ export function setFieldAt(state: EditorState, at: Pos, name: string): Transacti
   return tx(state, b, caret({ block: at.block, offset: at.offset + (name ? 1 : 0) }));
 }
 
+/** A block put after another (a chart under its table): into the empty line after it, or a new one before the next. */
+export function insertAfterBlock(state: EditorState, id: string, attrs: BlockAttrs): Transaction | null {
+  const i = blockIndex(state.doc, id);
+  const next = state.doc.blocks[i + 1];
+  if (!next || isWidget(next.type) || isMedia(next.type)) return null;
+  const b = new Builder(state.doc);
+  if (next.type === 'paragraph' && !next.style && runsLength(next.runs) === 0) b.step({ type: 'setAttrs', block: next.id, from: attrsOf(next), to: attrs });
+  else {
+    // The next line moves down into a block of its own; its old place takes the new block.
+    b.step({ type: 'split', block: next.id, offset: 0, newBlock: newId(), newAttrs: attrsOf({ ...next, brk: undefined }) });
+    b.step({ type: 'setAttrs', block: next.id, from: attrsOf(getBlock(b.doc, next.id)), to: attrs });
+  }
+  return tx(state, b, state.selection);
+}
+
 /** An equation within the line made one of its own (Word's Display): a maths block where it was, the line split round it. */
 export function mathToBlock(state: EditorState, at: Pos): Transaction | null {
   const blk = getBlock(state.doc, at.block);

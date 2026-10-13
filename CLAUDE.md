@@ -109,6 +109,13 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `MathBlockBar` floats over a maths block's source: structures, symbols and
     UnicodeMath (`data/unicodemath.ts`). Word gets Office Math, made from
     KaTeX's MathML, and Word's comes back as LaTeX (`data/omml.ts`).
+    A ```` ```chart ```` block is a chart (`editor/src/chart.ts`: its text is
+    `type:`/`title:`/`stacked:` lines then rows of numbers; `chartSvg` draws it,
+    a table's menu → Make a chart, `insertAfterBlock`); Word gets a chart part
+    with literal numbers (`data/chartxml.ts`). Online video: a `file` block
+    whose `src` is a YouTube/Vimeo link (`editor/src/video.ts`, `{.video}` in
+    Markdown) plays in an iframe; attached video and sound play too.
+    `ui/mediatools.tsx`: Chart, Online video and Screenshot (getDisplayMedia).
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines, and the gallery's styles,
     `TABLE_STYLES`, which go to Word as table styles "Crumpet Blue" and so on) and keeping it in step as rows and

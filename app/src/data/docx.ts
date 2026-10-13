@@ -10,6 +10,9 @@ import { cellPlain, cellRuns, cellText } from '@crumpet/editor/cells';
 import { type LineEnd, type ShapeKind, type ShapeLook, WORD_SHAPES, isLineKind, tidyShape } from '@crumpet/editor/shape';
 import { FIELDS, fieldFromWord, fieldValue, wordInstr } from '@crumpet/editor/fields';
 import { M_NS, latexToOmml, ommlToLatex } from './omml';
+import { C_NS, chartSpaceXml, readChartXml } from './chartxml';
+import { type Chart, chartText, parseChart } from '@crumpet/editor/chart';
+import { videoEmbed } from '@crumpet/editor/video';
 import { figureEntries, indexEntries } from '@crumpet/editor/lists';
 import { type PicLook, tidyPic } from '@crumpet/editor/picture';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty, tidyRuns } from './headers';
@@ -226,6 +229,20 @@ class Writer {
 
   countComments(parts: DocxPart[]): void {
     for (const p of parts) for (const b of p.doc.blocks) for (const r of b.runs) if (r.comment) this.commentLeft.set(r.comment.id, (this.commentLeft.get(r.comment.id) ?? 0) + 1);
+  }
+
+  /** Chart parts (word/charts/chartN.xml). */
+  charts: ZipEntry[] = [];
+
+  /** A chart, in line with the text, the column's width. */
+  chart(c: Chart): string {
+    const n = this.charts.length + 1;
+    this.charts.push({ name: `word/charts/chart${n}.xml`, data: utf8(chartSpaceXml(c)) });
+    const id = this.rel(`${REL}/chart`, `charts/chart${n}.xml`);
+    const cx = Math.round(Math.min(6, this.contentWidth / 96) * 914400);
+    const cy = Math.round(cx * 0.6);
+    const pic = this.nextPic++;
+    return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${pic}" name="Chart ${n}"${c.title ? ` descr="${esc(c.title)}"` : ''}/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="${C_NS}"><c:chart xmlns:c="${C_NS}" r:id="${id}"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
   }
 
   rel(type: string, target: string, external = false): string {
@@ -693,6 +710,11 @@ class Writer {
           continue;
         }
         case 'file':
+          // Online video: a link to it, with its title.
+          if (videoEmbed(b.src ?? '')) {
+            out += this.paragraph(null, this.runs([{ text: `▶ ${runsText(b.runs) || b.src}`, marks: [], link: b.src }]), lead);
+            continue;
+          }
           out += this.paragraph(null, this.runs(b.runs.length ? b.runs : [{ text: (b.src ?? '').replace(/^.*\//, '').replace(/^[a-z0-9]{7}-/, ''), marks: [] }]), lead);
           continue;
         case 'table':
@@ -707,6 +729,11 @@ class Writer {
           out += await this.shape(b, lead);
           continue;
         case 'code': {
+          // A chart: Word's own chart, holding its numbers.
+          if (b.code?.lang === 'chart') {
+            out += this.paragraph(null, this.chart(parseChart(b.code.text)), lead + (b.align ? `<w:jc w:val="${b.align === 'center' ? 'center' : b.align}"/>` : ''));
+            continue;
+          }
           // Maths goes to Word as an equation of its own; diagrams (and maths that can't be read) as their source, in a typewriter font.
           const omml = b.code?.lang === 'math' ? this.maths.get(`display:${b.code.text}`) : undefined;
           if (omml) {
@@ -1170,6 +1197,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     '<Override PartName="/word/endnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"/>' +
     '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>' +
     files.filter((f) => !f.name.endsWith('.rels')).map((f) => `<Override PartName="/${f.name}" ContentType="${f.name.endsWith('commentsExtended.xml') ? 'application/vnd.ms-word.commentsExtended+xml' : `application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : f.name.includes('comments') ? 'comments' : 'footer'}+xml`}"/>`).join('') +
+    w.charts.map((c) => `<Override PartName="/${c.name}" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`).join('') +
     '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
     (final ? '<Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>' : '') +
     '</Types>';
@@ -1189,6 +1217,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     { name: 'word/settings.xml', data: utf8(settings) },
     ...files,
     ...w.media,
+    ...w.charts,
   ]);
 }
 
@@ -1715,6 +1744,14 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
                 const shape = await readShape(drawing);
                 if (shape) pics.push(shape);
               }
+            } else if (c.localName === 'drawing' && c.getElementsByTagNameNS(C_NS, 'chart').length) {
+              // A chart: read from the numbers Word keeps with it.
+              const ref = c.getElementsByTagNameNS(C_NS, 'chart')[0];
+              const id = ref.getAttributeNS(R_NS, 'id') ?? ref.getAttribute('r:id');
+              const path = id ? rels.get(id) : undefined;
+              const chart = path ? parseXml(files.get(path)) : null;
+              const spec = chart ? readChartXml(chart) : null;
+              if (spec) pics.push(makeBlock('code', '', [], { code: { lang: 'chart', text: chartText(spec) } }));
             } else if (c.localName === 'drawing' && Array.from(c.getElementsByTagName('*')).some((x) => x.localName === 'wsp')) {
               const shape = await readShape(c);
               if (shape) pics.push(shape);

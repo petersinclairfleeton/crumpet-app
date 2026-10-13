@@ -4,6 +4,7 @@
 // way: headings, paragraphs, lists, quotes, tables, pictures and footnotes,
 // with bold, italic, underline, strikethrough, links and colours in the text.
 
+import { chartSvg, parseChart } from '@crumpet/editor/chart';
 import type { Block, Doc, Run } from '@crumpet/editor/model';
 import { FIELD, FOOTNOTE, isHeading, isList } from '@crumpet/editor/model';
 import { cellRuns } from '@crumpet/editor/cells';
@@ -23,7 +24,7 @@ type Item =
   | { kind: 'li'; ordered: boolean; number: number; level: number; runs: Run[]; checked?: boolean }
   | { kind: 'table'; rows: Run[][][] }
   | { kind: 'image'; src: string; alt: string }
-  | { kind: 'code'; text: string }
+  | { kind: 'code'; text: string; lang?: string }
   | { kind: 'break' };
 
 /** The parts as simple items, in order, and their footnotes (numbered through the whole document). */
@@ -47,7 +48,7 @@ function walk(parts: ExportPart[]): { items: Item[]; notes: string[] } {
         continue;
       } else if (b.type === 'table') items.push({ kind: 'table', rows: (b.rows ?? []).map((row) => row.map((cell) => cellRuns(cell))) });
       else if (b.type === 'image' && b.src) items.push({ kind: 'image', src: b.src, alt: b.pic?.alt ?? runs.map((r) => r.text).join('') });
-      else if (b.type === 'code') items.push({ kind: 'code', text: b.code?.text ?? '' });
+      else if (b.type === 'code') items.push({ kind: 'code', text: b.code?.text ?? '', lang: b.code?.lang });
       else if (b.type === 'shape') {
         if (b.shape?.text) items.push({ kind: 'p', runs: cellRuns(b.shape.text) });
       } else if (b.type === 'toc') {
@@ -143,7 +144,7 @@ export async function toHtml(title: string, parts: ExportPart[], media?: Media):
       const got = await media?.(it.src);
       const src = got ? `data:${got.type};base64,${base64(got.bytes)}` : /^https?:/.test(it.src) ? it.src : '';
       if (src) out.push(`<figure><img src="${esc(src)}" alt="${esc(it.alt)}"></figure>`);
-    } else if (it.kind === 'code') out.push(`<pre>${esc(it.text)}</pre>`);
+    } else if (it.kind === 'code') out.push(it.lang === 'chart' ? `<figure class="chart">${chartSvg(parseChart(it.text), '#222')}</figure>` : `<pre>${esc(it.text)}</pre>`);
     else out.push('<hr class="page-break">');
   }
   closeLists();

@@ -5128,3 +5128,65 @@ test('equations: within a line (Alt+=, LaTeX or UnicodeMath), structures over a 
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as Word document' }).click()]);
   expect(download.suggestedFilename()).toBe('Maths.docx');
 });
+
+test('charts (from the bar or a table), online video and a screenshot', async ({ page }) => {
+  // A stand-in for the browser's screen picker: a red canvas.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator.mediaDevices, 'getDisplayMedia', {
+      value: async () => {
+        const c = document.createElement('canvas');
+        c.width = 320;
+        c.height = 200;
+        const g = c.getContext('2d')!;
+        g.fillStyle = '#c00';
+        g.fillRect(0, 0, 320, 200);
+        const stream = c.captureStream(10);
+        setInterval(() => g.fillRect(0, 0, 320, 200), 50);
+        return stream;
+      },
+    });
+  });
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Report', 'Numbers:');
+  await page.keyboard.press('Enter');
+  const editor = page.locator('.note-editor');
+  // A chart from the bar: its numbers to change, and its kind.
+  await (await toolButton(page, 'Chart')).click();
+  const chart = editor.locator('.code-wrap[data-lang="chart"]').first();
+  await expect(chart.locator('.code-preview svg rect').first()).toBeVisible();
+  await chart.locator('select[data-chart-type]').selectOption('pie');
+  await expect(chart.locator('.code-preview svg path').first()).toBeVisible();
+  await expect(chart.locator('.code-src')).toHaveValue(/^type: pie/);
+  // A table's menu → Make a chart.
+  await editor.locator('p').last().click();
+  await (await toolButton(page, 'Table')).click();
+  await page.getByRole('gridcell', { name: '3 by 3' }).click();
+  for (const text of ['', 'Q1', 'Q2', 'North', '10', '12', 'South', '7', '9']) {
+    if (text) await page.keyboard.type(text);
+    await page.keyboard.press('Tab');
+  }
+  await page.getByRole('button', { name: 'Table ▾' }).first().click();
+  await page.locator('.table-menu button', { hasText: /^Make a chart$/ }).first().click();
+  await expect(editor.locator('.code-wrap[data-lang="chart"]')).toHaveCount(2);
+  await expect(editor.locator('.code-wrap[data-lang="chart"]').nth(1).locator('.code-src')).toHaveValue('type: column\n, Q1, Q2\nNorth, 10, 12\nSouth, 7, 9');
+  // Online video.
+  await editor.locator('p').last().click();
+  await (await toolButton(page, 'Online video')).click();
+  await page.getByLabel('Video link').fill('https://example.com/x');
+  await expect(page.getByText('That isn’t a YouTube or Vimeo video link.')).toBeVisible();
+  await page.getByLabel('Video link').fill('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  await page.getByLabel('Video title').fill('A talk');
+  await page.getByRole('button', { name: 'Insert', exact: true }).click();
+  await expect(editor.locator('.video-frame iframe')).toHaveAttribute('src', 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ');
+  await expect(editor.locator('.video-link')).toHaveText('A talk');
+  // A screenshot comes in as a picture.
+  await editor.locator('p').last().click();
+  await (await toolButton(page, 'Screenshot')).click();
+  await expect(editor.locator('.blk-image img')).toHaveCount(1);
+  // Word gets the charts as Word charts.
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as Word document' }).click()]);
+  expect(download.suggestedFilename()).toBe('Report.docx');
+});

@@ -5,6 +5,8 @@
 import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection, TabStop, TocLook } from './model';
 import { DEFAULT_TAB } from './model';
 import { fieldKind, fieldLabel, fieldValue } from './fields';
+import { CHART_TYPES, chartSvg, parseChart } from './chart';
+import { playable, videoEmbed } from './video';
 import { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
 export { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
 import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
@@ -882,6 +884,36 @@ function buildMedia(block: Block): HTMLElement {
     frame.append(crop, handle('pic-grip', 'resize', 'Drag to resize'), handle('pic-rot', 'rotate', 'Drag to turn (Shift: in steps of 15°)'), handle('pic-move', 'move', 'Drag to move', '✥'));
     box.appendChild(frame);
     box.appendChild(pictureMenu(p, /\.svg$|^data:image\/svg\+xml/i.test(src)));
+  } else if (videoEmbed(src)) {
+    // Online video: the site's own player, in a 16:9 frame, with its title under it.
+    const frame = document.createElement('span');
+    frame.className = 'video-frame';
+    const iframe = document.createElement('iframe');
+    iframe.src = videoEmbed(src)!;
+    iframe.title = block.runs.map((r) => r.text).join('') || 'Video';
+    iframe.loading = 'lazy';
+    iframe.allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.appendChild(iframe);
+    const link = document.createElement('a');
+    link.className = 'video-link';
+    link.href = src;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = iframe.title === 'Video' ? src : iframe.title;
+    box.classList.add('media-video');
+    box.append(frame, link);
+  } else if (playable(src)) {
+    // An attached video or sound file plays where it is.
+    const kind = playable(src)!;
+    const el = document.createElement(kind);
+    el.controls = true;
+    el.preload = 'metadata';
+    el.className = `media-${kind}`;
+    el.setAttribute('aria-label', fileLabel(src));
+    show((url) => (el.src = url));
+    box.appendChild(el);
   } else {
     const a = document.createElement('a');
     a.className = 'file-chip';
@@ -1404,19 +1436,21 @@ export function setMathImage(f: MathImage | null): void {
   mathImage = f;
 }
 
-const CODE_NAMES: Partial<Record<CodeLang, string>> = { math: 'Maths', mermaid: 'Diagram' };
+const CODE_NAMES: Partial<Record<CodeLang, string>> = { math: 'Maths', mermaid: 'Diagram', chart: 'Chart' };
 
 function drawCode(preview: HTMLElement, c: CodeLook): void {
   if (preview.dataset.drawn === `${c.lang}\n${c.text}`) return;
   preview.dataset.drawn = `${c.lang}\n${c.text}`;
   preview.textContent = '';
   if (!c.text.trim()) {
-    preview.textContent = c.lang === 'math' ? 'Type maths (LaTeX), like E = mc^2 or \\frac{a}{b}' : c.lang === 'mermaid' ? 'Type a diagram (Mermaid), like graph LR; A --> B' : 'An empty board';
+    preview.textContent = c.lang === 'math' ? 'Type maths (LaTeX), like E = mc^2 or \\frac{a}{b}' : c.lang === 'mermaid' ? 'Type a diagram (Mermaid), like graph LR; A --> B' : c.lang === 'chart' ? 'Type the chart’s numbers: a row a line, cells parted by commas' : 'An empty board';
     preview.classList.add('code-empty');
     return;
   }
   preview.classList.remove('code-empty');
-  if (codeRenderer) codeRenderer(c.lang, c.text, preview);
+  // Charts are drawn here (chart.ts); maths and diagrams by the app.
+  if (c.lang === 'chart') preview.innerHTML = chartSvg(parseChart(c.text));
+  else if (codeRenderer) codeRenderer(c.lang, c.text, preview);
   else preview.textContent = c.text;
 }
 
@@ -1441,11 +1475,25 @@ function buildCode(block: Block): HTMLElement {
   }
   kind.value = c.lang;
   head.appendChild(kind);
+  // A chart's kind (column, bar, line…), kept in its text's first line.
+  if (c.lang === 'chart') {
+    const type = document.createElement('select');
+    type.dataset.chartType = '';
+    type.setAttribute('aria-label', 'Chart type');
+    for (const [k, name] of CHART_TYPES) {
+      const o = document.createElement('option');
+      o.value = k;
+      o.textContent = name;
+      type.appendChild(o);
+    }
+    type.value = parseChart(c.text).type;
+    head.appendChild(type);
+  }
   const src = document.createElement('textarea');
   src.className = 'code-src';
   src.dataset.code = '';
   src.spellcheck = false;
-  src.setAttribute('aria-label', c.lang === 'math' ? 'Maths source (LaTeX)' : 'Diagram source (Mermaid)');
+  src.setAttribute('aria-label', c.lang === 'math' ? 'Maths source (LaTeX)' : c.lang === 'chart' ? 'Chart data' : 'Diagram source (Mermaid)');
   src.value = c.text;
   src.rows = Math.max(2, c.text.split('\n').length + 1);
   const preview = document.createElement('div');
@@ -1465,6 +1513,10 @@ function patchCode(el: HTMLElement, block: Block): boolean {
   const kind = wrap?.querySelector<HTMLSelectElement>('select');
   if (!wrap || !src || !preview || !kind) return false;
   const c = tidyCode(block.code);
+  // A chart has a menu of its own kinds: built afresh when a block becomes one, or stops being one.
+  const chartType = wrap.querySelector<HTMLSelectElement>('select[data-chart-type]');
+  if ((c.lang === 'chart') !== !!chartType) return false;
+  if (chartType) chartType.value = parseChart(c.text).type;
   wrap.dataset.lang = c.lang;
   kind.value = c.lang;
   if (src !== el.ownerDocument.activeElement && src.value !== c.text) src.value = c.text;
@@ -1578,7 +1630,7 @@ function buildTable(block: Block): HTMLElement {
   }
   group('Cell lines', [sides, lines, inks, toggle('painter', 'Border painter')]);
   group('Cell margins', [button('pad', 'Narrow', 'Cell margins: narrow', '0.03'), button('pad', 'Normal', 'Cell margins: normal', ''), button('pad', 'Wide', 'Cell margins: wide', '0.15')]);
-  group('Data', [button('sort-asc', 'Sort A→Z', 'Sort the rows by this column, A to Z (or smallest first)'), button('sort-desc', 'Sort Z→A', 'Sort the rows by this column, Z to A (or largest first)'), button('formula', '=SUM(ABOVE)', 'Put a formula in this cell: the numbers above it added up'), button('to-text', 'Convert to text', 'Each row a line, the cells parted by tabs')]);
+  group('Data', [button('sort-asc', 'Sort A→Z', 'Sort the rows by this column, A to Z (or smallest first)'), button('sort-desc', 'Sort Z→A', 'Sort the rows by this column, Z to A (or largest first)'), button('formula', '=SUM(ABOVE)', 'Put a formula in this cell: the numbers above it added up'), button('to-text', 'Convert to text', 'Each row a line, the cells parted by tabs'), button('chart', 'Make a chart', 'A chart of this table’s numbers, under it (the first row names the series, the first column the categories)')]);
   group('', [button('delete', 'Delete table')]);
   tools.appendChild(menu);
   // The table scrolls sideways on its own; the tools sit below it, so they never cover a cell.
