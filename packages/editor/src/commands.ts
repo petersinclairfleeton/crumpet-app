@@ -648,6 +648,25 @@ export function insertField(state: EditorState, name: string): Transaction {
   return tx(state, b, caret({ block: at.block, offset: at.offset + 1 }), { storedMarks: null, storedLook: null });
 }
 
+/** Changes the field at `at` (an equation's source, say), keeping its formatting; an empty name takes it out. */
+export function setFieldAt(state: EditorState, at: Pos, name: string): Transaction | null {
+  const blk = getBlock(state.doc, at.block);
+  const [old] = sliceRuns(blk.runs, at.offset, at.offset + 1);
+  if (!old || old.field === undefined) return null;
+  const b = new Builder(state.doc);
+  b.step({ type: 'remove', block: at.block, offset: at.offset, runs: [old] });
+  if (name) b.step({ type: 'insert', block: at.block, offset: at.offset, runs: [{ ...old, field: name }] });
+  return tx(state, b, caret({ block: at.block, offset: at.offset + (name ? 1 : 0) }));
+}
+
+/** An equation within the line made one of its own (Word's Display): a maths block where it was, the line split round it. */
+export function mathToBlock(state: EditorState, at: Pos): Transaction | null {
+  const blk = getBlock(state.doc, at.block);
+  const [old] = sliceRuns(blk.runs, at.offset, at.offset + 1);
+  if (!old?.field?.startsWith('math:')) return null;
+  return insertWidget({ ...state, selection: { anchor: at, focus: { block: at.block, offset: at.offset + 1 } } }, attrsOf({ type: 'code', code: { lang: 'math', text: old.field.slice(5) } }));
+}
+
 /** Word's Column Break (Ctrl+Shift+Enter): what follows the caret starts at the top of the next column. */
 export function insertColumnBreak(state: EditorState): Transaction {
   return insertBreak(state, { colBefore: true });

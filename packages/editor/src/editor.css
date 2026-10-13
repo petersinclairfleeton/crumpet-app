@@ -173,6 +173,11 @@ span.fld[data-v='']::after { padding: 0; background: none; }
 .show-marks span.fld[data-field^='bm:']::after { content: '⌶'; color: var(--accent, #4a7); font-weight: 700; }
 .show-marks span.fld[data-field^='xe:']::after { content: '{XE ' attr(data-field) '}'; color: var(--muted, #888); font-size: 0.75em; }
 span.fld[data-target] { cursor: pointer; }
+/* An equation within the line: its picture (or its source in a typewriter font until the picture is ready). */
+span.fld[data-field^='math:'] { cursor: pointer; }
+span.fld[data-field^='math:']::after { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9em; }
+span.fld.math-ready::after { content: var(--m); background: none; padding: 0 1px; vertical-align: var(--md, 0); font: inherit; }
+span.fld.math-ready:hover::after { outline: 1px dotted var(--accent, #4a7); outline-offset: 1px; }
 /* Comments: the text they're on is highlighted. */
 mark.cmt { background: color-mix(in srgb, #f5c542 30%, transparent); color: inherit; border-bottom: 2px solid color-mix(in srgb, #e0a800 70%, transparent); border-radius: 2px; cursor: pointer; }
 mark.cmt.active { background: color-mix(in srgb, #f5c542 55%, transparent); }

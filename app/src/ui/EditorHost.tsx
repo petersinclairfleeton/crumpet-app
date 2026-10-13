@@ -1,4 +1,5 @@
 import { useOfferHelped } from './helpers';
+import { MathBlockBar, MathCard } from './mathtools';
 import { ProtectBanner } from './protecttools';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { noteLinkTitle } from '@crumpet/editor/markdown';
@@ -147,6 +148,8 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
         </KeyboardBar>
       )}
       {!readOnly && !reading && <SlashMenu editor={ed} host={host} notes={state.notes} />}
+      {!readOnly && !reading && <MathCard editor={ed} />}
+      {!readOnly && !reading && <MathBlockBar host={host} />}
       {floating && ed && (
         <SelectionBar host={host}>
           <FormatTools compact attach={false} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />
