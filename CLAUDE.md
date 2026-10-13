@@ -215,7 +215,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     Version history: `setDoc`/`setChapterDoc` keep the text as it was as an
     automatic snapshot (`auto`), at most every ten minutes (`keepVersion`),
     thinned by `pruneVersions`; off with `settings.autoVersions = false`.
-  - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), the
+  - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
+    download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the
     address, `#clip=…`; the Mac app's opens `crumpet://clip#clip=…`), writing stats, search, templates, attachments.
   - `src/data/panes.ts`: the writing area's panes, like Obsidian's: a tree of
@@ -252,7 +253,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     (word by word), or a copy with the differences as tracked changes.
     `EditorHost.tsx` wraps the editor for notes;
     `Project.tsx` holds the outline, chapter, manuscript and side panes;
-    `pages.tsx` is page view, headers and footers, and printing.
+    `pages.tsx` is page view, headers and footers, and printing (`print.tsx`:
+    the pages laid out off screen, then Crumpet's print window with a preview,
+    page ranges and copies, then the browser's).
     `guide.tsx`: the welcome guide (chapters with pictures of the app,
     workflows, a start page): opens by itself on a device's first visit
     (`shouldOpenGuide`; not under automation, `navigator.webdriver`), then
