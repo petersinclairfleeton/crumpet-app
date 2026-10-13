@@ -284,8 +284,8 @@ At the end there's a suggested order for building what's missing.
 | Web Layout / Draft | ✅ | The text as one long page (the usual way of writing notes). |
 | Outline view | ✅ | Word's outline view (under More): levels shown by indent with markers, promote, demote, move up and down (Alt+Shift+arrows), expand and collapse, show a level, first line only; drag a heading's marker to move its section. |
 | Focus | ✅ | Focus mode, plus typewriter mode. |
-| Immersive Reader: line focus | 🟡 | Typewriter mode fades the other paragraphs. |
-| Immersive Reader: text spacing, syllables, picture dictionary | ❌ | |
+| Immersive Reader: line focus | ✅ | The immersive reader's line focus (one, three or five lines lit, arrow keys move on); typewriter mode too. |
+| Immersive Reader: text spacing, syllables, picture dictionary | ✅ | Text size, letter, word and line spacing, column width, page colour; syllables (by rule, so compound words can split oddly); parts of speech coloured and labelled (a rough guess); picture dictionary (Wikipedia picture and a dictionary meaning, online); read aloud with each word lit. |
 | Page Movement: vertical | ✅ | |
 | Page Movement: side to side (like a book) | ✅ | Facing pages, the first alone on the right (Pages on screen). |
 | Ruler | ✅ | |
@@ -295,9 +295,9 @@ At the end there's a suggested order for building what's missing.
 | Navigation Pane: results | ✅ | Find → More options → List results: each match with the words round it (and its chapter, across a book); click one to go there. |
 | Zoom, 100%, Page Width | ✅ | 25%–300% and "Fit". |
 | Zoom: One Page, Multiple Pages | ✅ | One page in the window, or 2, 3 or 4 pages in a row (Pages on screen, under More). |
-| New Window | 🟡 | Panes and tabs do much the same inside one window. |
+| New Window | ✅ | Opens the document again in a pane beside it, both kept in step (inside the one browser window). |
 | Arrange All, Split, View Side by Side | ✅ | Panes side by side or one above the other, with tabs in each. |
-| Synchronous Scrolling | ❌ | |
+| Synchronous Scrolling | ✅ | Scroll together: panes side by side move as one. |
 | Switch Windows | ✅ | Tabs and the quick switcher (Ctrl+O). |
 | Macros: view, record | ❌ | |
 | SharePoint: Properties | ➖ | |
@@ -581,10 +581,10 @@ Where: `app/src/ui/pages.tsx`, `statusbar.tsx`, `NotePane.tsx` (reading view), `
 - [x] One page / multiple pages zoom
 - [x] Side-to-side pages (like a book)
 - [x] Page thumbnails in the navigation pane
-- [ ] Immersive reader: letter, word and line spacing, column width
-- [ ] Syllables, parts of speech, picture dictionary
-- [ ] New window on the same document
-- [ ] Synchronous scrolling of two panes
+- [x] Immersive reader: letter, word and line spacing, column width
+- [x] Syllables, parts of speech, picture dictionary
+- [x] New window on the same document
+- [x] Synchronous scrolling of two panes
 
 **11. Checking and files**
 Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.tsx`, `data/documents.ts`.

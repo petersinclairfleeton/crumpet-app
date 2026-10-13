@@ -298,7 +298,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `moveBlocks`/`sectionOf`, `shiftLevel`) and Pages on screen
     (`settings.pageLayout` one/multi/book, `pagesPerRow`: the paginator's
     `perRow`/`book` place pages in rows); `thumbs.tsx` is the right sidebar's
-    Pages tab (page thumbnails).
+    Pages tab (page thumbnails); `reader.tsx` is the Immersive reader
+    (`openReader`, prefs in `settings.reader`; syllables, parts of speech and
+    the picture dictionary in `data/reading.ts`); New window splits the active
+    tab beside itself (`usePanes().newWindow`), and `SyncScroll` scrolls panes
+    together (`settings.syncScroll`).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
   - Looks: `ui/theme.ts` sets `data-theme` and `data-look` on the page: Crumpet's

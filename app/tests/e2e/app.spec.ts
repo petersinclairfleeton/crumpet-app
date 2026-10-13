@@ -3586,6 +3586,64 @@ test('outline view (promote, demote, move, show level, drag), pages side by side
   await thumbs.nth(2).click();
 });
 
+test('immersive reader (spacing, syllables, parts of speech, line focus, picture dictionary), a new window on the same note, and scrolling together', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.route('**/api/rest_v1/page/summary/**', (r) => r.fulfill({ json: { title: 'Lighthouse', type: 'standard', thumbnail: { source: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#c33"/></svg>') } } }));
+  await page.route('**/api.dictionaryapi.dev/**', (r) => r.fulfill({ json: [{ meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'A tower with a light that guides ships.' }] }] }] }));
+  await page.route('**/api.datamuse.com/**', (r) => r.fulfill({ json: [] }));
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Reading', 'The old keeper slowly climbed the dark stairs of the lighthouse.');
+  await (await toolButton(page, 'Immersive reader')).click();
+  const reader = page.getByRole('dialog', { name: 'Immersive reader' });
+  await expect(reader).toContainText('The old keeper slowly climbed');
+  const text = reader.locator('.reader-text');
+  // Wider letter spacing.
+  await reader.getByRole('button', { name: 'Text preferences' }).click();
+  await reader.getByLabel('Letter spacing').fill('10');
+  await expect(text).toHaveCSS('letter-spacing', /px/);
+  await reader.getByRole('button', { name: 'Wide', exact: true }).click();
+  // Syllables, and nouns coloured.
+  await reader.getByRole('button', { name: 'Grammar options' }).click();
+  await reader.getByLabel('Syllables').check();
+  await expect(text).toContainText('keep·er slow·ly');
+  await reader.getByLabel('Nouns').check();
+  await expect(reader.locator('.rw.pos-noun').first()).toBeVisible();
+  // Line focus: only a few lines lit.
+  await reader.getByRole('button', { name: 'Reading preferences' }).click();
+  await reader.getByRole('button', { name: '3 lines' }).click();
+  await expect(page.locator('.reader-focus')).toHaveCount(1);
+  await reader.getByRole('button', { name: 'Off', exact: true }).click();
+  // The picture dictionary: a word's picture and meaning.
+  await reader.locator('.rw', { hasText: 'keep·er' }).click();
+  const card = page.getByRole('dialog', { name: /Picture dictionary/ });
+  await expect(card.locator('img')).toBeVisible();
+  await expect(card).toContainText('A tower with a light');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(reader).toHaveCount(0);
+  // A new window: the same note again beside it, kept in step.
+  await (await toolButton(page, 'New window')).click();
+  await expect(page.locator('.pane-group')).toHaveCount(2);
+  const editors = page.locator('.pane-group .note-editor');
+  await expect(editors).toHaveCount(2);
+  await editors.nth(0).locator('.blk').first().click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' The end.');
+  await expect(editors.nth(1)).toContainText('The end.');
+  // Scrolling together: a long note, scrolled in one pane, scrolls in the other.
+  await page.evaluate(async () => {
+    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void; updateSettings(p: object): void } };
+    w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown(Array.from({ length: 120 }, (_, i) => `Line ${i + 1} of a long note.`).join('\n\n')));
+    w.crumpet.updateSettings({ syncScroll: true });
+  });
+  const scrolls = page.locator('.pane-group .note-scroll');
+  await expect.poll(() => scrolls.nth(1).evaluate((el) => el.scrollHeight > el.clientHeight + 200)).toBe(true);
+  await scrolls.nth(0).evaluate((el) => el.scrollTo({ top: 600 }));
+  await expect.poll(() => scrolls.nth(1).evaluate((el) => el.scrollTop)).toBeGreaterThan(300);
+});
+
 test('the sidebar and note list fold away with «, peek out at the edge, and come back', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1400, height: 860 });

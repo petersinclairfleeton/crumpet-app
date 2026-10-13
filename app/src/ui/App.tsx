@@ -31,6 +31,8 @@ import { useWordSaving } from './uploads';
 import { ReminderAlerts } from './reminders';
 import { GoToHost, openGoTo } from './goto';
 import { PictureAltHost } from './picture';
+import { ReaderHost } from './reader';
+import { SyncScroll } from './viewtools';
 import { CombineHost } from './comparedocs';
 import { FontDialogHost } from './fontdialog';
 import { PasteOptionsHost } from './clipboard';
@@ -372,6 +374,8 @@ export function App() {
       <ReminderAlerts onOpen={openNote} />
       <GoToHost />
       <PictureAltHost />
+      <ReaderHost />
+      <SyncScroll />
       <CombineHost />
       <FontDialogHost />
       <PasteOptionsHost />
