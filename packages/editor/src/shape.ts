@@ -7,7 +7,10 @@
 
 export type ShapeKind = 'rect' | 'rounded' | 'ellipse' | 'line' | 'arrow';
 export const SHAPE_KINDS: ShapeKind[] = ['rect', 'rounded', 'ellipse', 'line', 'arrow'];
-export type ShapeWrap = 'inline' | 'left' | 'right' | 'free';
+/** In line; square (or tight) on the left or right; in front of or behind the text, anywhere; on its own lines, the text above and below (`topbottom`, moved across by `x`). */
+export type ShapeWrap = 'inline' | 'left' | 'right' | 'free' | 'behind' | 'topbottom';
+/** Placed anywhere: in front of or behind the text. */
+export const isFloating = (s: Pick<ShapeLook, 'wrap'>) => s.wrap === 'free' || s.wrap === 'behind';
 
 export interface ShapeLook {
   kind: ShapeKind;
@@ -28,6 +31,14 @@ export interface ShapeLook {
   y?: number;
   /** Hidden from view (Word's Selection Pane), kept in the document. */
   hide?: boolean;
+  /** Square wrapping that hugs the shape's outline (Word's Tight). */
+  tight?: boolean;
+  /** Placed anywhere: `x`, `y` from the page's corner or its margins instead of the paragraph. */
+  rel?: 'margin' | 'page';
+  /** Placed anywhere: its place in the stack (higher in front). */
+  z?: number;
+  /** Shapes grouped together move together. */
+  grp?: string;
 }
 
 export function defaultShape(kind: ShapeKind, textBox = false): ShapeLook {
@@ -56,17 +67,25 @@ export function tidyShape(s: Partial<ShapeLook> | undefined): ShapeLook {
     h: size(s?.h, base.h),
     fill: s?.fill === null ? null : (hex(s?.fill) ?? (s?.fill === undefined ? base.fill : null)),
     line: s?.line === null ? null : (hex(s?.line) ?? (s?.line === undefined ? base.line : null)),
-    wrap: s?.wrap === 'left' || s?.wrap === 'right' || s?.wrap === 'free' ? s.wrap : 'inline',
+    wrap: s?.wrap === 'left' || s?.wrap === 'right' || s?.wrap === 'free' || s?.wrap === 'behind' || s?.wrap === 'topbottom' ? s.wrap : 'inline',
     text: typeof s?.text === 'string' ? s.text.replace(/[\r\n]+/g, ' ') : '',
   };
   const rot = typeof s?.rot === 'number' && Number.isFinite(s.rot) ? ((Math.round(s.rot) % 360) + 360) % 360 : 0;
   if (rot) out.rot = rot;
   if (s?.hide === true) out.hide = true;
-  if (out.wrap === 'free') {
-    const at = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.max(-20, Math.min(20, v)) * 100) / 100 : 0);
+  const at = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.max(-20, Math.min(20, v)) * 100) / 100 : 0);
+  if (isFloating(out)) {
     out.x = at(s?.x);
     out.y = at(s?.y);
+    if (s?.rel === 'margin' || s?.rel === 'page') out.rel = s.rel;
+    if (typeof s?.z === 'number' && Number.isFinite(s.z) && Math.round(s.z) !== 0) out.z = Math.max(0, Math.min(40, Math.round(s.z)));
+    if (out.z === 0) delete out.z;
+    if (typeof s?.grp === 'string' && /^[a-z0-9]{1,12}$/.test(s.grp)) out.grp = s.grp;
+  } else if (out.wrap === 'topbottom') {
+    const x = at(s?.x);
+    if (x) out.x = x;
   }
+  if (s?.tight === true && (out.wrap === 'left' || out.wrap === 'right')) out.tight = true;
   return out;
 }
 
@@ -76,11 +95,16 @@ export function sameShape(a: ShapeLook | undefined, b: ShapeLook | undefined): b
 
 // ---------------------------------------------------------------- Markdown
 
-/** The line a shape is written as: `{shape rect w=3 h=1 fill=#fff2cc line=#333333 wrap=right rot=15} Text inside` (in front of the text: `wrap=free x=1.5 y=-0.25`). */
+/** The line a shape is written as: `{shape rect w=3 h=1 fill=#fff2cc line=#333333 wrap=right rot=15} Text inside` (in front of the text: `wrap=free x=1.5 y=-0.25`, from the page: `rel=page`, in the stack: `z=2`, grouped: `grp=g1`). */
 export function shapeLine(s: ShapeLook, align?: string): string {
   const parts = [`shape ${s.kind}`, `w=${s.w}`, `h=${s.h}`, `fill=${s.fill ?? 'none'}`, `line=${s.line ?? 'none'}`];
   if (s.wrap !== 'inline') parts.push(`wrap=${s.wrap}`);
-  if (s.wrap === 'free') parts.push(`x=${s.x ?? 0}`, `y=${s.y ?? 0}`);
+  if (isFloating(s)) parts.push(`x=${s.x ?? 0}`, `y=${s.y ?? 0}`);
+  if (s.wrap === 'topbottom' && s.x) parts.push(`x=${s.x}`);
+  if (s.tight) parts.push('tight=1');
+  if (s.rel) parts.push(`rel=${s.rel}`);
+  if (s.z) parts.push(`z=${s.z}`);
+  if (s.grp) parts.push(`grp=${s.grp}`);
   if (s.rot) parts.push(`rot=${s.rot}`);
   if (s.hide) parts.push('hide=1');
   if (align) parts.push(`align=${align}`);
@@ -99,6 +123,6 @@ export function readShapeLine(line: string): { shape: ShapeLook; align?: string 
     v[k] = val;
   }
   const color = (c: string | undefined) => (c === 'none' ? null : c);
-  const shape = tidyShape({ kind: m[1] as ShapeKind, w: Number(v.w), h: Number(v.h), fill: color(v.fill), line: color(v.line), wrap: v.wrap as ShapeWrap, text: m[3] ?? '', rot: v.rot ? Number(v.rot) : undefined, x: v.x ? Number(v.x) : undefined, y: v.y ? Number(v.y) : undefined, hide: v.hide === '1' });
+  const shape = tidyShape({ kind: m[1] as ShapeKind, w: Number(v.w), h: Number(v.h), fill: color(v.fill), line: color(v.line), wrap: v.wrap as ShapeWrap, text: m[3] ?? '', rot: v.rot ? Number(v.rot) : undefined, x: v.x ? Number(v.x) : undefined, y: v.y ? Number(v.y) : undefined, hide: v.hide === '1', tight: v.tight === '1', rel: v.rel as ShapeLook['rel'], z: v.z ? Number(v.z) : undefined, grp: v.grp });
   return { shape, align: v.align === 'center' || v.align === 'right' ? v.align : undefined };
 }

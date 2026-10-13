@@ -127,7 +127,7 @@ import { fieldValue } from './fields';
 import { type AutoCorrectOptions, autoCorrect } from './autocorrect';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { type TocEntry, View, readTable } from './view';
-import { type ShapeKind, type ShapeLook } from './shape';
+import { type ShapeKind, type ShapeLook, isFloating } from './shape';
 import { type CoverDesign, type CoverText, coverBlocks, hasCover } from './cover';
 import type { PicLook } from './picture';
 import { cellPlain, fillCell, readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
@@ -375,7 +375,7 @@ export class Editor {
     const p0 = doc.blocks[0]?.para;
     this.paginator.lineNumbers = p0?.lnum ? { every: p0.lnum, restart: p0.lnr ?? 'page' } : null;
     if (this.paged) {
-      if (!force?.size && this.drawInPlace(doc)) return;
+      if (!force?.size && this.drawInPlace(doc)) return this.placeShapes();
       const sel = this.keepSelection();
       // The text is briefly one flow (shorter than its pages): hold the
       // height, so the scroll box doesn't jump up while it's laid out again.
@@ -386,9 +386,158 @@ export class Editor {
       });
       sel();
       this.drawnIds = doc.blocks.map((b) => b.id);
-      return;
+      return this.placeShapes();
     }
     this.view.render(doc, force);
+    this.placeShapes();
+  }
+
+  /** Where a shape placed from the page or its margins starts from, on screen. */
+  private shapeOrigin(el: HTMLElement, rel: 'margin' | 'page' | undefined): { x: number; y: number } {
+    if (!rel) {
+      const r = el.getBoundingClientRect();
+      return { x: r.left, y: r.top };
+    }
+    const box = el.closest<HTMLElement>('.pg') ?? this.view.root;
+    const r = box.getBoundingClientRect();
+    if (rel === 'page') return { x: r.left, y: r.top };
+    const cs = getComputedStyle(box);
+    const scale = r.width / (box.offsetWidth || 1) || 1;
+    return { x: r.left + (parseFloat(cs.paddingLeft) || 0) * scale, y: r.top + (parseFloat(cs.paddingTop) || 0) * scale };
+  }
+
+  /** Shapes placed from the page's corner or its margins: put where they belong after the text is laid out. */
+  private placeShapes(): void {
+    // (A redraw makes new elements: shapes picked with Shift+click stay marked.)
+    for (const id of this.pickedShapes) this.view.blockElement(id)?.classList.add('shape-picked');
+    for (const el of Array.from(this.view.root.querySelectorAll<HTMLElement>('.blk-shape[data-rel]'))) {
+      const blk = this.state.doc.blocks.find((b) => b.id === el.dataset.block);
+      const s = blk?.shape;
+      const wrap = el.querySelector<HTMLElement>(':scope > .shape-wrap');
+      if (!s || !wrap || !isFloating(s)) continue;
+      const scale = zoomOf(wrap);
+      const o = this.shapeOrigin(el, s.rel);
+      const r = el.getBoundingClientRect();
+      wrap.style.left = `${(o.x - r.left) / scale + (s.x ?? 0) * 96}px`;
+      wrap.style.top = `${(o.y - r.top) / scale + (s.y ?? 0) * 96}px`;
+    }
+  }
+
+  /** Shapes picked by Shift+click, to group or line up together. */
+  private pickedShapes = new Set<string>();
+
+  private pickShape(id: string): void {
+    if (this.pickedShapes.has(id)) this.pickedShapes.delete(id);
+    else this.pickedShapes.add(id);
+    this.view.blockElement(id)?.classList.toggle('shape-picked', this.pickedShapes.has(id));
+  }
+
+  private clearPicked(): void {
+    for (const id of this.pickedShapes) this.view.blockElement(id)?.classList.remove('shape-picked');
+    this.pickedShapes.clear();
+  }
+
+  /** Gridlines behind the text (Word's View Gridlines); shapes snap to them as they're moved and sized. */
+  private grid = false;
+  setGridlines(on: boolean): void {
+    this.grid = on;
+    this.view.root.classList.toggle('show-grid', on);
+  }
+  private snap(inches: number): number {
+    return this.grid ? Math.round(inches * 4) / 4 : inches;
+  }
+
+  /** Several shapes changed as one step (each with its own patch). */
+  private setShapes(patches: [string, Partial<ShapeLook>][]): void {
+    if (this.isReadOnly || !patches.length) return;
+    let state = this.state;
+    const ops: Op[] = [];
+    for (const [id, patch] of patches) {
+      const t = setShape(state, id, patch);
+      ops.push(...t.ops);
+      state = { ...state, doc: applyOps(state.doc, t.ops) };
+    }
+    this.dispatch({ ops, selectionBefore: this.state.selection, selectionAfter: this.state.selection }, 'command');
+  }
+
+  /** Word's Bring Forward / Send Backward: a shape's place in the stack of shapes in front of (or behind) the text. */
+  private orderShape(id: string, how: string): void {
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!blk?.shape || !isFloating(blk.shape)) return;
+    const others = this.state.doc.blocks.filter((b) => b.id !== id && b.shape && b.shape.wrap === blk.shape!.wrap);
+    const zs = others.map((b) => b.shape!.z ?? 0);
+    const z = blk.shape.z ?? 0;
+    if (how === 'front') return this.setShapeLook(id, { z: Math.min(40, Math.max(z, ...zs, -1) + 1) });
+    if (how === 'forward') return this.setShapeLook(id, { z: Math.min(40, z + 1) });
+    if (how === 'backward') return this.setShapeLook(id, { z: Math.max(0, z - 1) });
+    // To the back: below all the others (lifting them if it's at the bottom already).
+    if (zs.length && Math.min(...zs) <= 0) this.setShapes([[id, { z: 0 }], ...others.map((b): [string, Partial<ShapeLook>] => [b.id, { z: (b.shape!.z ?? 0) + 1 }])]);
+    else this.setShapeLook(id, { z: 0 });
+  }
+
+  /** Word's Align: one shape against the margins, or the picked shapes against each other. */
+  private alignShapes(id: string, how: string): void {
+    const ids = [...new Set([id, ...this.pickedShapes])];
+    const blocks = ids.map((x) => this.state.doc.blocks.find((b) => b.id === x)).filter((b): b is Block => !!b?.shape);
+    const floating = blocks.filter((b) => isFloating(b.shape!));
+    // Shapes in the text's flow line up left, centre or right.
+    if (!floating.length) {
+      if (how === 'left' || how === 'center' || how === 'right') {
+        const ops = blocks.map((b) => ({ type: 'setAttrs' as const, block: b.id, from: attrsOf(b), to: attrsOf({ ...b, align: how === 'left' ? undefined : how }) }));
+        this.dispatch({ ops, selectionBefore: this.state.selection, selectionAfter: this.state.selection }, 'command');
+      }
+      return;
+    }
+    const rects = floating.map((b) => this.view.blockElement(b.id)?.querySelector<HTMLElement>('.shape-box')?.getBoundingClientRect());
+    if (rects.some((r) => !r)) return;
+    let target: DOMRect | { left: number; top: number; right: number; bottom: number; width: number; height: number };
+    if (floating.length > 1) {
+      const rs = rects as DOMRect[];
+      target = { left: Math.min(...rs.map((r) => r.left)), top: Math.min(...rs.map((r) => r.top)), right: Math.max(...rs.map((r) => r.right)), bottom: Math.max(...rs.map((r) => r.bottom)), width: 0, height: 0 };
+    } else {
+      // Against the margins of its page.
+      const el = this.view.blockElement(floating[0].id)!;
+      const box = el.closest<HTMLElement>('.pg') ?? this.view.root;
+      const r = box.getBoundingClientRect();
+      const cs = getComputedStyle(box);
+      const sc = r.width / (box.offsetWidth || 1) || 1;
+      const pad = (k: string) => (parseFloat(cs.getPropertyValue(k)) || 0) * sc;
+      const bottom = box === this.view.root ? Math.min(r.bottom, r.top + 11 * 96 * sc) : r.bottom - pad('padding-bottom');
+      target = { left: r.left + pad('padding-left'), top: r.top + pad('padding-top'), right: r.right - pad('padding-right'), bottom, width: 0, height: 0 };
+    }
+    const patches: [string, Partial<ShapeLook>][] = floating.map((b, i) => {
+      const r = rects[i]!;
+      const scale = zoomOf(this.view.blockElement(b.id)!.querySelector<HTMLElement>('.shape-wrap')!);
+      let dx = 0;
+      let dy = 0;
+      if (how === 'left') dx = target.left - r.left;
+      else if (how === 'right') dx = target.right - r.right;
+      else if (how === 'center') dx = (target.left + target.right) / 2 - (r.left + r.right) / 2;
+      else if (how === 'top') dy = target.top - r.top;
+      else if (how === 'bottom') dy = target.bottom - r.bottom;
+      else if (how === 'middle') dy = (target.top + target.bottom) / 2 - (r.top + r.bottom) / 2;
+      const round = (v: number) => Math.round(v * 100) / 100;
+      return [b.id, { x: round((b.shape!.x ?? 0) + dx / scale / 96), y: round((b.shape!.y ?? 0) + dy / scale / 96) }];
+    });
+    this.setShapes(patches);
+  }
+
+  /** Word's Group: the picked shapes and this one move together (each is put in front of the text if it wasn't placed anywhere). */
+  private groupShapes(id: string): void {
+    const ids = [...new Set([id, ...this.pickedShapes])].filter((x) => this.state.doc.blocks.some((b) => b.id === x && b.shape));
+    if (ids.length < 2) return;
+    const grp = `g${Math.random().toString(36).slice(2, 8)}`;
+    this.setShapes(ids.map((x) => {
+      const s = this.state.doc.blocks.find((b) => b.id === x)!.shape!;
+      return [x, isFloating(s) ? { grp } : { grp, wrap: 'free', x: 0, y: 0 }];
+    }));
+    this.clearPicked();
+  }
+
+  private ungroupShapes(id: string): void {
+    const grp = this.state.doc.blocks.find((b) => b.id === id)?.shape?.grp;
+    if (!grp) return;
+    this.setShapes(this.state.doc.blocks.filter((b) => b.shape?.grp === grp).map((b): [string, Partial<ShapeLook>] => [b.id, { grp: undefined }]));
   }
 
   /**
@@ -556,7 +705,23 @@ export class Editor {
   /** Puts the caret at the start of a block and brings it into view. */
   goToBlock(id: string): void {
     this.focusPos({ block: id, offset: 0 });
-    this.view.blockElement(id)?.scrollIntoView({ block: 'center' });
+    const el = this.view.blockElement(id);
+    el?.scrollIntoView({ block: 'center' });
+    // A shape behind the text comes up above it, to be moved or changed.
+    if (el && this.state.doc.blocks.find((b) => b.id === id)?.shape?.wrap === 'behind') el.classList.add('obj-picked');
+  }
+
+  /** Changes where a shape is placed from, keeping it where it is. */
+  private relShape(id: string, rel: ShapeLook['rel']): void {
+    const el = this.view.blockElement(id);
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    const wrap = el?.querySelector<HTMLElement>(':scope > .shape-wrap');
+    if (!el || !blk?.shape || !wrap) return;
+    const scale = zoomOf(wrap);
+    const r = wrap.getBoundingClientRect();
+    const o = this.shapeOrigin(el, rel);
+    const round = (v: number) => Math.round(v * 100) / 100;
+    this.setShapeLook(id, { rel, x: round((r.left - o.x) / scale / 96), y: round((r.top - o.y) / scale / 96) });
   }
 
   /** Puts a table at the caret. */
@@ -1133,7 +1298,7 @@ export class Editor {
     const move = (ev: PointerEvent) => {
       const dx = (ev.clientX - startX) / scale / 96;
       const dy = (ev.clientY - startY) / scale / 96;
-      size = { w: Math.max(0.2, w + dx * Math.cos(a) + dy * Math.sin(a)), h: Math.max(0.1, h - dx * Math.sin(a) + dy * Math.cos(a)) };
+      size = { w: Math.max(0.2, this.snap(w + dx * Math.cos(a) + dy * Math.sin(a))), h: Math.max(0.1, this.snap(h - dx * Math.sin(a) + dy * Math.cos(a))) };
       box.style.width = `${size.w}in`;
       box.style.height = `${size.h}in`;
     };
@@ -1171,25 +1336,41 @@ export class Editor {
     window.addEventListener('pointerup', up);
   }
 
-  /** Drags a shape that's in front of the text to anywhere on the page. */
+  /** Drags a shape that's placed anywhere (its whole group with it), or one on its own lines across. */
   private moveShape(handle: HTMLElement, startX: number, startY: number): void {
     const id = handle.closest<HTMLElement>('[data-block]')?.dataset.block;
     const blk = this.state.doc.blocks.find((b) => b.id === id);
     const wrap = handle.closest<HTMLElement>('.shape-wrap');
-    const box = handle.closest<HTMLElement>('.shape-box');
-    if (!id || !blk?.shape || !wrap || !box || this.isReadOnly) return;
+    if (!id || !blk?.shape || !wrap || this.isReadOnly) return;
     const scale = zoomOf(wrap);
-    const { x = 0, y = 0 } = blk.shape;
-    let at = { x, y };
+    const across = blk.shape.wrap === 'topbottom';
+    const grp = blk.shape.grp;
+    const moving = (grp ? this.state.doc.blocks.filter((b) => b.shape?.grp === grp && isFloating(b.shape)) : [blk]).map((b) => {
+      const w = this.view.blockElement(b.id)?.querySelector<HTMLElement>(':scope > .shape-wrap') ?? null;
+      return { b, w, left: w?.offsetLeft ?? 0, top: w?.offsetTop ?? 0, margin: (b.shape!.x ?? 0) * 96 };
+    });
+    let d = { x: 0, y: 0 };
     const move = (ev: PointerEvent) => {
-      at = { x: x + (ev.clientX - startX) / scale / 96, y: y + (ev.clientY - startY) / scale / 96 };
-      wrap.style.left = `${at.x}in`;
-      wrap.style.top = `${at.y}in`;
+      const raw = { x: (ev.clientX - startX) / scale / 96, y: across ? 0 : (ev.clientY - startY) / scale / 96 };
+      // On the grid: the shape's own corner lands on a line.
+      const x0 = blk.shape!.x ?? 0;
+      const y0 = blk.shape!.y ?? 0;
+      d = { x: this.snap(x0 + raw.x) - x0, y: across ? 0 : this.snap(y0 + raw.y) - y0 };
+      for (const m of moving) {
+        if (!m.w) continue;
+        if (across) m.w.style.marginLeft = `${m.margin + d.x * 96}px`;
+        else {
+          m.w.style.left = `${m.left + d.x * 96}px`;
+          m.w.style.top = `${m.top + d.y * 96}px`;
+        }
+      }
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
-      if (at.x !== x || at.y !== y) this.setShapeLook(id, { x: at.x, y: at.y });
+      if (!d.x && !d.y) return;
+      const round = (v: number) => Math.round(v * 100) / 100;
+      this.setShapes(moving.map((m): [string, Partial<ShapeLook>] => [m.b.id, across ? { x: round(Math.max(0, (m.b.shape!.x ?? 0) + d.x)) } : { x: round((m.b.shape!.x ?? 0) + d.x), y: round((m.b.shape!.y ?? 0) + d.y) }]));
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -2349,6 +2530,17 @@ export class Editor {
       e.preventDefault();
       return this.onPictureControl(picAction, e);
     }
+    // Shift+click on shapes picks several, to group or line up.
+    const pickBox = e.shiftKey && (e.target as Element).closest?.<HTMLElement>('.shape-box');
+    if (pickBox && !(e.target as Element).closest('[data-shape-action]')) {
+      e.preventDefault();
+      const pid = pickBox.closest<HTMLElement>('[data-block]')?.dataset.block;
+      if (pid) this.pickShape(pid);
+      return;
+    }
+    if (this.pickedShapes.size && !(e.target as Element).closest?.('.shape-tools')) this.clearPicked();
+    // A shape behind the text picked from the Selection pane: back under the text on the next click elsewhere.
+    this.view.root.querySelectorAll('.obj-picked').forEach((x) => !x.contains(e.target as Node) && x.classList.remove('obj-picked'));
     const shapeAction = (e.target as Element).closest?.<HTMLElement>('[data-shape-action]');
     if (shapeAction) {
       e.preventDefault();
@@ -2366,7 +2558,14 @@ export class Editor {
       const value = shapeAction.dataset.value ?? '';
       if (action === 'fill') this.setShapeLook(id, { fill: value || null });
       else if (action === 'line') this.setShapeLook(id, { line: value || null });
-      else if (action === 'wrap') this.setShapeLook(id, { wrap: value as ShapeLook['wrap'] });
+      else if (action === 'wrap') {
+        const tight = value === 'tleft' || value === 'tright';
+        this.setShapeLook(id, { wrap: (tight ? value.slice(1) : value) as ShapeLook['wrap'], tight: tight || undefined });
+      } else if (action === 'rel') this.relShape(id, (value || undefined) as ShapeLook['rel']);
+      else if (action === 'order') this.orderShape(id, value);
+      else if (action === 'align') this.alignShapes(id, value);
+      else if (action === 'group') this.groupShapes(id);
+      else if (action === 'ungroup') this.ungroupShapes(id);
       else if (action === 'rot') {
         const now = this.state.doc.blocks.find((b) => b.id === id)?.shape?.rot ?? 0;
         this.setShapeLook(id, { rot: value === '0' ? 0 : now + Number(value) });

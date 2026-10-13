@@ -3297,6 +3297,92 @@ test('shapes: turned with the handle or the menu, and moved anywhere in front of
   expect(end.x - start.x).toBeGreaterThan(80);
 });
 
+test('arranging shapes: behind the text, tight and top-and-bottom wrapping, placed from the page, in order, lined up, grouped, on a grid', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await newNote(page, 'Arrange', 'Words.');
+  await page.evaluate(async () => {
+    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void } };
+    const md = ['Some text to sit over the shapes. '.repeat(8), '{shape rect w=1 h=1 fill=#cfe2f3 line=#333333 wrap=free x=0.5 y=1.6} A', '{shape ellipse w=1 h=1 fill=#fff2cc line=#333333 wrap=free x=2.5 y=1.8} B', '{shape rounded w=1.5 h=1 fill=#d9ead3 line=#333333} C', 'More words after the shapes. '.repeat(10)].join('\n\n');
+    w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown(md));
+  });
+  const shapes = page.locator('.note-editor .blk-shape');
+  await expect(shapes).toHaveCount(3);
+  const [a, b, c] = [shapes.nth(0), shapes.nth(1), shapes.nth(2)];
+  const looks = () =>
+    page.evaluate(() => {
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { shape?: Record<string, unknown> }[] } }[] } } }).crumpet.getState();
+      return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((x) => x.shape).map((x) => x.shape!);
+    });
+  const menu = async (shape: typeof a, item: string) => {
+    await shape.locator('.shape-box').hover();
+    await shape.getByRole('button', { name: 'Shape ▾' }).click();
+    await shape.getByRole('button', { name: item, exact: true }).click();
+  };
+  // Tight and top-and-bottom wrapping for the shape in the text.
+  await menu(c, 'Tight, on the left');
+  await expect(c).toHaveAttribute('data-tight', '');
+  await expect(c).toHaveCSS('float', 'left');
+  await menu(c, 'Top and bottom');
+  await expect(c).toHaveAttribute('data-wrap', 'topbottom');
+  // Bring to front: A goes above B.
+  await menu(a, 'Bring to front');
+  await expect.poll(async () => (await looks())[0].z).toBe(1);
+  await expect(a).toHaveCSS('z-index', '11');
+  // Behind the text: drawn under it.
+  await menu(b, 'Behind text');
+  await expect(b).toHaveAttribute('data-wrap', 'behind');
+  await expect(b).toHaveCSS('z-index', '-50');
+  // Placed from the page: it stays where it was.
+  const before = (await a.locator('.shape-box').boundingBox())!;
+  await menu(a, 'The page');
+  await expect.poll(async () => (await looks())[0].rel).toBe('page');
+  const after = (await a.locator('.shape-box').boundingBox())!;
+  expect(Math.abs(after.x - before.x)).toBeLessThan(2);
+  expect(Math.abs(after.y - before.y)).toBeLessThan(2);
+  // Lined up against the left margin.
+  await menu(a, 'Left');
+  const text = (await page.locator('.note-editor .blk-paragraph').first().boundingBox())!;
+  await expect.poll(async () => Math.round((await a.locator('.shape-box').boundingBox())!.x - text.x)).toBe(0);
+  // Behind the text, it's picked from the Selection pane, and comes up to be changed.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'objects' }));
+  await page.getByRole('tabpanel', { name: 'Selection' }).locator('.sel-go').nth(1).click();
+  await expect(b).toHaveClass(/obj-picked/);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: false }));
+  // Shift+click picks shapes; grouped, they move together.
+  await menu(b, 'In front of text');
+  await a.locator('.shape-box').click({ modifiers: ['Shift'], position: { x: 30, y: 60 } });
+  await expect(a).toHaveClass(/shape-picked/);
+  await menu(b, 'Group');
+  await expect.poll(async () => { const l = await looks(); return !!l[0].grp && l[0].grp === l[1].grp; }).toBe(true);
+  const start = await looks();
+  await b.locator('.shape-box').hover();
+  const mover = (await b.locator('.shape-move').boundingBox())!;
+  await page.mouse.move(mover.x + mover.width / 2, mover.y + mover.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(mover.x + mover.width / 2 + 48, mover.y + mover.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => Number((await looks())[1].x) - Number(start[1].x)).toBeCloseTo(0.5, 1);
+  expect(Number((await looks())[0].x) - Number(start[0].x)).toBeCloseTo(0.5, 1);
+  // Gridlines: shown behind the text, and moving snaps to them.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await page.locator('.note-editor .blk-paragraph').first().click();
+  await (await toolButton(page, 'Gridlines')).click();
+  await expect(page.locator('.note-editor')).toHaveClass(/show-grid/);
+  await menu(b, 'Ungroup');
+  await expect.poll(async () => (await looks())[1].grp).toBeUndefined();
+  const x0 = Number((await looks())[1].x);
+  await b.locator('.shape-box').hover();
+  const m2 = (await b.locator('.shape-move').boundingBox())!;
+  await page.mouse.move(m2.x + m2.width / 2, m2.y + m2.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(m2.x + m2.width / 2 + 40, m2.y + m2.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(async () => (Number((await looks())[1].x) * 4) % 1).toBeCloseTo(0, 5);
+  expect(Number((await looks())[1].x)).not.toBe(x0);
+});
+
 test('the sidebar and note list fold away with «, peek out at the edge, and come back', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1400, height: 860 });

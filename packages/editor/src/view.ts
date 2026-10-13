@@ -647,7 +647,7 @@ function buildBlock(block: Block, marks = false, noSpell: RegExp | null = null):
   }
   if (block.type === 'table') el.appendChild(buildTable(block));
   if (block.type === 'shape') {
-    el.dataset.wrap = block.shape?.wrap ?? 'inline';
+    markShapeBlock(el, block.shape ?? tidyShape(undefined));
     el.appendChild(buildShape(block));
   }
   if (block.type === 'code') el.appendChild(buildCode(block));
@@ -919,8 +919,27 @@ function pictureMenu(p: PicLook): HTMLElement {
     button('wrap', 'In line with text', 'In line with text', 'inline'),
     button('wrap', 'Square, on the left', 'Text wraps round it, on the left', 'left'),
     button('wrap', 'Square, on the right', 'Text wraps round it, on the right', 'right'),
+    button('wrap', 'Tight, on the left', 'Text hugs its outline, on the left', 'tleft'),
+    button('wrap', 'Tight, on the right', 'Text hugs its outline, on the right', 'tright'),
+    button('wrap', 'Top and bottom', 'On its own lines, the text above and below: drag ✥ to move it across', 'topbottom'),
     button('wrap', 'In front of text', 'In front of the text, anywhere: drag ✥ to move it', 'free'),
+    button('wrap', 'Behind text', 'Behind the text, anywhere (pick it again from the Selection pane)', 'behind'),
   ]);
+  const floating = (name: string, items: HTMLElement[]) => {
+    group(name, items);
+    menu.lastElementChild!.classList.add('shape-floating-only');
+  };
+  floating('Position from', [button('rel', 'Its paragraph', 'Placed from the top left of its paragraph (it moves with the text)', ''), button('rel', 'The margins', 'Placed from the top left of the page’s margins (it stays put on the page)', 'margin'), button('rel', 'The page', 'Placed from the top left corner of the page', 'page')]);
+  floating('Arrange', [button('order', 'Bring to front', 'In front of all the others', 'front'), button('order', 'Bring forward', 'One step forward', 'forward'), button('order', 'Send backward', 'One step back', 'backward'), button('order', 'Send to back', 'Behind all the others', 'back')]);
+  group('Align', [
+    button('align', 'Left', 'Line up with the left margin (or, with shapes picked by Shift+click, with each other)', 'left'),
+    button('align', 'Centre', 'Centre between the margins (or on each other)', 'center'),
+    button('align', 'Right', 'Line up with the right margin (or with each other)', 'right'),
+    button('align', 'Top', 'Line up with the top margin (or with each other)', 'top'),
+    button('align', 'Middle', 'Halfway down the page (or on each other)', 'middle'),
+    button('align', 'Bottom', 'Line up with the bottom margin (or with each other)', 'bottom'),
+  ]);
+  group('Group', [button('group', 'Group', 'Group the shapes picked by Shift+click with this one: they move together'), button('ungroup', 'Ungroup', 'Each shape on its own again')]);
   group('Rotate', [button('rot', 'Left 90°', 'Turn left 90°', '-90'), button('rot', 'Right 90°', 'Turn right 90°', '90'), button('rot', 'Straight', 'Not turned', '0')]);
   group('Crop', [
     button('crop', 'Crop', 'Drag the edges to crop; click Crop again (or anywhere else) when done'),
@@ -1136,8 +1155,27 @@ function buildShape(block: Block): HTMLElement {
     button('wrap', 'In line with text', 'In line with text', 'inline'),
     button('wrap', 'Square, on the left', 'Text wraps round it, on the left', 'left'),
     button('wrap', 'Square, on the right', 'Text wraps round it, on the right', 'right'),
+    button('wrap', 'Tight, on the left', 'Text hugs its outline, on the left', 'tleft'),
+    button('wrap', 'Tight, on the right', 'Text hugs its outline, on the right', 'tright'),
+    button('wrap', 'Top and bottom', 'On its own lines, the text above and below: drag ✥ to move it across', 'topbottom'),
     button('wrap', 'In front of text', 'In front of the text, anywhere: drag ✥ to move it', 'free'),
+    button('wrap', 'Behind text', 'Behind the text, anywhere (pick it again from the Selection pane)', 'behind'),
   ]);
+  const floating = (name: string, items: HTMLElement[]) => {
+    group(name, items);
+    menu.lastElementChild!.classList.add('shape-floating-only');
+  };
+  floating('Position from', [button('rel', 'Its paragraph', 'Placed from the top left of its paragraph (it moves with the text)', ''), button('rel', 'The margins', 'Placed from the top left of the page’s margins (it stays put on the page)', 'margin'), button('rel', 'The page', 'Placed from the top left corner of the page', 'page')]);
+  floating('Arrange', [button('order', 'Bring to front', 'In front of all the others', 'front'), button('order', 'Bring forward', 'One step forward', 'forward'), button('order', 'Send backward', 'One step back', 'backward'), button('order', 'Send to back', 'Behind all the others', 'back')]);
+  group('Align', [
+    button('align', 'Left', 'Line up with the left margin (or, with shapes picked by Shift+click, with each other)', 'left'),
+    button('align', 'Centre', 'Centre between the margins (or on each other)', 'center'),
+    button('align', 'Right', 'Line up with the right margin (or with each other)', 'right'),
+    button('align', 'Top', 'Line up with the top margin (or with each other)', 'top'),
+    button('align', 'Middle', 'Halfway down the page (or on each other)', 'middle'),
+    button('align', 'Bottom', 'Line up with the bottom margin (or with each other)', 'bottom'),
+  ]);
+  group('Group', [button('group', 'Group', 'Group the shapes picked by Shift+click with this one: they move together'), button('ungroup', 'Ungroup', 'Each shape on its own again')]);
   group('Rotate', [button('rot', 'Left 90°', 'Turn left 90°', '-90'), button('rot', 'Right 90°', 'Turn right 90°', '90'), button('rot', 'Straight', 'Not turned', '0')]);
   group('', [button('delete', 'Delete shape')]);
   tools.appendChild(menu);
@@ -1147,14 +1185,34 @@ function buildShape(block: Block): HTMLElement {
   return wrap;
 }
 
+/** The shape's block: how the text goes round it, where it's placed from, its place in the stack, its group. */
+function markShapeBlock(el: HTMLElement, s: ShapeLook): void {
+  el.dataset.wrap = s.wrap;
+  const set = (k: string, v: string | undefined) => (v === undefined ? delete el.dataset[k] : (el.dataset[k] = v));
+  set('rel', s.rel);
+  set('tight', s.tight ? '' : undefined);
+  set('grp', s.grp);
+  // In front of the text above it, behind it below; higher in the stack in front of lower.
+  el.style.zIndex = s.wrap === 'free' ? String(10 + (s.z ?? 0)) : s.wrap === 'behind' ? String(-50 + (s.z ?? 0)) : '';
+  // Tight wrapping follows the outline of a round shape.
+  el.style.shapeOutside = s.tight ? (s.kind === 'ellipse' ? 'ellipse(50% 50%)' : s.kind === 'rounded' ? 'inset(0 round 18%)' : '') : '';
+}
+
 /** Shows the shape's wrapping, turn and place, and its choices in the menu. */
 function markShape(wrap: HTMLElement, s: ShapeLook): void {
-  wrap.closest<HTMLElement>('.blk')?.setAttribute('data-wrap', s.wrap);
+  const blk = wrap.closest<HTMLElement>('.blk');
+  if (blk) markShapeBlock(blk, s);
   const box = wrap.querySelector<HTMLElement>('.shape-box');
   if (box) box.style.transform = s.rot ? `rotate(${s.rot}deg)` : '';
-  wrap.style.left = s.wrap === 'free' ? `${s.x ?? 0}in` : '';
-  wrap.style.top = s.wrap === 'free' ? `${s.y ?? 0}in` : '';
-  wrap.querySelectorAll<HTMLElement>('[data-shape-action="wrap"]').forEach((b) => b.classList.toggle('on', b.dataset.value === s.wrap));
+  const floating = s.wrap === 'free' || s.wrap === 'behind';
+  wrap.style.left = floating ? `${s.x ?? 0}in` : '';
+  wrap.style.top = floating ? `${s.y ?? 0}in` : '';
+  wrap.style.marginLeft = s.wrap === 'topbottom' && s.x ? `${s.x}in` : '';
+  const wrapValue = s.tight ? `t${s.wrap}` : s.wrap;
+  wrap.querySelectorAll<HTMLElement>('[data-shape-action="wrap"]').forEach((b) => b.classList.toggle('on', b.dataset.value === wrapValue));
+  wrap.querySelectorAll<HTMLElement>('[data-shape-action="rel"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (s.rel ?? '')));
+  wrap.querySelectorAll<HTMLElement>('[data-shape-action="ungroup"]').forEach((b) => (b.hidden = !s.grp));
+  wrap.querySelectorAll<HTMLElement>('.shape-floating-only').forEach((g) => (g.hidden = !floating));
 }
 
 /** Updates a shape in place (keeping its text box, which may be being typed in). False when it must be built again. */
@@ -1167,7 +1225,7 @@ function patchShape(el: HTMLElement, block: Block): boolean {
   box.querySelector('.shape-art')?.replaceWith(shapeArt(s));
   const text = box.querySelector<HTMLElement>('.shape-text');
   if (text && text !== el.ownerDocument.activeElement && readCell(text) !== s.text) fillCell(text, s.text);
-  el.dataset.wrap = s.wrap;
+  markShapeBlock(el, s);
   el.toggleAttribute('data-hidden-obj', !!s.hide);
   markShape(box.parentElement!, s);
   if (block.align) el.dataset.align = block.align;

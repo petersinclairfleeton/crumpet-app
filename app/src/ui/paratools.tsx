@@ -140,6 +140,10 @@ export function useParaKeys(ed: Editor | null): void {
   useEffect(() => {
     ed?.setShowMarks(marks);
   }, [ed, marks]);
+  const grid = !!useAppState().settings.gridlines;
+  useEffect(() => {
+    ed?.setGridlines(grid);
+  }, [ed, grid]);
   const marksRef = useRef(marks);
   marksRef.current = marks;
   useEffect(() => {

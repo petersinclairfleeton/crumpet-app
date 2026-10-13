@@ -212,6 +212,8 @@ export interface Settings {
   markupHide?: { changes?: boolean; comments?: boolean; people?: string[] };
   /** Show/hide ¶: formatting marks (spaces, tabs, paragraph ends) shown in notes and chapters. */
   showMarks?: boolean;
+  /** Gridlines behind the text in notes and chapters; shapes snap to them. */
+  gridlines?: boolean;
   /** AutoCorrect while typing: each kind on unless turned off, plus replacements of the person's own. */
   autocorrect?: import('@crumpet/editor/autocorrect').AutoCorrectOptions;
   /** Version of one-off data clean-ups already applied to this device's notes. */
