@@ -9,6 +9,8 @@ import type { Editor } from '@crumpet/editor/editor';
 import { Popover } from './Sidebar';
 import { type ToolItem, closeMore } from './toolbar';
 import { useAppState, useAppStore } from './hooks';
+import { usePanes } from './panes';
+import { openReader } from './reader';
 
 const svg = (d: string) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -138,10 +140,73 @@ function PagesTool({ off }: { off: boolean }) {
   );
 }
 
-/** Outline view and Pages on screen, as toolbar items. */
+const ICON_READER = svg('M4 5c3-1 5.5-.6 8 1.5V20c-2.5-2-5-2.4-8-1.5zM20 5c-3-1-5.5-.6-8 1.5V20c2.5-2 5-2.4 8-1.5z');
+const ICON_WINDOW = svg('M3 5h8v14H3zM13 5h8v14h-8zM5 8h4M15 8h4');
+const ICON_SYNC = svg('M7 4v16M17 4v16M4 8l3-4 3 4M14 16l3 4 3-4');
+
+/** Word's New Window: the same document again in a pane beside it. */
+function NewWindowButton({ off }: { off: boolean }) {
+  const panes = usePanes();
+  return (
+    <button type="button" aria-label="New window" title="New window: this document again beside itself, to work on two parts at once" disabled={off} onClick={() => (panes.newWindow(), closeMore())}>
+      {ICON_WINDOW}
+    </button>
+  );
+}
+
+/** Word's Synchronous Scrolling: panes side by side scroll together. */
+function SyncScrollToggle() {
+  const { settings } = useAppState();
+  const store = useAppStore();
+  const on = !!settings.syncScroll;
+  return (
+    <button type="button" className={on ? 'active' : ''} aria-label="Scroll together" aria-pressed={on} title="Scroll together: panes side by side move as one" onClick={() => store.updateSettings({ syncScroll: !on || undefined })}>
+      {ICON_SYNC}
+    </button>
+  );
+}
+
+/**
+ * Scrolling together: scrolling the text in one pane scrolls the others the
+ * same share of their length (one listener for the whole page catches every pane).
+ */
+export function SyncScroll() {
+  const on = !!useAppState().settings.syncScroll;
+  useEffect(() => {
+    if (!on) return;
+    let busy = false;
+    const onScroll = (e: Event) => {
+      const box = e.target as HTMLElement;
+      if (busy || !(box instanceof HTMLElement) || !box.matches('.pane-group .note-scroll')) return;
+      const share = box.scrollTop / Math.max(1, box.scrollHeight - box.clientHeight);
+      busy = true;
+      for (const other of Array.from(document.querySelectorAll<HTMLElement>('.pane-group .note-scroll'))) {
+        if (other !== box && other.closest('.pane-group') !== box.closest('.pane-group')) other.scrollTop = share * (other.scrollHeight - other.clientHeight);
+      }
+      requestAnimationFrame(() => (busy = false));
+    };
+    document.addEventListener('scroll', onScroll, true);
+    return () => document.removeEventListener('scroll', onScroll, true);
+  }, [on]);
+  return null;
+}
+
+/** Outline view, Pages on screen, the immersive reader, New window and Scroll together, as toolbar items. */
 export function viewItems(ed: Editor | null, off: boolean): ToolItem[] {
   return [
     { key: 'outlineview', label: 'Outline view', pri: 1, node: <OutlineToggle ed={ed} off={off} /> },
     { key: 'pageslayout', label: 'Pages on screen', pri: 1, node: <PagesTool off={off} /> },
+    {
+      key: 'reader',
+      label: 'Immersive reader',
+      pri: 1,
+      node: (
+        <button type="button" aria-label="Immersive reader" title="Immersive reader: the text on its own, with spacing, line focus, syllables, read aloud" disabled={!ed} onClick={() => ed && (openReader(ed), closeMore())}>
+          {ICON_READER}
+        </button>
+      ),
+    },
+    { key: 'newwindow', label: 'New window', pri: 1, node: <NewWindowButton off={off} /> },
+    { key: 'syncscroll', label: 'Scroll together', pri: 1, node: <SyncScrollToggle /> },
   ];
 }

@@ -216,6 +216,10 @@ export interface Settings {
   markupHide?: { changes?: boolean; comments?: boolean; people?: string[] };
   /** Show/hide ¶: formatting marks (spaces, tabs, paragraph ends) shown in notes and chapters. */
   showMarks?: boolean;
+  /** The immersive reader's text size, spacing, column width, page colour, line focus, syllables and parts of speech. */
+  reader?: import('../ui/reader').ReaderPrefs;
+  /** Panes side by side scroll together (Word's Synchronous Scrolling). */
+  syncScroll?: boolean;
   /** Gridlines behind the text in notes and chapters; shapes snap to them. */
   gridlines?: boolean;
   /** AutoCorrect while typing: each kind on unless turned off, plus replacements of the person's own. */

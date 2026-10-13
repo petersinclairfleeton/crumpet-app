@@ -28,9 +28,11 @@ interface Panes {
   split(tab: Tab, side: 'right' | 'bottom'): void;
   /** Closes the tab showing where you're working. */
   closeActive(): void;
+  /** Word's New Window: what you're working on again, in a pane beside it (both kept in step). */
+  newWindow(): void;
 }
 export type Ctl = Panes & { ws: Workspace; current(): Workspace; update(fn: (w: Workspace) => Workspace): void };
-export const PanesContext = createContext<Panes>({ open() {}, split() {}, closeActive() {} });
+export const PanesContext = createContext<Panes>({ open() {}, split() {}, closeActive() {}, newWindow() {} });
 export function usePanes(): Panes {
   return useContext(PanesContext);
 }
@@ -170,6 +172,10 @@ export function usePanesState(): Ctl {
       closeActive: () => {
         update((w) => closeTab(w, w.active, activeGroup(w).active));
         follow(store, activeTab(latest.current));
+      },
+      newWindow: () => {
+        const tab = activeTab(latest.current);
+        if (tab) update((w) => split(w, w.active, 'right', tab));
       },
     }),
     [ws, update, store],
