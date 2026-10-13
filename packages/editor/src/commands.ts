@@ -65,6 +65,7 @@ import type { BlockAttrs, BulletKind, NumFormat } from './model';
 import type { TableLook } from './table';
 import { inlineMarkdown, parseInline } from './markdown';
 import { type PicLook, tidyPic } from './picture';
+import { docPart, withoutDoc, hasCover } from './cover';
 import { type ShapeKind, type ShapeLook, defaultShape, tidyShape } from './shape';
 
 export interface EditorState {
@@ -225,7 +226,7 @@ function splitAt(b: Builder, pos: Pos): Pos {
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
   // A new paragraph carries on the spacing and indents of the one before (not a page break, nor after a heading).
-  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, drop: undefined, track: undefined, lock: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined });
+  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, drop: undefined, track: undefined, lock: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined, wm: undefined, wmimg: undefined, wmc: undefined, wmflat: undefined, pgc: undefined, pgb: undefined, pgbc: undefined, hyph: undefined, lnum: undefined, lnr: undefined });
   const newAttrs = atEnd ? { ...nextBlockAttrs(block), para: carried } : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined, para: carried });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
@@ -677,12 +678,13 @@ function insertBreak(state: EditorState, patch: Partial<ParaLook>): Transaction 
  * the paragraph its section break is on; for the first section, on the
  * very first paragraph).
  */
-export type SectionPatch = Partial<Pick<ParaLook, 'cols' | 'orient' | 'mt' | 'mb' | 'ml' | 'mr' | 'pw' | 'ph' | 'sect'>>;
+export type SectionPatch = Partial<Pick<ParaLook, 'cols' | 'orient' | 'mt' | 'mb' | 'ml' | 'mr' | 'pw' | 'ph' | 'sect' | 'hdr' | 'ftr' | 'hfirst' | 'pstart' | 'pfmt'>>;
 
-export function setSection(state: EditorState, patch: SectionPatch): Transaction {
+/** Sets `patch` on the caret's section, or on the section starting at block `at`. */
+export function setSection(state: EditorState, patch: SectionPatch, at?: string): Transaction {
   const b = new Builder(state.doc);
   const blocks = state.doc.blocks;
-  let i = sectionStart(blocks, blockIndex(state.doc, orderedRange(state.doc, state.selection).from.block));
+  let i = sectionStart(blocks, at && blocks.some((x) => x.id === at) ? blockIndex(state.doc, at) : blockIndex(state.doc, orderedRange(state.doc, state.selection).from.block));
   let blk = blocks[i];
   if (isMedia(blk.type) || isWidget(blk.type)) {
     // A section starting with a picture or table: an empty line before it holds the section's settings.
@@ -1471,4 +1473,63 @@ function joinPlain(state: EditorState, first: Block, second: Block): Transaction
   const offset = runsLength(first.runs);
   b.step({ type: 'join', block: first.id, second: second.id, offset, secondAttrs: attrsOf(second) });
   return tx(state, b, caret({ block: first.id, offset }));
+}
+
+/**
+ * Word's Cover Page: `cover` (its paragraphs) at the start, instead of any
+ * cover there, as a section of its own with no header or footer on it. The
+ * document's settings move onto it; the text after it starts a new section,
+ * keeping the first section's own settings.
+ */
+export function insertCover(state: EditorState, cover: Block[]): Transaction {
+  const b = new Builder(state.doc);
+  const settings = takeCover(b);
+  const first = b.doc.blocks[0];
+  const restPara = tidyPara({ ...withoutDoc(first.para), sect: first.para?.sect && first.para.sect !== 'cont' ? first.para.sect : 'page', hfirst: undefined });
+  let content = first.id;
+  let restAttrs = attrsOf({ ...first, para: restPara });
+  cover.forEach((blk, i) => {
+    const next = newId();
+    b.step({ type: 'split', block: content, offset: 0, newBlock: next, newAttrs: restAttrs });
+    const here = getBlock(b.doc, content);
+    const para = tidyPara({ ...blk.para, ...(i === 0 ? { ...settings, sect: 'page' as const, hfirst: true } : {}), cover: true });
+    b.step({ type: 'setAttrs', block: content, from: attrsOf(here), to: attrsOf({ ...blk, para }) });
+    if (blk.runs.length) b.step({ type: 'insert', block: content, offset: 0, runs: blk.runs });
+    content = next;
+    restAttrs = attrsOf(getBlock(b.doc, next));
+  });
+  const at = { block: b.doc.blocks[0].id, offset: 0 };
+  return tx(state, b, { anchor: at, focus: at });
+}
+
+/** Takes the cover page away; the document's settings go back to its first paragraph. */
+export function removeCover(state: EditorState): Transaction | null {
+  if (!hasCover(state.doc.blocks)) return null;
+  const b = new Builder(state.doc);
+  const settings = takeCover(b);
+  const first = b.doc.blocks[0];
+  const p = tidyPara({ ...first.para, ...settings });
+  // A section break that only started the text after the cover isn't needed now.
+  const own = withoutDoc(p);
+  const keep = p && p.sect && Object.keys(own).length === 1 ? tidyPara({ ...p, sect: undefined }) : p;
+  const to = attrsOf({ ...first, para: keep });
+  if (!sameAttrs(attrsOf(first), to)) b.step({ type: 'setAttrs', block: first.id, from: attrsOf(first), to });
+  const at = { block: first.id, offset: 0 };
+  return tx(state, b, { anchor: at, focus: at });
+}
+
+/** Removes the cover's paragraphs, if there are any, returning the document's settings (from the first paragraph). */
+function takeCover(b: Builder): ParaLook {
+  const blocks = b.doc.blocks;
+  const settings = docPart(blocks[0]?.para);
+  if (!hasCover(blocks)) return settings;
+  let n = 0;
+  while (n < blocks.length - 1 && blocks[n].para?.cover) n++;
+  if (n === 0) return settings;
+  const rest = blocks[n];
+  const restAttrs = attrsOf(rest);
+  deleteRange(b, { block: blocks[0].id, offset: 0 }, { block: rest.id, offset: 0 });
+  const first = b.doc.blocks[0];
+  if (!sameAttrs(attrsOf(first), restAttrs)) b.step({ type: 'setAttrs', block: first.id, from: attrsOf(first), to: restAttrs });
+  return settings;
 }

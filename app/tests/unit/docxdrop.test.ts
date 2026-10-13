@@ -252,3 +252,25 @@ describe('Word: page layout', () => {
     expect(back[2].runs.map((r) => r.field ?? r.text)).toEqual(['A', 'wrapbreak', 'B']);
   });
 });
+
+describe('Word: page design', () => {
+  it('sections’ own headers, a blank first page, page numbers started again, a watermark, page colour and border go to Word and come back', async () => {
+    const first = makeBlock('paragraph', 'Cover', [], { para: { sect: 'page', hfirst: true, wm: 'DRAFT', pgc: '#fff2cc', pgb: 'double', pgbc: '#2f5d8a' } });
+    const two = makeBlock('paragraph', 'Two', [], { para: { sect: 'page', hdr: 'Part two||%page%', pstart: 1, pfmt: 'i' } });
+    const pageHf = { sets: { main: { header: { left: [], center: [{ text: 'Book' }], right: [] }, footer: { left: [], center: [], right: [] } } }, differentFirst: false, differentChapterFirst: false, differentOddEven: false, numberFormat: '1' as const, startAt: 1, headerFrom: 0.5, footerFrom: 0.5, headerLine: false, footerLine: false };
+    const bytes = await toDocx([{ doc: { blocks: [first, two] } }], { title: 'T', hf: pageHf });
+    const files = await readZip(bytes);
+    const xml = new TextDecoder().decode(files.get('word/document.xml'));
+    expect(xml).toContain('<w:background w:color="FFF2CC"/>');
+    expect(xml).toContain('<w:pgBorders w:offsetFrom="page"><w:top w:val="double" w:sz="6" w:space="24" w:color="2F5D8A"/>');
+    expect(xml).toContain('<w:pgNumType w:fmt="lowerRoman" w:start="1"/>');
+    expect(xml.match(/<w:titlePg\/>/g)).toHaveLength(1);
+    const headers = [...files.keys()].filter((k) => /word\/header\d+\.xml$/.test(k)).map((k) => new TextDecoder().decode(files.get(k)));
+    expect(headers.every((h) => h.includes('PowerPlusWaterMarkObject1') && h.includes('string="DRAFT"'))).toBe(true);
+    expect(headers.some((h) => h.includes('Part two'))).toBe(true);
+    expect(new TextDecoder().decode(files.get('[Content_Types].xml'))).not.toContain('.rels"');
+    const back = (await fromDocx(bytes)).doc.blocks;
+    expect(back[0].para).toMatchObject({ sect: 'page', hfirst: true, hdr: '|Book|', wm: 'DRAFT', pgc: '#fff2cc', pgb: 'double', pgbc: '#2f5d8a' });
+    expect(back[1].para).toMatchObject({ sect: 'page', hdr: 'Part two||%page%', pstart: 1, pfmt: 'i' });
+  });
+});

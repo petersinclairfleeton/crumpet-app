@@ -3080,6 +3080,59 @@ test('page layout: an odd page section break, paper of your own for a section, l
   await expect.poll(md).toContain('{{wrapbreak}}');
 });
 
+test('page design: a watermark, page border and colour, a cover page, and a section with a header of its own', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always', pageView: { notes: true } }));
+  await newNote(page, 'Design', 'Chapter one begins here.');
+  await expect(page.locator('.note-editor .pg')).toHaveCount(1);
+  // A watermark, a double border and a page colour, on every page.
+  await (await toolButton(page, 'Watermark')).click();
+  await page.getByRole('menuitemradio', { name: 'DRAFT' }).click();
+  await expect(page.locator('.sheet .watermark').first()).toHaveText('DRAFT');
+  await (await toolButton(page, 'Page borders')).click();
+  await page.getByRole('menuitemradio', { name: 'Double line' }).click();
+  await expect(page.locator('.sheet .page-border.b-double')).toHaveCount(1);
+  await (await toolButton(page, 'Page colour')).click();
+  await page.getByRole('button', { name: 'Butter pages' }).click();
+  await expect(page.locator('.sheet').first()).toHaveCSS('background-color', 'rgb(255, 242, 204)');
+  // A cover page: a page of its own in front, with no page number on it.
+  await (await toolButton(page, 'Cover page')).click();
+  await page.getByRole('radio', { name: 'Banner' }).click();
+  await page.getByLabel('Cover title').fill('The Lighthouse');
+  await page.getByRole('button', { name: 'Add cover page' }).click();
+  await expect(page.locator('.note-editor .pg')).toHaveCount(2);
+  await expect(page.locator('.note-editor .pg').first()).toContainText('The Lighthouse');
+  await expect(page.locator('.note-editor .pg').nth(1)).toContainText('Chapter one begins here.');
+  await expect(page.locator('.sheet .watermark')).toHaveCount(2);
+  await expect(page.locator('.hf-page[data-sheet="0"] .hf-zone.footer')).not.toContainText('1');
+  await expect(page.locator('.hf-page[data-sheet="1"] .hf-zone.footer')).toContainText('2');
+  // The text after the cover: a header of its own, and page numbers starting again at 1.
+  await page.locator('.hf-page[data-sheet="1"] .hf-zone.header').dblclick({ position: { x: 20, y: 40 } });
+  await page.getByRole('button', { name: 'Section 2 ▾' }).click();
+  await page.getByRole('checkbox', { name: 'Header: link to previous' }).uncheck();
+  await page.getByRole('checkbox', { name: 'Start page numbers again here' }).check();
+  await expect(page.locator('.hf-page[data-sheet="1"] .hf-zone.footer')).toContainText('1');
+  await page.getByRole('button', { name: 'Section 2 ▾' }).click();
+  const slot = page.locator('.hf-page[data-sheet="1"] .hf-zone.header [data-slot="left"]');
+  await slot.click();
+  await page.keyboard.type('Chapter one');
+  await page.getByRole('button', { name: 'Close', exact: true }).click();
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toMatch(/\{\.hfirst \.cover sect=page pgc=#fff2cc pgb=double before=96 wm="DRAFT"\}/);
+  await expect.poll(md).toMatch(/Chapter one begins here\. \{sect=page pstart=1 hdr="Chapter one\|\|"\}/);
+  // Taking the cover away keeps the rest, and the document's settings go back to its first paragraph.
+  await (await toolButton(page, 'Cover page')).click();
+  await page.getByRole('button', { name: 'Remove cover page' }).click();
+  await expect(page.locator('.note-editor .pg')).toHaveCount(1);
+  await expect.poll(md).toMatch(/^Chapter one begins here\. \{sect=page pstart=1 pgc=#fff2cc pgb=double hdr="Chapter one\|\|" wm="DRAFT"\}/);
+});
+
 test('a book’s table of contents lists every chapter with its page, and the headings in them, and opens one', async ({ page }) => {
   await open(page);
   await page.evaluate(async () => {

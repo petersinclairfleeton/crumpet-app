@@ -119,9 +119,9 @@ export async function uploadFiles(provider: Provider): Promise<number> {
 }
 
 /** The attachments a document shows (pictures and files kept in Attachments). */
-export function attachmentsIn(blocks: { type: string; src?: string; pic?: { orig?: string } }[]): string[] {
-  // A picture's original file (before its background was removed or it was compressed) is kept for Reset picture.
-  return blocks.flatMap((b) => (b.type === 'image' || b.type === 'file' ? [b.src, b.pic?.orig] : [])).filter((s): s is string => !!s?.startsWith(`${ATTACHMENTS}/`));
+export function attachmentsIn(blocks: { type: string; src?: string; pic?: { orig?: string }; para?: { wmimg?: string } }[]): string[] {
+  // A picture's original file (before its background was removed or it was compressed) is kept for Reset picture; a picture watermark is on the first paragraph.
+  return blocks.flatMap((b, i) => [...(b.type === 'image' || b.type === 'file' ? [b.src, b.pic?.orig] : []), ...(i === 0 ? [b.para?.wmimg] : [])]).filter((s): s is string => !!s?.startsWith(`${ATTACHMENTS}/`));
 }
 
 /**

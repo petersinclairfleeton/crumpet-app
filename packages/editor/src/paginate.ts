@@ -40,6 +40,9 @@ export interface PageBox {
   landscape: boolean;
   /** Its margins, px. */
   margins: Margins;
+  /** The block its section starts with, and whether it's that section's first page. */
+  sectionBlock?: string;
+  sectionFirst?: boolean;
 }
 
 type Margins = { top: number; right: number; bottom: number; left: number };
@@ -110,6 +113,9 @@ interface Page {
   margins: Margins;
   bands: Band[];
   notes: number[];
+  /** The section it starts in, and whether the section starts on it. */
+  sect: Section;
+  sectFirst: boolean;
 }
 
 const CONT = 'data-cont';
@@ -308,7 +314,7 @@ export class Paginator {
 
     const pages: Page[] = [];
     const newPage = (s: Section): Page => {
-      const p: Page = { width: s.width, height: s.height, landscape: s.landscape, margins: s.margins, bands: [], notes: [] };
+      const p: Page = { width: s.width, height: s.height, landscape: s.landscape, margins: s.margins, bands: [], notes: [], sect: s, sectFirst: !pages.some((x) => x.sect === s) };
       pages.push(p);
       return p;
     };
@@ -437,6 +443,12 @@ export class Paginator {
         // An odd or even page section break: a blank page first when the new page is the other kind.
         if (s.parity && (this.pageOffset + pages.length) % 2 === (s.parity === 'odd' ? 0 : 1)) {
           page.blank = true;
+          // (The blank page belongs to the section before, as in Word.)
+          const before = pages[pages.length - 2];
+          if (before) {
+            page.sect = before.sect;
+            page.sectFirst = false;
+          }
           page = newPage(s);
         }
       }
@@ -559,7 +571,7 @@ export class Paginator {
       }
       root.appendChild(box);
       this.pageNotes[n] = p.notes;
-      this.pageBoxes.push({ top, left: (widest - p.width) / 2, width: p.width, height: p.height, landscape: p.landscape, margins: p.margins });
+      this.pageBoxes.push({ top, left: (widest - p.width) / 2, width: p.width, height: p.height, landscape: p.landscape, margins: p.margins, sectionBlock: blocks[p.sect.start]?.dataset.block, sectionFirst: p.sectFirst });
       top += p.height + g.gap;
     });
     // Anything not placed (it shouldn't happen) goes on the last page rather than vanish.

@@ -259,7 +259,16 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `pagesetup.tsx`'s Page Setup window, for the caret's section, the whole
     document or from the caret on; the first section's settings sit on the
     first paragraph; a section of its own paper size has `pw`/`ph` inches, and
-    document-wide `hyph`, `lnum`/`lnr` sit on the first paragraph too). `rightside.tsx` is the right sidebar: tabs for the
+    document-wide `hyph`, `lnum`/`lnr` sit on the first paragraph too, as do
+    the watermark `wm`/`wmimg`, page colour `pgc` and page border `pgb`, set by
+    `designtools.tsx` (Watermark, Page borders, Cover page; the document's
+    page colour is in Layout's Page colour). A section's own header and
+    footer are `hdr`/`ftr` on its first paragraph, written short by
+    `data/sectionhf.ts` ("left|centre|right", fields as %page%), with
+    `hfirst` (blank first page) and `pstart`/`pfmt` (numbers started again);
+    `pageHF` works out each page's from `editor.pageBoxes` (`sectionBlock`).
+    A cover page (`editor/src/cover.ts`) is paragraphs marked `cover` at the
+    start, a section of its own). `rightside.tsx` is the right sidebar: tabs for the
     headings outline, Word's Styles pane (`stylespane.tsx`), comments and
     links, working on the editor last clicked in (`helpers.ts`: editors offer
     themselves with `useOfferHelped`). `booktoc.ts`: in a project, a table of contents
@@ -344,7 +353,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   again.
 - Word features not built: Word's own built-in table styles (ours go to Word as
   styles of their own), shapes hold one paragraph of text, can't go behind the
-  text, and are placed from their paragraph (not the page's corner). Printing turns landscape pages only
+  text, and are placed from their paragraph (not the page's corner). Page borders are plain lines (no art) and the
+  same on every page; the document's page colour shows only in page view;
+  watermarks and section headers go to Word as VML and header parts (checked by
+  tests, not yet in real Word). Printing turns landscape pages only
   in browsers that support named pages (Chrome, Edge, Firefox). A book's table of contents
   guesses the pages of headings in chapters not laid out yet (from their
   words) until they have been.

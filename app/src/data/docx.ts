@@ -11,7 +11,8 @@ import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
 import { FIELDS, fieldFromWord, fieldValue, wordInstr } from '@crumpet/editor/fields';
 import { figureEntries, indexEntries } from '@crumpet/editor/lists';
 import { type PicLook, tidyPic } from '@crumpet/editor/picture';
-import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty } from './headers';
+import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty, tidyRuns } from './headers';
+import { decodeBand, encodeBand } from './sectionhf';
 import { type CustomStyle, type PageSetup, type StyleDef, type StyleKey, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
 
@@ -565,7 +566,7 @@ class Writer {
       if (sb) {
         const p = b.para!;
         const was = this.section;
-        this.section = { cols: p.cols ?? was.cols, orient: p.orient ?? was.orient, type: sb, mt: p.mt ?? was.mt, mb: p.mb ?? was.mb, ml: p.ml ?? was.ml, mr: p.mr ?? was.mr, pw: p.pw ?? was.pw, ph: p.ph ?? was.ph };
+        this.section = { cols: p.cols ?? was.cols, orient: p.orient ?? was.orient, type: sb, mt: p.mt ?? was.mt, mb: p.mb ?? was.mb, ml: p.ml ?? was.ml, mr: p.mr ?? was.mr, pw: p.pw ?? was.pw, ph: p.ph ?? was.ph, hdr: p.hdr, ftr: p.ftr, hfirst: p.hfirst, pstart: p.pstart, pfmt: p.pfmt };
       }
       // The next block starts a new section: this one's paragraph carries this section's settings.
       if (blocks[k + 1]?.para?.sect) this.sectNext = this.sectionMark();
@@ -720,6 +721,23 @@ const calloutPr = (c: { bar: string; fill: string }) => `<w:pBdr><w:left w:val="
 
 const NS = `xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`;
 /** The document also names the drawing parts, for shapes and text boxes. */
+/** Headers and footers, with what a watermark needs (VML, as Word writes it). */
+const HF_NS = `${NS} xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w10="urn:schemas-microsoft-com:office:word"`;
+
+/** Word's text watermark: a WordArt shape behind the text, slanting (or flat), in a faint colour. */
+function textWatermark(text: string, color: string | undefined, flat: boolean): string {
+  const shapetype =
+    '<v:shapetype id="_x0000_t136" coordsize="21600,21600" o:spt="136" adj="10800" path="m@7,l@8,m@5,21600l@6,21600e"><v:formulas><v:f eqn="sum #0 0 10800"/><v:f eqn="prod #0 2 1"/><v:f eqn="sum 21600 0 @1"/><v:f eqn="sum 0 0 @2"/><v:f eqn="sum 21600 0 @3"/><v:f eqn="if @0 @3 0"/><v:f eqn="if @0 21600 @1"/><v:f eqn="if @0 0 @2"/><v:f eqn="if @0 @4 21600"/><v:f eqn="mid @5 @6"/><v:f eqn="mid @8 @5"/><v:f eqn="mid @7 @8"/><v:f eqn="mid @6 @7"/><v:f eqn="sum @6 0 @5"/></v:formulas><v:path textpathok="t" o:connecttype="custom" o:connectlocs="@9,0;@10,10800;@11,21600;@12,10800" o:connectangles="270,180,90,0"/><v:textpath on="t" fitshape="t"/><v:handles><v:h position="#0,bottomRight" xrange="6629,14971"/></v:handles><o:lock v:ext="edit" text="t" shapetype="t"/></v:shapetype>';
+  const width = 468;
+  const height = Math.round(Math.min(160, (width / Math.max(4, text.length)) * 1.6));
+  return `<w:r><w:rPr><w:noProof/></w:rPr><w:pict>${shapetype}<v:shape id="PowerPlusWaterMarkObject1" o:spid="_x0000_s2049" type="#_x0000_t136" style="position:absolute;margin-left:0;margin-top:0;width:${width}pt;height:${height}pt;${flat ? '' : 'rotation:315;'}z-index:-251657216;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin" o:allowincell="f" fillcolor="${color ?? 'silver'}" stroked="f"><v:fill opacity=".5"/><v:textpath style="font-family:&quot;Calibri&quot;;font-size:1pt" string="${esc(text)}"/><w10:wrap anchorx="margin" anchory="margin"/></v:shape></w:pict></w:r>`;
+}
+
+/** Word's picture watermark: the picture behind the text, washed out. */
+function pictureWatermark(wPt: number, hPt: number): string {
+  return `<w:r><w:rPr><w:noProof/></w:rPr><w:pict><v:shapetype id="_x0000_t75" coordsize="21600,21600" o:spt="75" o:preferrelative="t" path="m@4@5l@4@11@9@11@9@5xe" filled="f" stroked="f"><v:stroke joinstyle="miter"/><v:path o:extrusionok="f" gradientshapeok="t" o:connecttype="rect"/><o:lock v:ext="edit" aspectratio="t"/></v:shapetype><v:shape id="WordPictureWatermark1" o:spid="_x0000_s2050" type="#_x0000_t75" style="position:absolute;margin-left:0;margin-top:0;width:${Math.round(wPt)}pt;height:${Math.round(hPt)}pt;z-index:-251656192;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin" o:allowincell="f"><v:imagedata r:id="rIdWm" o:title="" gain="19661f" blacklevel="22938f"/></v:shape></w:pict></w:r>`;
+}
+
 const DOC_NS = `${NS} xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="wps"`;
 
 function stylesXml(font: string, size: number): string {
@@ -782,6 +800,12 @@ interface SectionProps {
   mb?: number;
   ml?: number;
   mr?: number;
+  /** Its own header and footer (see sectionhf.ts), a blank first page, and page numbers started again. */
+  hdr?: string;
+  ftr?: string;
+  hfirst?: boolean;
+  pstart?: number;
+  pfmt?: string;
 }
 
 interface ListDef {
@@ -900,36 +924,59 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     body += await w.blocks(part.doc.blocks, part.heading === undefined ? breakBefore : '');
   }
 
-  // Headers and footers.
+  // Headers and footers: the page setup's (in the first section; the others are linked to it), and sections' own.
   const files: ZipEntry[] = [];
-  let refs = '';
   const hf = opts.hf;
-  if (hf) {
-    const tabs = `<w:tabs><w:tab w:val="center" w:pos="${Math.round((contentIn * TWIPS) / 2)}"/><w:tab w:val="right" w:pos="${Math.round(contentIn * TWIPS)}"/></w:tabs>`;
-    let n = 0;
-    const add = (kind: 'header' | 'footer', type: string, set: HFSet | undefined) => {
-      const band = set?.[kind];
-      n++;
-      const name = `${kind}${n}.xml`;
-      const para = band && !bandEmpty(band) ? w.band(band, kind === 'header' ? 'Header' : 'Footer', kind === 'header' ? hf.headerLine : hf.footerLine).replace(/(<w:pStyle w:val="\w+"\/>)/, `$1${tabs}`) : '<w:p/>';
-      files.push({ name: `word/${name}`, data: utf8(`${XML}<w:${kind === 'header' ? 'hdr' : 'ftr'} ${NS}>${para}</w:${kind === 'header' ? 'hdr' : 'ftr'}>`) });
-      refs += `<w:${kind}Reference w:type="${type}" r:id="${w.rel(`${REL}/${kind}`, name)}"/>`;
-    };
-    const variants: [string, HFSet | undefined][] = [['default', hf.sets.main]];
-    if (hf.differentOddEven) variants.push(['even', hf.sets.even ?? hf.sets.main]);
-    if (hf.differentFirst) variants.push(['first', hf.sets.first]);
-    for (const [type, set] of variants) {
-      add('header', type, set);
-      add('footer', type, set);
-    }
-    if (hf.differentFirst) refs += '<w:titlePg/>';
-  }
-  const pgNum = hf ? `<w:pgNumType${hf.numberFormat !== '1' ? ` w:fmt="${{ i: 'lowerRoman', I: 'upperRoman', a: 'lowerLetter', A: 'upperLetter' }[hf.numberFormat]}"` : ''}${hf.startAt !== 1 ? ` w:start="${hf.startAt}"` : ''}/>` : '';
-  const tw = (inches: number) => Math.round(inches * TWIPS);
-  const titlePg = refs.includes('<w:titlePg/>');
   const p0 = parts[0]?.doc.blocks[0]?.para;
+  const tabs = `<w:tabs><w:tab w:val="center" w:pos="${Math.round((contentIn * TWIPS) / 2)}"/><w:tab w:val="right" w:pos="${Math.round(contentIn * TWIPS)}"/></w:tabs>`;
+  // A watermark goes in every header, as Word keeps it.
+  let watermark = '';
+  let wmPicture: string | null = null;
+  if (p0?.wm) watermark = textWatermark(p0.wm, p0.wmc, !!p0.wmflat);
+  else if (p0?.wmimg) {
+    const got = await opts.media?.(p0.wmimg);
+    const ext = got ? imageExt(got.type, got.bytes) : null;
+    if (got && ext) {
+      wmPicture = `watermark.${ext === 'jpeg' ? 'jpg' : ext}`;
+      w.media.push({ name: `word/media/${wmPicture}`, data: got.bytes });
+      const size = imageSize(got.bytes) ?? { width: 400, height: 300 };
+      const wPt = Math.min(400, size.width * 0.75);
+      watermark = pictureWatermark(wPt, (wPt * size.height) / size.width);
+    }
+  }
+  let n = 0;
+  /** A header or footer part holding `band` (none: an empty one); returns its reference. */
+  const hfPart = (kind: 'header' | 'footer', type: string, band: HFBand | undefined): string => {
+    n++;
+    const name = `${kind}${n}.xml`;
+    let para = band && !bandEmpty(band) ? w.band(band, kind === 'header' ? 'Header' : 'Footer', kind === 'header' ? !!hf?.headerLine : !!hf?.footerLine).replace(/(<w:pStyle w:val="\w+"\/>)/, `$1${tabs}`) : `<w:p><w:pPr><w:pStyle w:val="${kind === 'header' ? 'Header' : 'Footer'}"/></w:pPr></w:p>`;
+    if (kind === 'header' && watermark) {
+      para = para.replace(/<\/w:p>$/, `${watermark}</w:p>`);
+      if (wmPicture) files.push({ name: `word/_rels/${name}.rels`, data: utf8(`${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdWm" Type="${REL}/image" Target="media/${wmPicture}"/></Relationships>`) });
+    }
+    const tag = kind === 'header' ? 'hdr' : 'ftr';
+    files.push({ name: `word/${name}`, data: utf8(`${XML}<w:${tag} ${HF_NS}>${para}</w:${tag}>`) });
+    return `<w:${kind}Reference w:type="${type}" r:id="${w.rel(`${REL}/${kind}`, name)}"/>`;
+  };
+  // The page setup's, by kind and type.
+  const base = new Map<string, string>();
+  if (hf || watermark) {
+    const variants: [string, HFSet | undefined][] = [['default', hf?.sets.main]];
+    if (hf?.differentOddEven) variants.push(['even', hf.sets.even ?? hf.sets.main]);
+    if (hf?.differentFirst) variants.push(['first', hf.sets.first]);
+    for (const [type, set] of variants) {
+      base.set(`header:${type}`, hfPart('header', type, set?.header));
+      base.set(`footer:${type}`, hfPart('footer', type, set?.footer));
+    }
+  }
+  const fmtOf = (f: string | undefined) => (f && f !== '1' ? ` w:fmt="${{ i: 'lowerRoman', I: 'upperRoman', a: 'lowerLetter', A: 'upperLetter' }[f as 'i']}"` : '');
+  const tw = (inches: number) => Math.round(inches * TWIPS);
   const lines = p0?.lnum ? { every: p0.lnum, restart: p0.lnr ?? 'page' } : null;
-  // Each section's settings: the page turned for landscape, its columns and how it starts. The first section has the page numbering and a different first page.
+  // A line round every page (Word keeps it on each section).
+  const PGB: Record<string, [string, number]> = { single: ['single', 6], double: ['double', 6], thick: ['single', 24], dotted: ['dotted', 12], dashed: ['dashed', 12] };
+  const pgb = p0?.pgb ? PGB[p0.pgb] : null;
+  const pgBorders = pgb ? `<w:pgBorders w:offsetFrom="page">${['top', 'left', 'bottom', 'right'].map((side) => `<w:${side} w:val="${pgb[0]}" w:sz="${pgb[1]}" w:space="24" w:color="${(p0?.pgbc ?? '#333333').slice(1).toUpperCase()}"/>`).join('')}</w:pgBorders>` : '';
+  // Each section's settings: the page turned for landscape, its columns and how it starts, its headers and footers. The first section has the page setup's.
   const sectionXml = (sp: SectionProps, first: boolean) => {
     const landscape = sp.orient ? sp.orient === 'landscape' : !!page?.landscape;
     const long = sp.pw && sp.ph ? Math.max(sp.pw, sp.ph) : Math.max(size.width, size.height);
@@ -939,7 +986,29 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     // Line numbers (the whole document's).
     const lnNum = lines ? `<w:lnNumType w:countBy="${lines.every}" w:restart="${lines.restart === 'sect' ? 'newSection' : lines.restart === 'cont' ? 'continuous' : 'newPage'}"/>` : '';
     const cols = sp.cols > 1 ? `<w:cols w:num="${sp.cols}" w:space="720"/>` : '<w:cols w:space="720"/>';
-    return `<w:sectPr>${refs.replace('<w:titlePg/>', '')}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr>${type}<w:pgSz w:w="${tw(pw)}" w:h="${tw(ph)}"${landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(sp.mt ?? m.top)}" w:right="${tw(sp.mr ?? m.right)}" w:bottom="${tw(sp.mb ?? m.bottom)}" w:left="${tw(sp.ml ?? m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${lnNum}${first ? pgNum : ''}${cols}${titlePg && first ? '<w:titlePg/>' : ''}</w:sectPr>`;
+    const refs = new Map<string, string>(first ? base : []);
+    let titlePg = first && !!hf?.differentFirst;
+    if (sp.hdr !== undefined) {
+      const band = decodeBand(sp.hdr);
+      refs.set('header:default', hfPart('header', 'default', band));
+      if (hf?.differentOddEven) refs.set('header:even', hfPart('header', 'even', band));
+      if (titlePg && !sp.hfirst) refs.set('header:first', hfPart('header', 'first', band));
+    }
+    if (sp.ftr !== undefined) {
+      const band = decodeBand(sp.ftr);
+      refs.set('footer:default', hfPart('footer', 'default', band));
+      if (hf?.differentOddEven) refs.set('footer:even', hfPart('footer', 'even', band));
+      if (titlePg && !sp.hfirst) refs.set('footer:first', hfPart('footer', 'first', band));
+    }
+    if (sp.hfirst) {
+      refs.set('header:first', hfPart('header', 'first', undefined));
+      refs.set('footer:first', hfPart('footer', 'first', undefined));
+      titlePg = true;
+    }
+    const order = ['header:default', 'header:even', 'header:first', 'footer:default', 'footer:even', 'footer:first'];
+    const refXml = order.map((k) => refs.get(k) ?? '').join('');
+    const pgNum = sp.pstart !== undefined ? `<w:pgNumType${fmtOf(sp.pfmt)} w:start="${sp.pstart}"/>` : first && hf ? `<w:pgNumType${fmtOf(hf.numberFormat)}${hf.startAt !== 1 ? ` w:start="${hf.startAt}"` : ''}/>` : '';
+    return `<w:sectPr>${refXml}<w:footnotePr><w:numFmt w:val="decimal"/></w:footnotePr>${type}<w:pgSz w:w="${tw(pw)}" w:h="${tw(ph)}"${landscape ? ' w:orient="landscape"' : ''}/><w:pgMar w:top="${tw(sp.mt ?? m.top)}" w:right="${tw(sp.mr ?? m.right)}" w:bottom="${tw(sp.mb ?? m.bottom)}" w:left="${tw(sp.ml ?? m.left)}" w:header="${tw(hf?.headerFrom ?? 0.5)}" w:footer="${tw(hf?.footerFrom ?? 0.5)}" w:gutter="0"/>${pgBorders}${lnNum}${pgNum}${cols}${titlePg ? '<w:titlePg/>' : ''}</w:sectPr>`;
   };
   let firstSect = true;
   body = body.replace(/<!--crumpet-sect:(.*?)-->/g, (_, json: string) => {
@@ -948,7 +1017,8 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     return xml;
   });
   const sect = sectionXml(w.section, firstSect);
-  const documentXml = `${XML}<w:document ${DOC_NS}><w:body>${body}${sect}</w:body></w:document>`;
+  const background = p0?.pgc ? `<w:background w:color="${p0.pgc.slice(1).toUpperCase()}"/>` : '';
+  const documentXml = `${XML}<w:document ${DOC_NS}>${background}<w:body>${body}${sect}</w:body></w:document>`;
 
   w.rel(`${REL}/styles`, 'styles.xml');
   w.rel(`${REL}/numbering`, 'numbering.xml');
@@ -967,7 +1037,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const firstPara = parts[0]?.doc.blocks[0]?.para;
   const protect = firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
   const trackAll = firstPara?.track === 'all' ? '<w:trackRevisions/>' : '';
-  const settings = `${XML}<w:settings ${NS}>${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}${parts[0]?.doc.blocks[0]?.para?.hyph ? '<w:autoHyphenation/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+  const settings = `${XML}<w:settings ${NS}>${p0?.pgc ? '<w:displayBackgroundShape/>' : ''}${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}${parts[0]?.doc.blocks[0]?.para?.hyph ? '<w:autoHyphenation/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const core = `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(opts.title)}</dc:title><dc:creator>${esc(opts.author ?? '')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
   const types =
@@ -980,7 +1050,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     '<Override PartName="/word/footnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"/>' +
     '<Override PartName="/word/endnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"/>' +
     '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>' +
-    files.map((f) => `<Override PartName="/${f.name}" ContentType="${f.name.endsWith('commentsExtended.xml') ? 'application/vnd.ms-word.commentsExtended+xml' : `application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : f.name.includes('comments') ? 'comments' : 'footer'}+xml`}"/>`).join('') +
+    files.filter((f) => !f.name.endsWith('.rels')).map((f) => `<Override PartName="/${f.name}" ContentType="${f.name.endsWith('commentsExtended.xml') ? 'application/vnd.ms-word.commentsExtended+xml' : `application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : f.name.includes('comments') ? 'comments' : 'footer'}+xml`}"/>`).join('') +
     '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>';
   const rootRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`;
 
@@ -1560,8 +1630,57 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   let wordField: { instr: string; showing: boolean } | null = null;
   let colBreakNext = false;
   // Section settings, as Word keeps them: at the end of each section (in its last paragraph), the last in the body.
-  type SectRead = { margins: { mt?: number; mb?: number; ml?: number; mr?: number }; cont: boolean; parity?: 'odd' | 'even'; cols: number; landscape: boolean; paper?: { w: number; h: number }; lines?: { every: number; restart: 'page' | 'sect' | 'cont' } };
+  type SectRead = { margins: { mt?: number; mb?: number; ml?: number; mr?: number }; cont: boolean; parity?: 'odd' | 'even'; cols: number; landscape: boolean; paper?: { w: number; h: number }; lines?: { every: number; restart: 'page' | 'sect' | 'cont' }; hdr?: string; ftr?: string; hfirst?: boolean; pstart?: number; pfmt?: '1' | 'i' | 'I' | 'a' | 'A' };
   const sectEnds: { end: number; props: SectRead }[] = [];
+  /** A header or footer part's words, as a section's own band written short (see sectionhf.ts). */
+  const readBand = (rid: string | null): string | undefined => {
+    const path = rid ? rels.get(rid) : undefined;
+    const part = path ? parseXml(files.get(path)) : null;
+    if (!part) return undefined;
+    const band = { left: [] as HFRun[], center: [] as HFRun[], right: [] as HFRun[] };
+    for (const para of Array.from(part.getElementsByTagNameNS(W_NS, 'p'))) {
+      const slots: HFRun[][] = [[]];
+      let skip = false;
+      let instr = '';
+      const walkHF = (el: Element) => {
+        for (const c of kids(el)) {
+          const name = c.localName;
+          if (name === 'pict' || name === 'drawing' || name === 'AlternateContent' || name === 'pPr' || name === 'rPr') continue;
+          if (name === 'tab') slots.push([]);
+          else if (name === 'fldSimple') {
+            const f = /NUMPAGES/i.test(attr(c, 'instr') ?? '') ? 'pages' : /PAGE/i.test(attr(c, 'instr') ?? '') ? 'page' : null;
+            if (f) slots[slots.length - 1].push({ field: f });
+            else walkHF(c);
+          } else if (name === 'fldChar') {
+            const t = attr(c, 'fldCharType');
+            if (t === 'begin') instr = '';
+            else if (t === 'separate') {
+              const f = /NUMPAGES/i.test(instr) ? 'pages' : /\bPAGE\b/i.test(instr) ? 'page' : null;
+              if (f) {
+                slots[slots.length - 1].push({ field: f });
+                skip = true;
+              }
+            } else if (t === 'end') skip = false;
+          } else if (name === 'instrText') instr += c.textContent ?? '';
+          else if (name === 't') {
+            if (!skip && c.textContent) slots[slots.length - 1].push({ text: c.textContent });
+          } else walkHF(c);
+        }
+      };
+      walkHF(para);
+      if (slots.every((x) => !x.length)) continue;
+      const jc = attr(child(child(para, 'pPr'), 'jc'), 'val');
+      // Text with tabs: left, centre, right; otherwise where the paragraph is aligned.
+      const placed = slots.length > 1 ? slots : jc === 'center' ? [[], slots[0]] : jc === 'right' || jc === 'end' ? [[], [], slots[0]] : slots;
+      (['left', 'center', 'right'] as const).forEach((k, i) => {
+        const runs = i === 2 ? placed.slice(2).flat() : (placed[i] ?? []);
+        if (!runs.length) return;
+        if (band[k].length) band[k].push({ text: ' ' });
+        band[k].push(...runs);
+      });
+    }
+    return encodeBand({ left: tidyRuns(band.left), center: tidyRuns(band.center), right: tidyRuns(band.right) });
+  };
   const readSect = (sp: Element): SectRead => {
     const sz = child(sp, 'pgSz');
     const w = Number(attr(sz, 'w') ?? 0);
@@ -1583,7 +1702,29 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       landscape: attr(sz, 'orient') === 'landscape' || (w > 0 && h > 0 && w > h),
       ...(w > 0 && h > 0 ? { paper: { w: Math.round((Math.min(w, h) / TWIPS) * 100) / 100, h: Math.round((Math.max(w, h) / TWIPS) * 100) / 100 } } : {}),
       ...(every > 0 ? { lines: { every, restart: restart === 'newSection' ? ('sect' as const) : restart === 'continuous' ? ('cont' as const) : ('page' as const) } } : {}),
+      ...readSectHF(sp),
     };
+  };
+  /** A section's own headers and footers, blank first page and page numbering. */
+  const readSectHF = (sp: Element): Pick<SectRead, 'hdr' | 'ftr' | 'hfirst' | 'pstart' | 'pfmt'> => {
+    const ref = (kind: string, type: string) => kids(sp).find((c) => c.localName === `${kind}Reference` && (attr(c, 'type') ?? 'default') === type);
+    const out: Pick<SectRead, 'hdr' | 'ftr' | 'hfirst' | 'pstart' | 'pfmt'> = {};
+    const h = ref('header', 'default');
+    const f = ref('footer', 'default');
+    if (h) out.hdr = readBand(h.getAttributeNS(R_NS, 'id') ?? h.getAttribute('r:id'));
+    if (f) out.ftr = readBand(f.getAttributeNS(R_NS, 'id') ?? f.getAttribute('r:id'));
+    if (on(child(sp, 'titlePg'))) {
+      const fh = ref('header', 'first');
+      const ff = ref('footer', 'first');
+      const empty = (r: Element | undefined) => !r || (readBand(r.getAttributeNS(R_NS, 'id') ?? r.getAttribute('r:id')) ?? '').replace(/\|/g, '') === '';
+      if (empty(fh) && empty(ff)) out.hfirst = true;
+    }
+    const pg = child(sp, 'pgNumType');
+    const start = attr(pg, 'start');
+    if (start !== null && Number.isFinite(Number(start))) out.pstart = Number(start);
+    const fmt = { lowerRoman: 'i', upperRoman: 'I', lowerLetter: 'a', upperLetter: 'A' }[attr(pg, 'fmt') ?? ''] as SectRead['pfmt'];
+    if (fmt && out.pstart !== undefined) out.pfmt = fmt;
+    return out;
   };
   /** Whether `el` comes after all the text in paragraph `p`. */
   const isLastThing = (p: Element, el: Element): boolean => {
@@ -1924,7 +2065,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     let at = startsAt[k];
     const sp = sects[k];
     const prev = sects[k - 1];
-    if (k === 0 && sp.cols === 1 && !sp.landscape && !sp.lines) continue;
+    if (k === 0 && sp.cols === 1 && !sp.landscape && !sp.lines && sp.hdr === undefined && sp.ftr === undefined && !sp.hfirst && sp.pstart === undefined) continue;
     // (The first section's settings go on the first paragraph; a document starting with a picture or table keeps the page setup's.)
     if (k === 0 && blocks[0] && (isMediaType(blocks[0].type) || blocks[0].type === 'table' || blocks[0].type === 'toc')) continue;
     if (k > 0 && at >= blocks.length) continue;
@@ -1939,7 +2080,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const own = (key: 'mt' | 'mb' | 'ml' | 'mr') => (k > 0 && prev && sp.margins[key] !== undefined && sp.margins[key] !== prev.margins[key] ? sp.margins[key] : undefined);
     // A section's own paper: where it differs from the one before.
     const paper = k > 0 && prev?.paper && sp.paper && (Math.abs(sp.paper.w - prev.paper.w) > 0.05 || Math.abs(sp.paper.h - prev.paper.h) > 0.05) ? sp.paper : undefined;
-    b.para = tidyPara({ ...b.para, sect: k > 0 && sp.cont ? 'cont' : k > 0 && sp.parity ? sp.parity : 'page', cols: k === 0 ? sp.cols : sp.cols !== prev?.cols ? sp.cols : undefined, orient: k === 0 ? (sp.landscape ? 'landscape' : undefined) : orient, mt: own('mt'), mb: own('mb'), ml: own('ml'), mr: own('mr'), pw: paper?.w, ph: paper?.h, ...(k === 0 && sp.lines ? { lnum: sp.lines.every, lnr: sp.lines.restart === 'page' ? undefined : sp.lines.restart } : {}) });
+    b.para = tidyPara({ ...b.para, sect: k > 0 && sp.cont ? 'cont' : k > 0 && sp.parity ? sp.parity : 'page', cols: k === 0 ? sp.cols : sp.cols !== prev?.cols ? sp.cols : undefined, orient: k === 0 ? (sp.landscape ? 'landscape' : undefined) : orient, mt: own('mt'), mb: own('mb'), ml: own('ml'), mr: own('mr'), pw: paper?.w, ph: paper?.h, ...(k === 0 && sp.lines ? { lnum: sp.lines.every, lnr: sp.lines.restart === 'page' ? undefined : sp.lines.restart } : {}), hdr: sp.hdr, ftr: sp.ftr, hfirst: sp.hfirst, pstart: sp.pstart, pfmt: sp.pfmt });
   }
   // Where Word's numbering differs from what the list shows on its own (carrying on after a paragraph, or starting again), keep Word's.
   const shown: number[] = [];
@@ -1962,6 +2103,46 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   // Word's "track changes" (and locked to tracked changes): kept on the first paragraph, as Crumpet keeps them.
   const wordSettings = parseXml(files.get('word/settings.xml'));
   const setting = (name: string) => Array.from(wordSettings?.getElementsByTagNameNS(W_NS, name) ?? [])[0];
+  // The page colour, a line round the pages, and a watermark (from the first section's header): the whole document's.
+  const doc0: ParaLook = {};
+  const bg = attr(Array.from(xml.getElementsByTagNameNS(W_NS, 'background'))[0], 'color');
+  if (bg && /^[0-9a-f]{6}$/i.test(bg)) doc0.pgc = `#${bg.toLowerCase()}`;
+  const borders = child(bodySect, 'pgBorders');
+  const top = child(borders, 'top') ?? child(borders, 'left');
+  const bval = attr(top, 'val');
+  if (bval && bval !== 'none' && bval !== 'nil') {
+    doc0.pgb = bval === 'double' ? 'double' : bval === 'dotted' ? 'dotted' : bval.startsWith('dash') ? 'dashed' : Number(attr(top, 'sz') ?? 4) >= 18 ? 'thick' : 'single';
+    const bc = attr(top, 'color');
+    if (bc && /^[0-9a-f]{6}$/i.test(bc) && bc.toUpperCase() !== '333333') doc0.pgbc = `#${bc.toLowerCase()}`;
+  }
+  const firstSect = sectEnds[0] ? null : bodySect;
+  const sectForWm = sectEnds.length ? Array.from(xml.getElementsByTagNameNS(W_NS, 'sectPr'))[0] : firstSect;
+  const hdrRef = sectForWm ? kids(sectForWm).find((c) => c.localName === 'headerReference' && (attr(c, 'type') ?? 'default') === 'default') : undefined;
+  const hdrPath = hdrRef ? rels.get(hdrRef.getAttributeNS(R_NS, 'id') ?? hdrRef.getAttribute('r:id') ?? '') : undefined;
+  const hdrXml = hdrPath ? parseXml(files.get(hdrPath)) : null;
+  if (hdrXml) {
+    const VML = 'urn:schemas-microsoft-com:vml';
+    const shape = Array.from(hdrXml.getElementsByTagNameNS(VML, 'shape')).find((x) => /watermark/i.test(x.getAttribute('id') ?? ''));
+    const textpath = shape ? Array.from(shape.getElementsByTagNameNS(VML, 'textpath'))[0] : undefined;
+    const words = textpath?.getAttribute('string');
+    if (shape && words) {
+      doc0.wm = words;
+      const fill = shape.getAttribute('fillcolor') ?? '';
+      if (/^#[0-9a-f]{6}$/i.test(fill) && fill.toLowerCase() !== '#c0c0c0') doc0.wmc = fill.toLowerCase();
+      if (!/rotation\s*:\s*(315|-45)/.test(shape.getAttribute('style') ?? '')) doc0.wmflat = true;
+    } else if (shape && opts.saveMedia) {
+      const img = Array.from(shape.getElementsByTagNameNS(VML, 'imagedata'))[0];
+      const rid = img?.getAttributeNS(R_NS, 'id') ?? img?.getAttribute('r:id');
+      const media = rid ? relsOf(files, hdrPath!).get(rid) : undefined;
+      const bytes = media ? files.get(media) : undefined;
+      if (media && bytes) {
+        const ext = media.split('.').pop()?.toLowerCase() ?? '';
+        const src = await opts.saveMedia(media.split('/').pop() ?? 'watermark', bytes, MIME[ext] ?? 'image/png');
+        if (src) doc0.wmimg = src;
+      }
+    }
+  }
+  if (Object.keys(doc0).length) out[0].para = tidyPara({ ...out[0].para, ...doc0 });
   if (on(setting('autoHyphenation'))) {
     const first = out[0];
     first.para = tidyPara({ ...first.para, hyph: true });
