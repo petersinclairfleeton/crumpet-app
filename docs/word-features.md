@@ -135,7 +135,7 @@ At the end there's a suggested order for building what's missing.
 
 | Feature | | Crumpet today |
 |---|---|---|
-| Cover Page | ❌ | |
+| Cover Page | ✅ | Four designs (Classic, Banner, Rule, Frame) with your title, subtitle, author and date; a page of its own with no header or footer; replace or remove it. |
 | Blank Page | ✅ | The Blank page button: an empty page at the caret, the rest moved on past it. |
 | Page Break | ✅ | |
 | Insert a table | ✅ | The Table button's size grid, or /table. |
@@ -191,9 +191,9 @@ At the end there's a suggested order for building what's missing.
 | Paragraph Spacing presets | 🟡 | Comes with the style sets; no separate menu. |
 | Effects | ❌ | |
 | Set as Default | ✅ | The styles window's "Set as default for new projects" (shared across devices). |
-| Watermark ("DRAFT", "CONFIDENTIAL") | ❌ | |
-| Page Colour | 🟡 | The paper colour you write on is an app setting; it isn't saved in the document or printed. |
-| Page Borders | ❌ | |
+| Watermark ("DRAFT", "CONFIDENTIAL") | ✅ | Ready-made words, words of your own (slanting or flat, in a colour) or a picture; on every page, printed and in Word. |
+| Page Colour | ✅ | Saved in the document, printed and sent to Word; the paper you write on stays a setting of its own. Shown in page view. |
+| Page Borders | 🟡 | A line round every page: single, double, thick, dotted or dashed, in a colour. No art borders, and the same on every page. |
 
 ## Layout
 
@@ -384,7 +384,7 @@ At the end there's a suggested order for building what's missing.
 | Edit in place (double-click top or bottom of a page) | ✅ | |
 | Different First Page | ✅ | Also a different first page for each chapter. |
 | Different Odd & Even pages | ✅ | |
-| Link to Previous (different headers per section) | ❌ | One set of headers and footers for the whole document. |
+| Link to Previous (different headers per section) | ✅ | Each section's header and footer can be its own; also a blank first page and page numbers starting again, per section. |
 | Header/footer position (distance from the edge) | ✅ | Page Setup → Layout. |
 | Go to Header / Footer | ✅ | By double-clicking. |
 | Page number formats (1, 2, 3 / i, ii, iii…) | ✅ | |
@@ -544,16 +544,16 @@ Where: `model.ts` (footnotes), `paginate.ts`, `app/src/ui/booktoc.ts`, `footnote
 **8. Page layout and design**
 Where: `paginate.ts`, `app/src/ui/pagesetup.tsx`, `layouttools.tsx`, `pages.tsx`, `headers.tsx`, `data/headers.ts`, `data/styles.ts`, `print.tsx`, `docx.ts`.
 - [x] Hyphenation (automatic and manual)
-- [ ] Headers and footers per section (Link to Previous)
+- [x] Headers and footers per section (Link to Previous)
 - [x] Header and footer distance from the edge
 - [x] Odd page / even page section breaks
 - [x] Custom paper sizes, and size per section
 - [x] Line numbers
 - [x] Text wrapping break
-- [ ] Watermark (text or picture)
-- [ ] Page colour saved in the document, printed and sent to Word
-- [ ] Page borders
-- [ ] Cover pages
+- [x] Watermark (text or picture)
+- [x] Page colour saved in the document, printed and sent to Word
+- [x] Page borders
+- [x] Cover pages
 - [ ] Document themes; theme colours and fonts menus
 - [ ] Paragraph spacing presets
 - [ ] Design effects

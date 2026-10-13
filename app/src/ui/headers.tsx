@@ -3,7 +3,10 @@
 
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { DATE_FORMATS, FIELDS, type HFBand, type HFRun, type HFSlotName, type HeadersFooters, NUMBER_FORMATS, SLOTS, formatDate, hasPageNumbers, tidyRuns, withPageNumbers } from '../data/headers';
+import type { ParaLook } from '@crumpet/editor/model';
+import type { SectionPatch } from '@crumpet/editor/commands';
+import { encodeBand } from '../data/sectionhf';
+import { DATE_FORMATS, FIELDS, type HFBand, type HFRun, type HFSet, type HFSlotName, type HeadersFooters, NUMBER_FORMATS, SLOTS, formatDate, hasPageNumbers, tidyRuns, withPageNumbers } from '../data/headers';
 import { Popover } from './Sidebar';
 
 const SLOT_NAMES: Record<HFSlotName, string> = { left: 'left', center: 'centre', right: 'right' };
@@ -204,8 +207,19 @@ export function Band({ kind, band, resolve, editing, line, onBand, onFocusSlot, 
 const keep = (e: React.MouseEvent) => e.preventDefault();
 
 /** Header & Footer tools, shown while editing them (like Word's tab of the same name). */
-export function HFToolbar({ label, hf, chapters, onHF, onInsert, onClose, host }: { label: string; hf: HeadersFooters; chapters: boolean; onHF(hf: HeadersFooters): void; onInsert(run: HFRun): void; onClose(): void; host: HTMLElement | null }) {
-  const [menu, setMenu] = useState<'insert' | 'options' | null>(null);
+/** The section of the page being edited: its own headers, first page and page numbers. */
+export interface HFSection {
+  /** Its number (from 0), and how many sections there are. */
+  n: number;
+  count: number;
+  para: ParaLook;
+  /** What the page shows now (copied when the section gets its own). */
+  set: HFSet;
+  onPatch(patch: SectionPatch): void;
+}
+
+export function HFToolbar({ label, hf, chapters, onHF, onInsert, onClose, host, section }: { label: string; hf: HeadersFooters; chapters: boolean; onHF(hf: HeadersFooters): void; onInsert(run: HFRun): void; onClose(): void; host: HTMLElement | null; section?: HFSection }) {
+  const [menu, setMenu] = useState<'insert' | 'options' | 'section' | null>(null);
   const now = Date.now();
   const fields = FIELDS.filter((f) => chapters || !['chapter', 'chapterTitle', 'part', 'chapterPages'].includes(f.id));
   const insert = (run: HFRun) => {
@@ -265,6 +279,18 @@ export function HFToolbar({ label, hf, chapters, onHF, onInsert, onClose, host }
             </Popover>
           )}
         </span>
+        {section && (
+          <span className="hf-menu">
+            <button type="button" className="btn quiet small" aria-expanded={menu === 'section'} onClick={() => setMenu(menu === 'section' ? null : 'section')}>
+              {section.count > 1 ? `Section ${section.n + 1}` : 'This document'} ▾
+            </button>
+            {menu === 'section' && (
+              <Popover label="This section's header and footer" onClose={() => setMenu(null)}>
+                <SectionOptions section={section} />
+              </Popover>
+            )}
+          </span>
+        )}
         <span className="grow" />
         <button type="button" className="btn primary small" onClick={onClose}>
           Close
@@ -273,6 +299,59 @@ export function HFToolbar({ label, hf, chapters, onHF, onInsert, onClose, host }
   );
   // Below the pane's own toolbar, where it doesn't cover the page; on its own above the pages otherwise.
   return host ? createPortal(bar, host) : <div className="hf-bar-anchor">{bar}</div>;
+}
+
+/** Word's Link to Previous, Different First Page and Page Number Format, for one section. */
+function SectionOptions({ section }: { section: HFSection }) {
+  const { n, para, set, onPatch } = section;
+  const link = (kind: 'hdr' | 'ftr', label: string) => (
+    <label className="check">
+      <input
+        type="checkbox"
+        checked={para[kind] === undefined}
+        // Unlinked, it starts as a copy of what it showed.
+        onChange={(e) => onPatch({ [kind]: e.target.checked ? undefined : encodeBand(kind === 'hdr' ? set.header : set.footer) })}
+      />{' '}
+      {label}
+    </label>
+  );
+  return (
+    <div className="hf-options" role="group" aria-label="Section options">
+      {n > 0 ? (
+        <>
+          <p className="sync-hint">Linked to the section before, a header or footer is the same as that one’s. Unlink it to write one of its own for this section.</p>
+          {link('hdr', 'Header: link to previous')}
+          {link('ftr', 'Footer: link to previous')}
+        </>
+      ) : (
+        section.count > 1 && <p className="sync-hint">This is the first section. Sections after it share its header and footer until you unlink theirs.</p>
+      )}
+      <label className="check">
+        <input type="checkbox" checked={!!para.hfirst} onChange={(e) => onPatch({ hfirst: e.target.checked || undefined })} /> No header or footer on {n > 0 ? 'this section’s' : 'the'} first page
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={para.pstart !== undefined} onChange={(e) => onPatch({ pstart: e.target.checked ? 1 : undefined })} /> {n > 0 ? 'Start page numbers again here' : 'Page numbers of this document’s own'}
+      </label>
+      {para.pstart !== undefined && (
+        <div className="style-row">
+          <label className="style-num">
+            <span>Start at</span>
+            <input type="number" min={0} step={1} aria-label="Section starts at page" value={para.pstart} onChange={(e) => e.target.value !== '' && onPatch({ pstart: Math.max(0, Math.round(Number(e.target.value))) })} />
+          </label>
+          <label className="style-num">
+            <span>Format</span>
+            <select aria-label="Section number format" value={para.pfmt ?? '1'} onChange={(e) => onPatch({ pfmt: e.target.value === '1' ? undefined : (e.target.value as ParaLook['pfmt']) })}>
+              {NUMBER_FORMATS.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const metric = typeof navigator !== 'undefined' && !/^en-(US|CA)|^es-(US|MX)/.test(navigator.language || 'en-US');

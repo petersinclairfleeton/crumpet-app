@@ -121,9 +121,10 @@ function blockLine(b: Block, number: number): string {
   })();
   // Styles, alignment and paragraph settings Markdown has no syntax for go at the end of the line, as {.title .center line=2}.
   const p = b.para;
-  const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.colBefore ? 'colbreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined, p?.nowidow ? 'nowidow' : undefined, p?.hyph ? 'hyphenate' : undefined].filter(Boolean);
-  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'lnum', 'lnr', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'drop', 'outline'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
+  const classes = [b.style, b.align, b.folded ? 'folded' : undefined, p?.pageBefore ? 'pagebreak' : undefined, p?.colBefore ? 'colbreak' : undefined, p?.keepNext ? 'keepnext' : undefined, p?.keepLines ? 'keeplines' : undefined, p?.nowidow ? 'nowidow' : undefined, p?.hyph ? 'hyphenate' : undefined, p?.hfirst ? 'hfirst' : undefined, p?.wmflat ? 'wmflat' : undefined, p?.cover ? 'cover' : undefined].filter(Boolean);
+  const values = p ? (['sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'lnum', 'lnr', 'pstart', 'pgc', 'pgb', 'pgbc', 'wmc', 'line', 'before', 'after', 'left', 'right', 'first', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'drop', 'outline'] as const).filter((k) => p[k] !== undefined).map((k) => `${k}=${p[k]}`) : [];
   if (p?.numText) values.push(`numtext="${p.numText}"`);
+  for (const k of ['pfmt', 'hdr', 'ftr', 'wm', 'wmimg'] as const) if (p?.[k] !== undefined) values.push(`${k}="${p[k]}"`);
   if (p?.tabs) values.push(`tabs=${tabsToText(p.tabs)}`);
   if (p?.track) values.push(`track=${p.track}`);
   if (p?.lock) values.push(`lock=${p.lock}`);
@@ -160,9 +161,9 @@ function runsPlain(runs: Run[]): string {
 const ALIGNS = new Set<string>(['left', 'center', 'right', 'justify']);
 const KNOWN_STYLES = new Set<string>([...Object.values(BLOCK_STYLES).flat(), 'folded']);
 const ATTRS = /^(.*?)[ \t]*(?<![\\\]])\{[ \t]*((?:(?:\.[A-Za-z][\w-]*|[a-z]+=(?:-?[\d.]+|[a-z][a-z-]*|#[0-9a-fA-F]{6}|[lcrd]?[\d.]+(?:dot|dash|line)?(?:,[lcrd]?[\d.]+(?:dot|dash|line)?)*|[0-9a-f]{16,128}|"[^"{}]*"))[ \t]*)+)\}[ \t]*$/;
-const PARA_FLAGS: Record<string, 'pageBefore' | 'colBefore' | 'keepNext' | 'keepLines' | 'nowidow' | 'hyph'> = { pagebreak: 'pageBefore', colbreak: 'colBefore', keepnext: 'keepNext', keeplines: 'keepLines', nowidow: 'nowidow', hyphenate: 'hyph' };
-const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'drop', 'outline', 'cols', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'lnum']);
-const PARA_WORDS = new Set(['num', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'sect', 'orient', 'tabs', 'track', 'lock', 'numtext', 'lnr']);
+const PARA_FLAGS: Record<string, 'pageBefore' | 'colBefore' | 'keepNext' | 'keepLines' | 'nowidow' | 'hyph' | 'hfirst' | 'wmflat' | 'cover'> = { pagebreak: 'pageBefore', colbreak: 'colBefore', keepnext: 'keepNext', keeplines: 'keepLines', nowidow: 'nowidow', hyphenate: 'hyph', hfirst: 'hfirst', wmflat: 'wmflat', cover: 'cover' };
+const PARA_VALUES = new Set(['line', 'before', 'after', 'left', 'right', 'first', 'start', 'drop', 'outline', 'cols', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'lnum', 'pstart']);
+const PARA_WORDS = new Set(['num', 'bullet', 'border', 'bstyle', 'bcolor', 'shade', 'sect', 'orient', 'tabs', 'track', 'lock', 'numtext', 'lnr', 'pfmt', 'hdr', 'ftr', 'wm', 'wmimg', 'wmc', 'pgc', 'pgb', 'pgbc']);
 
 /** Text ending in something that looks like {.attributes} gets its brace escaped. */
 function protectBraces(text: string): string {

@@ -117,6 +117,8 @@ import {
   insertColumnBreak,
   insertSectionBreak,
   setSection,
+  insertCover,
+  removeCover,
   setAllSections,
   type SectionPatch,
 } from './commands';
@@ -126,6 +128,7 @@ import { type AutoCorrectOptions, autoCorrect } from './autocorrect';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { type TocEntry, View, readTable } from './view';
 import { type ShapeKind, type ShapeLook } from './shape';
+import { type CoverDesign, type CoverText, coverBlocks, hasCover } from './cover';
 import type { PicLook } from './picture';
 import { cellPlain, fillCell, readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
 import { fromMarkdown, noteLink, toMarkdown } from './markdown';
@@ -1416,7 +1419,7 @@ export class Editor {
 
   /** Columns and orientation for the section the caret is in. */
   /** The whole document's hyphenation and line numbers (kept on its first paragraph). */
-  setDocPara(patch: Partial<Pick<ParaLook, 'hyph' | 'lnum' | 'lnr'>>): void {
+  setDocPara(patch: Partial<Pick<ParaLook, 'hyph' | 'lnum' | 'lnr' | 'wm' | 'wmimg' | 'wmc' | 'wmflat' | 'pgc' | 'pgb' | 'pgbc'>>): void {
     if (this.isReadOnly) return;
     this.dispatch(setDocPara(this.state, patch), 'command');
   }
@@ -1424,6 +1427,30 @@ export class Editor {
   /** The whole document's settings kept on its first paragraph. */
   docPara(): ParaLook {
     return this.state.doc.blocks[0]?.para ?? {};
+  }
+
+  /** Header and footer settings for the section starting at block `at` (see ParaLook's hdr, ftr, hfirst, pstart, pfmt). */
+  setSectionAt(at: string, patch: SectionPatch): void {
+    if (this.isReadOnly) return;
+    // (Typed in a header or footer: the caret stays there.)
+    this.dispatch(setSection(this.state, patch, at), 'command', true, true);
+  }
+
+  /** Word's Cover Page: a design at the start of the document (instead of any cover there). */
+  insertCover(design: CoverDesign, text: CoverText, accent?: string): void {
+    if (this.isReadOnly) return;
+    this.dispatch(insertCover(this.state, coverBlocks(design, text, accent)), 'command');
+  }
+
+  /** Word's Remove Current Cover Page. */
+  removeCover(): void {
+    if (this.isReadOnly) return;
+    const t = removeCover(this.state);
+    if (t) this.dispatch(t, 'command');
+  }
+
+  get hasCover(): boolean {
+    return hasCover(this.state.doc.blocks);
   }
 
   setSection(patch: SectionPatch): void {

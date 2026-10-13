@@ -423,6 +423,34 @@ export interface ParaLook {
   /** The section's paper, in inches (width and height, as it stands upright), when it differs from the page setup's. */
   pw?: number;
   ph?: number;
+  /**
+   * The section's own header and footer (Word's Link to Previous turned
+   * off): "left|centre|right", fields as %page% and so on (see the app's
+   * headers); '' for none. Unset: the same as the section before (the first
+   * section's: the page setup's).
+   */
+  hdr?: string;
+  ftr?: string;
+  /** No header or footer on the section's first page (Word's Different First Page, for this section). */
+  hfirst?: boolean;
+  /** Page numbers start again at this number in this section, and are written this way. */
+  pstart?: number;
+  pfmt?: '1' | 'i' | 'I' | 'a' | 'A';
+  /**
+   * The whole document's (on its first paragraph): a watermark, words
+   * (`wm`) or a picture (`wmimg`, where the file is) faint across each page,
+   * in a colour, lying flat instead of slanting.
+   */
+  wm?: string;
+  wmimg?: string;
+  wmc?: string;
+  wmflat?: boolean;
+  /** The whole document's page colour, and a line round each page (its style and colour). */
+  pgc?: string;
+  pgb?: 'single' | 'double' | 'dotted' | 'dashed' | 'thick';
+  pgbc?: string;
+  /** Part of a cover page (Insert > Cover Page): Remove Cover Page takes these paragraphs away. */
+  cover?: boolean;
 }
 export type ParaKey = keyof ParaLook;
 
@@ -469,7 +497,7 @@ export function tabsFromText(text: string): TabStop[] | undefined {
   }
   return tidyTabs(out);
 }
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr', 'hdr', 'ftr', 'hfirst', 'pstart', 'pfmt', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc', 'cover'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -511,8 +539,30 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
     out.lnum = Math.max(1, Math.min(100, Math.round(out.lnum)));
     if (p.lnr === 'sect' || p.lnr === 'cont') out.lnr = p.lnr;
   }
+  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/["{}\n\r]/g, '').slice(0, max) : undefined);
+  const hex = (v: unknown) => (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : undefined);
+  const wm = str(p.wm, 80)?.trim();
+  if (wm) out.wm = wm;
+  const wmimg = str(p.wmimg, 2000)?.trim();
+  if (wmimg && !wm) out.wmimg = wmimg;
+  if (out.wm || out.wmimg) {
+    if (hex(p.wmc)) out.wmc = hex(p.wmc);
+  } else {
+    delete out.wmflat;
+  }
+  if (hex(p.pgc)) out.pgc = hex(p.pgc);
+  if (p.pgb && ['single', 'double', 'dotted', 'dashed', 'thick'].includes(p.pgb)) {
+    out.pgb = p.pgb;
+    if (hex(p.pgbc)) out.pgbc = hex(p.pgbc);
+  }
   if (p.sect === 'page' || p.sect === 'cont' || p.sect === 'odd' || p.sect === 'even') {
     out.sect = p.sect;
+    const hdr = str(p.hdr, 600);
+    if (hdr !== undefined) out.hdr = hdr;
+    const ftr = str(p.ftr, 600);
+    if (ftr !== undefined) out.ftr = ftr;
+    if (out.pstart !== undefined) out.pstart = Math.max(0, Math.min(9999, Math.round(out.pstart)));
+    if (p.pfmt && ['1', 'i', 'I', 'a', 'A'].includes(p.pfmt)) out.pfmt = p.pfmt;
     if (out.cols !== undefined) out.cols = Math.max(1, Math.min(MAX_COLS, Math.round(out.cols)));
     if (p.orient === 'portrait' || p.orient === 'landscape') out.orient = p.orient;
     for (const k of ['mt', 'mb', 'ml', 'mr'] as const) if (out[k] !== undefined) out[k] = Math.max(0, Math.min(5, out[k]!));
@@ -529,6 +579,8 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
     delete out.mr;
     delete out.pw;
     delete out.ph;
+    delete out.hfirst;
+    delete out.pstart;
   }
   return Object.keys(out).length ? out : undefined;
 }

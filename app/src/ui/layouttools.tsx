@@ -38,6 +38,38 @@ function Drop({ label, glyph, off, children }: { label: string; glyph: React.Rea
   );
 }
 
+/** Word's Page Color: the document's own, saved in it. */
+const DOC_COLOURS: [string, string][] = [
+  ['#fffcf2', 'Ivory'],
+  ['#fff2cc', 'Butter'],
+  ['#fde9d9', 'Peach'],
+  ['#e5eef8', 'Sky'],
+  ['#e6f0e6', 'Sage'],
+  ['#efefec', 'Grey'],
+];
+
+function DocColour({ ed, onPicked }: { ed: Editor; onPicked(): void }) {
+  const current = ed.docPara().pgc;
+  const set = (pgc: string | undefined) => {
+    ed.setDocPara({ pgc });
+    onPicked();
+  };
+  return (
+    <div className="paper-swatches" role="group" aria-label="Document page colour">
+      <button type="button" className={`paper-swatch theme-own${current ? '' : ' on'}`} aria-pressed={!current} aria-label="No colour" title="No colour" onClick={() => set(undefined)}>
+        <span aria-hidden="true">∅</span>
+      </button>
+      {DOC_COLOURS.map(([hex, name]) => (
+        <button key={hex} type="button" className={`paper-swatch${current === hex ? ' on' : ''}`} style={{ background: hex }} aria-pressed={current === hex} aria-label={`${name} pages`} title={name} onClick={() => set(hex)} />
+      ))}
+      <label className="paper-swatch custom" title="Any colour" style={current && !DOC_COLOURS.some(([h]) => h === current) ? { background: current } : undefined}>
+        <span aria-hidden="true">+</span>
+        <input type="color" aria-label="Any page colour" value={current ?? '#ffffff'} onChange={(e) => ed.setDocPara({ pgc: e.target.value })} />
+      </label>
+    </div>
+  );
+}
+
 /** A sheet of paper in the colour chosen. */
 const ICON_PAPER = (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
@@ -61,9 +93,16 @@ export function useLayoutItems(ed: Editor | null, off: boolean, pageCtx: { page?
       <Drop label="Page colour" glyph={ICON_PAPER} off={false}>
         {(close) => (
           <div className="menu-list">
-            <span className="menu-head">Page colour</span>
+            {ed && (
+              <>
+                <span className="menu-head">This document’s pages</span>
+                <DocColour ed={ed} onPicked={close} />
+                <p className="menu-note">Saved with the document: page view, printing and Word.</p>
+              </>
+            )}
+            <span className="menu-head">Paper you write on</span>
             <PaperSwatches onPicked={close} />
-            <p className="menu-note">For every note and chapter. Printing stays white.</p>
+            <p className="menu-note">On screen, for every note and chapter.</p>
           </div>
         )}
       </Drop>

@@ -5,7 +5,9 @@
 
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
-import { type HFBand, type HFContext, type HFRun, type HFSlotName, type HFVariant, type HeadersFooters, SLOTS, emptySet, fieldValue, setFor, variantFor, variantName } from '../data/headers';
+import { type HFBand, type HFContext, type HFRun, type HFSlotName, type HFVariant, type HeadersFooters, SLOTS, fieldValue, setFor, variantFor } from '../data/headers';
+import { type PageHF, encodeBand, pageHF as pageBands, sectionStarts } from '../data/sectionhf';
+import { mediaUrl } from '../data/files';
 import { PAGE_GAP, PAGE_SIZES, PX_PER_IN, type PageSetup, type StyleSheet, pageHF, pageSize } from '../data/styles';
 import { Ruler } from './ruler';
 import { Band, HFOptions, HFToolbar, insertRun, useSlotCaret } from './headers';
@@ -217,20 +219,58 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   };
   const textLeft = px(m.left);
   const textWidth = width - px(m.left + m.right);
-  const editVariant = editing ? variantFor(hf, { index: offset + editing.i, chapterStart: !!place?.chapterStart && editing.i === 0 }) : null;
+  const doc = enabled ? (editor?.state.doc ?? null) : null;
+  const starts = doc ? sectionStarts(doc) : [];
+  const bandsFor = (i: number): PageHF => pageBands(hf, doc, boxes, i, offset, !!place?.chapterStart && i === 0);
+  const editInfo = editing ? bandsFor(editing.i) : null;
+  // The whole document's look: page colour, a line round each page, a watermark.
+  const p0 = doc?.blocks[0]?.para;
+  const wmUrl = useMediaUrl(p0?.wm ? undefined : p0?.wmimg);
+  const decor = (
+    <>
+      {p0?.pgb && <div className={`page-border b-${p0.pgb}`} style={p0.pgbc ? { borderColor: p0.pgbc } : undefined} />}
+      {p0?.wm && (
+        <div className={`watermark${p0.wmflat ? ' flat' : ''}`} style={{ ...(p0.wmc ? { color: p0.wmc } : {}), ['--n' as string]: Math.max(4, p0.wm.length) }}>
+          <span>{p0.wm}</span>
+        </div>
+      )}
+      {!p0?.wm && wmUrl && (
+        <div className="watermark picture">
+          <img src={wmUrl} alt="" />
+        </div>
+      )}
+    </>
+  );
+  /** Saves a band: to the section it comes from, or to the page setup. */
+  const saveBand = (info: PageHF, v: HFVariant, kind: 'header' | 'footer', band: HFBand) => {
+    const from = kind === 'header' ? info.headerFrom : info.footerFrom;
+    if (from >= 0 && starts[from] && editor) editor.setSectionAt(starts[from].id, { [kind === 'header' ? 'hdr' : 'ftr']: encodeBand(band) });
+    else setBand(v, kind, band);
+  };
 
   return (
     <div className={enabled ? `page-view${editing ? ' hf-editing' : ''}` : 'page-off'} ref={outer}>
       {enabled && !print && editor && settings.ruler && <Ruler editor={editor} width={width} boxes={boxes} margins={m} scale={scale} sheet={sheet} />}
-      {editing && editVariant && (
+      {editing && editInfo && (
         <HFToolbar
-          label={`${variantName(hf, editVariant)} · page ${editing.i + 1 + offset}`}
+          label={`${editInfo.label} · page ${editing.i + 1 + offset}`}
           hf={hf}
           chapters={chapters}
           onHF={save}
+          section={
+            editor && starts[editInfo.section]
+              ? {
+                  n: editInfo.section,
+                  count: editInfo.sections,
+                  para: starts[editInfo.section].para ?? {},
+                  set: editInfo.set,
+                  onPatch: (patch) => editor.setSectionAt(starts[editInfo.section].id, patch),
+                }
+              : undefined
+          }
           onInsert={(run: HFRun) => {
             const slot = activeSlot.current ?? outer.current?.querySelector<HTMLElement>(`[data-sheet="${editing.i}"] [data-slot]`);
-            if (slot) insertRun(slot, caret.current, run, (r) => fieldValue(r, ctx, hf.startAt + offset + editing.i, hf));
+            if (slot) insertRun(slot, caret.current, run, (r) => fieldValue(r, ctx, editInfo.number, { ...hf, numberFormat: editInfo.format }));
           }}
           onClose={() => setEditing(null)}
           host={outer.current?.closest<HTMLElement>('.note-pane') ?? null}
@@ -239,7 +279,11 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
       <div className="page-scaler" style={enabled ? { width: widest * scale, height: tallest * scale } : undefined}>
         <div className="page-inner" style={enabled ? { width: widest, transform: scale === 1 ? undefined : `scale(${scale})` } : undefined}>
           {enabled &&
-            boxes.map((b, i) => <div key={i} className={`sheet${b.landscape ? ' landscape' : ''}`} style={{ top: b.top, left: b.left, width: b.width, height: b.height }} aria-hidden="true" />)}
+            boxes.map((b, i) => (
+              <div key={i} className={`sheet${b.landscape ? ' landscape' : ''}`} style={{ top: b.top, left: b.left, width: b.width, height: b.height, ...(p0?.pgc ? { background: p0.pgc } : {}) }} aria-hidden="true">
+                {decor}
+              </div>
+            ))}
           {enabled && <div ref={measurer} className="page-notes measure" style={{ left: textLeft, width: textWidth }} aria-hidden="true" />}
           {pageNotes.map((list, i) =>
             list.length && boxes[i] ? (
@@ -264,9 +308,9 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
           {(enabled ? boxes : []).map((pb, i) => {
             const index = offset + i;
             const v = variantFor(hf, { index, chapterStart: !!place?.chapterStart && i === 0 });
-            const set = hf.sets[v] ?? emptySet();
-            const number = hf.startAt + index;
-            const resolve = (r: HFRun) => fieldValue(r, ctx, number, hf);
+            const info = bandsFor(i);
+            const set = info.set;
+            const resolve = (r: HFRun) => fieldValue(r, ctx, info.number, { ...hf, numberFormat: info.format });
             const isEditing = editing?.i === i;
             const band = (kind: 'header' | 'footer') => (
               <div
@@ -282,7 +326,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
                     resolve={resolve}
                     editing={isEditing}
                     line={kind === 'header' ? hf.headerLine : hf.footerLine}
-                    onBand={(b) => setBand(v, kind, b)}
+                    onBand={(b) => (info.blankFirst ? undefined : saveBand(info, v, kind, b))}
                     onFocusSlot={(el) => (activeSlot.current = el)}
                     onKey={onSlotKey}
                   />
@@ -310,6 +354,22 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
       )}
     </div>
   );
+}
+
+/** An address to show a picture kept with the notes (Attachments/…). */
+function useMediaUrl(src: string | undefined): string | undefined {
+  const [url, setUrl] = useState<string | undefined>();
+  useEffect(() => {
+    if (!src) return setUrl(undefined);
+    let live = true;
+    const u = mediaUrl(src);
+    if (typeof u === 'string') setUrl(u);
+    else void u.then((x) => live && setUrl(x)).catch(() => live && setUrl(undefined));
+    return () => {
+      live = false;
+    };
+  }, [src]);
+  return url;
 }
 
 /** The page view switch for a toolbar. */
