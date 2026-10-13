@@ -118,6 +118,7 @@ const CHAPTERS: Chapter[] = [
     lede: 'When it’s ready to leave the house.',
     points: [
       { title: 'Word, PDF and e-book', text: 'Download a note or a whole book as a Word document, print it or save it as a PDF, or make an e-book (ePub). Word files you upload open as Word documents, comments and tracked changes included, and are saved back as .docx.' },
+      { title: 'Check before you share', text: 'The Check tab in the right sidebar goes through accessibility, what Word won’t keep, comments and hidden text to remove, a spelling pass with suggestions, wordy phrases and more inclusive words.' },
       { title: 'Snapshots and versions', text: 'Take a snapshot before a big edit; Crumpet also keeps earlier versions as you write, and can compare any two.' },
       { title: 'Read it aloud', text: 'Hear your writing read back to catch what your eyes skip, or dictate instead of typing. The Immersive reader (under More) shows the text on its own, with spacing, line focus, syllables and parts of speech to help reading.' },
     ],

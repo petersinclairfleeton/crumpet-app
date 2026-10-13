@@ -27,9 +27,9 @@ At the end there's a suggested order for building what's missing.
 | Protect: restrict editing / read-only | ❌ | |
 | Protect: mark as final | ❌ | |
 | Protect: digital signature | ❌ | |
-| Inspect Document (remove hidden data, comments, authors) | ❌ | |
-| Check Accessibility | ❌ | |
-| Check Compatibility | ➖ | Only matters between Word versions. |
+| Inspect Document (remove hidden data, comments, authors) | ✅ | The right sidebar's Check tab → Inspect: comments, tracked changes, people's names, hidden text and hidden objects, with Remove all comments, Accept all changes and Remove hidden text. |
+| Check Accessibility | ✅ | Check tab → Accessibility: pictures without alt text, tables without a heading row, skipped or empty headings, hard-to-read colours, unclear links. |
+| Check Compatibility | ✅ | Check tab → Word: what a Word download won't keep or shows differently. |
 | Version history | ✅ | Automatic versions while writing, plus snapshots you take, compared side by side and restored. |
 | Recover unsaved documents | ✅ | Not needed: nothing is ever unsaved. |
 | Print | ✅ | Prints exactly as page view shows (headers, footers, footnotes). |
@@ -123,10 +123,10 @@ At the end there's a suggested order for building what's missing.
 | Feature | | Crumpet today |
 |---|---|---|
 | Dictate | ✅ | Including spoken punctuation ("comma", "new paragraph"). |
-| Spelling | 🟡 | The browser's own red underlines, with Crumpet's own dictionary, characters' and places' names never marked, Ignore all (for now, from the command palette), a language, and a switch to turn it off (Settings → Writing). No spelling pass yet. |
+| Spelling | ✅ | The browser's own red underlines, with Crumpet's own dictionary, characters' and places' names never marked, Ignore all, a language, and a switch to turn it off (Settings → Writing); and a spelling pass (Check tab → Spelling: British or American English, suggestions, Change, Change all, Ignore, Add to dictionary). |
 | Grammar | ❌ | |
-| Clarity, conciseness | 🟡 | The Writing tab highlights -ly adverbs, filler words and likely passive voice; no suggestions to fix them. |
-| Inclusive language | ❌ | |
+| Clarity, conciseness | ✅ | The Writing tab highlights -ly adverbs, filler words and likely passive voice; the Check tab's Clarity finds wordy phrases with a plainer one to use. |
+| Inclusive language | ✅ | Check tab → Inclusive: words with fairer alternatives, one click to use one. |
 | Similarity checker (plagiarism) | ❌ | |
 | Add-ins | ❌ | |
 | Copilot | ➖ | No AI in v1 (a decision in the plan); worth revisiting later. |
@@ -251,11 +251,11 @@ At the end there's a suggested order for building what's missing.
 
 | Feature | | Crumpet today |
 |---|---|---|
-| Editor (spelling and grammar pass) | 🟡 | See Home → Editor above. |
+| Editor (spelling and grammar pass) | 🟡 | A spelling pass, clarity and inclusive language (the Check tab); no grammar yet (it needs an outside service). |
 | Thesaurus | ✅ | Shift+F7, with definitions. |
 | Word Count | ✅ | In the status bar (and selected words), plus full statistics. |
 | Read Aloud | ✅ | Each word lit as it's read; voice and speed. |
-| Check Accessibility | ❌ | |
+| Check Accessibility | ✅ | The right sidebar's Check tab. |
 | Translate (selection or document) | ❌ | |
 | Proofing language (per paragraph) | ❌ | |
 | Comments: new, reply (threaded), show | ✅ | Listed in the right sidebar too. |
@@ -588,12 +588,12 @@ Where: `app/src/ui/pages.tsx`, `statusbar.tsx`, `NotePane.tsx` (reading view), `
 
 **11. Checking and files**
 Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.tsx`, `data/documents.ts`.
-- [ ] Accessibility checker
-- [ ] Compatibility checker (what won't survive in Word)
-- [ ] Document inspector (comments, changes, authors, hidden text)
-- [ ] Spelling pass with suggestions
-- [ ] Clarity suggestions (from the Writing tab's highlights, plus wordy phrases)
-- [ ] Inclusive language
+- [x] Accessibility checker
+- [x] Compatibility checker (what won't survive in Word)
+- [x] Document inspector (comments, changes, authors, hidden text)
+- [x] Spelling pass with suggestions
+- [x] Clarity suggestions (from the Writing tab's highlights, plus wordy phrases)
+- [x] Inclusive language
 - [ ] Grammar checking (needs an outside service such as LanguageTool: ask Peter first)
 - [ ] More download types: .odt, .rtf, .html, .txt
 - [ ] Crumpet's own print screen (preview, page ranges, copies)

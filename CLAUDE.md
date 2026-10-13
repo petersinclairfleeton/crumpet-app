@@ -302,7 +302,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     (`openReader`, prefs in `settings.reader`; syllables, parts of speech and
     the picture dictionary in `data/reading.ts`); New window splits the active
     tab beside itself (`usePanes().newWindow`), and `SyncScroll` scrolls panes
-    together (`settings.syncScroll`).
+    together (`settings.syncScroll`). `checks.tsx` is the right sidebar's Check tab
+    (`data/checks.ts`: accessibility, compatibility, inspect, clarity,
+    inclusive; `data/spell.ts`: the spelling pass with nspell and the
+    dictionary-en / dictionary-en-gb word lists, loaded only when it runs).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
   - Looks: `ui/theme.ts` sets `data-theme` and `data-look` on the page: Crumpet's
