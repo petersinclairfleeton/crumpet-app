@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
 import { PageToggle } from './pages';
 import { ExportItems } from './exportmenu';
+import { LockedNote, PasswordDialog, removePassword, useOpened } from './locked';
+import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useNav } from './hooks';
@@ -45,6 +47,9 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const [stylesOpen, setStylesOpen] = useState<string | boolean>(false);
   const [printing, setPrinting] = useState(false);
   const [finding, setFinding] = useState(false);
+  const [protecting, setProtecting] = useState(false);
+  // A note with a password: its text once opened (in memory only), saved locked again as it changes.
+  const opened = useOpened(note?.id ?? '');
   const onFindKey = useFindKey(() => setFinding(true));
   const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
   const styleSources = useStyleSources('notes');
@@ -91,6 +96,9 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   }
 
   const trashed = note.trashedAt !== null;
+  const locked = isLocked(note.doc);
+  // What the note shows: its text, or a locked note's opened text.
+  const shownDoc = locked ? opened.doc : note.doc;
   const nb = store.notebook(note.notebookId);
   const { loose, stacks } = notebookTree(state.stacks, state.notebooks);
   const knownTags = allTags(state.notes).map((t) => t.tag).filter((t) => !note.tags.includes(t));
@@ -175,7 +183,22 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
             <IconCopy size={14} /> Save as template
           </button>
           <hr className="menu-sep" />
-          <p className="menu-label">Download or print</p>
+          {!trashed && !locked && (
+            <button type="button" className="menu-item" onClick={() => (setMenu(false), setProtecting(true))}>
+              🔒 Protect with a password…
+            </button>
+          )}
+          {locked && shownDoc && (
+            <>
+              <button type="button" className="menu-item" onClick={() => (setMenu(false), opened.forget())}>
+                🔒 Lock now
+              </button>
+              <button type="button" className="menu-item" onClick={() => (setMenu(false), removePassword(note.id, store))}>
+                Remove the password
+              </button>
+            </>
+          )}
+          {(!locked || shownDoc) && <p className="menu-label">Download or print</p>}
           <button
             type="button"
             className="menu-item"
@@ -184,7 +207,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               setMenu(false);
               // An uploaded Word document: its own file.
               if (note.file && fileKind(note.file) === 'word') await downloadFile(note.file);
-              else download(await noteDocx(store.getState(), note), docxName(note.title), DOCX_TYPE);
+              else download(await noteDocx(store.getState(), { ...note, doc: shownDoc ?? note.doc }), docxName(note.title), DOCX_TYPE);
             }}
           >
             <IconDownload size={14} /> Word document <small className="menu-hint">.docx</small>
@@ -195,12 +218,12 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
             aria-label="Download as e-book (ePub)"
             onClick={async () => {
               setMenu(false);
-              download(await noteEpub(store.getState(), note), fileName(note.title, 'epub'), EPUB_TYPE);
+              download(await noteEpub(store.getState(), { ...note, doc: shownDoc ?? note.doc }), fileName(note.title, 'epub'), EPUB_TYPE);
             }}
           >
             <IconDownload size={14} /> E-book <small className="menu-hint">.epub</small>
           </button>
-          <ExportItems title={note.title} parts={() => [{ doc: note.doc }]} onDone={() => setMenu(false)} />
+          <ExportItems title={note.title} parts={() => [{ doc: shownDoc ?? note.doc }]} onDone={() => setMenu(false)} />
           <button
             type="button"
             className="menu-item"
@@ -228,7 +251,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
       {printing && (
         <PrintJob
           title={displayTitle(note)}
-          parts={[{ id: note.id, doc: note.title.trim() ? { blocks: [makeBlock('paragraph', note.title, [], { style: 'title' }), ...note.doc.blocks] } : note.doc, fields: { title: displayTitle(note), words: docWords(note.doc), created: note.createdAt, updated: note.updatedAt } }]}
+          parts={[{ id: note.id, doc: note.title.trim() ? { blocks: [makeBlock('paragraph', note.title, [], { style: 'title' }), ...(shownDoc ?? note.doc).blocks] } : (shownDoc ?? note.doc), fields: { title: displayTitle(note), words: docWords(shownDoc ?? note.doc), created: note.createdAt, updated: note.updatedAt } }]}
           page={pageSetup}
           sheet={sheet}
           onDone={() => setPrinting(false)}
@@ -360,6 +383,14 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         <div className="board-header">{header}</div>
         <FileView key={shownFile} path={shownFile} />
       </section>
+    ) : locked && !shownDoc ? (
+      <section className="pane board-pane" aria-label="Locked note">
+        <div className="note-toolbar" role="toolbar" aria-label="Note options">
+          {lead}
+          <span className="grow" />
+        </div>
+        <LockedNote key={note.id} id={note.id} title={note.title} doc={note.doc} />
+      </section>
     ) : isBoard(note) ? (
       <section className="pane board-pane" aria-label="Board">
         <div className="note-toolbar" role="toolbar" aria-label="Board options">
@@ -374,8 +405,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
     <section className="pane find-host" aria-label="Note" onKeyDown={trashed ? undefined : onFindKey}>
       {finding && !trashed && (
         <FindBar
-          targets={[{ id: note.id, doc: note.doc, editor: editorRef.current }]}
-          onReplaceDoc={(id, doc) => store.setDoc(id, doc)}
+          targets={[{ id: note.id, doc: shownDoc ?? note.doc, editor: editorRef.current }]}
+          onReplaceDoc={(id, doc) => (locked ? opened.save(doc) : store.setDoc(id, doc))}
           author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
           sheet={sheet}
           onClose={() => setFinding(false)}
@@ -394,6 +425,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           onDefault={() => store.updateSettings({ defaultStyles: sheet })}
         />
       )}
+      {protecting && <PasswordDialog id={note.id} doc={note.doc} onClose={() => setProtecting(false)} />}
       <EditorHost
         sheet={sheet}
         page={paged ? pageSetup : null}
@@ -402,8 +434,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         onEditStyles={(key) => setStylesOpen(key ?? true)}
         onSheet={(noteStyles) => store.updateSettings({ noteStyles })}
         docId={note.id}
-        doc={note.doc}
-        onDoc={(doc) => store.setDoc(note.id, doc)}
+        doc={shownDoc ?? note.doc}
+        onDoc={(doc) => (locked ? opened.save(doc) : store.setDoc(note.id, doc))}
         readOnly={trashed || reading}
         reading={reading && !trashed}
         lead={lead}

@@ -467,3 +467,9 @@ span.fld[data-field='wrapbreak']::after { content: none; }
 .ol-drop { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--accent, #4a7); pointer-events: none; z-index: 20; }
 .editor.outline-view .blk > .fold { display: none; }
 .editor.paged.pg-rows { position: relative; }
+
+/* A signature line: in a hand-written style, with whether the document has changed since it was signed. */
+.blk[data-sig-ok] { font-family: 'Segoe Script', 'Brush Script MT', cursive; font-size: 1.15em; border-top: 1px solid currentColor; padding-top: 4px; margin-top: 18px; max-width: 70%; }
+.blk[data-sig-ok]::after { display: block; font: 600 11px/1.4 var(--ui-font, system-ui, sans-serif); margin-top: 2px; }
+.blk[data-sig-ok='yes']::after { content: '✓ Signed, and unchanged since'; color: #2e7d32; }
+.blk[data-sig-ok='no']::after { content: '⚠ The document has changed since this was signed'; color: #b4232f; }

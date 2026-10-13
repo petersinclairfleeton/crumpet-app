@@ -187,7 +187,8 @@ export const FIELD = '\u2062';
 export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote' | 'image' | 'file' | 'table' | 'toc' | 'shape' | 'code';
 
 /** Maths (LaTeX, drawn with KaTeX), a diagram (Mermaid), or a board (JSON Canvas, shown by the app), written as text. */
-export type CodeLang = 'math' | 'mermaid' | 'canvas';
+/** Maths, a diagram, a board, or a note locked with a password (its scrambled text: see the app's lock.ts). */
+export type CodeLang = 'math' | 'mermaid' | 'canvas' | 'locked';
 export interface CodeLook {
   lang: CodeLang;
   /** The source, any number of lines. */
@@ -195,7 +196,7 @@ export interface CodeLook {
 }
 
 export function tidyCode(c: Partial<CodeLook> | undefined): CodeLook {
-  return { lang: c?.lang === 'mermaid' || c?.lang === 'canvas' ? c.lang : 'math', text: typeof c?.text === 'string' ? c.text.replace(/\r\n?/g, '\n') : '' };
+  return { lang: c?.lang === 'mermaid' || c?.lang === 'canvas' || c?.lang === 'locked' ? c.lang : 'math', text: typeof c?.text === 'string' ? c.text.replace(/\r\n?/g, '\n') : '' };
 }
 
 /** Blocks that are boxes of their own (with their own editing), not text: tables, contents, shapes, maths and diagrams. */
@@ -458,6 +459,16 @@ export interface ParaLook {
   thf?: string;
   thx?: string;
   psp?: string;
+  /**
+   * The whole document's protection: marked as final (Word's Mark as Final:
+   * read only until someone chooses to edit), and editing restricted to
+   * nothing or only comments (Word's Restrict Editing; its password's lock, like `lock`, is `plock`).
+   */
+  final?: boolean;
+  restrict?: 'read' | 'comments';
+  plock?: string;
+  /** A signature line: the document's fingerprint when it was signed (see the editor's docPrint), to tell if it's changed since. */
+  sig?: string;
   /** Part of a cover page (Insert > Cover Page): Remove Cover Page takes these paragraphs away. */
   cover?: boolean;
 }
@@ -506,7 +517,7 @@ export function tabsFromText(text: string): TabStop[] | undefined {
   }
   return tidyTabs(out);
 }
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr', 'hdr', 'ftr', 'hfirst', 'pstart', 'pfmt', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc', 'thc', 'thf', 'thx', 'psp', 'cover'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr', 'hdr', 'ftr', 'hfirst', 'pstart', 'pfmt', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc', 'thc', 'thf', 'thx', 'psp', 'final', 'restrict', 'plock', 'sig', 'cover'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -560,6 +571,9 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
     delete out.wmflat;
   }
   if (hex(p.pgc)) out.pgc = hex(p.pgc);
+  if (p.restrict === 'read' || p.restrict === 'comments') out.restrict = p.restrict;
+  if (typeof p.plock === 'string' && /^(open|[0-9a-f]{16,128})$/.test(p.plock)) out.plock = p.plock;
+  if (typeof p.sig === 'string' && /^[0-9a-f]{16}$/.test(p.sig)) out.sig = p.sig;
   for (const k of ['thc', 'thf', 'thx', 'psp'] as const) if (typeof p[k] === 'string' && /^[a-z][a-z0-9-]{0,23}$/.test(p[k]!)) out[k] = p[k];
   if (p.pgb && ['single', 'double', 'dotted', 'dashed', 'thick'].includes(p.pgb)) {
     out.pgb = p.pgb;

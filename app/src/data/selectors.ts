@@ -1,6 +1,7 @@
 // Things the UI derives from the state: what the list shows, search, date
 // groups, previews, counts and the sidebar tree.
 
+import { isLocked } from './lock';
 import { matchesFilters, parseQuery } from './search';
 import { comments, footnotes, runsText } from '@crumpet/editor/model';
 import { type AppState, visibleIn } from './store';
@@ -19,6 +20,8 @@ export function blockText(b: Doc['blocks'][number]): string {
 /** Plain text of a note's body, one line per block; with `files`, the words in its PDFs and pictures too. */
 export function noteText(note: Note, files?: Record<string, string>): string {
   if (isBoard(note)) return boardText(boardOf(note));
+  // A note with a password: its scrambled text isn't searched (only its title).
+  if (isLocked(note.doc)) return '';
   // Footnotes and comments are searched too, after the text.
   const remarks = comments(note.doc).flatMap(({ comment: c }) => [c.text, ...(c.replies ?? []).map((r) => r.text)]);
   const inFiles = files ? note.doc.blocks.flatMap((b) => (b.src && files[b.src] ? [files[b.src]] : [])) : [];
@@ -26,6 +29,7 @@ export function noteText(note: Note, files?: Record<string, string>): string {
 }
 
 export function preview(note: Note, max = 160): string {
+  if (isLocked(note.doc)) return '🔒 Protected with a password';
   if (isBoard(note)) {
     const p = boardPreview(boardOf(note));
     return p.length > max ? `${p.slice(0, max - 1).trimEnd()}…` : p;

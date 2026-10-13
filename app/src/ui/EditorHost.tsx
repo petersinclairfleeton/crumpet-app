@@ -1,4 +1,5 @@
 import { useOfferHelped } from './helpers';
+import { ProtectBanner } from './protecttools';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { noteLinkTitle } from '@crumpet/editor/markdown';
 import type { Editor } from '@crumpet/editor/editor';
@@ -52,9 +53,14 @@ interface Props {
 }
 
 /** One document with its toolbar: our editor engine, mounted once and re-loaded when a different document opens. */
-export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, onSheet, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
+export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, onSheet, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
   const store = useAppStore();
   const state = useAppState();
+  // Marked as final, or editing restricted (Word's Protect Document): read only, but comments still allowed when only comments are.
+  const p0 = doc.blocks[0]?.para;
+  const prot = readOnlyProp ? undefined : p0?.final ? 'final' : p0?.restrict;
+  const readOnly = !!readOnlyProp || !!prot;
+  const commenting = prot === 'comments';
   const narrow = useMedia('(max-width: 759px)');
   const nav = useNav();
   const [linkOpen, setLinkOpen] = useState(false);
@@ -147,10 +153,11 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
         </SelectionBar>
       )}
       {!readOnly && !reading && <FootnoteCard editor={ed} />}
-      {!readOnly && !reading && <CommentCard editor={ed} />}
+      {(!readOnly || commenting) && !reading && <CommentCard editor={ed} />}
       {!readOnly && !reading && <ChangeCard editor={ed} />}
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
       {!readOnly && !reading && <ChangesBar doc={doc} editor={ed} />}
+      {prot && ed && !reading && <ProtectBanner editor={ed} kind={prot} lock={p0?.plock} />}
       <div className="note-main">
       <div className="note-scroll" ref={scrollBox}>
         <article className={`note-body${paged ? ' paged' : ''}`}>
@@ -160,7 +167,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly, lead, trail, header, f
           </PageView>
           {!paged && <FootnoteList doc={doc} editor={readOnly || reading ? null : ed} />}
           <EndnoteList doc={doc} editor={readOnly || reading ? null : ed} />
-          {!reading && <CommentList doc={doc} editor={readOnly ? null : ed} />}
+          {!reading && <CommentList doc={doc} editor={readOnly && !commenting ? null : ed} />}
           {footer}
         </article>
       </div>

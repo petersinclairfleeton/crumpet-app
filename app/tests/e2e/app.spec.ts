@@ -4992,3 +4992,86 @@ test('paste options after pasting, the clipboard history, and sorting paragraphs
   await page.getByRole('dialog', { name: 'Sort paragraphs' }).getByRole('button', { name: 'Sort' }).click();
   await expect(body.locator('.blk')).toHaveText(['Start bold red!', 'Apple', 'banana', 'banana', 'pear']);
 });
+
+test('protect: a note with a password, mark as final, restrict editing, and a signature line', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Secret', 'Hidden words');
+  const editor = page.locator('.note-editor');
+  // A password on the note: its text scrambled, opened again with the password.
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: /Protect with a password/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Protect with a password' });
+  await dialog.getByLabel('New password').fill('swordfish');
+  await dialog.getByLabel('Password again').fill('swordfish');
+  await dialog.getByRole('button', { name: 'Protect' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(editor).toContainText('Hidden words');
+  await editor.getByText('Hidden words').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' and more');
+  await page.waitForTimeout(900);
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: /Lock now/ }).click();
+  const locked = page.getByRole('form', { name: 'Locked note' });
+  await expect(locked).toBeVisible();
+  await expect(list(page)).toContainText('Protected with a password');
+  await expect(list(page)).not.toContainText('Hidden words');
+  await locked.getByLabel('Password').fill('nope');
+  await locked.getByRole('button', { name: 'Open' }).click();
+  await expect(locked).toContainText('That isn’t the password.');
+  await locked.getByLabel('Password').fill('swordfish');
+  await locked.getByRole('button', { name: 'Open' }).click();
+  await expect(editor).toContainText('Hidden words and more');
+  // Still locked after a reload.
+  await page.reload();
+  await list(page).locator('.card', { hasText: 'Secret' }).click();
+  await expect(locked).toBeVisible();
+  await locked.getByLabel('Password').fill('swordfish');
+  await locked.getByRole('button', { name: 'Open' }).click();
+  await expect(editor).toContainText('Hidden words and more');
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'Remove the password' }).click();
+  await expect(list(page)).toContainText('Hidden words and more');
+
+  // Mark as final: read only until Edit anyway.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await editor.getByText('Hidden words').click();
+  await (await toolButton(page, 'Protect document')).click();
+  await page.getByRole('button', { name: /Mark as final/ }).click();
+  const bar = page.getByRole('region', { name: 'Protected document' });
+  await expect(bar).toContainText('Marked as final');
+  await expect(editor).toHaveAttribute('contenteditable', 'false');
+  await bar.getByRole('button', { name: 'Edit anyway' }).click();
+  await expect(bar).toHaveCount(0);
+  await expect(editor).toHaveAttribute('contenteditable', 'true');
+
+  // Comments only, with a password to stop it.
+  await editor.getByText('Hidden words').click();
+  await (await toolButton(page, 'Protect document')).click();
+  await page.getByRole('button', { name: 'Comments only' }).click();
+  await page.getByLabel('Restriction password').fill('pw');
+  await page.getByRole('button', { name: 'Start protection' }).click();
+  await expect(bar).toContainText('you can add comments');
+  await expect(editor).toHaveAttribute('contenteditable', 'false');
+  await bar.getByRole('button', { name: 'Stop protection' }).click();
+  await bar.getByLabel('Password to stop protection').fill('wrong');
+  await bar.getByRole('button', { name: 'Stop protection' }).click();
+  await expect(bar).toContainText('That isn’t the password.');
+  await bar.getByLabel('Password to stop protection').fill('pw');
+  await bar.getByRole('button', { name: 'Stop protection' }).click();
+  await expect(bar).toHaveCount(0);
+
+  // A signature line: says when the document has changed since it was signed.
+  await editor.getByText('Hidden words').click();
+  await page.keyboard.press('End');
+  await (await toolButton(page, 'Signature line')).click();
+  await page.getByLabel('Signer’s name').fill('Jo Bloggs');
+  await page.getByRole('button', { name: 'Sign here' }).click();
+  const sig = editor.locator('.blk[data-sig-ok]');
+  await expect(sig).toContainText('Jo Bloggs');
+  await expect(sig).toHaveAttribute('data-sig-ok', 'yes');
+  await editor.getByText('Hidden words').click();
+  await page.keyboard.press('End');
+  await page.keyboard.type('!');
+  await expect(sig).toHaveAttribute('data-sig-ok', 'no');
+});
