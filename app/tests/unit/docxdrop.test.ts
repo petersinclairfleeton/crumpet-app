@@ -274,3 +274,18 @@ describe('Word: page design', () => {
     expect(back[1].para).toMatchObject({ sect: 'page', hdr: 'Part two||%page%', pstart: 1, pfmt: 'i' });
   });
 });
+
+describe('Word: document themes', () => {
+  it('the theme’s fonts, colours and paragraph spacing go into Word’s styles, and the names come back', async () => {
+    const first = makeBlock('heading1', 'Title', [], { para: { thc: 'ocean', thf: 'modern', thx: 'soft', psp: 'open' } });
+    const bytes = await toDocx([{ doc: { blocks: [first, makeBlock('paragraph', 'Body')] } }], { title: 'T' });
+    const files = await readZip(bytes);
+    const styles = new TextDecoder().decode(files.get('word/styles.xml'));
+    expect(styles).toContain('<w:rPrDefault><w:rPr><w:rFonts w:ascii="Open Sans"');
+    expect(styles).toMatch(/w:styleId="Heading1">.*?<w:rPr><w:rFonts w:ascii="Montserrat"[^>]*\/><w:b\/><w:color w:val="1F5F8B"\/>/);
+    expect(styles).toContain('<w:spacing w:before="120" w:after="200" w:line="276" w:lineRule="auto"/>');
+    expect(new TextDecoder().decode(files.get('word/settings.xml'))).toContain('<w:docVar w:name="CrumpetDesign" w:val="thc=ocean;thf=modern;thx=soft;psp=open"/>');
+    const back = (await fromDocx(bytes)).doc.blocks;
+    expect(back[0].para).toMatchObject({ thc: 'ocean', thf: 'modern', thx: 'soft', psp: 'open' });
+  });
+});

@@ -449,6 +449,15 @@ export interface ParaLook {
   pgc?: string;
   pgb?: 'single' | 'double' | 'dotted' | 'dashed' | 'thick';
   pgbc?: string;
+  /**
+   * The whole document's design (Word's Design tab): its theme's colours,
+   * fonts and effects, and paragraph spacing, by name (the app knows what
+   * each looks like).
+   */
+  thc?: string;
+  thf?: string;
+  thx?: string;
+  psp?: string;
   /** Part of a cover page (Insert > Cover Page): Remove Cover Page takes these paragraphs away. */
   cover?: boolean;
 }
@@ -497,7 +506,7 @@ export function tabsFromText(text: string): TabStop[] | undefined {
   }
   return tidyTabs(out);
 }
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr', 'hdr', 'ftr', 'hfirst', 'pstart', 'pfmt', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc', 'cover'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr', 'hdr', 'ftr', 'hfirst', 'pstart', 'pfmt', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc', 'thc', 'thf', 'thx', 'psp', 'cover'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -551,6 +560,7 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
     delete out.wmflat;
   }
   if (hex(p.pgc)) out.pgc = hex(p.pgc);
+  for (const k of ['thc', 'thf', 'thx', 'psp'] as const) if (typeof p[k] === 'string' && /^[a-z][a-z0-9-]{0,23}$/.test(p[k]!)) out[k] = p[k];
   if (p.pgb && ['single', 'double', 'dotted', 'dashed', 'thick'].includes(p.pgb)) {
     out.pgb = p.pgb;
     if (hex(p.pgbc)) out.pgbc = hex(p.pgbc);

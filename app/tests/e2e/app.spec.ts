@@ -3133,6 +3133,52 @@ test('page design: a watermark, page border and colour, a cover page, and a sect
   await expect.poll(md).toMatch(/^Chapter one begins here\. \{sect=page pstart=1 pgc=#fff2cc pgb=double hdr="Chapter one\|\|" wm="DRAFT"\}/);
 });
 
+test('document themes: a theme, theme colours and fonts, paragraph spacing and effects', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Themes', 'A heading');
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Control+Alt+1');
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Body text under it.');
+  const heading = page.locator('.note-editor .blk-heading1').first();
+  const body = page.locator('.note-editor .blk-paragraph').last();
+  await (await toolButton(page, 'Themes')).click();
+  await page.getByRole('radio', { name: /Harbour/ }).click();
+  await expect(page.locator('.note-editor')).toHaveAttribute('data-thc', 'ocean');
+  await expect(heading).toHaveCSS('color', 'rgb(31, 95, 139)');
+  await expect(heading).toHaveCSS('font-family', /Montserrat/);
+  await expect(body).toHaveCSS('font-family', /Open Sans/);
+  // Colours and fonts changed one at a time.
+  await (await toolButton(page, 'Theme colours')).click();
+  await page.getByRole('menuitemradio', { name: 'Garden' }).click();
+  await expect(heading).toHaveCSS('color', 'rgb(60, 110, 71)');
+  await (await toolButton(page, 'Theme fonts')).click();
+  await page.getByRole('menuitemradio', { name: /^Classic/ }).click();
+  await expect(heading).toHaveCSS('font-family', /Georgia/);
+  // Paragraph spacing for the whole document.
+  await (await toolButton(page, /^Paragraph spacing$/)).click();
+  await page.getByRole('menuitemradio', { name: /^Double/ }).click();
+  await expect(body).toHaveCSS('margin-bottom', /^10\.6/);
+  await (await toolButton(page, 'Theme effects')).click();
+  await page.getByRole('menuitemradio', { name: 'Soft shadow' }).click();
+  await expect(page.locator('.note-editor')).toHaveAttribute('data-thx', 'soft');
+  // The theme's colours head the font colour menu.
+  await body.click();
+  await (await toolButton(page, 'Font colour')).click();
+  await expect(page.getByRole('group', { name: 'Theme colours' }).getByRole('button')).toHaveCount(8);
+  await page.keyboard.press('Escape');
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  await expect.poll(md).toContain('{thc=garden thf=classic thx=soft psp=double}');
+});
+
 test('a book’s table of contents lists every chapter with its page, and the headings in them, and opens one', async ({ page }) => {
   await open(page);
   await page.evaluate(async () => {

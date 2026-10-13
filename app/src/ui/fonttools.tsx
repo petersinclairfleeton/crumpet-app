@@ -2,6 +2,7 @@
 // text colour, highlighter, superscript and subscript, change case, clear
 // formatting, text effects and the Font window. They act on the selected text, or on what's typed next.
 
+import { colourSet } from '../data/doctheme';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import type { CaseChange } from '@crumpet/editor/commands';
@@ -194,6 +195,9 @@ function ColorTool({ ed, off, kind }: { ed: Editor | null; off: boolean; kind: '
   const current = ed?.lookValue(kind);
   const label = kind === 'color' ? 'Font colour' : 'Highlight';
   const swatches = kind === 'color' ? TEXT_COLORS : HIGHLIGHT_COLORS;
+  // The document's theme colours, first in the font colour menu.
+  const set = kind === 'color' ? colourSet(ed?.docPara().thc) : undefined;
+  const themeRow: [string, string][] | null = set ? [[set.heading, 'Heading colour'], [set.title, 'Title colour'], ...set.accents.map((a, i): [string, string] => [a, `Accent ${i + 1}`])] : null;
   const pick = (c: string | null) => {
     setOpen(false);
     ed?.setLook(kind, c);
@@ -216,6 +220,17 @@ function ColorTool({ ed, off, kind }: { ed: Editor | null; off: boolean; kind: '
           <button type="button" className="menu-item" onClick={() => pick(null)}>
             {kind === 'color' ? 'Automatic' : 'No colour'}
           </button>
+          {themeRow && (
+            <>
+              <span className="menu-head">Theme colours</span>
+              <div className="swatches" role="group" aria-label="Theme colours">
+                {themeRow.map(([hex, name]) => (
+                  <button key={name} type="button" className={`swatch-btn${current === hex ? ' on' : ''}`} style={{ background: hex }} aria-label={name} title={name} onClick={() => pick(hex)} />
+                ))}
+              </div>
+              <span className="menu-head">Standard colours</span>
+            </>
+          )}
           <div className="swatches" role="group" aria-label={`${label} colours`}>
             {swatches.map(([hex, name]) => (
               <button key={hex} type="button" className={`swatch-btn${current === hex ? ' on' : ''}`} style={{ background: hex }} aria-label={name} title={name} onClick={() => pick(hex)} />

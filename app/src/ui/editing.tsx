@@ -21,7 +21,7 @@ import { snippetItems } from './snippets';
 import { useLayoutItems } from './layouttools';
 import type { PageSetup } from '../data/styles';
 import { insertItems } from './inserttools';
-import { designItems } from './designtools';
+import { designItems, applyThemeLook } from './designtools';
 import { addFile } from '../data/files';
 import { BrushGlyph, MicGlyph, SpeakerGlyph } from './speechglyphs';
 import { painterClick, usePainter } from './painter';
@@ -72,6 +72,9 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
   const latest = useRef(opts);
   latest.current = opts;
   const [, setTick] = useState(0);
+  // The document's theme: its rules on the page, and its fonts fetched.
+  const thf = editor.current?.state.doc.blocks[0]?.para?.thf ?? opts.doc.blocks[0]?.para?.thf;
+  useEffect(() => applyThemeLook(thf), [thf]);
 
   // Create the editor once.
   useEffect(() => {

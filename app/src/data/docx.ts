@@ -13,6 +13,7 @@ import { figureEntries, indexEntries } from '@crumpet/editor/lists';
 import { type PicLook, tidyPic } from '@crumpet/editor/picture';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty, tidyRuns } from './headers';
 import { decodeBand, encodeBand } from './sectionhf';
+import { colourSet, firstFamily, fontPair, spacing } from './doctheme';
 import { type CustomStyle, type PageSetup, type StyleDef, type StyleKey, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
 
@@ -740,6 +741,40 @@ function pictureWatermark(wPt: number, hPt: number): string {
 
 const DOC_NS = `${NS} xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="wps"`;
 
+/** The document's design (theme colours, fonts, effects, spacing), by name, kept in Word's settings to come back. */
+function designVar(p: ParaLook | undefined): string {
+  const v = (['thc', 'thf', 'thx', 'psp'] as const).filter((k) => p?.[k]).map((k) => `${k}=${p![k]}`).join(';');
+  return v ? `<w:docVars><w:docVar w:name="CrumpetDesign" w:val="${v}"/></w:docVars>` : '';
+}
+
+/** Word's styles in the document's theme: headings' font and colour, the body's font, links, and paragraph spacing. */
+function themeStyles(xml: string, p: ParaLook | undefined): string {
+  const c = colourSet(p?.thc);
+  const f = fontPair(p?.thf);
+  const sp = spacing(p?.psp);
+  if (f) {
+    const body = esc(firstFamily(f.body));
+    xml = xml.replace(/(<w:rPrDefault><w:rPr>)<w:rFonts [^>]*\/>/, `$1<w:rFonts w:ascii="${body}" w:hAnsi="${body}" w:eastAsia="${body}" w:cs="${body}"/>`);
+  }
+  if (sp) xml = xml.replace(/(<w:pPrDefault><w:pPr>)<w:spacing [^>]*\/>/, `$1<w:spacing w:before="${(sp.before ?? 0) * 20}" w:after="${sp.after * 20}" w:line="${Math.round(sp.line * 240)}" w:lineRule="auto"/>`);
+  if (c) xml = xml.replace('<w:color w:val="0563C1"/>', `<w:color w:val="${c.link.slice(1).toUpperCase()}"/>`);
+  for (const id of ['Heading1', 'Heading2', 'Heading3', 'Heading4', 'Title', 'Subtitle']) {
+    xml = xml.replace(new RegExp(`(<w:style w:type="paragraph" w:styleId="${id}">.*?<w:rPr>)(.*?)(</w:rPr></w:style>)`), (_, open: string, rpr: string, close: string) => {
+      let out = rpr;
+      if (f) {
+        const head = esc(firstFamily(f.head));
+        out = `<w:rFonts w:ascii="${head}" w:hAnsi="${head}" w:eastAsia="${head}" w:cs="${head}"/>${out}`;
+      }
+      if (c) {
+        const color = `<w:color w:val="${(id === 'Title' ? c.title : id === 'Subtitle' ? c.accents[1] : c.heading).slice(1).toUpperCase()}"/>`;
+        out = out.includes('<w:sz') ? out.replace('<w:sz', `${color}<w:sz`) : out + color;
+      }
+      return open + out + close;
+    });
+  }
+  return xml;
+}
+
 function stylesXml(font: string, size: number): string {
   const hp = Math.round(size * 2);
   const para = (id: string, name: string, ppr: string, rpr: string, extra = '') =>
@@ -1037,7 +1072,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const firstPara = parts[0]?.doc.blocks[0]?.para;
   const protect = firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
   const trackAll = firstPara?.track === 'all' ? '<w:trackRevisions/>' : '';
-  const settings = `${XML}<w:settings ${NS}>${p0?.pgc ? '<w:displayBackgroundShape/>' : ''}${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}${parts[0]?.doc.blocks[0]?.para?.hyph ? '<w:autoHyphenation/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`;
+  const settings = `${XML}<w:settings ${NS}>${p0?.pgc ? '<w:displayBackgroundShape/>' : ''}${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}${parts[0]?.doc.blocks[0]?.para?.hyph ? '<w:autoHyphenation/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat>${designVar(p0)}</w:settings>`;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
   const core = `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(opts.title)}</dc:title><dc:creator>${esc(opts.author ?? '')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`;
   const types =
@@ -1060,7 +1095,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     { name: 'docProps/core.xml', data: utf8(core) },
     { name: 'word/document.xml', data: utf8(documentXml) },
     { name: 'word/_rels/document.xml.rels', data: utf8(docRels) },
-    { name: 'word/styles.xml', data: utf8(stylesXml(opts.font || 'Georgia', opts.size || 12).replace('</w:styles>', `${customStylesXml(opts.custom ?? [])}</w:styles>`)) },
+    { name: 'word/styles.xml', data: utf8(themeStyles(stylesXml(opts.font || 'Georgia', opts.size || 12), p0).replace('</w:styles>', `${customStylesXml(opts.custom ?? [])}</w:styles>`)) },
     { name: 'word/numbering.xml', data: utf8(numberingXml(w.lists)) },
     { name: 'word/footnotes.xml', data: utf8(footnotesXml(w.footnotes)) },
     { name: 'word/endnotes.xml', data: utf8(endnotesXml(w.endnotes)) },
@@ -2141,6 +2176,12 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
         if (src) doc0.wmimg = src;
       }
     }
+  }
+  // Crumpet's own design names, if Crumpet wrote the file.
+  const design = Array.from(wordSettings?.getElementsByTagNameNS(W_NS, 'docVar') ?? []).find((v) => attr(v, 'name') === 'CrumpetDesign');
+  for (const part of (attr(design, 'val') ?? '').split(';')) {
+    const [k, v] = part.split('=');
+    if ((k === 'thc' || k === 'thf' || k === 'thx' || k === 'psp') && v) doc0[k] = v;
   }
   if (Object.keys(doc0).length) out[0].para = tidyPara({ ...out[0].para, ...doc0 });
   if (on(setting('autoHyphenation'))) {

@@ -1419,7 +1419,7 @@ export class Editor {
 
   /** Columns and orientation for the section the caret is in. */
   /** The whole document's hyphenation and line numbers (kept on its first paragraph). */
-  setDocPara(patch: Partial<Pick<ParaLook, 'hyph' | 'lnum' | 'lnr' | 'wm' | 'wmimg' | 'wmc' | 'wmflat' | 'pgc' | 'pgb' | 'pgbc'>>): void {
+  setDocPara(patch: Partial<Pick<ParaLook, 'hyph' | 'lnum' | 'lnr' | 'wm' | 'wmimg' | 'wmc' | 'wmflat' | 'pgc' | 'pgb' | 'pgbc' | 'thc' | 'thf' | 'thx' | 'psp'>>): void {
     if (this.isReadOnly) return;
     this.dispatch(setDocPara(this.state, patch), 'command');
   }

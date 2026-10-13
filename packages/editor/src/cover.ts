@@ -22,7 +22,7 @@ export interface CoverText {
 }
 
 /** The whole document's settings, kept on its first paragraph (they move to the cover's first paragraph and back). */
-export const DOC_KEYS = ['track', 'lock', 'hyph', 'lnum', 'lnr', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc'] as const;
+export const DOC_KEYS = ['track', 'lock', 'hyph', 'lnum', 'lnr', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc', 'thc', 'thf', 'thx', 'psp'] as const;
 
 export function docPart(p: ParaLook | undefined): ParaLook {
   const out: ParaLook = {};

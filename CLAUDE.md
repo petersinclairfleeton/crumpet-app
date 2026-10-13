@@ -268,7 +268,12 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `hfirst` (blank first page) and `pstart`/`pfmt` (numbers started again);
     `pageHF` works out each page's from `editor.pageBoxes` (`sectionBlock`).
     A cover page (`editor/src/cover.ts`) is paragraphs marked `cover` at the
-    start, a section of its own). `rightside.tsx` is the right sidebar: tabs for the
+    start, a section of its own). Document themes (`data/doctheme.ts`): the
+    theme's colour set, font pair, effects and paragraph spacing by name on
+    the first paragraph (`thc`, `thf`, `thx`, `psp`); the view marks the
+    editor with `data-thc` and so on, and `themeCss()` (injected by
+    `applyThemeLook`) draws them; Word gets them as its styles' fonts and
+    colours plus a `CrumpetDesign` docVar to come back. `rightside.tsx` is the right sidebar: tabs for the
     headings outline, Word's Styles pane (`stylespane.tsx`), comments and
     links, working on the editor last clicked in (`helpers.ts`: editors offer
     themselves with `useOfferHelped`). `booktoc.ts`: in a project, a table of contents
