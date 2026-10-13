@@ -187,8 +187,8 @@ export const FIELD = '\u2062';
 export type BlockType = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'heading4' | 'todo' | 'bullet' | 'numbered' | 'quote' | 'image' | 'file' | 'table' | 'toc' | 'shape' | 'code';
 
 /** Maths (LaTeX, drawn with KaTeX), a diagram (Mermaid), or a board (JSON Canvas, shown by the app), written as text. */
-/** Maths, a diagram, a board, or a note locked with a password (its scrambled text: see the app's lock.ts). */
-export type CodeLang = 'math' | 'mermaid' | 'canvas' | 'locked';
+/** Maths, a diagram, a chart (chart.ts), a board, or a note locked with a password (its scrambled text: see the app's lock.ts). */
+export type CodeLang = 'math' | 'mermaid' | 'canvas' | 'locked' | 'chart';
 export interface CodeLook {
   lang: CodeLang;
   /** The source, any number of lines. */
@@ -196,7 +196,7 @@ export interface CodeLook {
 }
 
 export function tidyCode(c: Partial<CodeLook> | undefined): CodeLook {
-  return { lang: c?.lang === 'mermaid' || c?.lang === 'canvas' || c?.lang === 'locked' ? c.lang : 'math', text: typeof c?.text === 'string' ? c.text.replace(/\r\n?/g, '\n') : '' };
+  return { lang: c?.lang === 'mermaid' || c?.lang === 'canvas' || c?.lang === 'locked' || c?.lang === 'chart' ? c.lang : 'math', text: typeof c?.text === 'string' ? c.text.replace(/\r\n?/g, '\n') : '' };
 }
 
 /** Blocks that are boxes of their own (with their own editing), not text: tables, contents, shapes, maths and diagrams. */

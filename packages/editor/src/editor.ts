@@ -113,6 +113,7 @@ import {
   insertBlankPage,
   insertField,
   setFieldAt,
+  insertAfterBlock,
   mathToBlock,
   setListStyle,
   setListStart,
@@ -152,6 +153,10 @@ export interface Pasted {
 }
 import { type PageBox, type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
+import { chartFromRows } from './chart';
+
+/** A new chart's numbers, to change. */
+const SAMPLE_CHART = 'type: column\ntitle: Chart title\n, Series 1, Series 2\nFirst, 4, 2\nSecond, 3, 5\nThird, 5, 3';
 
 export interface ChangeEvent {
   ops: Op[];
@@ -985,7 +990,24 @@ export class Editor {
       (e) => {
         const kind = (e.target as Element).closest?.<HTMLSelectElement>('select[data-code-lang]');
         const id = kind?.closest<HTMLElement>('[data-block]')?.dataset.block;
-        if (kind && id) this.dispatch(setCode(this.state, id, { lang: kind.value as CodeLook['lang'] }), 'command');
+        if (kind && id) {
+          // A new chart gets numbers to change (in its text box too, which may have the focus).
+          const sample = kind.value === 'chart' && !getBlock(this.state.doc, id).code?.text.trim();
+          const box = kind.closest('.code-wrap')?.querySelector<HTMLTextAreaElement>('.code-src');
+          if (sample && box) box.value = SAMPLE_CHART;
+          this.dispatch(setCode(this.state, id, { lang: kind.value as CodeLook['lang'], ...(sample ? { text: SAMPLE_CHART } : {}) }), 'command');
+        }
+        // A chart's kind: its text's type line.
+        const type = (e.target as Element).closest?.<HTMLSelectElement>('select[data-chart-type]');
+        const cid = type?.closest<HTMLElement>('[data-block]')?.dataset.block;
+        if (type && cid) {
+          const text = getBlock(this.state.doc, cid).code?.text ?? '';
+          const next = /^\s*type\s*:.*$/im.test(text) ? text.replace(/^(\s*type\s*:).*$/im, `$1 ${type.value}`) : `type: ${type.value}\n${text}`;
+          // Its text box too, which keeps what's in it while it has the focus.
+          const box = type.closest('.code-wrap')?.querySelector<HTMLTextAreaElement>('.code-src');
+          if (box) box.value = next;
+          this.dispatch(setCode(this.state, cid, { text: next }), 'command');
+        }
       },
       { signal },
     );
@@ -1131,6 +1153,8 @@ export class Editor {
   }
 
   private onTableInput(target: HTMLElement): void {
+    // A maths block's or chart's kind is changed by its own handler (and the text box would write the old text back).
+    if (target instanceof HTMLSelectElement) return;
     const id = target.closest<HTMLElement>('[data-block]')?.dataset.block;
     if (!id) return;
     clearTimeout(this.tableTimers.get(id));
@@ -1266,6 +1290,11 @@ export class Editor {
     } else if (action === 'to-text') {
       this.dispatch(tableToText(this.state, id), 'command');
       this.focusText();
+      return;
+    } else if (action === 'chart') {
+      // A chart of the table's numbers, under it.
+      const t = insertAfterBlock(this.state, id, attrsOf({ type: 'code', code: { lang: 'chart', text: chartFromRows(now.rows.map((r) => r.map(cellPlain))) } }));
+      if (t) this.dispatch(t, 'command');
       return;
     }
     else if (action === 'banded') next = setTableLook(now, { banded: !now.tbl?.banded });
@@ -1415,6 +1444,11 @@ export class Editor {
   }
 
   /** Inserts maths or a diagram, with its source box ready to type in. */
+  /** A chart (Word's Insert Chart): a column chart of some numbers to change. */
+  insertChart(text = SAMPLE_CHART): void {
+    this.insertCode('chart', text);
+  }
+
   insertCode(lang: CodeLook['lang'], text = ''): void {
     if (this.isReadOnly) return;
     this.syncSelectionFromDom();

@@ -23,6 +23,7 @@
 import { readTableAttrs, tableAttrs, tidyTable } from './table';
 import { readShapeLine, shapeLine, tidyShape } from './shape';
 import { isField } from './fields';
+import { videoEmbed } from './video';
 import { picAttrs, readPicAttrs, tidyPic } from './picture';
 import { type CodeLang, tidyCode, type Align, type Block, type BlockType, type Doc, type Mark, type Run, isList, makeBlock, normalizeRuns, tidyRows, sameFormat, withText, FOOTNOTE, FIELD, type Comment, type CommentReply, commentId, type Change, sameChange, sortMarks, styleAllowed, BLOCK_STYLES, CUSTOM_STYLE, type TocLook, tidyToc, type Look, type LookKey, LOOK_KEYS, lookValueOk, sameLook, tidyLook, type ParaLook, tidyPara, isMedia, tabsToText, tabsFromText } from './model';
 
@@ -90,6 +91,8 @@ function blockLine(b: Block, number: number): string {
     // A picture's size, wrapping, turn and alt text: {pic w=3 wrap=left …}, with its alignment.
     const pic = b.type === 'image' ? tidyPic(b.pic) : undefined;
     if (pic) return `${line} ${picAttrs(pic, b.align)}`;
+    // Online video: a link to it, marked as one.
+    if (b.type === 'file' && videoEmbed(b.src ?? '')) return `${line} {.video${b.align ? ` .${b.align}` : ''}}`;
     return b.align ? `${line} {.${b.align}}` : line;
   }
   // A scene break is Markdown's own section break.
@@ -177,7 +180,7 @@ function splitAttrs(line: string): { line: string; classes: string[] } {
   const m = ATTRS.exec(line);
   if (!m) return { line, classes: [] };
   const tokens = [...m[2].matchAll(/\.[A-Za-z][\w-]*|[a-z]+=(?:"[^"]*"|[^\s"]+)/g)].map((t) => t[0]);
-  const ok = tokens.every((t) => (t.startsWith('.') ? ALIGNS.has(t.slice(1)) || KNOWN_STYLES.has(t.slice(1)) || CUSTOM_STYLE.test(t.slice(1)) || t.slice(1) in PARA_FLAGS : PARA_VALUES.has(t.split('=')[0]) || PARA_WORDS.has(t.split('=')[0])));
+  const ok = tokens.every((t) => (t.startsWith('.') ? t === '.video' || ALIGNS.has(t.slice(1)) || KNOWN_STYLES.has(t.slice(1)) || CUSTOM_STYLE.test(t.slice(1)) || t.slice(1) in PARA_FLAGS : PARA_VALUES.has(t.split('=')[0]) || PARA_WORDS.has(t.split('=')[0])));
   if (!ok) return { line, classes: [] };
   return { line: m[1], classes: tokens.map((t) => (t.startsWith('.') ? t.slice(1) : t)) };
 }
@@ -539,11 +542,11 @@ export function fromMarkdown(md: string): Doc {
       } else code.lines.push(raw);
       continue;
     }
-    const codeOpen = !fence && !para.length ? /^ {0,3}(`{3,}|~{3,})[ \t]*(math|latex|tex|mermaid|canvas|locked)[ \t]*$/i.exec(raw) : null;
+    const codeOpen = !fence && !para.length ? /^ {0,3}(`{3,}|~{3,})[ \t]*(math|latex|tex|mermaid|canvas|locked|chart)[ \t]*$/i.exec(raw) : null;
     if (codeOpen) {
       flushPara();
       listIndents = [];
-      code = { char: codeOpen[1][0], length: codeOpen[1].length, lang: /mermaid/i.test(codeOpen[2]) ? 'mermaid' : /canvas/i.test(codeOpen[2]) ? 'canvas' : /locked/i.test(codeOpen[2]) ? 'locked' : 'math', lines: [] };
+      code = { char: codeOpen[1][0], length: codeOpen[1].length, lang: /mermaid/i.test(codeOpen[2]) ? 'mermaid' : /canvas/i.test(codeOpen[2]) ? 'canvas' : /locked/i.test(codeOpen[2]) ? 'locked' : /chart/i.test(codeOpen[2]) ? 'chart' : 'math', lines: [] };
       continue;
     }
     if (fence) {
@@ -625,7 +628,8 @@ export function fromMarkdown(md: string): Doc {
     const picked = classes.length ? { line } : readPicAttrs(line);
     const media = /^ {0,3}(!?)\[((?:\\.|[^\]\\])*)\]\(\s*(<(?:\\.|[^>\\])*>|(?:\\.|[^\s)\\])+)(?:\s+"[^"]*")?\s*\)[ \t]*$/.exec(picked.line);
     if (media && picked.pic && !media[1]) picked.pic = undefined;
-    if (media && !para.length && (media[1] || isAttachment(media[3])) && (picked.line === line || media[1])) {
+    const video = !!media && classes.includes('video') && !!videoEmbed(decodeEntities(media[3].replace(/^<|>$/g, '').replace(/\\(.)/g, '$1')));
+    if (media && !para.length && (media[1] || isAttachment(media[3]) || video) && (picked.line === line || media[1])) {
       flushPara();
       listIndents = [];
       const src = decodeEntities(media[3].replace(/^<|>$/g, '').replace(/\\(.)/g, '$1')).replace(/%0A/g, '\n');

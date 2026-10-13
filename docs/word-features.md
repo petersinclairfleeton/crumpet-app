@@ -149,9 +149,9 @@ At the end there's a suggested order for building what's missing.
 | Icons | ✅ | 30 icons in groups (signs, people, things, nature), put in as shapes to recolour and size. |
 | 3D Models | ❌ | |
 | SmartArt | 🟡 | Diagrams written as text (Mermaid flowcharts, timelines); no picture-based SmartArt gallery. |
-| Chart | ❌ | No bar/line/pie charts from data. |
-| Screenshot / screen clipping | ❌ | |
-| Online Video | 🟡 | Uploaded video files play; no YouTube or web video in the text. |
+| Chart | ✅ | Formatting bar → Chart, or a table's menu → Make a chart: column, bar, line, area, pie and doughnut charts of numbers you type (a row a line), with a title and stacking; to Word as real Word charts (their numbers inside, no spreadsheet), and Word's charts come back. |
+| Screenshot / screen clipping | ✅ | Formatting bar → Screenshot: the browser asks which window, tab or screen, and its picture goes in the text (crop it there for a clipping). Chrome, Edge and Firefox on a computer. |
+| Online Video | ✅ | Formatting bar → Online video: a YouTube or Vimeo link plays in the text (YouTube's privacy-enhanced player); attached video and sound files play in the text too. Word gets a link. |
 | Link | ✅ | Web links and [[note links]]. |
 | Bookmark (a place in the text to link to) | ✅ | References → Bookmark…: any spot, named; go to it, delete it, link to it (the link box lists them, Ctrl+click follows). To and from Word. |
 | Cross-reference ("see page 12", "see Figure 3") | ✅ | References → Cross-reference…: to a heading, caption or bookmark, as its number, its text, its page (page view) or above/below; updates by itself. |
@@ -375,7 +375,7 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Graphics Format (icons, SVG, Convert to Shape) | ✅ | Icons are shapes; an SVG picture's Convert to shape makes it one (its outlines, first colour). |
 | SmartArt Design/Format | ❌ | (Mermaid diagrams are the stand-in.) |
-| Chart Design/Format | ❌ | |
+| Chart Design/Format | 🟡 | Chart type, title and stacking; colours are Word's Office colours (no per-series colours, axis titles or data labels yet). |
 
 ### Header & Footer
 
@@ -608,9 +608,9 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [x] Maths symbols palette
 - [x] Equations within a line
 - [x] UnicodeMath (handwritten maths not built: it needs a handwriting recogniser, see the ink items)
-- [ ] Charts from a table of numbers
-- [ ] Screenshot
-- [ ] Online video (YouTube links play in the text)
+- [x] Charts from a table of numbers
+- [x] Screenshot
+- [x] Online video (YouTube links play in the text)
 - [ ] Online pictures (needs a picture service's key: ask Peter first)
 - [ ] Embedded objects
 - [ ] Form controls (drop-downs, date pickers, fill-in boxes)

@@ -478,3 +478,15 @@ span.fld[data-field='wrapbreak']::after { content: none; }
 .blk[data-sig-ok]::after { display: block; font: 600 11px/1.4 var(--ui-font, system-ui, sans-serif); margin-top: 2px; }
 .blk[data-sig-ok='yes']::after { content: '✓ Signed, and unchanged since'; color: #2e7d32; }
 .blk[data-sig-ok='no']::after { content: '⚠ The document has changed since this was signed'; color: #b4232f; }
+
+/* Online video and attached video or sound, played in the text. */
+.media-video { display: block; max-width: 640px; }
+.video-frame { display: block; position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #000; }
+.video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.video-link { display: block; margin-top: 4px; font-size: 0.85em; color: var(--muted, #777); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.media video.media-video { display: block; max-width: 100%; border-radius: 8px; }
+.media audio.media-audio { display: block; width: min(100%, 420px); }
+/* Charts: drawn in the text's colour, at the column's width. */
+.code-wrap[data-lang='chart'] .code-preview { color: inherit; }
+.code-wrap[data-lang='chart'] .chart-svg { display: block; width: 100%; max-width: 640px; height: auto; margin: 0 auto; }
+.code-head select[data-chart-type] { margin-left: 6px; }
