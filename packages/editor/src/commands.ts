@@ -999,8 +999,8 @@ export function insertToc(state: EditorState): Transaction {
 }
 
 /** Word's Insert > Shapes / Text Box: a shape after the caret's paragraph (on it, when it's empty). */
-export function insertShape(state: EditorState, kind: ShapeKind, textBox = false): Transaction {
-  return insertWidget(state, attrsOf({ type: 'shape', shape: defaultShape(kind, textBox) }));
+export function insertShape(state: EditorState, kind: ShapeKind, textBox = false, look?: Partial<ShapeLook>): Transaction {
+  return insertWidget(state, attrsOf({ type: 'shape', shape: look ? tidyShape({ ...defaultShape(kind, textBox), ...look, kind }) : defaultShape(kind, textBox) }));
 }
 
 /** Changes a text box's or shape's look or text. */

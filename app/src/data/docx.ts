@@ -14,6 +14,7 @@ import { type PicLook, tidyPic } from '@crumpet/editor/picture';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty, tidyRuns } from './headers';
 import { decodeBand, encodeBand } from './sectionhf';
 import { colourSet, firstFamily, fontPair, spacing } from './doctheme';
+import { drawingMLToShape, pathToDrawingML, pointsToPath } from './svgpath';
 import { type CustomStyle, type PageSetup, type StyleDef, type StyleKey, paperInches } from './styles';
 import { type ZipEntry, readZip, utf8, writeZip } from './zip';
 
@@ -419,6 +420,8 @@ class Writer {
   }
 
   private nextShape = 1;
+  /** Linked text boxes: each chain's number in Word, and how many of its boxes are written. */
+  private chains: Record<string, { id: number; seq: number }> = {};
 
   /**
    * A text box or shape, as Word draws one (a DrawingML shape): in line
@@ -462,10 +465,28 @@ class Writer {
       : s.fx === 'reflect' ? '<a:effectLst><a:reflection blurRad="6350" stA="50000" endA="300" endPos="55000" dir="5400000" sy="-100000" algn="bl" rotWithShape="0"/></a:effectLst>'
       : s.fx === 'bevel' ? '<a:effectLst><a:outerShdw blurRad="50800" dist="38100" dir="2700000" algn="tl" rotWithShape="0"><a:prstClr val="black"><a:alpha val="40000"/></a:prstClr></a:outerShdw></a:effectLst><a:scene3d><a:camera prst="orthographicFront"/><a:lightRig rig="threePt" dir="t"/></a:scene3d><a:sp3d><a:bevelT w="63500" h="25400"/></a:sp3d>'
       : '';
-    // The text, in its colour.
+    // The text, in its colour: a paragraph for each line, aligned as set.
     const runs = cellRuns(s.text).map((r) => (s.tc && !r.look?.color ? { ...r, look: { ...r.look, color: s.tc } } : r));
-    const text = !flat && s.text ? `<wps:txbx><w:txbxContent>${this.paragraph(null, this.runs(runs), '<w:jc w:val="center"/>')}</w:txbxContent></wps:txbx>` : '';
-    const wsp = `<wps:wsp><wps:cNvSpPr${s.text ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${s.rot ? ` rot="${s.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}${effect}</wps:spPr>${text}<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
+    const lines: Run[][] = [[]];
+    for (const r of runs) {
+      const bits = r.text.split('\n');
+      bits.forEach((t, k) => {
+        if (k > 0) lines.push([]);
+        if (t) lines[lines.length - 1].push({ ...r, text: t });
+      });
+    }
+    const textJc = `<w:jc w:val="${s.ta === 'left' ? 'left' : s.ta === 'right' ? 'right' : 'center'}"/>`;
+    const content = `<w:txbxContent>${lines.map((l) => this.paragraph(null, this.runs(l), textJc)).join('')}</w:txbxContent>`;
+    // Linked text boxes: the first holds the text, the rest carry it on.
+    let text = '';
+    if (!flat && s.chain) {
+      const link = (this.chains[s.chain] ??= { id: Object.keys(this.chains).length + 1, seq: 0 });
+      text = link.seq++ === 0 ? `<wps:txbx id="${link.id}">${content}</wps:txbx>` : `<wps:linkedTxbx id="${link.id}" seq="${link.seq - 1}"/>`;
+    } else if (!flat && s.text) text = `<wps:txbx>${content}</wps:txbx>`;
+    const geom = s.kind === 'freeform' && s.pts ? pathToDrawingML(pointsToPath(s.pts), [1, 1]) : s.kind === 'path' && s.d ? pathToDrawingML(s.d, s.vb ?? [24, 24]) : `<a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>`;
+    const vert = s.dir === 'down' ? 'vert' : s.dir === 'up' ? 'vert270' : 'horz';
+    const anchorText = s.tv === 'top' || s.chain ? 't' : s.tv === 'bottom' ? 'b' : 'ctr';
+    const wsp = `<wps:wsp><wps:cNvSpPr${s.text || s.chain ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${s.rot ? ` rot="${s.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm>${geom}${fill}${line}${effect}</wps:spPr>${text}<wps:bodyPr rot="0" vert="${vert}" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="${anchorText}"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
     const graphic = `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">${wsp}</a:graphicData></a:graphic>`;
     const name = `<wp:docPr id="${n}" name="${s.text ? 'Text Box' : 'Shape'} ${n}"${s.hide ? ' hidden="1"' : ''}/><wp:cNvGraphicFramePr/>`;
     // Placed anywhere: from the column and paragraph, or the page or its margins; in front of or behind the text, in its place in the stack.
@@ -1546,13 +1567,31 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     // The text in it.
     const box = find(wsp, 'txbxContent');
     const runs: Run[] = [];
+    let ta: ShapeLook['ta'];
     if (box) {
       for (const [k, p] of kids(box).filter((x) => x.localName === 'p').entries()) {
-        if (k > 0) runs.push({ text: ' ', marks: [] });
+        if (k > 0) runs.push({ text: '\n', marks: [] });
+        else {
+          const jc = attr(child(child(p, 'pPr'), 'jc'), 'val');
+          ta = jc === 'left' || jc === 'start' ? 'left' : jc === 'right' || jc === 'end' ? 'right' : undefined;
+        }
         await readRuns(p, runs, []);
       }
     }
-    const text = cellText(runs.filter((x) => !x.footnote && !x.comment).map((x) => ({ text: x.text.replace(/\n/g, ' '), marks: x.marks, ...(x.look ? { look: x.look } : {}), ...(x.link ? { link: x.link } : {}) })));
+    const text = cellText(runs.filter((x) => !x.footnote && !x.comment).map((x) => ({ text: x.text, marks: x.marks, ...(x.look ? { look: x.look } : {}), ...(x.link ? { link: x.link } : {}) })));
+    // The text's direction and place; a box linked to others; a drawn outline of its own.
+    const body = kids(wsp).find((x) => x.localName === 'bodyPr');
+    const vertAttr = plain(body ?? null, 'vert');
+    const dir: ShapeLook['dir'] = vertAttr === 'vert' || vertAttr === 'eaVert' ? 'down' : vertAttr === 'vert270' ? 'up' : undefined;
+    const anchorAt = plain(body ?? null, 'anchor');
+    const tv: ShapeLook['tv'] = anchorAt === 't' ? 'top' : anchorAt === 'b' ? 'bottom' : undefined;
+    const linked = kids(wsp).find((x) => x.localName === 'linkedTxbx');
+    const txbxId = plain(kids(wsp).find((x) => x.localName === 'txbx') ?? null, 'id');
+    const chainId = linked ? plain(linked, 'id') : txbxId;
+    const linkedIds = new Set(Array.from(xml.getElementsByTagNameNS('*', 'linkedTxbx')).map((x) => x.getAttribute('id')));
+    const chain = chainId && (linked || linkedIds.has(chainId)) ? `c${chainId}` : undefined;
+    const cust = spPr ? kids(spPr).find((x) => x.localName === 'custGeom') : undefined;
+    const drawn = cust ? drawingMLToShape(cust) : null;
     // Floating with the text round it: on the side it's aligned to.
     const anchor = all.find((x) => x.localName === 'anchor');
     const wraps = anchor && Array.from(anchor.children).some((x) => /^wrap(Square|Tight|Through)$/.test(x.localName));
@@ -1578,7 +1617,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     // The text's one colour, as the shape's text colour.
     const colors = new Set(runs.filter((r) => r.text.trim()).map((r) => r.look?.color));
     const tc = colors.size === 1 ? [...colors][0] : undefined;
-    const shape = tidyShape({ kind: lineKind, w: w || undefined, h: h || undefined, fill: fill ?? (gradStops ? stopColor(0) : undefined), grad: stopColor(gradStops ? kids(gradStops).length - 1 : -1), img, lw, dash, head: plainArrow ? undefined : head, tail, fx, tc, line, wrap: behind ? 'behind' : free ? 'free' : topBottom ? 'topbottom' : wraps ? (side === 'right' ? 'right' : 'left') : 'inline', tight, text, rot, ...(free ? { x: offset('positionH'), y: offset('positionV'), rel } : topBottom ? { x: offset('positionH') } : {}) });
+    const shape = tidyShape({ ...(drawn ?? {}), kind: drawn?.kind ?? lineKind, ta, tv: chain ? undefined : tv, dir, chain, w: w || undefined, h: h || undefined, fill: fill ?? (gradStops ? stopColor(0) : undefined), grad: stopColor(gradStops ? kids(gradStops).length - 1 : -1), img, lw, dash, head: plainArrow ? undefined : head, tail, fx, tc, line, wrap: behind ? 'behind' : free ? 'free' : topBottom ? 'topbottom' : wraps ? (side === 'right' ? 'right' : 'left') : 'inline', tight, text, rot, ...(free ? { x: offset('positionH'), y: offset('positionV'), rel } : topBottom ? { x: offset('positionH') } : {}) });
     return makeBlock('shape', '', [], { shape });
   };
 

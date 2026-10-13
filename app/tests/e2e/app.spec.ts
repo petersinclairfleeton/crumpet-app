@@ -3431,6 +3431,80 @@ test('more shapes from the gallery, shape styles, gradient fill, line thickness,
   await expect(line.locator('.shape-art marker')).toHaveCount(2);
 });
 
+test('text in shapes (lines, bullets, direction), icons, edit points, linked text boxes, and an SVG picture made a shape', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Boxes', 'Text.');
+  const looks = () =>
+    page.evaluate(() => {
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { type: string; shape?: Record<string, unknown> }[] } }[] } } }).crumpet.getState();
+      return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
+    });
+  const menu = async (shape: ReturnType<typeof page.locator>, item: string) => {
+    await shape.locator('.shape-box').hover();
+    await shape.getByRole('button', { name: 'Shape ▾' }).click();
+    await shape.getByRole('button', { name: item, exact: true }).first().click();
+  };
+  // A text box with two lines, the second a bullet.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/textbox');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('First line');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('- second');
+  await expect.poll(async () => (await looks())[0]?.text).toBe('First line&#10;• second');
+  const box = page.locator('.note-editor .blk-shape').first();
+  // Turned to read downwards.
+  await menu(box, 'Down');
+  await expect(box.locator('.shape-box')).toHaveAttribute('data-dir', 'down');
+  await expect(box.locator('.shape-text')).toHaveCSS('writing-mode', 'vertical-rl');
+  await menu(box, 'Across');
+  // An icon from the library: a drawing shape.
+  await page.locator('.note-editor .blk-paragraph').first().click();
+  await page.keyboard.press('End');
+  await (await toolButton(page, 'Icons')).click();
+  await page.getByRole('group', { name: 'Signs icons' }).getByRole('button', { name: 'Tick' }).click();
+  await expect.poll(async () => (await looks()).some((l) => l.kind === 'path')).toBe(true);
+  // Edit points: a rectangle becomes a freeform; dragging a corner moves it.
+  await page.locator('.note-editor .blk-paragraph').first().click();
+  await page.keyboard.press('End');
+  await (await toolButton(page, 'Shapes')).click();
+  await page.getByRole('group', { name: 'Basic shapes' }).getByRole('button', { name: 'Rectangle', exact: true }).click();
+  const rect = page.locator('.note-editor .blk-shape').filter({ has: page.locator('[data-kind="rect"]') }).filter({ hasNotText: 'First line' });
+  await menu(rect, 'Edit points');
+  const free = page.locator('.note-editor .blk-shape.editing-points');
+  await expect(free.locator('.pt-handle')).toHaveCount(4);
+  const corner = (await free.locator('.pt-handle').nth(1).boundingBox())!;
+  await page.mouse.move(corner.x + 5, corner.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(corner.x - 30, corner.y + 20, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(async () => { const f = (await looks()).find((l) => l.kind === 'freeform'); return (f?.pts as number[][] | undefined)?.[1]?.[0] ?? 1; }).toBeLessThan(0.9);
+  // Linked text boxes: the first box's text runs on into the second.
+  await page.evaluate(async () => {
+    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void } };
+    const long = 'A story that is far too long for one small box and carries on. '.repeat(6);
+    const md = [`{shape rect w=2 h=0.8 fill=#ffffff line=#333333} ${long}`, 'Between.', '{shape rect w=2 h=0.8 fill=#ffffff line=#333333}', '![drawing](data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 10 10"><polygon points="5,0 10,10 0,10" fill="#336699"/></svg>') + ')'].join('\n\n');
+    w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown(md));
+  });
+  const first = page.locator('.note-editor .blk-shape').first();
+  await menu(first, 'Link to next box');
+  await expect.poll(async () => (await looks()).map((l) => l.chain).filter(Boolean).length).toBe(2);
+  const second = page.locator('.note-editor .blk-shape').nth(1);
+  await expect(second.locator('.chain-flow')).toContainText('A story');
+  const offset = await second.locator('.chain-flow').evaluate((el) => parseFloat((el as HTMLElement).style.marginTop));
+  expect(offset).toBeLessThan(-10);
+  // An SVG picture made a shape: its outline, in its colour, ready to recolour.
+  const pic = page.locator('.note-editor .blk-image');
+  await pic.locator('img').hover();
+  await pic.getByRole('button', { name: 'Picture ▾' }).click();
+  await pic.getByRole('button', { name: 'Convert to shape' }).click();
+  await expect.poll(async () => (await looks()).find((l) => l.kind === 'path')).toMatchObject({ fill: '#336699', vb: [10, 10] });
+});
+
 test('the sidebar and note list fold away with «, peek out at the edge, and come back', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1400, height: 860 });

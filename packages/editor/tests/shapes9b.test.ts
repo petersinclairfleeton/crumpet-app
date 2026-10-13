@@ -5,7 +5,7 @@ describe('more shapes, fills, lines and effects', () => {
   it('every shape has an outline (or is drawn its own way) and a Word name', () => {
     for (const k of SHAPE_KINDS) {
       expect(WORD_SHAPES[k]).toBeTruthy();
-      if (!['rect', 'rounded', 'ellipse', 'line', 'arrow'].includes(k)) expect(shapePath(k, 100, 60)).toMatch(/^M/);
+      if (!['rect', 'rounded', 'ellipse', 'line', 'arrow', 'freeform', 'path'].includes(k)) expect(shapePath(k, 100, 60)).toMatch(/^M/);
     }
   });
 

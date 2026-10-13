@@ -430,3 +430,21 @@ span.fld[data-field='wrapbreak']::after { content: none; }
 .shape-box[data-kind='can'] .shape-text { padding: 26% 10% 8%; }
 .shape-box[data-kind='predefined'] .shape-text { padding: 6px 14%; }
 .shape-box[data-kind='wave'] .shape-text { padding: 16% 10%; }
+
+/* Text in a shape: lines kept, to the left or right, at the top or bottom, turned to read down or up. */
+.shape-text { white-space: pre-wrap; }
+.shape-box[data-ta='left'] .shape-text { text-align: left; }
+.shape-box[data-ta='right'] .shape-text { text-align: right; }
+.shape-box[data-tv='top'] .shape-text { align-content: start; }
+.shape-box[data-tv='bottom'] .shape-text { align-content: end; }
+.shape-box[data-dir] .shape-text { writing-mode: vertical-rl; }
+.shape-box[data-dir='up'] .shape-text { transform: rotate(180deg); }
+/* Linked text boxes: the text runs on into the next box; those after the first show where it got to. */
+.shape-text .chain-flow { pointer-events: none; }
+.shape-box[data-chain] .shape-text { overflow: hidden; }
+.shape-box.chain-next .shape-text { cursor: text; }
+/* Edit points: a handle on each corner, and in the middle of each side to add one. */
+.pt-handle, .pt-mid { position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px; border: 1.5px solid var(--accent, #4a7); background: var(--paper, #fff); z-index: 5; cursor: move; touch-action: none; }
+.pt-mid { width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; opacity: 0.7; cursor: copy; }
+.blk-shape.editing-points .shape-text { pointer-events: none; }
+.blk-shape.editing-points .shape-box { outline: 1px dashed var(--accent, #4a7); }

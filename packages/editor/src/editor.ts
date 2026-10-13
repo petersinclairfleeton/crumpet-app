@@ -127,7 +127,7 @@ import { fieldValue } from './fields';
 import { type AutoCorrectOptions, autoCorrect } from './autocorrect';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { type TocEntry, View, readTable } from './view';
-import { type ShapeKind, type ShapeLook, SHAPE_STYLES, isFloating } from './shape';
+import { type ShapeKind, type ShapeLook, SHAPE_STYLES, cornersOf, isFloating, isLineKind, tidyShape } from './shape';
 import { type CoverDesign, type CoverText, coverBlocks, hasCover } from './cover';
 import type { PicLook } from './picture';
 import { cellPlain, fillCell, readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
@@ -410,6 +410,8 @@ export class Editor {
   private placeShapes(): void {
     // (A redraw makes new elements: shapes picked with Shift+click stay marked.)
     for (const id of this.pickedShapes) this.view.blockElement(id)?.classList.add('shape-picked');
+    this.flowChains();
+    if (this.editingPoints) this.drawPointHandles(this.editingPoints);
     for (const el of Array.from(this.view.root.querySelectorAll<HTMLElement>('.blk-shape[data-rel]'))) {
       const blk = this.state.doc.blocks.find((b) => b.id === el.dataset.block);
       const s = blk?.shape;
@@ -421,6 +423,196 @@ export class Editor {
       wrap.style.left = `${(o.x - r.left) / scale + (s.x ?? 0) * 96}px`;
       wrap.style.top = `${(o.y - r.top) / scale + (s.y ?? 0) * 96}px`;
     }
+  }
+
+  /**
+   * Linked text boxes: the first box of a chain holds the text; each box
+   * after it shows where the text has got to (the text laid out at its own
+   * width, moved up by what the boxes before it showed, a whole line at a time).
+   */
+  private flowChains(): void {
+    const chains = new Map<string, Block[]>();
+    for (const b of this.state.doc.blocks) if (b.shape?.chain) chains.set(b.shape.chain, [...(chains.get(b.shape.chain) ?? []), b]);
+    for (const list of chains.values()) {
+      const els = list.map((b) => this.view.blockElement(b.id)?.querySelector<HTMLElement>('.shape-text') ?? null);
+      const first = els[0];
+      if (!first) continue;
+      const story = list[0].shape!.text;
+      let shown = 0;
+      els.forEach((el, k) => {
+        if (!el) return;
+        const cs = getComputedStyle(el);
+        const line = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.35 || 18;
+        const room = Math.max(0, el.clientHeight - (parseFloat(cs.paddingTop) || 0) - (parseFloat(cs.paddingBottom) || 0));
+        const lines = Math.floor(room / line) * line;
+        if (k > 0) {
+          el.contentEditable = 'false';
+          el.closest('.shape-box')?.classList.add('chain-next');
+          el.textContent = '';
+          const flow = el.ownerDocument.createElement('div');
+          flow.className = 'chain-flow';
+          fillCell(flow, story);
+          flow.style.marginTop = `${-shown}px`;
+          el.appendChild(flow);
+        } else el.style.maxHeight = '';
+        // What this box shows: whole lines only (the next box carries on from there).
+        el.style.setProperty('--shown', `${lines}px`);
+        if (k < els.length - 1) el.style.clipPath = `inset(0 0 calc(100% - ${lines + (parseFloat(cs.paddingTop) || 0)}px) 0)`;
+        shown += lines;
+      });
+    }
+  }
+
+  /** Links a text box to the next one below it, so text that doesn't fit runs on into it. */
+  private linkTextBox(id: string): void {
+    const blocks = this.state.doc.blocks;
+    const i = blocks.findIndex((b) => b.id === id);
+    const me = blocks[i]?.shape;
+    if (!me) return;
+    const next = blocks.slice(i + 1).find((b) => b.shape && !isLineKind(b.shape.kind) && (!me.chain || b.shape.chain !== me.chain));
+    if (!next) return;
+    const chain = me.chain ?? `c${Math.random().toString(36).slice(2, 8)}`;
+    // The next box's own words join the end of the text.
+    const head = blocks.find((b) => b.shape?.chain === chain) ?? blocks[i];
+    const extra = next.shape!.text;
+    const patches: [string, Partial<ShapeLook>][] = [[id, { chain }], [next.id, { chain, text: '' }]];
+    if (extra) patches.push([head.id, { text: `${head.shape!.text}${head.shape!.text ? '&#10;' : ''}${extra}` }]);
+    this.setShapes(patches);
+  }
+
+  /** Breaks a text box out of its chain (the text stays with the first box). */
+  private unlinkTextBox(id: string): void {
+    const chain = this.state.doc.blocks.find((b) => b.id === id)?.shape?.chain;
+    if (!chain) return;
+    const members = this.state.doc.blocks.filter((b) => b.shape?.chain === chain);
+    const rest = members.filter((b) => b.id !== id);
+    this.setShapes([[id, { chain: undefined, ...(members[0].id === id ? {} : { text: '' }) }], ...(rest.length === 1 ? [[rest[0].id, { chain: undefined }] as [string, Partial<ShapeLook>]] : [])]);
+  }
+
+  /** The shape whose corners are being edited (Edit Points). */
+  private editingPoints: string | null = null;
+
+  /** Starts (or stops) editing a shape's corners; a shape that isn't a freeform becomes one, keeping its outline. */
+  private editPoints(id: string | null): void {
+    const was = this.editingPoints;
+    this.editingPoints = id;
+    if (was) {
+      const el = this.view.blockElement(was);
+      el?.classList.remove('editing-points');
+      el?.querySelectorAll('.pt-handle, .pt-mid').forEach((h) => h.remove());
+    }
+    if (!id) return;
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!blk?.shape || blk.shape.kind === 'path' || isLineKind(blk.shape.kind)) return;
+    if (blk.shape.kind !== 'freeform') {
+      const pts = cornersOf(blk.shape.kind) ?? this.traceOutline(id);
+      if (pts) this.setShapeLook(id, { kind: 'freeform', pts });
+    }
+    this.drawPointHandles(id);
+  }
+
+  /** Points round a curved shape's outline, read from its drawing (for Edit Points). */
+  private traceOutline(id: string): [number, number][] | null {
+    const el = this.view.blockElement(id);
+    const svg = el?.querySelector<SVGSVGElement>('.shape-art');
+    const body = svg?.querySelector<SVGGeometryElement>('path, rect, ellipse');
+    const vb = svg?.viewBox.baseVal;
+    if (!body || !vb || !vb.width || typeof body.getTotalLength !== 'function') return null;
+    const len = body.getTotalLength();
+    const n = 24;
+    const pts: [number, number][] = [];
+    for (let k = 0; k < n; k++) {
+      const p = body.getPointAtLength((k / n) * len);
+      pts.push([Math.round((p.x / vb.width) * 1000) / 1000, Math.round((p.y / vb.height) * 1000) / 1000]);
+    }
+    return pts;
+  }
+
+  /** Handles on a freeform's corners (drag to move, double-click to take away) and on its sides' middles (drag to add a corner). */
+  private drawPointHandles(id: string): void {
+    const el = this.view.blockElement(id);
+    const box = el?.querySelector<HTMLElement>('.shape-box');
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!el || !box || blk?.shape?.kind !== 'freeform') return;
+    el.classList.add('editing-points');
+    box.querySelectorAll('.pt-handle, .pt-mid').forEach((h) => h.remove());
+    const pts = blk.shape.pts ?? [];
+    const handle = (cls: string, x: number, y: number, k: number) => {
+      const h = el.ownerDocument.createElement('span');
+      h.className = cls;
+      h.style.left = `${x * 100}%`;
+      h.style.top = `${y * 100}%`;
+      h.dataset.k = String(k);
+      h.contentEditable = 'false';
+      box.appendChild(h);
+      return h;
+    };
+    pts.forEach(([x, y], k) => {
+      const h = handle('pt-handle', x, y, k);
+      h.title = 'Drag to move this corner; double-click to take it away';
+      h.addEventListener('pointerdown', (e) => this.dragPoint(e, id, k, false));
+      h.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        if (pts.length > 3) this.setShapeLook(id, { pts: pts.filter((_, j) => j !== k) });
+      });
+    });
+    pts.forEach(([x, y], k) => {
+      const [nx, ny] = pts[(k + 1) % pts.length];
+      const h = handle('pt-mid', (x + nx) / 2, (y + ny) / 2, k);
+      h.title = 'Drag to add a corner here';
+      h.addEventListener('pointerdown', (e) => this.dragPoint(e, id, k, true));
+    });
+  }
+
+  /** Drags a corner (or, from a side's middle, a new corner) of a freeform. */
+  private dragPoint(e: PointerEvent, id: string, k: number, adding: boolean): void {
+    e.preventDefault();
+    e.stopPropagation();
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    const box = this.view.blockElement(id)?.querySelector<HTMLElement>('.shape-box');
+    if (!blk?.shape?.pts || !box || this.isReadOnly) return;
+    const r = box.getBoundingClientRect();
+    let pts = blk.shape.pts.map((p) => [...p] as [number, number]);
+    const at = adding ? k + 1 : k;
+    if (adding) pts.splice(at, 0, [(pts[k][0] + pts[(k + 1) % pts.length][0]) / 2, (pts[k][1] + pts[(k + 1) % pts.length][1]) / 2]);
+    const handle = e.target as HTMLElement;
+    const move = (ev: PointerEvent) => {
+      const x = Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width));
+      const y = Math.max(0, Math.min(1, (ev.clientY - r.top) / r.height));
+      pts = pts.map((p, j) => (j === at ? [x, y] : p));
+      handle.style.left = `${x * 100}%`;
+      handle.style.top = `${y * 100}%`;
+      const path = box.querySelector('.shape-art path');
+      const vb = (box.querySelector('.shape-art') as SVGSVGElement | null)?.viewBox.baseVal;
+      if (path && vb) path.setAttribute('d', `M${pts.map(([px, py]) => `${px * vb.width},${py * vb.height}`).join('L')}Z`);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      this.setShapeLook(id, { pts });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  /** Reads an SVG picture's drawing as a shape's look (the app reads the file). */
+  onSvgToShape: ((src: string) => Promise<Partial<ShapeLook> | null>) | null = null;
+
+  /** Word's Convert to Shape: an SVG picture becomes a drawing shape of the same size, its colours changeable. */
+  private async svgToShape(id: string): Promise<void> {
+    const blk = this.state.doc.blocks.find((b) => b.id === id);
+    if (!blk?.src || blk.type !== 'image' || this.isReadOnly) return;
+    const look = await this.onSvgToShape?.(blk.src);
+    const now = this.state.doc.blocks.find((b) => b.id === id);
+    if (!look || !now) return;
+    const el = this.view.blockElement(id)?.querySelector<HTMLElement>('img');
+    const w = blk.pic?.w ?? (el ? Math.min(6, el.offsetWidth / 96) : 2);
+    const [vw, vh] = look.vb ?? [24, 24];
+    const shape = tidyShape({ line: null, fill: '#333333', ...look, kind: 'path', w, h: (w * vh) / vw, wrap: 'inline', text: '' });
+    const ops: Op[] = [];
+    if (now.runs.length) ops.push({ type: 'remove', block: id, offset: 0, runs: now.runs });
+    ops.push({ type: 'setAttrs', block: id, from: attrsOf(now), to: attrsOf({ type: 'shape', shape, align: now.align }) });
+    this.dispatch({ ops, selectionBefore: this.state.selection, selectionAfter: this.state.selection }, 'command');
   }
 
   /** Asks the app for a picture to fill a shape with (Word's Shape Fill > Picture); resolves to where it's kept. */
@@ -1015,8 +1207,17 @@ export class Editor {
       else this.undo();
       return;
     }
-    // One paragraph of text in a box.
-    if (e.key === 'Enter') e.preventDefault();
+    // Lines in a box (Enter starts a new one), and "- " starts a bullet.
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      cell.ownerDocument.execCommand('insertLineBreak');
+      return;
+    }
+    if (e.key === ' ' && !mod && bulletStart(cell)) {
+      e.preventDefault();
+      cell.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
     if (e.key === 'Escape' || e.key === 'Tab') {
       e.preventDefault();
       this.commitTable(id);
@@ -1031,10 +1232,10 @@ export class Editor {
   }
 
   /** Puts a text box or shape at the caret. */
-  insertShape(kind: ShapeKind, textBox = false): void {
+  insertShape(kind: ShapeKind, textBox = false, look?: Partial<ShapeLook>): void {
     if (this.isReadOnly) return;
     this.syncSelectionFromDom();
-    this.dispatch(insertShape(this.state, kind, textBox), 'command');
+    this.dispatch(insertShape(this.state, kind, textBox, look), 'command');
     const shape = this.state.doc.blocks.find((b, i, all) => b.type === 'shape' && all[i + 1]?.id === this.state.selection.focus.block);
     const text = shape && this.view.blockElement(shape.id)?.querySelector<HTMLElement>('.shape-text');
     if (textBox && text) text.focus();
@@ -1097,6 +1298,7 @@ export class Editor {
     else if (action === 'rot') this.setPicture(id, { rot: value === '0' ? 0 : (p.rot ?? 0) + Number(value) });
     else if (action === 'size') this.setPicture(id, { w: undefined });
     else if (action === 'reset') this.setPicture(id, p.alt ? { alt: p.alt } : {}, true, p.orig);
+    else if (action === 'toshape') void this.svgToShape(id);
     else if (action === 'alt' || action === 'change' || action === 'format' || action === 'background' || action === 'compress') this.onPictureAction?.(id, action);
     else if (action === 'crop') {
       // Crop mode: the edges to drag, until Crop is clicked again (or anything else).
@@ -2542,6 +2744,7 @@ export class Editor {
       return;
     }
     if (this.pickedShapes.size && !(e.target as Element).closest?.('.shape-tools')) this.clearPicked();
+    if (this.editingPoints && !(e.target as Element).closest?.(`[data-block="${this.editingPoints}"]`)) this.editPoints(null);
     // A shape behind the text picked from the Selection pane: back under the text on the next click elsewhere.
     this.view.root.querySelectorAll('.obj-picked').forEach((x) => !x.contains(e.target as Node) && x.classList.remove('obj-picked'));
     const shapeAction = (e.target as Element).closest?.<HTMLElement>('[data-shape-action]');
@@ -2577,6 +2780,12 @@ export class Editor {
       else if (action === 'head' || action === 'tail') this.setShapeLook(id, { [action]: value || undefined });
       else if (action === 'fx') this.setShapeLook(id, { fx: (value || undefined) as ShapeLook['fx'] });
       else if (action === 'tc') this.setShapeLook(id, { tc: value || undefined });
+      else if (action === 'ta') this.setShapeLook(id, { ta: (value || undefined) as ShapeLook['ta'] });
+      else if (action === 'tv') this.setShapeLook(id, { tv: (value || undefined) as ShapeLook['tv'] });
+      else if (action === 'dir') this.setShapeLook(id, { dir: (value || undefined) as ShapeLook['dir'] });
+      else if (action === 'link') this.linkTextBox(id);
+      else if (action === 'unlink') this.unlinkTextBox(id);
+      else if (action === 'points') this.editPoints(this.editingPoints === id ? null : id);
       else if (action === 'order') this.orderShape(id, value);
       else if (action === 'align') this.alignShapes(id, value);
       else if (action === 'group') this.groupShapes(id);
