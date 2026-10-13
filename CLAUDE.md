@@ -102,6 +102,13 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     renderer (`setCodeRenderer`, `app/src/ui/coderender.ts`, KaTeX and
     Mermaid loaded when first needed); saved as ```` ```math ```` /
     ```` ```mermaid ```` fences.
+    An equation within a line is a field `math:LaTeX` (`$`…`$` in
+    Markdown), drawn by the view as a picture from the app (`setMathImage`:
+    KaTeX's MathML in an SVG, `coderender.ts`); clicking it (or Alt+=,
+    `editor.insertMath`) opens `ui/mathtools.tsx`'s `MathCard`, and
+    `MathBlockBar` floats over a maths block's source: structures, symbols and
+    UnicodeMath (`data/unicodemath.ts`). Word gets Office Math, made from
+    KaTeX's MathML, and Word's comes back as LaTeX (`data/omml.ts`).
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines, and the gallery's styles,
     `TABLE_STYLES`, which go to Word as table styles "Crumpet Blue" and so on) and keeping it in step as rows and

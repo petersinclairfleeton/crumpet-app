@@ -9,6 +9,7 @@ import { evaluateCell, formatValue, isFormula } from '@crumpet/editor/formula';
 import { cellPlain, cellRuns, cellText } from '@crumpet/editor/cells';
 import { type LineEnd, type ShapeKind, type ShapeLook, WORD_SHAPES, isLineKind, tidyShape } from '@crumpet/editor/shape';
 import { FIELDS, fieldFromWord, fieldValue, wordInstr } from '@crumpet/editor/fields';
+import { M_NS, latexToOmml, ommlToLatex } from './omml';
 import { figureEntries, indexEntries } from '@crumpet/editor/lists';
 import { type PicLook, tidyPic } from '@crumpet/editor/picture';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty, tidyRuns } from './headers';
@@ -162,6 +163,8 @@ class Writer {
   private sectNext: string | null = null;
   /** The headings a table of contents lists (written in ahead of Word filling in the page numbers). */
   tocEntries: { level: number; text: string }[] = [];
+  /** Equations in Word's maths, by their LaTeX ("display:" first for ones on their own line). */
+  maths = new Map<string, string>();
   /** Each list gets its own numbering (numId = index + 1), with its levels' number or bullet styles. */
   lists: ListDef[] = [];
   private nextRel = 1;
@@ -327,6 +330,11 @@ class Writer {
       }
       // Word's Text Wrapping break.
       if (r.field === 'wrapbreak') return '<w:r><w:br w:type="textWrapping" w:clear="all"/></w:r>';
+      // An equation within the line: Word's own maths (its source as text if it can't be read).
+      if (r.field.startsWith('math:')) {
+        const omml = this.maths.get(r.field.slice(5));
+        return omml ? `<m:oMath>${omml}</m:oMath>` : `<w:r>${props}<w:t xml:space="preserve">${esc(r.field.slice(5))}</w:t></w:r>`;
+      }
       // A citation: its text, as written in the citation style.
       if (r.field.startsWith('cite:')) return `<w:r>${props}<w:t xml:space="preserve">${esc(this.fieldShown(r.field))}</w:t></w:r>`;
       const instr = wordInstr(r.field);
@@ -699,7 +707,12 @@ class Writer {
           out += await this.shape(b, lead);
           continue;
         case 'code': {
-          // Maths and diagrams go to Word as their source, in a typewriter font.
+          // Maths goes to Word as an equation of its own; diagrams (and maths that can't be read) as their source, in a typewriter font.
+          const omml = b.code?.lang === 'math' ? this.maths.get(`display:${b.code.text}`) : undefined;
+          if (omml) {
+            out += this.paragraph(null, `<m:oMathPara><m:oMath>${omml}</m:oMath></m:oMathPara>`, lead);
+            continue;
+          }
           const lines = (b.code?.text ?? '').split('\n');
           const mono = '<w:rPr><w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:cs="Consolas"/><w:sz w:val="20"/></w:rPr>';
           out += this.paragraph(null, lines.map((l, i) => `${i ? `<w:r>${mono}<w:br/></w:r>` : ''}<w:r>${mono}<w:t xml:space="preserve">${esc(l)}</w:t></w:r>`).join(''), lead);
@@ -777,7 +790,7 @@ const CALLOUTS: Record<string, { bar: string; fill: string }> = {
 };
 const calloutPr = (c: { bar: string; fill: string }) => `<w:pBdr><w:left w:val="single" w:sz="24" w:space="8" w:color="${c.bar}"/></w:pBdr><w:shd w:val="clear" w:color="auto" w:fill="${c.fill}"/>`;
 
-const NS = `xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"`;
+const NS = `xmlns:w="${W_NS}" xmlns:r="${R_NS}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:m="${M_NS}"`;
 /** The document also names the drawing parts, for shapes and text boxes. */
 /** Headers and footers, with what a watermark needs (VML, as Word writes it). */
 const HF_NS = `${NS} xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w10="urn:schemas-microsoft-com:office:word"`;
@@ -1003,6 +1016,16 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const w = new Writer(opts, contentIn * 96);
   w.countComments(parts);
   w.prepareFields(parts);
+  // Equations: Word's own maths, made from KaTeX's MathML (KaTeX loaded only when there are some).
+  const texs = parts.flatMap((part) => part.doc.blocks.flatMap((b) => [...(b.type === 'code' && b.code?.lang === 'math' && b.code.text.trim() ? [`display:${b.code.text}`] : []), ...b.runs.filter((r) => r.field?.startsWith('math:')).map((r) => r.field!.slice(5))]));
+  if (texs.length) {
+    const katex = await import('katex');
+    for (const t of new Set(texs)) {
+      const display = t.startsWith('display:');
+      const omml = latexToOmml(katex, display ? t.slice(8) : t, display);
+      if (omml) w.maths.set(t, omml);
+    }
+  }
   w.tocEntries = parts.flatMap((part) => [
     ...(part.heading ? [{ level: 1, text: part.heading }] : []),
     ...part.doc.blocks.filter((b) => b.type === 'heading1' || b.type === 'heading2' || b.type === 'heading3').map((b) => ({ level: Math.min(3, Number(b.type.slice(-1)) + (part.heading !== undefined ? 1 : 0)), text: b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote).map((r) => r.text).join('').trim() })),
@@ -1750,6 +1773,12 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
           } else await readRuns(el, out, pics, marks, link);
           break;
         }
+        case 'oMath': {
+          // An equation within the line: Word's maths read as LaTeX.
+          const tex = el.namespaceURI === M_NS ? ommlToLatex(el) : '';
+          if (tex) out.push({ text: FIELD, marks: [], field: `math:${tex.slice(0, 1000)}` });
+          break;
+        }
         case 'smartTag':
         case 'customXml':
         case 'sdtContent':
@@ -1897,9 +1926,18 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       if (blocks[blocks.length - 1]?.type !== 'toc') blocks.push(makeBlock('toc'));
       return;
     }
+    // Equations on lines of their own: maths blocks (written in LaTeX).
+    const mathsBefore = blocks.length;
+    for (const para of kids(p).filter((x) => x.localName === 'oMathPara' && x.namespaceURI === M_NS)) {
+      for (const om of kids(para).filter((x) => x.localName === 'oMath')) {
+        const tex = ommlToLatex(om);
+        if (tex) blocks.push(makeBlock('code', '', [], { code: { lang: 'math', text: tex } }));
+      }
+    }
     const runs: Run[] = [];
     const pics: Block[] = [];
     await readRuns(p, runs, pics);
+    if (blocks.length > mathsBefore && !runs.some((r) => r.text.trim()) && !pics.length) return;
     let clean = normalizeRuns(runs);
     const frame = child(ppr, 'framePr');
     const dropCap = attr(frame, 'dropCap');

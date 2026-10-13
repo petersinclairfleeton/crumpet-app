@@ -166,7 +166,7 @@ At the end there's a suggested order for building what's missing.
 | WordArt | ❌ | |
 | Object (embedded/linked file) | 🟡 | Files can be attached in the text (shown as a chip); not embedded as editable objects. |
 | Text from file (put a whole document into this one) | ✅ | Snippets → Text from file…: a Word document, Markdown or plain text, poured in at the caret with its formatting. |
-| Equation | 🟡 | Written in LaTeX and drawn at once. No equation toolbar of structures, no UnicodeMath, no ink equation. |
+| Equation | ✅ | Formatting bar → Equation (or Alt+= for one within the line): written in LaTeX or UnicodeMath, with structures and symbols to pick, drawn at once; Word gets real Word equations, and Word's equations come in as Crumpet's. No handwritten (ink) equations. |
 | Symbol | ✅ | Symbols and special characters (non-breaking space and hyphen, dashes, quotes…). |
 | Forms (content controls: tick boxes, drop-downs, date pickers) | 🟡 | Checklists only. |
 | Loop components | ➖ | Microsoft 365 only. |
@@ -394,9 +394,10 @@ At the end there's a suggested order for building what's missing.
 | Feature | | Crumpet today |
 |---|---|---|
 | Professional / Linear view | 🟡 | You write the LaTeX (linear) and see the drawn result (professional) together. |
-| Structures (fractions, scripts, radicals, integrals, matrices) | ❌ | No buttons for them; they're typed in LaTeX. |
-| Maths symbols palette | ❌ | |
-| Equations inside a line of text | ❌ | An equation is a block of its own. |
+| Structures (fractions, scripts, radicals, integrals, matrices) | ✅ | Over a maths block while you write it, and in the card for one within a line: fractions, scripts, roots, integrals, large operators, brackets, functions, accents, matrices and operators. |
+| Maths symbols palette | ✅ | Symbols beside Structures: basic maths, Greek letters, sets and logic, arrows, letter-like symbols. |
+| Equations inside a line of text | ✅ | Alt+= (or Equation → In the line): drawn in the line at the text's size; click to change it, or put it on a line of its own. Saved as $`…`$. |
+| UnicodeMath (Word's typed maths, like a/b or x^2) | ✅ | In the equation card (LaTeX / UnicodeMath) and a line under the structures; turned into LaTeX. The common parts: fractions, scripts, roots, n-ary operators, brackets, matrices. |
 
 ### Text Box / Drawing Canvas
 
@@ -603,10 +604,10 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [x] Digital signature
 
 **12. Bigger additions**
-- [ ] Equation toolbar (fractions, scripts, roots, integrals, matrices)
-- [ ] Maths symbols palette
-- [ ] Equations within a line
-- [ ] UnicodeMath, and handwritten maths
+- [x] Equation toolbar (fractions, scripts, roots, integrals, matrices)
+- [x] Maths symbols palette
+- [x] Equations within a line
+- [x] UnicodeMath (handwritten maths not built: it needs a handwriting recogniser, see the ink items)
 - [ ] Charts from a table of numbers
 - [ ] Screenshot
 - [ ] Online video (YouTube links play in the text)

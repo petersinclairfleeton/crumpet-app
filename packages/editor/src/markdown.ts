@@ -428,8 +428,12 @@ function writeFormatted(runs: Run[], style: Style): string {
     // A footnote is written in place, as ^[what it says].
     // An endnote: ^^[what it says].
     if (r.footnote !== undefined) out += `${r.endnote ? '^^' : '^'}[${escapeText(r.footnote.replace(/\s+/g, ' '))}]`;
-    // A field, as {{name}}.
-    else if (r.field !== undefined) out += `{{${r.field}}}`;
+    // An equation within the line, as $`LaTeX`$ (more backticks when it has some); any other field as {{name}}.
+    else if (r.field?.startsWith('math:')) {
+      const tex = r.field.slice(5);
+      const ticks = '`'.repeat(Math.max(0, ...(tex.match(/`+/g) ?? []).map((t) => t.length)) + 1);
+      out += `$${ticks}${ticks.length > 1 ? ' ' : ''}${tex}${ticks.length > 1 ? ' ' : ''}${ticks}$`;
+    } else if (r.field !== undefined) out += `{{${r.field}}}`;
     else out += r.marks.includes('code') ? codeSpan(r.text) : escapeText(r.text);
   };
   for (let i = 0; i < runs.length; ) {
@@ -960,6 +964,17 @@ function tokenize(src: string): Node[] {
         const note = decodeEntities(unescape(src.slice(open + 1, end))).trim();
         nodes.push({ kind: 'text', text: FOOTNOTE, marks: [], footnote: note, ...(endnote ? { endnote: true } : {}) });
         i = end + 1;
+        continue;
+      }
+    }
+    // An equation within the line: $`E = mc^2`$.
+    if (c === '$' && src[i + 1] === '`') {
+      const m = /^\$(`+)([^\n]+?)\1\$/.exec(src.slice(i));
+      const tex = m && (m[1].length > 1 ? m[2].replace(/^ (.*) $/, '$1') : m[2]);
+      if (m && tex && tex.length <= 1000) {
+        flush();
+        nodes.push({ kind: 'text', text: FIELD, marks: [], field: `math:${tex}` });
+        i += m[0].length;
         continue;
       }
     }

@@ -320,9 +320,33 @@ export class View {
         }
         el.dataset.target = target;
       } else if (kind === 'cite') v = this.citeText?.(name.slice(5)) ?? `(${name.slice(5)})`;
+      else if (kind === 'math') v = this.drawMath(el, name.slice(5));
       if (el.dataset.v !== v) el.dataset.v = v;
       el.title = fieldLabel(name);
     }
+  }
+
+  /**
+   * An equation within the line: a picture of it from the app's maths
+   * (`setMathImage`), the size and colour of the text around it, drawn over
+   * its field character; its source until the picture is ready (or if it
+   * can't be drawn). Returns what the field shows as text.
+   */
+  private drawMath(el: HTMLElement, tex: string): string {
+    if (!mathImage) return tex;
+    const cs = getComputedStyle(el);
+    const size = parseFloat(cs.fontSize) || 16;
+    const pic = mathImage(tex, size, cs.color, () => this.fillFields());
+    if (!pic) {
+      el.classList.remove('math-ready');
+      el.style.removeProperty('--m');
+      return tex;
+    }
+    el.classList.add('math-ready');
+    const url = `url("${pic.url}")`;
+    if (el.style.getPropertyValue('--m') !== url) el.style.setProperty('--m', url);
+    el.style.setProperty('--md', `${-pic.depth}px`);
+    return '';
   }
 
   /** Footnotes are numbered in order through the whole note (or book). */
@@ -1367,6 +1391,17 @@ export type CodeRenderer = (lang: CodeLang, text: string, out: HTMLElement) => v
 let codeRenderer: CodeRenderer | null = null;
 export function setCodeRenderer(f: CodeRenderer | null): void {
   codeRenderer = f;
+}
+
+/**
+ * A picture of an equation within a line (set by the app): its address, and
+ * how far below the line's baseline it reaches. Null while it's being made
+ * (`ready` is called when it is) or when it can't be drawn.
+ */
+export type MathImage = (tex: string, size: number, color: string, ready: () => void) => { url: string; depth: number } | null;
+let mathImage: MathImage | null = null;
+export function setMathImage(f: MathImage | null): void {
+  mathImage = f;
 }
 
 const CODE_NAMES: Partial<Record<CodeLang, string>> = { math: 'Maths', mermaid: 'Diagram' };

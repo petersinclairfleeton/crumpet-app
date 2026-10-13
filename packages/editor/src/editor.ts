@@ -112,6 +112,8 @@ import {
   insertPageBreak,
   insertBlankPage,
   insertField,
+  setFieldAt,
+  mathToBlock,
   setListStyle,
   setListStart,
   insertToc,
@@ -2712,6 +2714,40 @@ export class Editor {
     if (el) this.onFootnoteClick?.(at, '', el);
   }
 
+  /** Clicks on an equation within the line (the app opens its editor). */
+  onMathClick: ((at: Pos, tex: string, el: HTMLElement) => void) | null = null;
+
+  /** Word's Insert Equation (Alt+=): an equation within the line at the caret, opened for writing. */
+  insertMath(tex = ''): void {
+    if (this.isReadOnly) return;
+    this.insertField(`math:${tex || 'x'}`);
+    const f = this.state.selection.focus;
+    const at = { block: f.block, offset: f.offset - 1 };
+    const el = this.fieldElement(at);
+    if (el) this.onMathClick?.(at, tex, el);
+  }
+
+  /** Changes an equation within the line (empty: takes it out). */
+  setMath(at: Pos, tex: string): void {
+    const t = setFieldAt(this.state, at, tex.trim() ? `math:${tex.trim().replace(/\n/g, ' ')}` : '');
+    if (t) this.dispatch(t, 'command');
+  }
+
+  /** An equation within the line made one of its own, on a line of its own. */
+  mathOwnLine(at: Pos): void {
+    const t = mathToBlock(this.state, at);
+    if (t) this.dispatch(t, 'command');
+  }
+
+  /** The element drawing the field at `at`. */
+  fieldElement(at: Pos): HTMLElement | null {
+    for (const el of Array.from(this.view.root.querySelectorAll<HTMLElement>('span.fld'))) {
+      const p = this.view.domToPos(el, 0);
+      if (p && p.block === at.block && p.offset === at.offset) return el;
+    }
+    return null;
+  }
+
   /** Adds an endnote (listed at the end, numbered i, ii, iii) and opens it for writing. */
   addEndnote(): void {
     this.addFootnote(true);
@@ -2785,6 +2821,12 @@ export class Editor {
     }
     const mod = isMac ? e.metaKey : e.ctrlKey;
     // Word's outline keys: Alt+Shift+arrows promote, demote and move; in outline view Tab demotes a heading and Shift+Tab promotes it.
+    // Alt+= (Word's Insert Equation): an equation within the line.
+    if (e.altKey && !e.shiftKey && !mod && e.code === 'Equal' && this.onMathClick) {
+      e.preventDefault();
+      this.insertMath();
+      return;
+    }
     if (e.altKey && e.shiftKey && !mod && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
       e.preventDefault();
       this.syncSelectionFromDom();
@@ -2878,6 +2920,16 @@ export class Editor {
       if (at) {
         e.preventDefault();
         this.onFootnoteClick({ block: at.block, offset: at.offset }, at.text, fn);
+        return;
+      }
+    }
+    // Clicking an equation within the line opens it to edit.
+    const math = (e.target as Element).closest?.<HTMLElement>('span.fld[data-field^="math:"]');
+    if (math && this.onMathClick && !this.isReadOnly) {
+      const at = this.view.domToPos(math, 0);
+      if (at) {
+        e.preventDefault();
+        this.onMathClick(at, math.dataset.field!.slice(5), math);
         return;
       }
     }

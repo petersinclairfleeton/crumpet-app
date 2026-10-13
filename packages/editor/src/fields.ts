@@ -29,9 +29,10 @@ export const DOC_FIELDS: Record<string, string> = {
  * Fields with something after a colon: `seq:Figure` (a caption's number),
  * `bm:Name` (a bookmark: shows nothing), `ref:Name` or `ref:Name:text|page|dir`
  * (a cross-reference to a bookmark), `xe:Term` (an index entry: shows
- * nothing), `cite:key` (a citation of a source).
+ * nothing), `cite:key` (a citation of a source), `math:LaTeX` (an equation
+ * within the line, drawn by the app's maths; `$`…`$` in Markdown).
  */
-const PARAM = /^(?:seq:[A-Za-z][\w ]{0,30}|bm:[A-Za-z_][\w-]{0,39}|ref:[A-Za-z_][\w-]{0,39}(?::(?:num|text|page|dir))?|xe:[^{}\n:][^{}\n]{0,99}|cite:[\w.:-]{1,60})$/;
+const PARAM = /^(?:seq:[A-Za-z][\w ]{0,30}|bm:[A-Za-z_][\w-]{0,39}|ref:[A-Za-z_][\w-]{0,39}(?::(?:num|text|page|dir))?|xe:[^{}\n:][^{}\n]{0,99}|cite:[\w.:-]{1,60}|math:[^\n]{1,1000})$/;
 
 /** Breaks kept as fields: Word's Text Wrapping break (the text after it starts below any picture or shape it's wrapping round). */
 export const BREAK_FIELDS: Record<string, string> = { wrapbreak: 'Text wrapping break' };
@@ -41,12 +42,12 @@ export function isField(name: string): boolean {
 }
 
 /** What kind a field is. */
-export function fieldKind(name: string): 'date' | 'doc' | 'break' | 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | null {
+export function fieldKind(name: string): 'date' | 'doc' | 'break' | 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | 'math' | null {
   if (name in FIELDS) return 'date';
   if (name in BREAK_FIELDS) return 'break';
   if (name in DOC_FIELDS) return 'doc';
-  const k = /^(seq|bm|ref|xe|cite):/.exec(name)?.[1];
-  return (k as 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | undefined) ?? null;
+  const k = /^(seq|bm|ref|xe|cite|math):/.exec(name)?.[1];
+  return (k as 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | 'math' | undefined) ?? null;
 }
 
 /** A field's name in words, for its tooltip. */
@@ -60,6 +61,7 @@ export function fieldLabel(name: string): string {
   if (kind === 'ref') return `Cross-reference to “${rest.split(':')[0]}” (Ctrl+click to go there)`;
   if (kind === 'xe') return `Index entry: ${rest}`;
   if (kind === 'cite') return `Citation: ${rest}`;
+  if (kind === 'math') return `Equation: ${rest} (click to edit)`;
   return 'Field';
 }
 

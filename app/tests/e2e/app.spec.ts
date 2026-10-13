@@ -5075,3 +5075,56 @@ test('protect: a note with a password, mark as final, restrict editing, and a si
   await page.keyboard.type('!');
   await expect(sig).toHaveAttribute('data-sig-ok', 'no');
 });
+
+test('equations: within a line (Alt+=, LaTeX or UnicodeMath), structures over a maths block, and to Word', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Maths', 'The area is ');
+  const editor = page.locator('.note-editor');
+  await page.keyboard.press('Alt+Equal');
+  const card = page.getByRole('dialog', { name: 'Equation' });
+  await expect(card).toBeVisible();
+  await page.keyboard.type('\\pi r^2');
+  await expect(card.locator('.math-card-preview .katex')).toBeVisible();
+  await card.getByRole('button', { name: 'Done' }).click();
+  await expect(editor.locator('span.fld.math-ready')).toHaveCount(1);
+  await page.keyboard.type(' and ');
+  await page.keyboard.press('Alt+Equal');
+  await card.getByRole('button', { name: 'UnicodeMath' }).click();
+  await page.keyboard.type('(a+b)/2');
+  await page.keyboard.press('Enter');
+  await expect(editor.locator('span.fld.math-ready')).toHaveCount(2);
+  await expect(editor.locator('span.fld[data-field="math:\\\\frac{a+b}{2}"]')).toHaveCount(1);
+  // Click one to change it; then put it on a line of its own.
+  await editor.locator('span.fld.math-ready').first().click();
+  await expect(card.getByLabel('Equation (LaTeX)')).toHaveValue('\\pi r^2');
+  await card.getByLabel('Equation (LaTeX)').fill('\\pi r^{2}');
+  await card.getByRole('button', { name: 'Symbols' }).click();
+  await card.getByRole('combobox', { name: 'Kind of symbol' }).selectOption({ label: 'Greek letters' });
+  await card.getByRole('button', { name: 'theta', exact: true }).click();
+  await expect(card.getByLabel('Equation (LaTeX)')).toHaveValue('\\pi r^{2}\\theta');
+  await card.getByLabel('Equation (LaTeX)').fill('\\pi r^{2}');
+  await card.getByRole('button', { name: 'Done' }).click();
+  await expect(editor.locator('span.fld[data-field="math:\\\\pi r^{2}"]')).toHaveCount(1);
+  await editor.locator('span.fld[data-field="math:\\\\pi r^{2}"]').click();
+  await card.getByRole('button', { name: 'On its own line' }).click();
+  await expect(editor.locator('.code-wrap[data-lang="math"]')).toHaveCount(1);
+  await expect(editor.locator('span.fld.math-ready')).toHaveCount(1);
+  // The structures over a maths block put LaTeX in at the caret.
+  const src = editor.locator('.code-src');
+  await editor.locator('[data-code-preview]').click();
+  await expect(src).toBeFocused();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' + ');
+  const bar = page.getByRole('toolbar', { name: 'Equation' });
+  await bar.getByRole('combobox', { name: 'Kind of structure' }).selectOption({ label: 'Radicals' });
+  await bar.getByRole('button', { name: 'Square root', exact: true }).click();
+  await page.keyboard.type('x');
+  await expect(src).toHaveValue('\\pi r^{2} + \\sqrt{x}');
+  await bar.getByLabel('UnicodeMath').fill('a/b');
+  await bar.getByLabel('UnicodeMath').press('Enter');
+  await expect(src).toHaveValue('\\pi r^{2} + \\sqrt{x\\frac{a}{b}}');
+  // Word gets real equations.
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as Word document' }).click()]);
+  expect(download.suggestedFilename()).toBe('Maths.docx');
+});
