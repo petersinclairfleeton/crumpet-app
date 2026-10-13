@@ -2150,3 +2150,23 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .c-rule .cover-thumb { justify-items: start; padding-left: 4px; }
 .c-rule .cover-thumb b { border-bottom: 2px solid #2f5d8a; }
 .c-frame .cover-thumb b { outline: 2px double #2f5d8a; outline-offset: 2px; }
+.theme-menu { min-width: 300px; }
+.theme-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 4px 10px 8px; }
+.theme-card { display: grid; justify-items: center; gap: 3px; padding: 6px 2px 4px; border: 1px solid var(--line2); border-radius: 6px; background: #fff; color: #222; cursor: pointer; }
+.theme-card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.theme-aa { font-size: 20px; line-height: 1.1; }
+.theme-name { font-size: 10.5px; color: #555; }
+.theme-strip { display: inline-flex; gap: 1px; }
+.theme-strip i { display: block; width: 9px; height: 9px; }
+.colour-set .theme-strip { margin-right: 8px; }
+.font-pair { display: grid; grid-template-columns: 1fr; gap: 0; text-align: left; }
+.font-pair .font-pair-name { font-size: 11px; color: var(--muted); }
+.font-pair span:nth-child(2) { font-size: 16px; }
+.effect-sample { display: inline-block; width: 18px; height: 12px; margin-right: 8px; background: #fff; border: 1px solid #bbb; vertical-align: middle; }
+/* (In the bar's More menu, toolbar buttons are small squares: these gallery buttons keep their own shape.) */
+.tools .theme-card, .tools .cover-design { display: grid; height: auto; min-width: 0; font-weight: 400; }
+.tools .theme-card { background: #fff; border: 1px solid var(--line2); border-radius: 6px; padding: 6px 2px 4px; color: #222; }
+.tools .theme-card.on { border-color: var(--accent); }
+.tools .cover-design { border: 1px solid transparent; padding: 4px 2px; font-size: 11px; }
+.tools .cover-design.on { border-color: var(--accent); }
+.tools .menu-item.font-pair { display: grid; height: auto; justify-items: start; padding: 4px 10px; font-weight: 400; }

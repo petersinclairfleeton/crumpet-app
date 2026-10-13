@@ -185,11 +185,11 @@ At the end there's a suggested order for building what's missing.
 
 | Feature | | Crumpet today |
 |---|---|---|
-| Themes | 🟡 | Themes change the app's look, not the document's (in Word a theme changes the document's colours and fonts and goes with the file). |
+| Themes | ✅ | Eight document themes (colours, fonts and effects together), saved with the document and sent to Word as its styles' fonts and colours. The app's own look is separate (Settings). |
 | Style Sets | ✅ | Crumpet, Manuscript, Book, Modern. |
-| Colours, Fonts (for the whole document) | 🟡 | Done by modifying styles one by one. |
-| Paragraph Spacing presets | 🟡 | Comes with the style sets; no separate menu. |
-| Effects | ❌ | |
+| Colours, Fonts (for the whole document) | ✅ | Theme colours (seven sets: headings, title, links, and a theme row in Font colour) and theme fonts (eight heading and body pairs). |
+| Paragraph Spacing presets | ✅ | No paragraph space, Compact, Tight, Open, Relaxed, Double; spacing set by hand on a paragraph stays. |
+| Effects | 🟡 | Flat, Subtle, Soft shadow, Lifted, Glow on shapes, text boxes and pictures; shown in Crumpet only (Word keeps the theme's name, not the shadows). |
 | Set as Default | ✅ | The styles window's "Set as default for new projects" (shared across devices). |
 | Watermark ("DRAFT", "CONFIDENTIAL") | ✅ | Ready-made words, words of your own (slanting or flat, in a colour) or a picture; on every page, printed and in Word. |
 | Page Colour | ✅ | Saved in the document, printed and sent to Word; the paper you write on stays a setting of its own. Shown in page view. |
@@ -554,9 +554,9 @@ Where: `paginate.ts`, `app/src/ui/pagesetup.tsx`, `layouttools.tsx`, `pages.tsx`
 - [x] Page colour saved in the document, printed and sent to Word
 - [x] Page borders
 - [x] Cover pages
-- [ ] Document themes; theme colours and fonts menus
-- [ ] Paragraph spacing presets
-- [ ] Design effects
+- [x] Document themes; theme colours and fonts menus
+- [x] Paragraph spacing presets
+- [x] Design effects
 
 **9. Shapes and arranging**
 Where: `packages/editor/src/shape.ts`, `view.ts` (the Shape menu), `paginate.ts`, `docx.ts`.

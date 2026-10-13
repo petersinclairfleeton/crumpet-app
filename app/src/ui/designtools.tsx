@@ -11,6 +11,8 @@ import { type ToolItem, closeMore } from './toolbar';
 import { addFile, isImage } from '../data/files';
 import { useAppState } from './hooks';
 import { formatDate } from '../data/headers';
+import { COLOUR_SETS, DOC_THEMES, EFFECTS, FONT_PAIRS, SPACINGS, colourSet, fontPair, themeCss, themeOf } from '../data/doctheme';
+import { loadGoogleFont } from './fonts';
 
 const svg = (d: string) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -20,6 +22,24 @@ const svg = (d: string) => (
 const ICON_WATERMARK = svg('M6 3h9l4 4v14H6zM9 17l6-8');
 const ICON_BORDER = svg('M4 4h16v16H4zM7 7h10v10H7z');
 const ICON_COVER = svg('M6 3h12v18H6zM9 8h6M9 11h6M10 16h4');
+const ICON_THEME = svg('M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2s-1-1.5-1-2.5 1-1.5 2-1.5h2a4 4 0 0 0 4-4c0-4.4-4-8-9-8zM7.5 11h.01M10 7h.01M15 7h.01');
+const ICON_COLOURS = svg('M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z');
+const ICON_FONTS = svg('M4 19l5-14 5 14M6 14h6M15 19l3-8 3 8M16 16h4');
+const ICON_SPACING = svg('M8 6h12M8 12h12M8 18h12M4 4v4M4 16v4M3 6l1-2 1 2M3 18l1 2 1-2');
+const ICON_EFFECTS = svg('M5 7h10v10H5zM9 21h10V11');
+
+/** The rules for the document themes, and the theme's fonts fetched (once each). */
+let themeStyle: HTMLStyleElement | null = null;
+export function applyThemeLook(thf: string | undefined): void {
+  if (typeof document === 'undefined') return;
+  if (!themeStyle) {
+    themeStyle = document.createElement('style');
+    themeStyle.dataset.themes = '';
+    themeStyle.textContent = themeCss();
+    document.head.appendChild(themeStyle);
+  }
+  for (const family of fontPair(thf)?.google ?? []) loadGoogleFont(family, 15);
+}
 
 function Drop({ label, glyph, off, children }: { label: string; glyph: React.ReactNode; off: boolean; children(close: () => void): React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -228,9 +248,135 @@ function CoverMenu({ ed, close }: { ed: Editor; close(): void }) {
   );
 }
 
+function ThemesMenu({ ed, close }: { ed: Editor; close(): void }) {
+  const p = ed.docPara();
+  const now = themeOf(p);
+  const custom = !now && (p.thc || p.thf || p.thx);
+  return (
+    <div className="menu-list theme-menu">
+      <span className="menu-head">Document theme</span>
+      <div className="theme-gallery" role="radiogroup" aria-label="Themes">
+        {DOC_THEMES.map((t) => {
+          const c = colourSet(t.thc)!;
+          const f = fontPair(t.thf)!;
+          return (
+            <button key={t.id} type="button" role="radio" aria-checked={now?.id === t.id} className={`theme-card${now?.id === t.id ? ' on' : ''}`} onMouseEnter={() => applyThemeLook(t.thf)} onClick={() => (ed.setDocPara({ thc: t.thc, thf: t.thf, thx: t.thx }), close())}>
+              <span className="theme-aa" style={{ fontFamily: f.head, color: c.heading }}>Aa</span>
+              <span className="theme-strip" aria-hidden="true">
+                {c.accents.slice(0, 4).map((a) => (
+                  <i key={a} style={{ background: a }} />
+                ))}
+              </span>
+              <span className="theme-name">{t.name}</span>
+            </button>
+          );
+        })}
+      </div>
+      {custom && <p className="menu-note">This document mixes its own colours, fonts or effects.</p>}
+      <button type="button" className="menu-item" disabled={!p.thc && !p.thf && !p.thx} onClick={() => (ed.setDocPara({ thc: undefined, thf: undefined, thx: undefined }), close())}>
+        Back to the styles’ own look
+      </button>
+    </div>
+  );
+}
+
+function ColoursMenu({ ed, close }: { ed: Editor; close(): void }) {
+  const p = ed.docPara();
+  return (
+    <div className="menu-list">
+      <span className="menu-head">Theme colours</span>
+      <button type="button" role="menuitemradio" aria-checked={!p.thc} className={`menu-item${!p.thc ? ' on' : ''}`} onClick={() => (ed.setDocPara({ thc: undefined }), close())}>
+        The styles’ own
+      </button>
+      {COLOUR_SETS.map((c) => (
+        <button key={c.id} type="button" role="menuitemradio" aria-checked={p.thc === c.id} className={`menu-item colour-set${p.thc === c.id ? ' on' : ''}`} onClick={() => (ed.setDocPara({ thc: c.id }), close())}>
+          <span className="theme-strip" aria-hidden="true">
+            {[c.heading, ...c.accents].map((a, i) => (
+              <i key={i} style={{ background: a }} />
+            ))}
+          </span>
+          {c.name}
+        </button>
+      ))}
+      <p className="menu-note">Headings, the title and links take them; they head the Font colour menu too.</p>
+    </div>
+  );
+}
+
+function FontsMenu({ ed, close }: { ed: Editor; close(): void }) {
+  const p = ed.docPara();
+  for (const f of FONT_PAIRS) for (const g of f.google ?? []) loadGoogleFont(g, 1, `${f.name}AaBbHeadingsBody text`);
+  return (
+    <div className="menu-list">
+      <span className="menu-head">Theme fonts</span>
+      <button type="button" role="menuitemradio" aria-checked={!p.thf} className={`menu-item${!p.thf ? ' on' : ''}`} onClick={() => (ed.setDocPara({ thf: undefined }), close())}>
+        The styles’ own
+      </button>
+      {FONT_PAIRS.map((f) => (
+        <button key={f.id} type="button" role="menuitemradio" aria-checked={p.thf === f.id} className={`menu-item font-pair${p.thf === f.id ? ' on' : ''}`} onClick={() => (applyThemeLook(f.id), ed.setDocPara({ thf: f.id }), close())}>
+          <span className="font-pair-name">{f.name}</span>
+          <span style={{ fontFamily: f.head }}>Headings</span>
+          <span style={{ fontFamily: f.body }}>Body text</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SpacingMenu({ ed, close }: { ed: Editor; close(): void }) {
+  const p = ed.docPara();
+  return (
+    <div className="menu-list">
+      <span className="menu-head">Paragraph spacing</span>
+      <button type="button" role="menuitemradio" aria-checked={!p.psp} className={`menu-item${!p.psp ? ' on' : ''}`} onClick={() => (ed.setDocPara({ psp: undefined }), close())}>
+        The styles’ own
+      </button>
+      {SPACINGS.map((s) => (
+        <button key={s.id} type="button" role="menuitemradio" aria-checked={p.psp === s.id} className={`menu-item${p.psp === s.id ? ' on' : ''}`} onClick={() => (ed.setDocPara({ psp: s.id }), close())}>
+          {s.name} <small className="menu-key">{s.line === 1 ? 'single' : `${s.line}×`}, {s.after}pt after</small>
+        </button>
+      ))}
+      <p className="menu-note">For the whole document. Spacing set on a paragraph by hand stays.</p>
+    </div>
+  );
+}
+
+function EffectsMenu({ ed, close }: { ed: Editor; close(): void }) {
+  const p = ed.docPara();
+  return (
+    <div className="menu-list">
+      <span className="menu-head">Theme effects</span>
+      <button type="button" role="menuitemradio" aria-checked={!p.thx} className={`menu-item${!p.thx ? ' on' : ''}`} onClick={() => (ed.setDocPara({ thx: undefined }), close())}>
+        The styles’ own
+      </button>
+      {EFFECTS.map((x) => (
+        <button key={x.id} type="button" role="menuitemradio" aria-checked={p.thx === x.id} className={`menu-item${p.thx === x.id ? ' on' : ''}`} onClick={() => (ed.setDocPara({ thx: x.id }), close())}>
+          <span className="effect-sample" style={{ boxShadow: x.shadow, borderRadius: x.radius ?? 0 }} aria-hidden="true" /> {x.name}
+        </button>
+      ))}
+      <p className="menu-note">How shapes, text boxes and pictures stand off the page.</p>
+    </div>
+  );
+}
+
 /** Watermark, Page borders and Cover page, as toolbar items. */
 export function designItems(ed: Editor | null, off: boolean): ToolItem[] {
+  const drop = (key: string, label: string, glyph: React.ReactNode, Menu: (p: { ed: Editor; close(): void }) => React.ReactNode): ToolItem => ({
+    key,
+    label,
+    pri: 1,
+    node: (
+      <Drop label={label} glyph={glyph} off={off}>
+        {(close) => ed && <Menu ed={ed} close={close} />}
+      </Drop>
+    ),
+  });
   return [
+    drop('themes', 'Themes', ICON_THEME, ThemesMenu),
+    drop('themecolours', 'Theme colours', ICON_COLOURS, ColoursMenu),
+    drop('themefonts', 'Theme fonts', ICON_FONTS, FontsMenu),
+    drop('paraspacing', 'Paragraph spacing', ICON_SPACING, SpacingMenu),
+    drop('themeeffects', 'Theme effects', ICON_EFFECTS, EffectsMenu),
     {
       key: 'watermark',
       label: 'Watermark',

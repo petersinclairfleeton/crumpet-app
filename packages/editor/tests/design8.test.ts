@@ -46,4 +46,11 @@ describe('page design settings', () => {
     expect(back.blocks.map((b) => b.runs.map((r) => r.text).join(''))).toEqual(['Chapter one.', 'More.']);
     expect(back.blocks[0].para).toEqual({ hyph: true, pgc: '#fff2cc' });
   });
+
+  it('keeps the document’s theme colours, fonts, effects and paragraph spacing in the file', () => {
+    const md = 'Hello. {thc=ocean thf=modern thx=soft psp=open}\n';
+    const doc = fromMarkdown(md);
+    expect(doc.blocks[0].para).toEqual({ thc: 'ocean', thf: 'modern', thx: 'soft', psp: 'open' });
+    expect(toMarkdown(doc)).toBe(md);
+  });
 });

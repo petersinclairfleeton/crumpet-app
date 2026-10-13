@@ -31,11 +31,12 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
   const [hidden, setHidden] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const keys = items.map((i) => i.key).join();
+  const measureRef = useRef<() => void>(() => {});
 
   useLayoutEffect(() => {
     const el = row.current;
     if (!el || !fit) return;
-    const measure = () => {
+    const measure = (measureRef.current = () => {
       // Remember the width of everything on show (hidden ones keep their last width).
       for (const child of Array.from(el.children) as HTMLElement[]) {
         const k = child.dataset.tool;
@@ -56,12 +57,20 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
         gone.push(i.key);
       }
       setHidden((h) => (h.join() === gone.join() ? h : gone));
-    };
+    });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, [keys, fit]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tools shown for the first time were only guessed at: once they're drawn, measure again.
+  useLayoutEffect(() => {
+    const el = row.current;
+    if (!el || !fit) return;
+    const unmeasured = (Array.from(el.children) as HTMLElement[]).some((c) => c.dataset.tool && c.offsetWidth && widths.current.get(c.dataset.tool) === undefined);
+    if (unmeasured) measureRef.current();
+  }, [hidden, fit]);
 
   // A tool under More that has done its work asks for the menu to close (closeMore).
   useEffect(() => {

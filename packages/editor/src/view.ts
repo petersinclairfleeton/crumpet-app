@@ -97,6 +97,12 @@ export class View {
     this.doc = doc;
     // Hyphenation (the whole document's, on its first paragraph): the browser breaks words in the language of the text.
     this.root.classList.toggle('hyphenate', !!doc.blocks[0]?.para?.hyph);
+    // The document's design (theme colours, fonts, effects, paragraph spacing): the app's styles draw them.
+    const p0 = doc.blocks[0]?.para;
+    for (const [k, attr] of [['thc', 'thc'], ['thf', 'thf'], ['thx', 'thx'], ['psp', 'psp']] as const) {
+      if (p0?.[k]) this.root.dataset[attr] = p0[k];
+      else delete this.root.dataset[attr];
+    }
     if (!this.root.lang) this.root.lang = (typeof navigator !== 'undefined' && navigator.language) || 'en';
     const live = new Set<string>();
     const built = new Set<string>();
