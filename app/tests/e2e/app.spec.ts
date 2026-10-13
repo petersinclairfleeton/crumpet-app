@@ -3644,6 +3644,48 @@ test('immersive reader (spacing, syllables, parts of speech, line focus, picture
   await expect.poll(() => scrolls.nth(1).evaluate((el) => el.scrollTop)).toBeGreaterThan(300);
 });
 
+test('the Check tab: accessibility, Word compatibility, inspect, a spelling pass with suggestions, clarity and inclusive language', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await newNote(page, 'Check', 'Words.');
+  await page.evaluate(async () => {
+    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void; updateLayout(p: object): void } };
+    w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown('# Report\n\n### Details\n\nIn order to begin, the chairman read the {==notes==}{>>Ann (2026-01-01 09:30Z): Check<<} about the lighthuose. See [[Other]].\n'));
+    w.crumpet.updateLayout({ right: true, rightTab: 'check' });
+  });
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  const tab = page.getByRole('tabpanel', { name: 'Check' });
+  await expect(page.locator('.note-editor .blk-heading3')).toHaveCount(1);
+  await page.locator('.note-editor .blk-paragraph').first().click();
+  await expect(tab).toContainText('Heading 3 after Heading 1');
+  await tab.getByRole('tab', { name: 'Word' }).click();
+  await expect(tab).toContainText('Link to a note');
+  // Clarity and inclusive language: plainer and fairer words, in one click.
+  await tab.getByRole('tab', { name: 'Clarity' }).click();
+  await tab.getByRole('button', { name: 'Use “To”' }).click();
+  await expect.poll(md).toContain('To begin');
+  await tab.getByRole('tab', { name: 'Inclusive' }).click();
+  await tab.getByRole('button', { name: 'Use “chair”' }).click();
+  await expect.poll(md).toContain('the chair read');
+  // A spelling pass, with suggestions.
+  await tab.getByRole('tab', { name: 'Spelling' }).click();
+  await tab.getByRole('button', { name: 'Check spelling' }).click();
+  await expect(tab.locator('.spelling-issue strong')).toHaveText(['lighthuose'], { timeout: 15000 });
+  await tab.getByRole('button', { name: 'lighthouse', exact: true }).click();
+  await expect.poll(md).toContain('about the lighthouse');
+  // Inspect: the comment and who wrote it, and taking comments out.
+  await tab.getByRole('tab', { name: 'Inspect' }).click();
+  await expect(tab).toContainText('Ann');
+  await tab.getByRole('button', { name: 'Remove all comments' }).click();
+  await expect.poll(md).not.toContain('{>>');
+});
+
 test('the sidebar and note list fold away with «, peek out at the edge, and come back', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1400, height: 860 });

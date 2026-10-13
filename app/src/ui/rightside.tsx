@@ -18,10 +18,11 @@ import { backlinks, findByTitle, linkedTitles } from '../data/links';
 import { displayTitle } from '../data/selectors';
 import { WritingTab } from './writingtab';
 import { PagesTab } from './thumbs';
+import { CheckTab } from './checks';
 import { ThesaurusTab } from './thesaurus';
 import { sameBookmark, toggleBookmark } from '../data/bookmarks';
 
-export type RightTab = 'outline' | 'pages' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
+export type RightTab = 'outline' | 'pages' | 'check' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
 const TABS: { key: RightTab; label: string }[] = [
   { key: 'outline', label: 'Outline' },
   { key: 'pages', label: 'Pages' },
@@ -30,6 +31,7 @@ const TABS: { key: RightTab; label: string }[] = [
   { key: 'links', label: 'Links' },
   { key: 'snapshots', label: 'Snapshots' },
   { key: 'writing', label: 'Writing' },
+  { key: 'check', label: 'Check' },
   { key: 'thesaurus', label: 'Thesaurus' },
   { key: 'clipboard', label: 'Clipboard' },
   { key: 'objects', label: 'Selection' },
@@ -64,7 +66,7 @@ export function RightSidebar() {
         <FoldButton what="right" />
       </header>
       <div className="right-body" role="tabpanel" aria-label={TABS.find((t) => t.key === tab)!.label}>
-        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'pages' ? <PagesTab editor={helped.editor} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <ReviewPane editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : tab === 'thesaurus' ? <ThesaurusTab editor={helped.editor} /> : tab === 'clipboard' ? <ClipboardPane editor={helped.editor} /> : tab === 'objects' ? <SelectionPane editor={helped.editor} /> : tab === 'search' ? <WebSearchTab editor={helped.editor} docId={helped.docId} /> : <Links docId={helped.docId} />}
+        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'pages' ? <PagesTab editor={helped.editor} /> : tab === 'check' ? <CheckTab editor={helped.editor} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <ReviewPane editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : tab === 'thesaurus' ? <ThesaurusTab editor={helped.editor} /> : tab === 'clipboard' ? <ClipboardPane editor={helped.editor} /> : tab === 'objects' ? <SelectionPane editor={helped.editor} /> : tab === 'search' ? <WebSearchTab editor={helped.editor} docId={helped.docId} /> : <Links docId={helped.docId} />}
       </div>
     </aside>
   );

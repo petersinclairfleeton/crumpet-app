@@ -2226,3 +2226,13 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .reader-card-head strong { flex: 1; font-size: 16px; }
 .reader-card img { display: block; max-width: 100%; max-height: 180px; margin: 0 auto 6px; border-radius: 6px; }
 .reader-meaning { margin: 0; }
+/* The right sidebar's Check tab. */
+.check-kinds { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px 4px; }
+.check-kinds button { border: 1px solid var(--line2); background: transparent; color: var(--text2); border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
+.check-kinds button.on { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+.check-list { padding: 0 10px 12px; display: grid; gap: 6px; }
+.check-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.check-issue { display: grid; gap: 3px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 12.5px; background: var(--page); }
+.check-issue > span:not(.check-actions) { color: var(--text2); }
+.check-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.check-clear { color: var(--accent-ink); font-weight: 600; margin: 4px 0; }
