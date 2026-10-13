@@ -2170,3 +2170,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .tools .cover-design { border: 1px solid transparent; padding: 4px 2px; font-size: 11px; }
 .tools .cover-design.on { border-color: var(--accent); }
 .tools .menu-item.font-pair { display: grid; height: auto; justify-items: start; padding: 4px 10px; font-weight: 400; }
+.shape-gallery-groups { display: grid; gap: 4px; max-width: 290px; }
+.shape-gallery-groups .shape-gallery { display: flex; flex-wrap: wrap; gap: 2px; }
+.shape-gallery-groups .menu-head { flex-basis: 100%; }
+.tools .shape-gallery-groups .symbol-btn { width: 32px; height: 28px; min-width: 0; }

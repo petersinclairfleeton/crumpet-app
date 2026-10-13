@@ -108,6 +108,23 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
     // Pictures and files dropped or pasted in.
     ed.onFiles = (files) => void insertFiles(ed, files);
     // Text copied from a web page, Word or Google Docs keeps its headings, lists and formatting.
+    // A picture to fill a shape with: chosen from the computer and kept with the notes.
+    ed.onShapePicture = () =>
+      new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.addEventListener('change', async () => {
+          const file = input.files?.[0];
+          if (!file) return resolve(null);
+          try {
+            resolve((await addFile(file)).src);
+          } catch {
+            resolve(null);
+          }
+        });
+        input.click();
+      });
     ed.htmlToBlocks = (html) => {
       const { blocks } = htmlToDoc(html, location.href, { looks: true });
       return blocks.length === 1 && !blocks[0].runs.length && blocks[0].type === 'paragraph' ? null : blocks;

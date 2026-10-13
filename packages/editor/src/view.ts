@@ -8,7 +8,7 @@ import { fieldKind, fieldLabel, fieldValue } from './fields';
 import { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
 export { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
 import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
-import { type ShapeLook, tidyShape } from './shape';
+import { type ShapeLook, SHAPE_STYLES, isLineKind, shapePath, tidyShape } from './shape';
 import { MASK_CLIPS, PIC_MASKS, PIC_STYLES, type PicLook, type PicMask, type PicStyle, picFilter } from './picture';
 import { cellPlain, fillCell, readCell } from './cells';
 import { evaluateCell, formatValue, isFormula } from './formula';
@@ -1046,6 +1046,9 @@ const SHAPE_COLORS: [string, string][] = [
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** The shape itself, drawn to fill its box. */
+let artIds = 0;
+
+/** A shape drawn as SVG: its outline, fill (a colour, a gradient or a picture), line (thickness, dashes, ends) and effect. */
 function shapeArt(s: ShapeLook): SVGSVGElement {
   const W = s.w * 96;
   const H = s.h * 96;
@@ -1054,24 +1057,77 @@ function shapeArt(s: ShapeLook): SVGSVGElement {
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('preserveAspectRatio', 'none');
   svg.setAttribute('aria-hidden', 'true');
-  const add = (tag: string, attrs: Record<string, string | number>) => {
+  const defs = document.createElementNS(SVG_NS, 'defs');
+  svg.appendChild(defs);
+  const id = `sa${++artIds}`;
+  const make = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {
     const el = document.createElementNS(SVG_NS, tag);
     for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, String(v));
-    el.setAttribute('vector-effect', 'non-scaling-stroke');
-    svg.appendChild(el);
+    parent.appendChild(el);
     return el;
   };
-  const fill = s.fill ?? 'none';
-  const stroke = s.line ?? 'none';
-  const sw = 1.5;
-  if (s.kind === 'rect') add('rect', { x: sw / 2, y: sw / 2, width: W - sw, height: H - sw, fill, stroke, 'stroke-width': sw });
-  else if (s.kind === 'rounded') add('rect', { x: sw / 2, y: sw / 2, width: W - sw, height: H - sw, rx: Math.min(W, H) * 0.18, fill, stroke, 'stroke-width': sw });
-  else if (s.kind === 'ellipse') add('ellipse', { cx: W / 2, cy: H / 2, rx: W / 2 - sw, ry: H / 2 - sw, fill, stroke, 'stroke-width': sw });
-  else {
-    const head = s.kind === 'arrow' ? Math.min(14, W / 4) : 0;
-    add('line', { x1: 0, y1: H / 2, x2: W - head, y2: H / 2, stroke: s.line ?? '#333333', 'stroke-width': 2 });
-    if (head) add('polygon', { points: `${W - head},${H / 2 - head / 2} ${W},${H / 2} ${W - head},${H / 2 + head / 2}`, fill: s.line ?? '#333333' });
+  const add = (tag: string, attrs: Record<string, string | number>) => {
+    const el = make(tag, attrs);
+    el.setAttribute('vector-effect', 'non-scaling-stroke');
+    return el;
+  };
+  // The fill: a colour, fading to another, or a picture.
+  let fill = s.fill ?? 'none';
+  if (s.img) {
+    const pat = make('pattern', { id: `${id}p`, patternUnits: 'objectBoundingBox', width: 1, height: 1 }, defs);
+    const img = make('image', { width: W, height: H, preserveAspectRatio: 'xMidYMid slice' }, pat);
+    const r = resolveMedia(s.img);
+    if (typeof r === 'string') img.setAttribute('href', r);
+    else void r.then((url) => img.setAttribute('href', url)).catch(() => {});
+    fill = `url(#${id}p)`;
+  } else if (s.grad && s.fill) {
+    const g = make('linearGradient', { id: `${id}g`, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+    make('stop', { offset: 0, 'stop-color': s.fill }, g);
+    make('stop', { offset: 1, 'stop-color': s.grad }, g);
+    fill = `url(#${id}g)`;
   }
+  // A bevel: light from the top left, shade to the bottom right, over the fill.
+  const stroke = s.line ?? 'none';
+  const sw = (s.lw ?? 1.5) * (96 / 72);
+  const dash = s.dash === 'dash' ? `${sw * 4} ${sw * 2}` : s.dash === 'dot' ? `${sw} ${sw * 1.5}` : s.dash === 'dashdot' ? `${sw * 4} ${sw * 2} ${sw} ${sw * 2}` : '';
+  const lineAttrs = (extra: Record<string, string | number> = {}) => ({ fill, stroke, 'stroke-width': sw, ...(dash ? { 'stroke-dasharray': dash } : {}), 'stroke-linejoin': 'round', ...extra });
+  const path = shapePath(s.kind, W, H);
+  let body: Element | null = null;
+  if (s.kind === 'rect') body = add('rect', lineAttrs({ x: sw / 2, y: sw / 2, width: Math.max(0, W - sw), height: Math.max(0, H - sw) }));
+  else if (s.kind === 'rounded') body = add('rect', lineAttrs({ x: sw / 2, y: sw / 2, width: Math.max(0, W - sw), height: Math.max(0, H - sw), rx: Math.min(W, H) * 0.18 }));
+  else if (s.kind === 'ellipse') body = add('ellipse', lineAttrs({ cx: W / 2, cy: H / 2, rx: Math.max(0, W / 2 - sw / 2), ry: Math.max(0, H / 2 - sw / 2) }));
+  else if (path) body = add('path', lineAttrs({ d: path }));
+  else {
+    // A line, with its ends: an arrow ends in an arrowhead unless told otherwise.
+    const color = s.line ?? '#333333';
+    const head = s.head ?? (s.kind === 'arrow' ? 'arrow' : undefined);
+    const tail = s.tail;
+    const size = Math.max(10, sw * 4);
+    const marker = (kind: string, end: 'h' | 't') => {
+      const m = make('marker', { id: `${id}${end}`, viewBox: '0 0 10 10', refX: kind === 'dot' ? 5 : 9, refY: 5, markerWidth: size, markerHeight: size, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' }, defs);
+      if (kind === 'dot') make('circle', { cx: 5, cy: 5, r: 4, fill: color }, m);
+      else if (kind === 'open') make('path', { d: 'M1,1L9,5L1,9', fill: 'none', stroke: color, 'stroke-width': 1.6 }, m);
+      else make('path', { d: 'M0,0L10,5L0,10Z', fill: color }, m);
+      return `url(#${id}${end})`;
+    };
+    const ln = add('line', { x1: tail ? size * 0.4 : 0, y1: H / 2, x2: W - (head ? size * 0.4 : 0), y2: H / 2, stroke: color, 'stroke-width': Math.max(sw, 2), ...(dash ? { 'stroke-dasharray': dash } : {}) });
+    ln.removeAttribute('vector-effect');
+    if (head) ln.setAttribute('marker-end', marker(head, 'h'));
+    if (tail) ln.setAttribute('marker-start', marker(tail, 't'));
+  }
+  if (s.fx === 'bevel' && body) {
+    const g = make('linearGradient', { id: `${id}b`, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
+    make('stop', { offset: 0, 'stop-color': '#ffffff', 'stop-opacity': 0.45 }, g);
+    make('stop', { offset: 0.5, 'stop-color': '#ffffff', 'stop-opacity': 0 }, g);
+    make('stop', { offset: 1, 'stop-color': '#000000', 'stop-opacity': 0.3 }, g);
+    const shine = body.cloneNode() as Element;
+    shine.setAttribute('fill', `url(#${id}b)`);
+    shine.setAttribute('stroke', 'none');
+    svg.appendChild(shine);
+  }
+  // Effects drawn round the whole shape.
+  const glow = s.fill ?? s.line ?? '#4472c4';
+  svg.style.filter = s.fx === 'shadow' || s.fx === 'bevel' ? 'drop-shadow(3px 4px 3px rgba(0, 0, 0, 0.35))' : s.fx === 'glow' ? `drop-shadow(0 0 6px ${glow}) drop-shadow(0 0 3px ${glow})` : s.fx === 'soft' ? 'blur(1.6px)' : '';
   return svg;
 }
 
@@ -1088,7 +1144,8 @@ function buildShape(block: Block): HTMLElement {
   box.style.height = `${s.h}in`;
   box.dataset.kind = s.kind;
   box.appendChild(shapeArt(s));
-  if (s.kind !== 'line' && s.kind !== 'arrow') {
+  markShapeBox(box, s);
+  if (!isLineKind(s.kind)) {
     const text = document.createElement('div');
     text.className = 'cell shape-text';
     text.contentEditable = 'true';
@@ -1149,8 +1206,33 @@ function buildShape(block: Block): HTMLElement {
     }
     return box;
   };
-  group('Fill', [swatches('fill', 'Fill'), button('fill', 'No fill', 'No fill', '')]);
-  group('Line', [swatches('line', 'Line'), button('line', 'No line', 'No line', '')]);
+  const flat = isLineKind(s.kind);
+  if (!flat) {
+    const styles = document.createElement('div');
+    styles.className = 'shape-styles';
+    SHAPE_STYLES.forEach((st, i) => {
+      const b = button('style', 'Abc', st.name, String(i));
+      b.setAttribute('aria-label', `Style: ${st.name}`);
+      const l = st.look;
+      b.style.background = l.grad ? `linear-gradient(${l.fill}, ${l.grad})` : (l.fill ?? 'transparent');
+      b.style.color = l.tc ?? 'inherit';
+      b.style.border = l.line ? `${Math.max(1, l.lw ?? 1.5)}px ${l.dash ? 'dashed' : 'solid'} ${l.line}` : '1px solid transparent';
+      b.style.boxShadow = l.fx === 'shadow' || l.fx === 'bevel' ? '2px 2px 3px rgba(0,0,0,0.35)' : l.fx === 'glow' ? `0 0 5px ${l.fill}` : '';
+      styles.appendChild(b);
+    });
+    group('Styles', [styles]);
+    group('Fill', [swatches('fill', 'Fill'), button('fill', 'No fill', 'No fill', ''), button('grad', 'Gradient', 'Fade from the fill colour to a darker one (again: plain)'), button('img', 'Picture…', 'Fill it with a picture')]);
+  }
+  const widths = ['0.5', '1', '1.5', '2.25', '3', '4.5', '6'].map((w) => button('lw', `${w} pt`, `Line ${w} points thick`, w));
+  group('Line', [swatches('line', 'Line'), button('line', 'No line', 'No line', ''), ...widths, button('dash', 'Solid', 'A solid line', ''), button('dash', 'Dashed', 'A dashed line', 'dash'), button('dash', 'Dotted', 'A dotted line', 'dot'), button('dash', 'Dash dot', 'Dashes and dots', 'dashdot')]);
+  if (flat) {
+    const ends = (action: string, where: string) => [['', 'None'], ['arrow', 'Arrowhead'], ['open', 'Open arrow'], ['dot', 'Dot']].map(([v, n]) => button(action, n, `${where}: ${n.toLowerCase()}`, v));
+    group('End', ends('head', 'End'));
+    group('Start', ends('tail', 'Start'));
+  } else {
+    group('Effects', [['', 'None'], ['shadow', 'Shadow'], ['glow', 'Glow'], ['soft', 'Soft edges'], ['bevel', 'Bevel'], ['reflect', 'Reflection']].map(([v, n]) => button('fx', n, n === 'None' ? 'No effect' : n, v)));
+    group('Text colour', [['', 'Automatic'], ['#ffffff', 'White'], ['#000000', 'Black'], ['#1f3864', 'Navy'], ['#c00000', 'Red']].map(([v, n]) => button('tc', n, `Text: ${n.toLowerCase()}`, v)));
+  }
   group('Wrap text', [
     button('wrap', 'In line with text', 'In line with text', 'inline'),
     button('wrap', 'Square, on the left', 'Text wraps round it, on the left', 'left'),
@@ -1185,6 +1267,12 @@ function buildShape(block: Block): HTMLElement {
   return wrap;
 }
 
+/** The shape's box: its text's colour, and a reflection under it. */
+function markShapeBox(box: HTMLElement, s: ShapeLook): void {
+  box.style.color = s.tc ?? '';
+  box.classList.toggle('fx-reflect', s.fx === 'reflect');
+}
+
 /** The shape's block: how the text goes round it, where it's placed from, its place in the stack, its group. */
 function markShapeBlock(el: HTMLElement, s: ShapeLook): void {
   el.dataset.wrap = s.wrap;
@@ -1211,6 +1299,14 @@ function markShape(wrap: HTMLElement, s: ShapeLook): void {
   const wrapValue = s.tight ? `t${s.wrap}` : s.wrap;
   wrap.querySelectorAll<HTMLElement>('[data-shape-action="wrap"]').forEach((b) => b.classList.toggle('on', b.dataset.value === wrapValue));
   wrap.querySelectorAll<HTMLElement>('[data-shape-action="rel"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (s.rel ?? '')));
+  const on = (action: string, value: string) => wrap.querySelectorAll<HTMLElement>(`[data-shape-action="${action}"]`).forEach((b) => b.classList.toggle('on', b.dataset.value === value));
+  on('lw', String(s.lw ?? 1.5));
+  on('dash', s.dash ?? '');
+  on('fx', s.fx ?? '');
+  on('tc', s.tc ?? '');
+  on('head', s.head ?? (s.kind === 'arrow' ? 'arrow' : ''));
+  on('tail', s.tail ?? '');
+  wrap.querySelectorAll<HTMLElement>('[data-shape-action="grad"]').forEach((b) => b.classList.toggle('on', !!s.grad));
   wrap.querySelectorAll<HTMLElement>('[data-shape-action="ungroup"]').forEach((b) => (b.hidden = !s.grp));
   wrap.querySelectorAll<HTMLElement>('.shape-floating-only').forEach((g) => (g.hidden = !floating));
 }
@@ -1223,6 +1319,7 @@ function patchShape(el: HTMLElement, block: Block): boolean {
   box.style.width = `${s.w}in`;
   box.style.height = `${s.h}in`;
   box.querySelector('.shape-art')?.replaceWith(shapeArt(s));
+  markShapeBox(box, s);
   const text = box.querySelector<HTMLElement>('.shape-text');
   if (text && text !== el.ownerDocument.activeElement && readCell(text) !== s.text) fillCell(text, s.text);
   markShapeBlock(el, s);

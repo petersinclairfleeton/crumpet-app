@@ -145,7 +145,7 @@ At the end there's a suggested order for building what's missing.
 | Quick Tables (ready-made calendars, tables) | ✅ | This month's calendar, a list, a matrix, and a table with subheadings and totals (formulas). |
 | Pictures from the device | ✅ | Also pasted or dropped in. |
 | Stock images, online pictures | ❌ | |
-| Shapes | ✅ | Rectangle, rounded rectangle, oval, line, arrow. Word has many more (stars, callouts, flowchart shapes). |
+| Shapes | ✅ | 35 shapes in groups: lines, basic shapes, block arrows, stars and banners, callouts, flowchart. Word has more still. |
 | Icons | ❌ | |
 | 3D Models | ❌ | |
 | SmartArt | 🟡 | Diagrams written as text (Mermaid flowcharts, timelines); no picture-based SmartArt gallery. |
@@ -358,15 +358,15 @@ At the end there's a suggested order for building what's missing.
 
 | Feature | | Crumpet today |
 |---|---|---|
-| Insert shapes | ✅ | Five kinds. |
+| Insert shapes | ✅ | 35 kinds, from the Shapes gallery. |
 | Edit Shape / Edit Points | ❌ | |
-| Shape Styles (ready-made looks) | ❌ | |
-| Fill, Outline | ✅ | A choice of colours; no gradients, line thickness or dashes. |
-| Effects (shadow, glow, 3D) | ❌ | |
+| Shape Styles (ready-made looks) | ✅ | Twelve styles in the shape's menu (fills, gradients, lines, effects, text colour). |
+| Fill, Outline | ✅ | Colours, a gradient, a picture fill; line thickness, dashes, and arrowheads, open arrows or dots at a line's ends. |
+| Effects (shadow, glow, 3D) | ✅ | Shadow, glow, soft edges, bevel and reflection (one at a time); go to Word. |
 | WordArt Styles | ❌ | |
 | Text in a shape | 🟡 | One paragraph of text. |
 | Text Direction | ❌ | |
-| Arrange (wrap, position, rotate) | 🟡 | See Layout → Arrange. |
+| Arrange (wrap, position, rotate) | ✅ | See Layout → Arrange. |
 | Size | ✅ | Drag the corner. |
 
 ### Graphics, SmartArt, Chart
@@ -564,10 +564,10 @@ Where: `packages/editor/src/shape.ts`, `view.ts` (the Shape menu), `paginate.ts`
 - [x] Position from the page's corner or margins
 - [x] Bring forward / send backward
 - [x] Align and group
-- [ ] More shapes (stars, callouts, banners, flowchart, block arrows)
-- [ ] Shape styles gallery
-- [ ] Fill and line options: gradients, picture fill, thickness, dashes, arrowheads
-- [ ] Shape effects (shadow, glow, soft edges, 3D)
+- [x] More shapes (stars, callouts, banners, flowchart, block arrows)
+- [x] Shape styles gallery
+- [x] Fill and line options: gradients, picture fill, thickness, dashes, arrowheads
+- [x] Shape effects (shadow, glow, soft edges, 3D)
 - [ ] Several paragraphs and lists in a shape
 - [ ] Text direction in shapes
 - [ ] Linked text boxes

@@ -127,7 +127,7 @@ import { fieldValue } from './fields';
 import { type AutoCorrectOptions, autoCorrect } from './autocorrect';
 import { type FindOptions, type Match, findMatches, replaceMatches } from './find';
 import { type TocEntry, View, readTable } from './view';
-import { type ShapeKind, type ShapeLook, isFloating } from './shape';
+import { type ShapeKind, type ShapeLook, SHAPE_STYLES, isFloating } from './shape';
 import { type CoverDesign, type CoverText, coverBlocks, hasCover } from './cover';
 import type { PicLook } from './picture';
 import { cellPlain, fillCell, readCell, cellLookValue, cellMarkActive, clearCellFormat, refocusCell, rememberCellSelection, setCellLook, toggleCellMark } from './cells';
@@ -422,6 +422,9 @@ export class Editor {
       wrap.style.top = `${(o.y - r.top) / scale + (s.y ?? 0) * 96}px`;
     }
   }
+
+  /** Asks the app for a picture to fill a shape with (Word's Shape Fill > Picture); resolves to where it's kept. */
+  onShapePicture: (() => Promise<string | null>) | null = null;
 
   /** Shapes picked by Shift+click, to group or line up together. */
   private pickedShapes = new Set<string>();
@@ -2556,12 +2559,24 @@ export class Editor {
       }
       tools?.classList.remove('open');
       const value = shapeAction.dataset.value ?? '';
-      if (action === 'fill') this.setShapeLook(id, { fill: value || null });
+      if (action === 'fill') this.setShapeLook(id, { fill: value || null, img: undefined, ...(value ? {} : { grad: undefined }) });
       else if (action === 'line') this.setShapeLook(id, { line: value || null });
       else if (action === 'wrap') {
         const tight = value === 'tleft' || value === 'tright';
         this.setShapeLook(id, { wrap: (tight ? value.slice(1) : value) as ShapeLook['wrap'], tight: tight || undefined });
       } else if (action === 'rel') this.relShape(id, (value || undefined) as ShapeLook['rel']);
+      else if (action === 'style') {
+        const st = SHAPE_STYLES[Number(value)];
+        if (st) this.setShapeLook(id, { fill: null, line: null, lw: undefined, dash: undefined, grad: undefined, img: undefined, fx: undefined, tc: undefined, ...st.look });
+      } else if (action === 'grad') {
+        const now = this.state.doc.blocks.find((b) => b.id === id)?.shape;
+        this.setShapeLook(id, { grad: now?.grad ? undefined : darker(now?.fill ?? '#4472c4'), img: undefined, fill: now?.fill ?? '#4472c4' });
+      } else if (action === 'img') void this.onShapePicture?.().then((src) => src && this.setShapeLook(id, { img: src }));
+      else if (action === 'lw') this.setShapeLook(id, { lw: Number(value) });
+      else if (action === 'dash') this.setShapeLook(id, { dash: (value || undefined) as ShapeLook['dash'] });
+      else if (action === 'head' || action === 'tail') this.setShapeLook(id, { [action]: value || undefined });
+      else if (action === 'fx') this.setShapeLook(id, { fx: (value || undefined) as ShapeLook['fx'] });
+      else if (action === 'tc') this.setShapeLook(id, { tc: value || undefined });
       else if (action === 'order') this.orderShape(id, value);
       else if (action === 'align') this.alignShapes(id, value);
       else if (action === 'group') this.groupShapes(id);
@@ -2880,4 +2895,11 @@ function bulletStart(cell: HTMLElement): boolean {
 function mapSelectionAfterInsert(sel: Selection, id: string): Selection {
   const move = (p: Pos) => (p.block === id ? { block: id, offset: p.offset + 1 } : p);
   return { anchor: move(sel.anchor), focus: move(sel.focus) };
+}
+
+/** A colour a good deal darker (the other end of a gradient). */
+function darker(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (shift: number) => Math.round(((n >> shift) & 255) * 0.6);
+  return `#${[16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, '0')).join('')}`;
 }
