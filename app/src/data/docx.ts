@@ -7,7 +7,7 @@ import { type Block, type BlockType, type Change, type Comment, type CommentRepl
 import { type CellLook, TABLE_STYLES, type TableLook, type TableStyleKey, mergeAt, tableStyleColors, tidyTable } from '@crumpet/editor/table';
 import { evaluateCell, formatValue, isFormula } from '@crumpet/editor/formula';
 import { cellPlain, cellRuns, cellText } from '@crumpet/editor/cells';
-import { type ShapeKind, tidyShape } from '@crumpet/editor/shape';
+import { type LineEnd, type ShapeKind, type ShapeLook, WORD_SHAPES, isLineKind, tidyShape } from '@crumpet/editor/shape';
 import { FIELDS, fieldFromWord, fieldValue, wordInstr } from '@crumpet/editor/fields';
 import { figureEntries, indexEntries } from '@crumpet/editor/lists';
 import { type PicLook, tidyPic } from '@crumpet/editor/picture';
@@ -425,20 +425,47 @@ class Writer {
    * with the text, or anchored to its paragraph with the text wrapping
    * round it on the left or right.
    */
-  shape(b: Block, lead: string): string {
+  async shape(b: Block, lead: string): Promise<string> {
     const s = b.shape;
     if (!s) return '';
     const EMU = 914400;
     const cx = Math.round(s.w * EMU);
     const cy = Math.round(s.h * EMU);
     const n = 1000 + this.nextShape++;
-    const flat = s.kind === 'line' || s.kind === 'arrow';
-    const prst = { rect: 'rect', rounded: 'roundRect', ellipse: 'ellipse', line: 'line', arrow: 'line' }[s.kind];
+    const flat = isLineKind(s.kind);
+    const prst = WORD_SHAPES[s.kind];
     const hex = (c: string) => c.slice(1).toUpperCase();
-    const fill = !flat && s.fill ? `<a:solidFill><a:srgbClr val="${hex(s.fill)}"/></a:solidFill>` : '<a:noFill/>';
-    const line = s.line || flat ? `<a:ln w="19050"><a:solidFill><a:srgbClr val="${hex(s.line ?? '#333333')}"/></a:solidFill>${s.kind === 'arrow' ? '<a:tailEnd type="triangle"/>' : ''}</a:ln>` : '<a:ln><a:noFill/></a:ln>';
-    const text = !flat && s.text ? `<wps:txbx><w:txbxContent>${this.paragraph(null, this.runs(cellRuns(s.text)), '<w:jc w:val="center"/>')}</w:txbxContent></wps:txbx>` : '';
-    const wsp = `<wps:wsp><wps:cNvSpPr${s.text ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${s.rot ? ` rot="${s.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</wps:spPr>${text}<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
+    // The fill: a colour, a gradient (top to bottom) or a picture.
+    let fill = !flat && s.fill ? `<a:solidFill><a:srgbClr val="${hex(s.fill)}"/></a:solidFill>` : '<a:noFill/>';
+    if (!flat && s.grad && s.fill) fill = `<a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:srgbClr val="${hex(s.fill)}"/></a:gs><a:gs pos="100000"><a:srgbClr val="${hex(s.grad)}"/></a:gs></a:gsLst><a:lin ang="5400000" scaled="0"/></a:gradFill>`;
+    if (!flat && s.img) {
+      const got = await this.opts.media?.(s.img);
+      const ext = got ? imageExt(got.type, got.bytes) : null;
+      if (got && ext) {
+        const name = `image${this.nextPic++}.${ext === 'jpeg' ? 'jpg' : ext}`;
+        this.media.push({ name: `word/media/${name}`, data: got.bytes });
+        fill = `<a:blipFill dpi="0" rotWithShape="1"><a:blip r:embed="${this.rel(`${REL}/image`, `media/${name}`)}"/><a:srcRect/><a:stretch><a:fillRect/></a:stretch></a:blipFill>`;
+      }
+    }
+    // The line: its thickness, dashes and ends.
+    const END = { arrow: 'triangle', open: 'arrow', dot: 'oval' };
+    const head = s.head ?? (s.kind === 'arrow' ? 'arrow' : undefined);
+    const dash = s.dash ? `<a:prstDash val="${{ dash: 'dash', dot: 'sysDot', dashdot: 'dashDot' }[s.dash]}"/>` : '';
+    const ends = flat ? `${s.tail ? `<a:headEnd type="${END[s.tail]}"/>` : ''}${head ? `<a:tailEnd type="${END[head]}"/>` : ''}` : '';
+    const line = s.line || flat ? `<a:ln w="${Math.round((s.lw ?? 1.5) * 12700)}"><a:solidFill><a:srgbClr val="${hex(s.line ?? '#333333')}"/></a:solidFill>${dash}${ends}</a:ln>` : '<a:ln><a:noFill/></a:ln>';
+    // An effect.
+    const glow = s.fill ?? s.line ?? '#4472C4';
+    const effect =
+      s.fx === 'shadow' ? '<a:effectLst><a:outerShdw blurRad="50800" dist="38100" dir="2700000" algn="tl" rotWithShape="0"><a:prstClr val="black"><a:alpha val="40000"/></a:prstClr></a:outerShdw></a:effectLst>'
+      : s.fx === 'glow' ? `<a:effectLst><a:glow rad="101600"><a:srgbClr val="${hex(glow)}"><a:alpha val="60000"/></a:srgbClr></a:glow></a:effectLst>`
+      : s.fx === 'soft' ? '<a:effectLst><a:softEdge rad="63500"/></a:effectLst>'
+      : s.fx === 'reflect' ? '<a:effectLst><a:reflection blurRad="6350" stA="50000" endA="300" endPos="55000" dir="5400000" sy="-100000" algn="bl" rotWithShape="0"/></a:effectLst>'
+      : s.fx === 'bevel' ? '<a:effectLst><a:outerShdw blurRad="50800" dist="38100" dir="2700000" algn="tl" rotWithShape="0"><a:prstClr val="black"><a:alpha val="40000"/></a:prstClr></a:outerShdw></a:effectLst><a:scene3d><a:camera prst="orthographicFront"/><a:lightRig rig="threePt" dir="t"/></a:scene3d><a:sp3d><a:bevelT w="63500" h="25400"/></a:sp3d>'
+      : '';
+    // The text, in its colour.
+    const runs = cellRuns(s.text).map((r) => (s.tc && !r.look?.color ? { ...r, look: { ...r.look, color: s.tc } } : r));
+    const text = !flat && s.text ? `<wps:txbx><w:txbxContent>${this.paragraph(null, this.runs(runs), '<w:jc w:val="center"/>')}</w:txbxContent></wps:txbx>` : '';
+    const wsp = `<wps:wsp><wps:cNvSpPr${s.text ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${s.rot ? ` rot="${s.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}${effect}</wps:spPr>${text}<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
     const graphic = `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">${wsp}</a:graphicData></a:graphic>`;
     const name = `<wp:docPr id="${n}" name="${s.text ? 'Text Box' : 'Shape'} ${n}"${s.hide ? ' hidden="1"' : ''}/><wp:cNvGraphicFramePr/>`;
     // Placed anywhere: from the column and paragraph, or the page or its margins; in front of or behind the text, in its place in the stack.
@@ -648,7 +675,7 @@ class Writer {
           out += this.toc(b);
           continue;
         case 'shape':
-          out += this.shape(b, lead);
+          out += await this.shape(b, lead);
           continue;
         case 'code': {
           // Maths and diagrams go to Word as their source, in a typewriter font.
@@ -1483,7 +1510,29 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const prst = plain(find(spPr, 'prstGeom') ?? null, 'prst') ?? 'rect';
     const ln = spPr && kids(spPr).find((x) => x.localName === 'ln');
     const arrow = !!ln && kids(ln).some((x) => (x.localName === 'tailEnd' || x.localName === 'headEnd') && (plain(x, 'type') ?? 'none') !== 'none');
-    const kind: ShapeKind = prst === 'roundRect' ? 'rounded' : prst === 'ellipse' ? 'ellipse' : /line|Connector/i.test(prst) ? (arrow ? 'arrow' : 'line') : prst === 'rightArrow' ? 'arrow' : 'rect';
+    const own = (Object.entries(WORD_SHAPES) as [ShapeKind, string][]).find(([k, v]) => v === prst && !isLineKind(k))?.[0];
+    const kind: ShapeKind = /line|Connector/i.test(prst) ? (arrow ? 'arrow' : 'line') : (own ?? (prst === 'flowChartProcess' ? 'rect' : prst === 'flowChartDecision' ? 'diamond' : prst === 'flowChartConnector' ? 'ellipse' : 'rect'));
+    // Its line's thickness, dashes and ends; a gradient or picture fill; an effect.
+    const END: Record<string, LineEnd> = { triangle: 'arrow', stealth: 'arrow', diamond: 'arrow', arrow: 'open', oval: 'dot' };
+    const endOf = (name: string) => END[plain(ln ? kids(ln).find((x) => x.localName === name) ?? null : null, 'type') ?? ''];
+    const lw = ln && plain(ln, 'w') ? Number(plain(ln, 'w')) / 12700 : undefined;
+    const dashVal = plain(find(ln ?? undefined, 'prstDash') ?? null, 'val');
+    const dash = !dashVal || dashVal === 'solid' ? undefined : /dot$/i.test(dashVal) && !/dash/i.test(dashVal) ? 'dot' : /dashDot/i.test(dashVal) ? 'dashdot' : 'dash';
+    const gradStops = spPr ? kids(kids(spPr).find((x) => x.localName === 'gradFill') ?? spPr).find((x) => x.localName === 'gsLst') : undefined;
+    const stopColor = (i: number) => {
+      const v = plain(find(gradStops ? kids(gradStops)[i] : undefined, 'srgbClr') ?? null, 'val');
+      return v && /^[0-9a-f]{6}$/i.test(v) ? `#${v.toLowerCase()}` : undefined;
+    };
+    let img: string | undefined;
+    const blip = spPr ? find(kids(spPr).find((x) => x.localName === 'blipFill'), 'blip') : undefined;
+    const embed = blip?.getAttributeNS(R_NS, 'embed') ?? blip?.getAttribute('r:embed');
+    if (embed && opts.saveMedia) {
+      const path = rels.get(embed);
+      const bytes = path ? files.get(path) : undefined;
+      if (path && bytes) img = (await opts.saveMedia(path.split('/').pop() ?? 'fill', bytes, MIME[path.split('.').pop()?.toLowerCase() ?? ''] ?? 'image/png')) ?? undefined;
+    }
+    const fxs = spPr ? Array.from(spPr.getElementsByTagName('*')).map((x) => x.localName) : [];
+    const fx: ShapeLook['fx'] = fxs.includes('bevelT') ? 'bevel' : fxs.includes('glow') ? 'glow' : fxs.includes('softEdge') ? 'soft' : fxs.includes('reflection') ? 'reflect' : fxs.includes('outerShdw') ? 'shadow' : undefined;
     const colorIn = (el: Element | undefined): string | null | undefined => {
       if (!el) return undefined;
       if (kids(el).some((x) => x.localName === 'noFill')) return null;
@@ -1521,7 +1570,15 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     const tight = !!anchor && Array.from(anchor.children).some((x) => x.localName === 'wrapTight' || x.localName === 'wrapThrough');
     const from = all.find((x) => x.localName === 'positionH')?.getAttribute('relativeFrom');
     const rel = from === 'page' ? 'page' : from === 'margin' ? 'margin' : undefined;
-    const shape = tidyShape({ kind, w: w || undefined, h: h || undefined, fill, line, wrap: behind ? 'behind' : free ? 'free' : topBottom ? 'topbottom' : wraps ? (side === 'right' ? 'right' : 'left') : 'inline', tight, text, rot, ...(free ? { x: offset('positionH'), y: offset('positionV'), rel } : topBottom ? { x: offset('positionH') } : {}) });
+    // A line ending in a plain arrowhead is an arrow; any other ends are a line's.
+    const head = endOf('tailEnd');
+    const tail = endOf('headEnd');
+    const plainArrow = isLineKind(kind) && head === 'arrow' && !tail;
+    const lineKind: ShapeKind = isLineKind(kind) ? (plainArrow ? 'arrow' : 'line') : kind;
+    // The text's one colour, as the shape's text colour.
+    const colors = new Set(runs.filter((r) => r.text.trim()).map((r) => r.look?.color));
+    const tc = colors.size === 1 ? [...colors][0] : undefined;
+    const shape = tidyShape({ kind: lineKind, w: w || undefined, h: h || undefined, fill: fill ?? (gradStops ? stopColor(0) : undefined), grad: stopColor(gradStops ? kids(gradStops).length - 1 : -1), img, lw, dash, head: plainArrow ? undefined : head, tail, fx, tc, line, wrap: behind ? 'behind' : free ? 'free' : topBottom ? 'topbottom' : wraps ? (side === 'right' ? 'right' : 'left') : 'inline', tight, text, rot, ...(free ? { x: offset('positionH'), y: offset('positionV'), rel } : topBottom ? { x: offset('positionH') } : {}) });
     return makeBlock('shape', '', [], { shape });
   };
 

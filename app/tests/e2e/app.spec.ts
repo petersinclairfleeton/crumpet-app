@@ -3383,6 +3383,54 @@ test('arranging shapes: behind the text, tight and top-and-bottom wrapping, plac
   expect(Number((await looks())[1].x)).not.toBe(x0);
 });
 
+test('more shapes from the gallery, shape styles, gradient fill, line thickness, dashes and arrowheads, and effects', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Shapes', 'Text.');
+  await page.keyboard.press('End');
+  await (await toolButton(page, 'Shapes')).click();
+  await page.getByRole('group', { name: 'Stars and banners' }).getByRole('button', { name: '5-point star' }).click();
+  const star = page.locator('.note-editor .blk-shape').first();
+  await expect(star.locator('.shape-box')).toHaveAttribute('data-kind', 'star5');
+  await expect(star.locator('.shape-art path').first()).toHaveAttribute('d', /^M/);
+  const look = () =>
+    page.evaluate(() => {
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: { blocks: { shape?: Record<string, unknown> }[] } }[] } } }).crumpet.getState();
+      return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
+    });
+  const menu = async (shape: typeof star, item: string | RegExp) => {
+    await shape.locator('.shape-box').hover();
+    await shape.getByRole('button', { name: 'Shape ▾' }).click();
+    await shape.getByRole('button', { name: item, exact: typeof item === 'string' }).first().click();
+  };
+  // A style from the gallery: a fill fading to a darker blue, white text.
+  await menu(star, 'Style: Blue gradient');
+  await expect.poll(async () => (await look())[0]).toMatchObject({ fill: '#8faadc', grad: '#2f5597', tc: '#ffffff' });
+  await expect(star.locator('.shape-art linearGradient')).toHaveCount(1);
+  await menu(star, 'Shadow');
+  await expect.poll(async () => (await look())[0].fx).toBe('shadow');
+  await expect(star.locator('.shape-art')).toHaveCSS('filter', /drop-shadow/);
+  await menu(star, '4.5 pt');
+  await menu(star, 'Dashed');
+  await expect.poll(async () => (await look())[0]).toMatchObject({ lw: 4.5, dash: 'dash' });
+  // A line, with an open arrowhead at its end and a dot at its start.
+  await page.locator('.note-editor .blk-paragraph').first().click();
+  await page.keyboard.press('End');
+  await (await toolButton(page, 'Shapes')).click();
+  await page.getByRole('group', { name: 'Lines' }).getByRole('button', { name: 'Line' }).click();
+  const line = page.locator('.note-editor .blk-shape').filter({ has: page.locator('[data-kind="line"]') });
+  await expect(line).toHaveCount(1);
+  await line.locator('.shape-box').hover();
+  await line.getByRole('button', { name: 'Shape ▾' }).click();
+  await line.locator('[data-shape-action="head"][data-value="open"]').click();
+  await line.locator('.shape-box').hover();
+  await line.getByRole('button', { name: 'Shape ▾' }).click();
+  await line.locator('[data-shape-action="tail"][data-value="dot"]').click();
+  await expect.poll(async () => (await look()).find((x) => x.kind === 'line')).toMatchObject({ head: 'open', tail: 'dot' });
+  await expect(line.locator('.shape-art marker')).toHaveCount(2);
+});
+
 test('the sidebar and note list fold away with «, peek out at the edge, and come back', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1400, height: 860 });

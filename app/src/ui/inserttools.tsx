@@ -4,10 +4,10 @@
 
 import { useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
-import type { ShapeKind } from '@crumpet/editor/shape';
+import { SHAPE_GROUPS, isLineKind, shapePath } from '@crumpet/editor/shape';
 import { FIELDS, fieldValue } from '@crumpet/editor/fields';
 import { Popover } from './Sidebar';
-import type { ToolItem } from './toolbar';
+import { type ToolItem, closeMore } from './toolbar';
 
 const SYMBOLS: [string, string][] = [
   ['—', 'Em dash'], ['–', 'En dash'], ['…', 'Ellipsis'], ['‘', 'Opening single quote'], ['’', 'Closing single quote'], ['“', 'Opening double quote'], ['”', 'Closing double quote'],
@@ -145,13 +145,6 @@ const ICON_TOC = (
   </svg>
 );
 
-const SHAPES: [ShapeKind, string, string][] = [
-  ['rect', 'Rectangle', 'M3 6h18v12H3z'],
-  ['rounded', 'Rounded rectangle', 'M7 6h10a4 4 0 0 1 4 4v4a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-4a4 4 0 0 1 4-4z'],
-  ['ellipse', 'Oval', 'M12 6c5 0 9 2.7 9 6s-4 6-9 6-9-2.7-9-6 4-6 9-6z'],
-  ['line', 'Line', 'M3 12h18'],
-  ['arrow', 'Arrow', 'M3 12h16M15 8l4 4-4 4'],
-];
 
 const ICON_TEXTBOX = (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -172,24 +165,40 @@ function ShapesTool({ ed, off }: { ed: Editor | null; off: boolean }) {
       </button>
       {open && (
         <Popover label="Shapes" onClose={() => setOpen(false)}>
-          <div className="shape-gallery" role="group" aria-label="Shapes">
-            {SHAPES.map(([kind, name, d]) => (
-              <button
-                key={kind}
-                type="button"
-                className="symbol-btn"
-                aria-label={name}
-                title={name}
-                onClick={() => {
-                  setOpen(false);
-                  ed?.focus();
-                  ed?.insertShape(kind);
-                }}
-              >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d={d} />
-                </svg>
-              </button>
+          <div className="shape-gallery-groups">
+            {SHAPE_GROUPS.map((g) => (
+              <div key={g.name} className="shape-gallery" role="group" aria-label={g.name}>
+                <span className="menu-head">{g.name}</span>
+                {g.kinds.map(([kind, name]) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    className="symbol-btn"
+                    aria-label={name}
+                    title={name}
+                    onClick={() => {
+                      setOpen(false);
+                      closeMore();
+                      ed?.focus();
+                      ed?.insertShape(kind);
+                    }}
+                  >
+                    <svg width="24" height="20" viewBox="-1 -1 26 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">
+                      {isLineKind(kind) ? (
+                        <path d={kind === 'arrow' ? 'M2 18L20 4M14 4h6v6' : 'M2 18L22 2'} strokeLinecap="round" />
+                      ) : kind === 'rect' ? (
+                        <rect x="1" y="2" width="22" height="16" />
+                      ) : kind === 'rounded' ? (
+                        <rect x="1" y="2" width="22" height="16" rx="4" />
+                      ) : kind === 'ellipse' ? (
+                        <ellipse cx="12" cy="10" rx="11" ry="8" />
+                      ) : (
+                        <path d={shapePath(kind, 24, 20) ?? ''} />
+                      )}
+                    </svg>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
         </Popover>

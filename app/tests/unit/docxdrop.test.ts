@@ -307,3 +307,25 @@ describe('Word: arranging shapes', () => {
     expect(back[2]).toMatchObject({ wrap: 'topbottom', x: 1.5 });
   });
 });
+
+describe('Word: more shapes', () => {
+  it('a star with a gradient and glow, a dotted thick callout and a line with ends go to Word and come back', async () => {
+    const star = makeBlock('shape', '', [], { shape: { kind: 'star5', w: 1.5, h: 1.5, fill: '#4472c4', line: null, grad: '#2f5597', fx: 'glow', tc: '#ffffff', wrap: 'inline', text: 'Star' } });
+    const callout = makeBlock('shape', '', [], { shape: { kind: 'callout', w: 2, h: 1, fill: '#ffffff', line: '#333333', lw: 3, dash: 'dot', fx: 'bevel', wrap: 'inline', text: '' } });
+    const line = makeBlock('shape', '', [], { shape: { kind: 'line', w: 2, h: 0.25, fill: null, line: '#c00000', head: 'open', tail: 'dot', wrap: 'inline', text: '' } });
+    const bytes = await toDocx([{ doc: { blocks: [star, callout, line] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('<a:prstGeom prst="star5">');
+    expect(xml).toContain('<a:gradFill');
+    expect(xml).toContain('<a:glow rad=');
+    expect(xml).toContain('<a:prstGeom prst="wedgeRectCallout">');
+    expect(xml).toContain('<a:ln w="38100">');
+    expect(xml).toContain('<a:prstDash val="sysDot"/>');
+    expect(xml).toContain('<a:bevelT');
+    expect(xml).toContain('<a:headEnd type="oval"/><a:tailEnd type="arrow"/>');
+    const back = (await fromDocx(bytes)).doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
+    expect(back[0]).toMatchObject({ kind: 'star5', fill: '#4472c4', grad: '#2f5597', fx: 'glow', tc: '#ffffff' });
+    expect(back[1]).toMatchObject({ kind: 'callout', lw: 3, dash: 'dot', fx: 'bevel' });
+    expect(back[2]).toMatchObject({ kind: 'line', head: 'open', tail: 'dot' });
+  });
+});

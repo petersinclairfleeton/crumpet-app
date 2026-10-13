@@ -5,8 +5,36 @@
 // sits in front of the text wherever it's dragged (placed from the top left
 // of its paragraph). It can be turned to any angle.
 
-export type ShapeKind = 'rect' | 'rounded' | 'ellipse' | 'line' | 'arrow';
-export const SHAPE_KINDS: ShapeKind[] = ['rect', 'rounded', 'ellipse', 'line', 'arrow'];
+export const SHAPE_KINDS = [
+  // Lines and the basic shapes.
+  'line', 'arrow', 'rect', 'rounded', 'ellipse', 'triangle', 'rtriangle', 'diamond', 'parallelogram', 'trapezoid', 'pentagon', 'hexagon', 'octagon', 'plus', 'can', 'heart', 'cloud',
+  // Block arrows.
+  'rarrow', 'larrow', 'uarrow', 'darrow', 'lrarrow', 'chevron',
+  // Stars and banners.
+  'star4', 'star5', 'star8', 'banner', 'wave',
+  // Callouts.
+  'callout', 'ocallout',
+  // Flowchart.
+  'terminator', 'document', 'data', 'predefined',
+] as const;
+export type ShapeKind = (typeof SHAPE_KINDS)[number];
+
+/** The shapes gallery: groups of shapes and their names, as Word's Insert > Shapes. */
+export const SHAPE_GROUPS: { name: string; kinds: [ShapeKind, string][] }[] = [
+  { name: 'Lines', kinds: [['line', 'Line'], ['arrow', 'Arrow']] },
+  { name: 'Basic shapes', kinds: [['rect', 'Rectangle'], ['rounded', 'Rounded rectangle'], ['ellipse', 'Oval'], ['triangle', 'Triangle'], ['rtriangle', 'Right triangle'], ['diamond', 'Diamond'], ['parallelogram', 'Parallelogram'], ['trapezoid', 'Trapezoid'], ['pentagon', 'Pentagon'], ['hexagon', 'Hexagon'], ['octagon', 'Octagon'], ['plus', 'Cross'], ['can', 'Cylinder'], ['heart', 'Heart'], ['cloud', 'Cloud']] },
+  { name: 'Block arrows', kinds: [['rarrow', 'Right arrow'], ['larrow', 'Left arrow'], ['uarrow', 'Up arrow'], ['darrow', 'Down arrow'], ['lrarrow', 'Left-right arrow'], ['chevron', 'Chevron']] },
+  { name: 'Stars and banners', kinds: [['star4', '4-point star'], ['star5', '5-point star'], ['star8', '8-point star'], ['banner', 'Ribbon'], ['wave', 'Wave']] },
+  { name: 'Callouts', kinds: [['callout', 'Speech bubble'], ['ocallout', 'Oval speech bubble']] },
+  { name: 'Flowchart', kinds: [['terminator', 'Start or end'], ['document', 'Document'], ['data', 'Data'], ['predefined', 'Predefined process']] },
+];
+
+/** A line (no inside to fill or write in). */
+export const isLineKind = (k: ShapeKind) => k === 'line' || k === 'arrow';
+
+/** Ends of a line: none, an arrowhead, an open arrowhead, a dot. */
+export type LineEnd = 'arrow' | 'open' | 'dot';
+export type ShapeEffect = 'shadow' | 'glow' | 'soft' | 'bevel' | 'reflect';
 /** In line; square (or tight) on the left or right; in front of or behind the text, anywhere; on its own lines, the text above and below (`topbottom`, moved across by `x`). */
 export type ShapeWrap = 'inline' | 'left' | 'right' | 'free' | 'behind' | 'topbottom';
 /** Placed anywhere: in front of or behind the text. */
@@ -39,10 +67,23 @@ export interface ShapeLook {
   z?: number;
   /** Shapes grouped together move together. */
   grp?: string;
+  /** Fill: fading to this colour (a gradient, top to bottom), or a picture (where the file is). */
+  grad?: string;
+  img?: string;
+  /** The line's thickness in points (unset: 1.5), and dashes. */
+  lw?: number;
+  dash?: 'dash' | 'dot' | 'dashdot';
+  /** Lines: what's at the start and end (unset: nothing; an arrow ends in an arrowhead). */
+  head?: LineEnd;
+  tail?: LineEnd;
+  /** An effect: a shadow, glow, soft edges, a bevel (3-D) or a reflection. */
+  fx?: ShapeEffect;
+  /** The colour of the text inside. */
+  tc?: string;
 }
 
 export function defaultShape(kind: ShapeKind, textBox = false): ShapeLook {
-  const flat = kind === 'line' || kind === 'arrow';
+  const flat = isLineKind(kind);
   return {
     kind,
     w: textBox ? 3 : flat ? 2 : 1.5,
@@ -58,7 +99,7 @@ const hex = (v: unknown): string | null => (typeof v === 'string' && /^#[0-9a-f]
 
 /** A shape's look made safe and simple. */
 export function tidyShape(s: Partial<ShapeLook> | undefined): ShapeLook {
-  const kind = SHAPE_KINDS.includes(s?.kind as ShapeKind) ? (s!.kind as ShapeKind) : 'rect';
+  const kind = (SHAPE_KINDS as readonly string[]).includes(s?.kind as string) ? (s!.kind as ShapeKind) : 'rect';
   const size = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(Math.max(0.1, Math.min(20, v)) * 100) / 100 : d);
   const base = defaultShape(kind);
   const out: ShapeLook = {
@@ -86,6 +127,21 @@ export function tidyShape(s: Partial<ShapeLook> | undefined): ShapeLook {
     if (x) out.x = x;
   }
   if (s?.tight === true && (out.wrap === 'left' || out.wrap === 'right')) out.tight = true;
+  if (!isLineKind(kind)) {
+    if (hex(s?.grad)) out.grad = hex(s?.grad)!;
+    if (typeof s?.img === 'string' && /^[^\s{}"]{1,2000}$/.test(s.img)) out.img = s.img;
+  }
+  if (typeof s?.lw === 'number' && Number.isFinite(s.lw) && s.lw !== 1.5) out.lw = Math.round(Math.max(0.25, Math.min(12, s.lw)) * 100) / 100;
+  if (s?.dash === 'dash' || s?.dash === 'dot' || s?.dash === 'dashdot') out.dash = s.dash;
+  const end = (v: unknown) => (v === 'arrow' || v === 'open' || v === 'dot' ? v : undefined);
+  if (isLineKind(kind)) {
+    const head = end(s?.head);
+    const tail = end(s?.tail);
+    if (head) out.head = head;
+    if (tail) out.tail = tail;
+  }
+  if (s?.fx === 'shadow' || s?.fx === 'glow' || s?.fx === 'soft' || s?.fx === 'bevel' || s?.fx === 'reflect') out.fx = s.fx;
+  if (hex(s?.tc)) out.tc = hex(s?.tc)!;
   return out;
 }
 
@@ -105,24 +161,151 @@ export function shapeLine(s: ShapeLook, align?: string): string {
   if (s.rel) parts.push(`rel=${s.rel}`);
   if (s.z) parts.push(`z=${s.z}`);
   if (s.grp) parts.push(`grp=${s.grp}`);
+  if (s.grad) parts.push(`grad=${s.grad}`);
+  if (s.img) parts.push(`img=${s.img}`);
+  if (s.lw) parts.push(`lw=${s.lw}`);
+  if (s.dash) parts.push(`dash=${s.dash}`);
+  if (s.head) parts.push(`head=${s.head}`);
+  if (s.tail) parts.push(`tail=${s.tail}`);
+  if (s.fx) parts.push(`fx=${s.fx}`);
+  if (s.tc) parts.push(`tc=${s.tc}`);
   if (s.rot) parts.push(`rot=${s.rot}`);
   if (s.hide) parts.push('hide=1');
   if (align) parts.push(`align=${align}`);
   return `{${parts.join(' ')}}${s.text ? ` ${s.text}` : ''}`;
 }
 
-export const SHAPE_LINE = /^\{shape (rect|rounded|ellipse|line|arrow)((?: [a-z]+=[^\s}]+)*)\}(?: (.*))?$/;
+export const SHAPE_LINE = /^\{shape ([a-z0-9]+)((?: [a-z]+=[^\s}]+)*)\}(?: (.*))?$/;
 
 /** Reads a shape's line back: the look, its alignment, and the text. */
 export function readShapeLine(line: string): { shape: ShapeLook; align?: string } | null {
   const m = SHAPE_LINE.exec(line.trim());
-  if (!m) return null;
+  if (!m || !(SHAPE_KINDS as readonly string[]).includes(m[1])) return null;
   const v: Record<string, string> = {};
   for (const tok of m[2].trim().split(/\s+/).filter(Boolean)) {
     const [k, val] = tok.split('=');
     v[k] = val;
   }
   const color = (c: string | undefined) => (c === 'none' ? null : c);
-  const shape = tidyShape({ kind: m[1] as ShapeKind, w: Number(v.w), h: Number(v.h), fill: color(v.fill), line: color(v.line), wrap: v.wrap as ShapeWrap, text: m[3] ?? '', rot: v.rot ? Number(v.rot) : undefined, x: v.x ? Number(v.x) : undefined, y: v.y ? Number(v.y) : undefined, hide: v.hide === '1', tight: v.tight === '1', rel: v.rel as ShapeLook['rel'], z: v.z ? Number(v.z) : undefined, grp: v.grp });
+  const shape = tidyShape({ kind: m[1] as ShapeKind, w: Number(v.w), h: Number(v.h), fill: color(v.fill), line: color(v.line), wrap: v.wrap as ShapeWrap, text: m[3] ?? '', rot: v.rot ? Number(v.rot) : undefined, x: v.x ? Number(v.x) : undefined, y: v.y ? Number(v.y) : undefined, hide: v.hide === '1', tight: v.tight === '1', rel: v.rel as ShapeLook['rel'], z: v.z ? Number(v.z) : undefined, grp: v.grp, grad: v.grad, img: v.img, lw: v.lw ? Number(v.lw) : undefined, dash: v.dash as ShapeLook['dash'], head: v.head as LineEnd, tail: v.tail as LineEnd, fx: v.fx as ShapeEffect, tc: v.tc });
   return { shape, align: v.align === 'center' || v.align === 'right' ? v.align : undefined };
 }
+
+// ---------------------------------------------------------------- outlines
+
+/** A star's points: `n` points, the inner corners `inner` of the way out. */
+function star(n: number, inner: number, W: number, H: number): string {
+  const pts: string[] = [];
+  for (let i = 0; i < n * 2; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / n;
+    const r = i % 2 ? inner : 1;
+    pts.push(`${W / 2 + (W / 2) * r * Math.cos(a)},${H / 2 + (H / 2) * r * Math.sin(a)}`);
+  }
+  return `M${pts.join('L')}Z`;
+}
+
+/** A shape's outline as an SVG path, in a box W wide and H tall (null: drawn some other way). */
+export function shapePath(kind: ShapeKind, W: number, H: number): string | null {
+  const x = (f: number) => f * W;
+  const y = (f: number) => f * H;
+  const poly = (pts: [number, number][]) => `M${pts.map(([a, b]) => `${x(a)},${y(b)}`).join('L')}Z`;
+  switch (kind) {
+    case 'triangle':
+      return poly([[0.5, 0], [1, 1], [0, 1]]);
+    case 'rtriangle':
+      return poly([[0, 0], [1, 1], [0, 1]]);
+    case 'diamond':
+      return poly([[0.5, 0], [1, 0.5], [0.5, 1], [0, 0.5]]);
+    case 'parallelogram':
+    case 'data':
+      return poly([[0.22, 0], [1, 0], [0.78, 1], [0, 1]]);
+    case 'trapezoid':
+      return poly([[0.2, 0], [0.8, 0], [1, 1], [0, 1]]);
+    case 'pentagon':
+      return poly([[0.5, 0], [1, 0.38], [0.81, 1], [0.19, 1], [0, 0.38]]);
+    case 'hexagon':
+      return poly([[0.25, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0.25, 1], [0, 0.5]]);
+    case 'octagon':
+      return poly([[0.29, 0], [0.71, 0], [1, 0.29], [1, 0.71], [0.71, 1], [0.29, 1], [0, 0.71], [0, 0.29]]);
+    case 'plus':
+      return poly([[0.33, 0], [0.67, 0], [0.67, 0.33], [1, 0.33], [1, 0.67], [0.67, 0.67], [0.67, 1], [0.33, 1], [0.33, 0.67], [0, 0.67], [0, 0.33], [0.33, 0.33]]);
+    case 'can':
+      return `M0,${y(0.12)}A${W / 2},${y(0.12)} 0 0 1 ${W},${y(0.12)}V${y(0.88)}A${W / 2},${y(0.12)} 0 0 1 0,${y(0.88)}ZM0,${y(0.12)}A${W / 2},${y(0.12)} 0 0 0 ${W},${y(0.12)}`;
+    case 'heart':
+      return `M${x(0.5)},${y(0.28)}C${x(0.5)},${y(0.02)} 0,${y(0.02)} 0,${y(0.32)}C0,${y(0.6)} ${x(0.5)},${y(0.78)} ${x(0.5)},${H}C${x(0.5)},${y(0.78)} ${W},${y(0.6)} ${W},${y(0.32)}C${W},${y(0.02)} ${x(0.5)},${y(0.02)} ${x(0.5)},${y(0.28)}Z`;
+    case 'cloud': {
+      // Bumps round an oval.
+      const n = 9;
+      let d = '';
+      for (let i = 0; i <= n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const px = x(0.5) + x(0.42) * Math.cos(a);
+        const py = y(0.5) + y(0.38) * Math.sin(a);
+        if (i === 0) d = `M${px},${py}`;
+        else {
+          const m = ((i - 0.5) / n) * Math.PI * 2;
+          d += `Q${x(0.5) + x(0.62) * Math.cos(m)},${y(0.5) + y(0.6) * Math.sin(m)} ${px},${py}`;
+        }
+      }
+      return `${d}Z`;
+    }
+    case 'rarrow':
+      return poly([[0, 0.25], [0.6, 0.25], [0.6, 0], [1, 0.5], [0.6, 1], [0.6, 0.75], [0, 0.75]]);
+    case 'larrow':
+      return poly([[1, 0.25], [0.4, 0.25], [0.4, 0], [0, 0.5], [0.4, 1], [0.4, 0.75], [1, 0.75]]);
+    case 'uarrow':
+      return poly([[0.25, 1], [0.25, 0.4], [0, 0.4], [0.5, 0], [1, 0.4], [0.75, 0.4], [0.75, 1]]);
+    case 'darrow':
+      return poly([[0.25, 0], [0.25, 0.6], [0, 0.6], [0.5, 1], [1, 0.6], [0.75, 0.6], [0.75, 0]]);
+    case 'lrarrow':
+      return poly([[0, 0.5], [0.25, 0], [0.25, 0.25], [0.75, 0.25], [0.75, 0], [1, 0.5], [0.75, 1], [0.75, 0.75], [0.25, 0.75], [0.25, 1]]);
+    case 'chevron':
+      return poly([[0, 0], [0.75, 0], [1, 0.5], [0.75, 1], [0, 1], [0.25, 0.5]]);
+    case 'star4':
+      return star(4, 0.3, W, H);
+    case 'star5':
+      return star(5, 0.4, W, H);
+    case 'star8':
+      return star(8, 0.7, W, H);
+    case 'banner':
+      return poly([[0, 0.2], [1, 0.2], [0.86, 0.5], [1, 0.8], [0, 0.8], [0.14, 0.5]]);
+    case 'wave':
+      return `M0,${y(0.15)}Q${x(0.25)},${y(-0.05)} ${x(0.5)},${y(0.15)}T${W},${y(0.15)}V${y(0.85)}Q${x(0.75)},${y(1.05)} ${x(0.5)},${y(0.85)}T0,${y(0.85)}Z`;
+    case 'callout':
+      return poly([[0, 0], [1, 0], [1, 0.75], [0.45, 0.75], [0.2, 1], [0.28, 0.75], [0, 0.75]]);
+    case 'ocallout':
+      return `M${x(0.42)},${y(0.79)}A${W / 2},${y(0.4)} 0 1 0 ${x(0.28)},${y(0.76)}L${x(0.14)},${H}Z`;
+    case 'terminator':
+      return `M${Math.min(H / 2, W / 2)},0H${W - Math.min(H / 2, W / 2)}A${Math.min(H / 2, W / 2)},${H / 2} 0 0 1 ${W - Math.min(H / 2, W / 2)},${H}H${Math.min(H / 2, W / 2)}A${Math.min(H / 2, W / 2)},${H / 2} 0 0 1 ${Math.min(H / 2, W / 2)},0Z`;
+    case 'document':
+      return `M0,0H${W}V${y(0.82)}Q${x(0.75)},${y(0.64)} ${x(0.5)},${y(0.82)}T0,${y(0.82)}Z`;
+    case 'predefined':
+      return `M0,0H${W}V${H}H0ZM${x(0.12)},0V${H}M${x(0.88)},0V${H}`;
+    default:
+      return null;
+  }
+}
+
+/** Word's name for each shape (its preset geometry). */
+export const WORD_SHAPES: Record<ShapeKind, string> = {
+  line: 'line', arrow: 'line', rect: 'rect', rounded: 'roundRect', ellipse: 'ellipse', triangle: 'triangle', rtriangle: 'rtTriangle', diamond: 'diamond', parallelogram: 'parallelogram', trapezoid: 'trapezoid', pentagon: 'pentagon', hexagon: 'hexagon', octagon: 'octagon', plus: 'plus', can: 'can', heart: 'heart', cloud: 'cloud',
+  rarrow: 'rightArrow', larrow: 'leftArrow', uarrow: 'upArrow', darrow: 'downArrow', lrarrow: 'leftRightArrow', chevron: 'chevron',
+  star4: 'star4', star5: 'star5', star8: 'star8', banner: 'ribbon2', wave: 'wave', callout: 'wedgeRectCallout', ocallout: 'wedgeEllipseCallout',
+  terminator: 'flowChartTerminator', document: 'flowChartDocument', data: 'flowChartInputOutput', predefined: 'flowChartPredefinedProcess',
+};
+
+/** Word's shape styles gallery: ready-made fills, lines, effects and text colours. */
+export const SHAPE_STYLES: { name: string; look: Partial<ShapeLook> }[] = [
+  { name: 'Blue outline', look: { fill: '#ffffff', line: '#4472c4', lw: 1.5, tc: '#1f3864', grad: undefined, fx: undefined } },
+  { name: 'Blue fill', look: { fill: '#4472c4', line: '#2f528f', lw: 1, tc: '#ffffff', grad: undefined, fx: undefined } },
+  { name: 'Blue gradient', look: { fill: '#8faadc', line: null, grad: '#2f5597', tc: '#ffffff', fx: undefined } },
+  { name: 'Orange fill', look: { fill: '#ed7d31', line: '#ae5a21', lw: 1, tc: '#ffffff', grad: undefined, fx: undefined } },
+  { name: 'Gold gradient', look: { fill: '#ffe699', line: null, grad: '#bf9000', tc: '#3d2f00', fx: undefined } },
+  { name: 'Green, shadow', look: { fill: '#70ad47', line: null, tc: '#ffffff', grad: undefined, fx: 'shadow' } },
+  { name: 'Grey, soft', look: { fill: '#d9d9d9', line: '#7f7f7f', lw: 0.75, tc: '#262626', grad: undefined, fx: undefined } },
+  { name: 'Dark, glow', look: { fill: '#262626', line: null, tc: '#ffffff', grad: undefined, fx: 'glow' } },
+  { name: 'Purple, bevel', look: { fill: '#7030a0', line: null, tc: '#ffffff', grad: undefined, fx: 'bevel' } },
+  { name: 'Red, dashed', look: { fill: '#fde9e7', line: '#c00000', lw: 2, dash: 'dash', tc: '#7f0000', grad: undefined, fx: undefined } },
+  { name: 'Sky, reflection', look: { fill: '#9dc3e6', line: '#2e75b6', lw: 1, tc: '#1f3864', grad: undefined, fx: 'reflect' } },
+  { name: 'Paper', look: { fill: '#fffcf2', line: '#a6a6a6', lw: 0.75, tc: '#262626', grad: undefined, fx: 'shadow' } },
+];

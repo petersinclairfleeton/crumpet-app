@@ -417,3 +417,16 @@ span.fld[data-field='wrapbreak'] { display: block; clear: both; height: 0; }
 span.fld[data-field='wrapbreak']::after { content: none; }
 .show-marks span.fld[data-field='wrapbreak'] { height: auto; }
 .show-marks span.fld[data-field='wrapbreak']::after { content: '↵ text wrapping break'; display: block; font: 10px/1.6 var(--ui-font, system-ui, sans-serif); color: var(--muted, #888); background: none; border-top: 1px dotted var(--muted, #aaa); }
+/* Shape styles in the shape's menu, a reflection under a shape, and room for text inside pointed shapes. */
+.shape-styles { display: grid; grid-template-columns: repeat(6, 30px); gap: 4px; padding: 2px 0; }
+.shape-styles button { width: 30px; height: 22px; padding: 0; font-size: 10px; font-weight: 600; border-radius: 3px; }
+.shape-box.fx-reflect { -webkit-box-reflect: below 3px linear-gradient(transparent 55%, rgba(255, 255, 255, 0.35)); }
+.shape-box:is([data-kind='triangle'], [data-kind='rtriangle']) .shape-text { padding: 40% 22% 6%; }
+.shape-box:is([data-kind='diamond'], [data-kind='star4'], [data-kind='star5'], [data-kind='star8'], [data-kind='heart'], [data-kind='cloud']) .shape-text { padding: 22% 24%; }
+.shape-box:is([data-kind='pentagon'], [data-kind='hexagon'], [data-kind='octagon'], [data-kind='parallelogram'], [data-kind='trapezoid'], [data-kind='data'], [data-kind='chevron'], [data-kind='banner']) .shape-text { padding: 8% 20%; }
+.shape-box:is([data-kind='rarrow'], [data-kind='larrow'], [data-kind='lrarrow'], [data-kind='uarrow'], [data-kind='darrow'], [data-kind='plus']) .shape-text { padding: 26% 18%; }
+.shape-box:is([data-kind='callout'], [data-kind='ocallout']) .shape-text { padding: 6% 12% 30%; }
+.shape-box[data-kind='document'] .shape-text { padding: 6% 10% 22%; }
+.shape-box[data-kind='can'] .shape-text { padding: 26% 10% 8%; }
+.shape-box[data-kind='predefined'] .shape-text { padding: 6px 14%; }
+.shape-box[data-kind='wave'] .shape-text { padding: 16% 10%; }
