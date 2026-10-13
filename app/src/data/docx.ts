@@ -441,12 +441,21 @@ class Writer {
     const wsp = `<wps:wsp><wps:cNvSpPr${s.text ? ' txBox="1"' : ''}/><wps:spPr><a:xfrm${s.rot ? ` rot="${s.rot * 60000}"` : ''}><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${flat ? 0 : cy}"/></a:xfrm><a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</wps:spPr>${text}<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="ctr"><a:noAutofit/></wps:bodyPr></wps:wsp>`;
     const graphic = `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">${wsp}</a:graphicData></a:graphic>`;
     const name = `<wp:docPr id="${n}" name="${s.text ? 'Text Box' : 'Shape'} ${n}"${s.hide ? ' hidden="1"' : ''}/><wp:cNvGraphicFramePr/>`;
+    // Placed anywhere: from the column and paragraph, or the page or its margins; in front of or behind the text, in its place in the stack.
+    const height = 251659264 + (s.z ?? 0) * 1024 + n;
+    const fromH = s.rel === 'page' ? 'page' : s.rel === 'margin' ? 'margin' : 'column';
+    const fromV = s.rel === 'page' ? 'page' : s.rel === 'margin' ? 'margin' : 'paragraph';
+    const anchor = (dist: string, behind: boolean, pos: string, wrapXml: string) =>
+      `<wp:anchor ${dist} simplePos="0" relativeHeight="${height}" behindDoc="${behind ? 1 : 0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/>${pos}<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${wrapXml}${name}${graphic}</wp:anchor>`;
+    const tightPolygon = '<wp:wrapPolygon edited="0"><wp:start x="0" y="0"/><wp:lineTo x="0" y="21600"/><wp:lineTo x="21600" y="21600"/><wp:lineTo x="21600" y="0"/><wp:lineTo x="0" y="0"/></wp:wrapPolygon>';
     const drawing =
       s.wrap === 'inline'
         ? `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${name}${graphic}</wp:inline>`
-        : s.wrap === 'free'
-          ? `<wp:anchor distT="0" distB="0" distL="114300" distR="114300" simplePos="0" relativeHeight="${251659264 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:posOffset>${Math.round((s.x ?? 0) * EMU)}</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>${Math.round((s.y ?? 0) * EMU)}</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/>${name}${graphic}</wp:anchor>`
-          : `<wp:anchor distT="45720" distB="45720" distL="114300" distR="114300" simplePos="0" relativeHeight="${251659264 + n}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:align>${s.wrap}</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapSquare wrapText="bothSides"/>${name}${graphic}</wp:anchor>`;
+        : s.wrap === 'free' || s.wrap === 'behind'
+          ? anchor('distT="0" distB="0" distL="114300" distR="114300"', s.wrap === 'behind', `<wp:positionH relativeFrom="${fromH}"><wp:posOffset>${Math.round((s.x ?? 0) * EMU)}</wp:posOffset></wp:positionH><wp:positionV relativeFrom="${fromV}"><wp:posOffset>${Math.round((s.y ?? 0) * EMU)}</wp:posOffset></wp:positionV>`, '<wp:wrapNone/>')
+          : s.wrap === 'topbottom'
+            ? anchor('distT="45720" distB="45720" distL="114300" distR="114300"', false, `<wp:positionH relativeFrom="column"><wp:posOffset>${Math.round((s.x ?? 0) * EMU)}</wp:posOffset></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>`, '<wp:wrapTopAndBottom/>')
+            : anchor('distT="45720" distB="45720" distL="114300" distR="114300"', false, `<wp:positionH relativeFrom="column"><wp:align>${s.wrap}</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV>`, s.tight ? `<wp:wrapTight wrapText="bothSides">${tightPolygon}</wp:wrapTight>` : '<wp:wrapSquare wrapText="bothSides"/>');
     const jc = b.align && b.align !== 'left' && s.wrap === 'inline' ? `<w:jc w:val="${JC[b.align] ?? b.align}"/>` : '';
     return this.paragraph(null, `<w:r><w:drawing>${drawing}</w:drawing></w:r>`, lead + jc);
   }
@@ -1507,7 +1516,12 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
     };
     const xfrm = spPr && kids(spPr).find((x) => x.localName === 'xfrm');
     const rot = Number(plain(xfrm ?? null, 'rot') ?? 0) / 60000;
-    const shape = tidyShape({ kind, w: w || undefined, h: h || undefined, fill, line, wrap: free ? 'free' : wraps ? (side === 'right' ? 'right' : 'left') : 'inline', text, rot, ...(free ? { x: offset('positionH'), y: offset('positionV') } : {}) });
+    const behind = free && anchor?.getAttribute('behindDoc') === '1';
+    const topBottom = !!anchor && Array.from(anchor.children).some((x) => x.localName === 'wrapTopAndBottom');
+    const tight = !!anchor && Array.from(anchor.children).some((x) => x.localName === 'wrapTight' || x.localName === 'wrapThrough');
+    const from = all.find((x) => x.localName === 'positionH')?.getAttribute('relativeFrom');
+    const rel = from === 'page' ? 'page' : from === 'margin' ? 'margin' : undefined;
+    const shape = tidyShape({ kind, w: w || undefined, h: h || undefined, fill, line, wrap: behind ? 'behind' : free ? 'free' : topBottom ? 'topbottom' : wraps ? (side === 'right' ? 'right' : 'left') : 'inline', tight, text, rot, ...(free ? { x: offset('positionH'), y: offset('positionV'), rel } : topBottom ? { x: offset('positionH') } : {}) });
     return makeBlock('shape', '', [], { shape });
   };
 

@@ -289,3 +289,21 @@ describe('Word: document themes', () => {
     expect(back[0].para).toMatchObject({ thc: 'ocean', thf: 'modern', thx: 'soft', psp: 'open' });
   });
 });
+
+describe('Word: arranging shapes', () => {
+  it('behind the text, placed from the page, tight and top-and-bottom wrapping go to Word and come back', async () => {
+    const behind = makeBlock('shape', '', [], { shape: { kind: 'rect', w: 2, h: 1, fill: '#cfe2f3', line: null, wrap: 'behind', text: 'Back', x: 1, y: 0.5, rel: 'page', z: 2 } });
+    const tight = makeBlock('shape', '', [], { shape: { kind: 'ellipse', w: 1, h: 1, fill: '#fff2cc', line: '#333333', wrap: 'right', tight: true, text: '' } });
+    const tb = makeBlock('shape', '', [], { shape: { kind: 'rect', w: 2, h: 1, fill: '#cfe2f3', line: '#333333', wrap: 'topbottom', x: 1.5, text: '' } });
+    const bytes = await toDocx([{ doc: { blocks: [makeBlock('paragraph', 'A'), behind, tight, tb] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml).toContain('behindDoc="1"');
+    expect(xml).toContain('<wp:positionH relativeFrom="page"><wp:posOffset>914400</wp:posOffset>');
+    expect(xml).toContain('<wp:wrapTight wrapText="bothSides"><wp:wrapPolygon');
+    expect(xml).toContain('<wp:wrapTopAndBottom/>');
+    const back = (await fromDocx(bytes)).doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
+    expect(back[0]).toMatchObject({ wrap: 'behind', rel: 'page', x: 1, y: 0.5 });
+    expect(back[1]).toMatchObject({ wrap: 'right', tight: true });
+    expect(back[2]).toMatchObject({ wrap: 'topbottom', x: 1.5 });
+  });
+});

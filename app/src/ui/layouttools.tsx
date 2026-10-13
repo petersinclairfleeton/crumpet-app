@@ -9,6 +9,7 @@ import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
 import { isMac } from './editing';
 import { PaperSwatches } from './paper';
+import { useAppState, useAppStore } from './hooks';
 
 const svg = (d: string) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -70,6 +71,19 @@ function DocColour({ ed, onPicked }: { ed: Editor; onPicked(): void }) {
   );
 }
 
+const ICON_GRID = svg('M4 4h16v16H4zM4 10h16M4 15h16M10 4v16M15 4v16');
+
+/** Word's View Gridlines: a grid behind the text that shapes snap to, for every note and chapter. */
+function GridToggle({ off }: { off: boolean }) {
+  const on = !!useAppState().settings.gridlines;
+  const store = useAppStore();
+  return (
+    <button type="button" className={on ? 'active' : ''} aria-label="Gridlines" aria-pressed={on} title="Gridlines: a grid behind the text; shapes snap to it as you move them" disabled={off} onClick={() => store.updateSettings({ gridlines: !on })}>
+      {ICON_GRID}
+    </button>
+  );
+}
+
 /** A sheet of paper in the colour chosen. */
 const ICON_PAPER = (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
@@ -107,6 +121,12 @@ export function useLayoutItems(ed: Editor | null, off: boolean, pageCtx: { page?
         )}
       </Drop>
     ),
+  });
+  items.push({
+    key: 'gridlines',
+    label: 'Gridlines',
+    pri: 1,
+    node: <GridToggle off={off} />,
   });
   items.push({
     key: 'pagesetup',

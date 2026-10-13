@@ -210,10 +210,10 @@ At the end there's a suggested order for building what's missing.
 | Line Numbers | ✅ | Continuous, or restarting each page or section; every line or every 2nd, 5th, 10th. Headings and tables aren't numbered. |
 | Hyphenation | ✅ | Automatic (the browser's own word breaking, by the document's language), or optional hyphens (Ctrl+-). |
 | Paragraph: Indent, Spacing | ✅ | |
-| Wrap Text | 🟡 | For pictures, shapes and text boxes: in line, square left or right, in front of the text. Not behind the text, and not "tight". |
-| Position | 🟡 | Pictures and shapes in front of the text can be dragged anywhere; placed from their paragraph, not the page. |
-| Bring Forward / Send Backward | ❌ | |
-| Align, Group | ❌ | |
+| Wrap Text | ✅ | Shapes and text boxes: in line, square or tight on the left or right, top and bottom, in front of or behind the text. Pictures: in line, square, in front (not yet behind, tight or top and bottom). |
+| Position | ✅ | Shapes placed anywhere can be placed from their paragraph, the page's margins or the page's corner (pictures from their paragraph). |
+| Bring Forward / Send Backward | ✅ | Bring to front, forward, backward, to back, for shapes in front of or behind the text. |
+| Align, Group | ✅ | Align a shape to the margins, or several (Shift+click) to each other; group shapes so they move together (Word gets them one by one). |
 | Rotate | ✅ | Pictures, shapes and text boxes: by the handle above them, or 90° from their menu. |
 
 ## References
@@ -289,7 +289,7 @@ At the end there's a suggested order for building what's missing.
 | Page Movement: vertical | ✅ | |
 | Page Movement: side to side (like a book) | ❌ | |
 | Ruler | ✅ | |
-| Gridlines | ❌ | |
+| Gridlines | ✅ | A quarter-inch grid behind the text; shapes snap to it as they're moved and sized. |
 | Navigation Pane: headings | ✅ | Right sidebar's outline, and the status bar. |
 | Navigation Pane: pages (thumbnails) | ❌ | |
 | Navigation Pane: results | ✅ | Find → More options → List results: each match with the words round it (and its chapter, across a book); click one to go there. |
@@ -560,10 +560,10 @@ Where: `paginate.ts`, `app/src/ui/pagesetup.tsx`, `layouttools.tsx`, `pages.tsx`
 
 **9. Shapes and arranging**
 Where: `packages/editor/src/shape.ts`, `view.ts` (the Shape menu), `paginate.ts`, `docx.ts`.
-- [ ] Wrap behind the text, tight, top and bottom
-- [ ] Position from the page's corner or margins
-- [ ] Bring forward / send backward
-- [ ] Align and group
+- [x] Wrap behind the text, tight, top and bottom
+- [x] Position from the page's corner or margins
+- [x] Bring forward / send backward
+- [x] Align and group
 - [ ] More shapes (stars, callouts, banners, flowchart, block arrows)
 - [ ] Shape styles gallery
 - [ ] Fill and line options: gradients, picture fill, thickness, dashes, arrowheads
@@ -573,7 +573,7 @@ Where: `packages/editor/src/shape.ts`, `view.ts` (the Shape menu), `paginate.ts`
 - [ ] Linked text boxes
 - [ ] Edit points
 - [ ] Icons library; convert icons and SVGs to shapes
-- [ ] Gridlines
+- [x] Gridlines
 
 **10. Views and windows**
 Where: `app/src/ui/pages.tsx`, `statusbar.tsx`, `NotePane.tsx` (reading view), `panes.tsx`, `rightside.tsx`.

@@ -120,7 +120,12 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     oval, line, arrow; size in inches, fill, line, wrapping left/right or
     in front of the text at `x`,`y` inches from its paragraph (`wrap=free`,
     dragged by its ✥ handle), turned by `rot` degrees, and one line of
-    inline Markdown text). Saved as
+    inline Markdown text). Also `wrap=behind` (under the text, brought up by
+    the Selection pane's Go to it), `wrap=topbottom` (moved across by `x`),
+    `tight=1`, `rel=page|margin` (placed by `Editor.placeShapes` after each
+    layout), `z` (its place in the stack) and `grp` (moved together; Shift+click
+    picks shapes for Group and Align); `settings.gridlines` shows a grid and
+    snaps to quarter inches. Saved as
     `{shape ellipse w=2 h=1 fill=#cfe2f3 line=none wrap=left rot=15} Text`.
   - `ops.ts`: small invertible operations (insert, remove, split, join,
     setAttrs, format). Everything is built from these, so undo and sync just
@@ -357,8 +362,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   build. Bookmarks dragged to the bar before the clipper changed need dragging
   again.
 - Word features not built: Word's own built-in table styles (ours go to Word as
-  styles of their own), shapes hold one paragraph of text, can't go behind the
-  text, and are placed from their paragraph (not the page's corner). Page borders are plain lines (no art) and the
+  styles of their own), shapes hold one paragraph of text; groups go to Word as separate
+  shapes; pictures can't go behind the text or wrap tight. Page borders are plain lines (no art) and the
   same on every page; the document's page colour shows only in page view;
   watermarks and section headers go to Word as VML and header parts (checked by
   tests, not yet in real Word). Printing turns landscape pages only
