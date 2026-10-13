@@ -23,10 +23,10 @@ At the end there's a suggested order for building what's missing.
 | Save to OneDrive / SharePoint | 🟡 | No direct connection, but a OneDrive folder on a computer works as "a folder on the computer". |
 | Save As / change file type | ✅ | Word (.docx), e-book (.epub), PDF (by printing), OpenDocument (.odt), Rich Text (.rtf), web page (.html, pictures inside), plain text (.txt), and Markdown (the files themselves). |
 | Word files saved back to themselves | ✅ | An uploaded .docx is written back to its own file as it's edited. |
-| Protect: password | ❌ | |
-| Protect: restrict editing / read-only | ❌ | |
-| Protect: mark as final | ❌ | |
-| Protect: digital signature | ❌ | |
+| Protect: password | ✅ | A note's ⋯ menu → Protect with a password: its text is scrambled (AES) here and in the folder or Drive, opened with the password for the session; Lock now, Remove the password. Notes only, not chapters; downloads of an opened note are the plain text, without the password. |
+| Protect: restrict editing / read-only | ✅ | Formatting bar → Protect document: no changes, or comments only, with a password to stop it if you like; goes to Word as its own document protection. |
+| Protect: mark as final | ✅ | Protect document → Mark as final: opens read only with a bar and Edit anyway; goes to Word as its Mark as Final. |
+| Protect: digital signature | 🟡 | Formatting bar → Signature line: the name, title and date on a signature line that remembers the document and says if it changes afterwards. Not a certificate-based digital signature (that needs a certificate service); goes to Word as text. |
 | Inspect Document (remove hidden data, comments, authors) | ✅ | The right sidebar's Check tab → Inspect: comments, tracked changes, people's names, hidden text and hidden objects, with Remove all comments, Accept all changes and Remove hidden text. |
 | Check Accessibility | ✅ | Check tab → Accessibility: pictures without alt text, tables without a heading row, skipped or empty headings, hard-to-read colours, unclear links. |
 | Check Compatibility | ✅ | Check tab → Word: what a Word download won't keep or shows differently. |
@@ -597,10 +597,10 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [ ] Grammar checking (needs an outside service such as LanguageTool: ask Peter first)
 - [x] More download types: .odt, .rtf, .html, .txt
 - [x] Crumpet's own print screen (preview, page ranges, copies)
-- [ ] Password protection
-- [ ] Read-only / restrict editing
-- [ ] Mark as final
-- [ ] Digital signature
+- [x] Password protection
+- [x] Read-only / restrict editing
+- [x] Mark as final
+- [x] Digital signature
 
 **12. Bigger additions**
 - [ ] Equation toolbar (fractions, scripts, roots, integrals, matrices)

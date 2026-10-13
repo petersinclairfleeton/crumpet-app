@@ -309,6 +309,15 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     (`data/checks.ts`: accessibility, compatibility, inspect, clarity,
     inclusive; `data/spell.ts`: the spelling pass with nspell and the
     dictionary-en / dictionary-en-gb word lists, loaded only when it runs).
+    Protection: a note with a password (`data/lock.ts`, PBKDF2 + AES-GCM; the
+    note's text becomes one ```` ```locked ```` block; `ui/locked.tsx` keeps
+    opened notes in memory for the session and re-locks as they change);
+    `ui/protecttools.tsx` is Protect document (first paragraph's `final`,
+    `restrict` read/comments, its password's lock `plock`; EditorHost makes
+    the editor read only and shows `ProtectBanner`; Word's
+    documentProtection and `_MarkAsFinal`) and Signature line (a paragraph
+    with `sig`, the document's fingerprint `docPrint`; `data-sig-ok` says
+    if it's changed since).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
   - Looks: `ui/theme.ts` sets `data-theme` and `data-look` on the page: Crumpet's

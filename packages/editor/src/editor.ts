@@ -6,6 +6,7 @@
 
 import {
   type Align,
+  makeBlock,
   isHeading,
   blockIndex,
   type Block,
@@ -418,6 +419,7 @@ export class Editor {
     this.flowChains();
     if (this.editingPoints) this.drawPointHandles(this.editingPoints);
     this.markOutline();
+    this.markSignatures();
     for (const el of Array.from(this.view.root.querySelectorAll<HTMLElement>('.blk-shape[data-rel]'))) {
       const blk = this.state.doc.blocks.find((b) => b.id === el.dataset.block);
       const s = blk?.shape;
@@ -623,6 +625,30 @@ export class Editor {
 
   /** Asks the app for a picture to fill a shape with (Word's Shape Fill > Picture); resolves to where it's kept. */
   onShapePicture: (() => Promise<string | null>) | null = null;
+
+  /** Signature lines: each marked as matching the document still, or not (it's changed since it was signed). */
+  private markSignatures(): void {
+    const sigs = this.state.doc.blocks.filter((b) => b.para?.sig);
+    if (!sigs.length) return;
+    const now = docPrint(this.state.doc);
+    for (const b of sigs) this.view.blockElement(b.id)?.setAttribute('data-sig-ok', b.para!.sig === now ? 'yes' : 'no');
+  }
+
+  /** Puts a signature line at the end of the paragraph the caret is in (after it): the words given, and the document's fingerprint now. */
+  insertSignature(text: string): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    // A line of its own after the caret's paragraph (an empty line after it to go on writing, which the fingerprint leaves out).
+    const id = this.state.selection.focus.block;
+    const end = { block: id, offset: runsLength(getBlock(this.state.doc, id).runs) };
+    const t = insertBlocks({ ...this.state, selection: { anchor: end, focus: end } }, [makeBlock('paragraph'), makeBlock('paragraph', text, [], { para: { sig: docPrint(this.state.doc) } })]);
+    if (t) this.dispatch(t, 'command');
+  }
+
+  /** The document's protection (final, restricted, the password's lock), set even while it's read only. */
+  setProtection(patch: Partial<Pick<ParaLook, 'final' | 'restrict' | 'plock'>>): void {
+    this.dispatch(setDocPara(this.state, patch), 'command');
+  }
 
   /** Word's outline view: the levels shown (unset: all), and only each paragraph's first line. */
   private outline: { level?: number; firstLine?: boolean } | null = null;
@@ -3282,4 +3308,25 @@ function darker(hex: string): string {
   const n = parseInt(hex.slice(1), 16);
   const ch = (shift: number) => Math.round(((n >> shift) & 255) * 0.6);
   return `#${[16, 8, 0].map((sh) => ch(sh).toString(16).padStart(2, '0')).join('')}`;
+}
+
+/**
+ * A fingerprint of the document's words and kinds of paragraph (signature
+ * lines left out), to tell whether it's changed since it was signed. Two
+ * FNV-1a hashes side by side: a check against changes, not a seal against
+ * forgery.
+ */
+export function docPrint(doc: Doc): string {
+  let a = 0x811c9dc5;
+  let b = 0x01000193 ^ 0x5bd1e995;
+  for (const blk of doc.blocks) {
+    if (blk.para?.sig || (blk.type === 'paragraph' && !blk.rows && !blk.runs.some((r) => r.text.trim()))) continue;
+    const text = `${blk.type}|${blk.runs.filter((r) => r.change?.kind !== 'del').map((r) => r.text).join('')}|${(blk.rows ?? []).flat().join('\t')}\n`;
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      a = Math.imul(a ^ c, 0x01000193) >>> 0;
+      b = Math.imul(b ^ c, 0x01000193 + 2) >>> 0;
+    }
+  }
+  return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
 }

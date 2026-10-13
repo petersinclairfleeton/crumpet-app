@@ -1127,7 +1127,11 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
   const hasToc = parts.some((part) => part.doc.blocks.some((b) => b.type === 'toc' || b.runs.some((r) => r.field !== undefined && !(r.field in FIELDS))));
   // Tracking everyone's changes, and locked (without a password: Word can't check ours).
   const firstPara = parts[0]?.doc.blocks[0]?.para;
-  const protect = firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
+  // Restricted editing (read only or comments only) wins over locked tracking: Word keeps one protection.
+  const protect = firstPara?.restrict ? `<w:documentProtection w:edit="${firstPara.restrict === 'read' ? 'readOnly' : 'comments'}" w:enforcement="1"/>` : firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
+  // Marked as final: Word's own custom property, which opens it read only with its bar.
+  const final = !!firstPara?.final;
+  const custom = `${XML}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="_MarkAsFinal"><vt:bool>true</vt:bool></property></Properties>`;
   const trackAll = firstPara?.track === 'all' ? '<w:trackRevisions/>' : '';
   const settings = `${XML}<w:settings ${NS}>${p0?.pgc ? '<w:displayBackgroundShape/>' : ''}${protect}${trackAll}${hf?.differentOddEven ? '<w:evenAndOddHeaders/>' : ''}${parts[0]?.doc.blocks[0]?.para?.hyph ? '<w:autoHyphenation/>' : ''}<w:defaultTabStop w:val="720"/>${hasToc ? '<w:updateFields w:val="true"/>' : ''}<w:footnotePr><w:footnote w:id="-1"/><w:footnote w:id="0"/></w:footnotePr><w:endnotePr><w:numFmt w:val="lowerRoman"/><w:endnote w:id="-1"/><w:endnote w:id="0"/></w:endnotePr><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat>${designVar(p0)}</w:settings>`;
   const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
@@ -1143,13 +1147,16 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     '<Override PartName="/word/endnotes.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"/>' +
     '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>' +
     files.filter((f) => !f.name.endsWith('.rels')).map((f) => `<Override PartName="/${f.name}" ContentType="${f.name.endsWith('commentsExtended.xml') ? 'application/vnd.ms-word.commentsExtended+xml' : `application/vnd.openxmlformats-officedocument.wordprocessingml.${f.name.includes('header') ? 'header' : f.name.includes('comments') ? 'comments' : 'footer'}+xml`}"/>`).join('') +
-    '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>';
-  const rootRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`;
+    '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
+    (final ? '<Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>' : '') +
+    '</Types>';
+  const rootRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>${final ? '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/>' : ''}</Relationships>`;
 
   return writeZip([
     { name: '[Content_Types].xml', data: utf8(types) },
     { name: '_rels/.rels', data: utf8(rootRels) },
     { name: 'docProps/core.xml', data: utf8(core) },
+    ...(final ? [{ name: 'docProps/custom.xml', data: utf8(custom) }] : []),
     { name: 'word/document.xml', data: utf8(documentXml) },
     { name: 'word/_rels/document.xml.rels', data: utf8(docRels) },
     { name: 'word/styles.xml', data: utf8(themeStyles(stylesXml(opts.font || 'Georgia', opts.size || 12), p0).replace('</w:styles>', `${customStylesXml(opts.custom ?? [])}</w:styles>`)) },
@@ -2300,7 +2307,14 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   }
   const track = setting('trackRevisions');
   const protection = setting('documentProtection');
-  const locked = !!protection && attr(protection, 'edit') === 'trackedChanges' && /^(1|true|on)$/.test(attr(protection, 'enforcement') ?? '');
+  const enforced = !!protection && /^(1|true|on)$/.test(attr(protection, 'enforcement') ?? '');
+  const locked = enforced && attr(protection, 'edit') === 'trackedChanges';
+  // Restricted editing and Mark as Final (a custom property), kept on the first paragraph.
+  const restrict = enforced ? ({ readOnly: 'read', comments: 'comments' } as const)[attr(protection, 'edit') as 'readOnly' | 'comments'] : undefined;
+  const customProps = parseXml(files.get('docProps/custom.xml'));
+  const finalProp = Array.from(customProps?.getElementsByTagName('property') ?? []).find((p) => p.getAttribute('name') === '_MarkAsFinal');
+  const isFinal = !!finalProp && /^(true|1)$/i.test(finalProp.textContent?.trim() ?? '');
+  if ((restrict || isFinal) && out[0]) out[0].para = tidyPara({ ...out[0].para, ...(restrict ? { restrict } : {}), ...(isFinal ? { final: true } : {}) });
   if ((track && attr(track, 'val') !== 'false' && attr(track, 'val') !== '0') || locked) {
     let first = out[0];
     if (first.type !== 'paragraph' && first.type !== 'quote' && !first.type.startsWith('heading') && first.type !== 'bullet' && first.type !== 'numbered' && first.type !== 'todo') {
