@@ -3505,6 +3505,87 @@ test('text in shapes (lines, bullets, direction), icons, edit points, linked tex
   await expect.poll(async () => (await looks()).find((l) => l.kind === 'path')).toMatchObject({ fill: '#336699', vb: [10, 10] });
 });
 
+test('outline view (promote, demote, move, show level, drag), pages side by side, one page, like a book, and page thumbnails', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Outline', 'Words.');
+  await page.evaluate(async () => {
+    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void } };
+    w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown('# One\n\nAbout one.\n\n## Sub\n\nAbout sub.\n\n# Two\n\nAbout two.\n'));
+  });
+  const md = () =>
+    page.evaluate(async () => {
+      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
+      return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
+    });
+  const ed = page.locator('.note-editor');
+  await page.locator('.note-editor .blk-heading1').last().click();
+  await (await toolButton(page, 'Outline view')).click();
+  await expect(ed).toHaveClass(/outline-view/);
+  const bar = page.getByRole('toolbar', { name: 'Outlining' });
+  await expect(bar).toBeVisible();
+  await expect(page.locator('.note-editor .blk-heading1').first()).toHaveAttribute('data-ol', '1');
+  await expect(page.locator('.note-editor .blk-paragraph').first()).toHaveAttribute('data-ol', 'b');
+  // Show only level 1: the body text and Heading 2 out of sight.
+  await bar.getByLabel('Show level').selectOption('1');
+  await expect(page.locator('.note-editor .blk-heading2')).toBeHidden();
+  await expect(page.locator('.note-editor .blk-paragraph').first()).toBeHidden();
+  await bar.getByLabel('Show level').selectOption('');
+  // Collapsed, "Two" moves up with its text (open, it would move on its own, as in Word).
+  await page.locator('.note-editor .blk-heading1').last().click();
+  await bar.getByRole('button', { name: 'Collapse' }).click();
+  await bar.getByRole('button', { name: 'Move up' }).click();
+  await expect.poll(md).toMatch(/## Sub\n\n# Two \{\.folded\}\n\nAbout two\.\n\nAbout sub\./);
+  await bar.getByRole('button', { name: 'Expand' }).click();
+  await expect.poll(md).not.toContain('.folded');
+  // Promote and demote.
+  await page.locator('.note-editor .blk-heading2').click();
+  await bar.getByRole('button', { name: 'Promote', exact: true }).click();
+  await expect.poll(md).toContain('# Sub');
+  await bar.getByRole('button', { name: 'Demote', exact: true }).click();
+  await expect.poll(md).toContain('## Sub');
+  // Dragging a heading's marker takes its section with it: "One" to the very end.
+  const one = page.locator('.note-editor .blk-heading1').first();
+  const r = (await one.boundingBox())!;
+  const last = (await page.locator('.note-editor .blk').last().boundingBox())!;
+  await page.mouse.move(r.x + 8, r.y + r.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(r.x + 8, last.y + last.height - 2, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(md).toMatch(/^# Two/);
+  await expect.poll(md).toMatch(/# One\n\nAbout one\.\n\n## Sub\n$/);
+  await bar.getByRole('button', { name: 'Close outline view' }).click();
+  await expect(ed).not.toHaveClass(/outline-view/);
+  // Page view with several pages: two in a row, one page, like a book.
+  await page.evaluate(async () => {
+    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void; updateSettings(p: object): void } };
+    w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown(Array.from({ length: 90 }, (_, i) => `Paragraph ${i + 1}, long enough to fill some of the page with words and more words.`).join('\n\n')));
+    w.crumpet.updateSettings({ pageView: { notes: true } });
+  });
+  await expect.poll(() => page.locator('.note-editor .pg').count()).toBeGreaterThan(2);
+  await (await toolButton(page, 'Page layout on screen')).click();
+  await page.getByRole('menuitemradio', { name: '2 pages in a row' }).click();
+  const pgs = page.locator('.note-editor .pg');
+  await expect.poll(async () => { const [a, b] = [(await pgs.nth(0).boundingBox())!, (await pgs.nth(1).boundingBox())!]; return Math.abs(a.y - b.y) < 2 && b.x > a.x + a.width; }).toBe(true);
+  await expect.poll(async () => (await page.locator('.sheet').nth(1).boundingBox())!.x > (await page.locator('.sheet').nth(0).boundingBox())!.x + 100).toBe(true);
+  await (await toolButton(page, 'Page layout on screen')).click();
+  await page.getByRole('menuitemradio', { name: 'Side to side, like a book' }).click();
+  // Like a book: the first page alone, on the right.
+  await expect.poll(async () => { const [a, b] = [(await pgs.nth(0).boundingBox())!, (await pgs.nth(1).boundingBox())!]; return b.y > a.y + 10 && a.x > b.x + 10; }).toBe(true);
+  await (await toolButton(page, 'Page layout on screen')).click();
+  await page.getByRole('menuitemradio', { name: 'One page' }).click();
+  await expect.poll(async () => (await pgs.nth(0).boundingBox())!.height).toBeLessThan(800);
+  // Thumbnails of the pages in the right sidebar; a click goes to that page.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'pages' }));
+  const thumbs = page.getByRole('tabpanel', { name: 'Pages' }).locator('.thumb');
+  await expect.poll(() => thumbs.count()).toBe(await pgs.count());
+  await thumbs.nth(2).click();
+});
+
 test('the sidebar and note list fold away with «, peek out at the edge, and come back', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1400, height: 860 });

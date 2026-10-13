@@ -6,6 +6,8 @@
 
 import {
   type Align,
+  isHeading,
+  blockIndex,
   type Block,
   type BlockType,
   type Doc,
@@ -72,6 +74,9 @@ import {
   toggleMark,
   toggleTodo,
   toggleFold,
+  moveBlocks,
+  sectionOf,
+  shiftLevel,
   insertTable,
   insertTableOf,
   textToTable,
@@ -412,6 +417,7 @@ export class Editor {
     for (const id of this.pickedShapes) this.view.blockElement(id)?.classList.add('shape-picked');
     this.flowChains();
     if (this.editingPoints) this.drawPointHandles(this.editingPoints);
+    this.markOutline();
     for (const el of Array.from(this.view.root.querySelectorAll<HTMLElement>('.blk-shape[data-rel]'))) {
       const blk = this.state.doc.blocks.find((b) => b.id === el.dataset.block);
       const s = blk?.shape;
@@ -617,6 +623,145 @@ export class Editor {
 
   /** Asks the app for a picture to fill a shape with (Word's Shape Fill > Picture); resolves to where it's kept. */
   onShapePicture: (() => Promise<string | null>) | null = null;
+
+  /** Word's outline view: the levels shown (unset: all), and only each paragraph's first line. */
+  private outline: { level?: number; firstLine?: boolean } | null = null;
+
+  setOutlineView(opts: { level?: number; firstLine?: boolean } | null): void {
+    this.outline = opts;
+    const root = this.view.root;
+    root.classList.toggle('outline-view', !!opts);
+    root.classList.toggle('outline-first-line', !!opts?.firstLine);
+    if (opts?.level) root.dataset.showLevel = String(opts.level);
+    else delete root.dataset.showLevel;
+    this.markOutline();
+  }
+
+  get outlineView(): { level?: number; firstLine?: boolean } | null {
+    return this.outline;
+  }
+
+  /** Outline view: each paragraph's level (a heading's own; body text one in from its heading), and whether a heading has anything under it. */
+  private markOutline(): void {
+    if (!this.outline) {
+      this.view.root.querySelectorAll<HTMLElement>('[data-ol]').forEach((el) => {
+        delete el.dataset.ol;
+        delete el.dataset.olMore;
+        el.style.removeProperty('--ol');
+      });
+      return;
+    }
+    let level = 0;
+    const blocks = this.state.doc.blocks;
+    blocks.forEach((b, i) => {
+      const el = this.view.blockElement(b.id);
+      const h = isHeading(b.type) ? Number(b.type.slice(-1)) : 0;
+      if (h) level = h;
+      if (!el) return;
+      el.dataset.ol = h ? String(h) : 'b';
+      el.style.setProperty('--ol', String(h ? h - 1 : level));
+      const next = blocks[i + 1];
+      if (h && next && !(isHeading(next.type) && Number(next.type.slice(-1)) <= h)) el.dataset.olMore = '';
+      else delete el.dataset.olMore;
+    });
+  }
+
+  /** Word's Expand / Collapse: opens or folds the section of the heading the caret is under. */
+  foldHere(fold: boolean): void {
+    const doc = this.state.doc;
+    const i = blockIndex(doc, this.state.selection.focus.block);
+    const head = [...doc.blocks.slice(0, i + 1)].reverse().find((b) => isHeading(b.type));
+    if (head && !!head.folded !== fold) this.dispatch(toggleFold(this.state, head.id), 'command');
+  }
+
+  /** Word's Promote / Demote (Alt+Shift+Left/Right). */
+  promote(dir: -1 | 1, toBody = false): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    this.dispatch(shiftLevel(this.state, dir, toBody), 'command');
+  }
+
+  /** Word's Move Up / Move Down (Alt+Shift+Up/Down): the paragraph, or a folded heading with its section, past the one before or after. */
+  moveParagraph(dir: -1 | 1): void {
+    if (this.isReadOnly) return;
+    const doc = this.state.doc;
+    const id = this.state.selection.focus.block;
+    const blk = getBlock(doc, id);
+    const ids = blk.folded || (this.outline && isHeading(blk.type) && this.outlineHides(id)) ? sectionOf(doc, id) : [id];
+    const first = blockIndex(doc, ids[0]);
+    const last = blockIndex(doc, ids[ids.length - 1]);
+    let t: Transaction | null = null;
+    if (dir < 0) {
+      if (first === 0) return;
+      // Past the paragraph before (or, when that's under a folded heading, past that whole section).
+      let k = first - 1;
+      const owner = [...doc.blocks.slice(0, k + 1)].reverse().find((x) => x.folded && sectionOf(doc, x.id).includes(doc.blocks[k].id));
+      if (owner) k = blockIndex(doc, owner.id);
+      t = moveBlocks(this.state, ids, doc.blocks[k].id);
+    } else {
+      if (last >= doc.blocks.length - 1) return;
+      const nextId = doc.blocks[last + 1].id;
+      const span = getBlock(doc, nextId).folded ? sectionOf(doc, nextId) : [nextId];
+      const after = blockIndex(doc, span[span.length - 1]) + 1;
+      t = moveBlocks(this.state, ids, doc.blocks[after]?.id ?? null);
+    }
+    if (t) this.dispatch(t, 'command');
+  }
+
+  /** In outline view, whether what's under this heading is out of sight (a level not shown). */
+  private outlineHides(id: string): boolean {
+    const lvl = this.outline?.level;
+    if (!lvl) return false;
+    const sec = sectionOf(this.state.doc, id);
+    return sec.length > 1;
+  }
+
+  /** Outline view: dragging a paragraph's marker (a heading's takes its section) to another place; a click folds a heading. */
+  private dragOutline(e: MouseEvent, el: HTMLElement): void {
+    const id = el.dataset.block!;
+    const doc = this.state.doc;
+    const ids = sectionOf(doc, id);
+    const root = this.view.root;
+    const line = root.ownerDocument.createElement('div');
+    line.className = 'ol-drop';
+    let moved = false;
+    let before: string | null | undefined;
+    const startY = e.clientY;
+    const move = (ev: MouseEvent) => {
+      if (!moved && Math.abs(ev.clientY - startY) < 4) return;
+      moved = true;
+      if (!line.isConnected) root.appendChild(line);
+      const els = Array.from(root.querySelectorAll<HTMLElement>('.blk[data-block]')).filter((x) => x.offsetParent && !ids.includes(x.dataset.block!));
+      const rootBox = root.getBoundingClientRect();
+      const scale = rootBox.width / (root.offsetWidth || 1) || 1;
+      before = null;
+      let y = els.length ? els[els.length - 1].getBoundingClientRect().bottom : rootBox.top;
+      for (const x of els) {
+        const r = x.getBoundingClientRect();
+        if (ev.clientY < r.top + r.height / 2) {
+          before = x.dataset.block!;
+          y = r.top;
+          break;
+        }
+      }
+      line.style.top = `${(y - rootBox.top) / scale}px`;
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      line.remove();
+      if (!moved) {
+        if (isHeading(getBlock(this.state.doc, id).type)) this.dispatch(toggleFold(this.state, id), 'command');
+        return;
+      }
+      if (before !== undefined) {
+        const t = moveBlocks(this.state, ids, before);
+        if (t) this.dispatch(t, 'command');
+      }
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  }
 
   /** Shapes picked by Shift+click, to group or line up together. */
   private pickedShapes = new Set<string>();
@@ -2613,6 +2758,20 @@ export class Editor {
       return;
     }
     const mod = isMac ? e.metaKey : e.ctrlKey;
+    // Word's outline keys: Alt+Shift+arrows promote, demote and move; in outline view Tab demotes a heading and Shift+Tab promotes it.
+    if (e.altKey && e.shiftKey && !mod && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+      this.syncSelectionFromDom();
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') this.moveParagraph(e.key === 'ArrowUp' ? -1 : 1);
+      else this.promote(e.key === 'ArrowLeft' ? -1 : 1);
+      return;
+    }
+    if (this.outline && e.key === 'Tab' && !mod && isHeading(getBlock(this.state.doc, this.state.selection.focus.block).type)) {
+      e.preventDefault();
+      this.syncSelectionFromDom();
+      this.promote(e.shiftKey ? -1 : 1);
+      return;
+    }
     if (e.key === 'Tab') {
       // Tab nests list items (Shift+Tab un-nests); elsewhere it types a tab, which goes to the next tab stop (as in Word).
       e.preventDefault();
@@ -2734,6 +2893,18 @@ export class Editor {
     if (picAction && !this.isReadOnly) {
       e.preventDefault();
       return this.onPictureControl(picAction, e);
+    }
+    // Outline view: the marker left of a paragraph drags it (a heading with its section), and a click folds a heading.
+    if (this.outline && e.button === 0 && !this.isReadOnly) {
+      const blk = (e.target as Element).closest?.<HTMLElement>('.blk[data-ol]');
+      if (blk && blk.parentElement && (e.target as Element).closest('.editor') === this.view.root) {
+        const r = blk.getBoundingClientRect();
+        const pad = parseFloat(getComputedStyle(blk).paddingLeft) * (r.width / (blk.offsetWidth || 1));
+        if (e.clientX >= r.left && e.clientX < r.left + pad) {
+          e.preventDefault();
+          return this.dragOutline(e, blk);
+        }
+      }
     }
     // Shift+click on shapes picks several, to group or line up.
     const pickBox = e.shiftKey && (e.target as Element).closest?.<HTMLElement>('.shape-box');

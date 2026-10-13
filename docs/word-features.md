@@ -282,19 +282,19 @@ At the end there's a suggested order for building what's missing.
 | Read Mode | ✅ | Reading view. |
 | Print Layout | ✅ | Page view. |
 | Web Layout / Draft | ✅ | The text as one long page (the usual way of writing notes). |
-| Outline view | 🟡 | Headings fold away, there's a headings outline beside the text, and projects have their outline and corkboard; no Word-style outline view with levels to promote and demote. |
+| Outline view | ✅ | Word's outline view (under More): levels shown by indent with markers, promote, demote, move up and down (Alt+Shift+arrows), expand and collapse, show a level, first line only; drag a heading's marker to move its section. |
 | Focus | ✅ | Focus mode, plus typewriter mode. |
 | Immersive Reader: line focus | 🟡 | Typewriter mode fades the other paragraphs. |
 | Immersive Reader: text spacing, syllables, picture dictionary | ❌ | |
 | Page Movement: vertical | ✅ | |
-| Page Movement: side to side (like a book) | ❌ | |
+| Page Movement: side to side (like a book) | ✅ | Facing pages, the first alone on the right (Pages on screen). |
 | Ruler | ✅ | |
 | Gridlines | ✅ | A quarter-inch grid behind the text; shapes snap to it as they're moved and sized. |
 | Navigation Pane: headings | ✅ | Right sidebar's outline, and the status bar. |
-| Navigation Pane: pages (thumbnails) | ❌ | |
+| Navigation Pane: pages (thumbnails) | ✅ | The right sidebar's Pages tab: a small copy of each page; click to go there. |
 | Navigation Pane: results | ✅ | Find → More options → List results: each match with the words round it (and its chapter, across a book); click one to go there. |
 | Zoom, 100%, Page Width | ✅ | 25%–300% and "Fit". |
-| Zoom: One Page, Multiple Pages | ❌ | Pages are always one under the other. |
+| Zoom: One Page, Multiple Pages | ✅ | One page in the window, or 2, 3 or 4 pages in a row (Pages on screen, under More). |
 | New Window | 🟡 | Panes and tabs do much the same inside one window. |
 | Arrange All, Split, View Side by Side | ✅ | Panes side by side or one above the other, with tabs in each. |
 | Synchronous Scrolling | ❌ | |
@@ -577,10 +577,10 @@ Where: `packages/editor/src/shape.ts`, `view.ts` (the Shape menu), `paginate.ts`
 
 **10. Views and windows**
 Where: `app/src/ui/pages.tsx`, `statusbar.tsx`, `NotePane.tsx` (reading view), `panes.tsx`, `rightside.tsx`.
-- [ ] Word-style outline view (promote, demote, drag)
-- [ ] One page / multiple pages zoom
-- [ ] Side-to-side pages (like a book)
-- [ ] Page thumbnails in the navigation pane
+- [x] Word-style outline view (promote, demote, drag)
+- [x] One page / multiple pages zoom
+- [x] Side-to-side pages (like a book)
+- [x] Page thumbnails in the navigation pane
 - [ ] Immersive reader: letter, word and line spacing, column width
 - [ ] Syllables, parts of speech, picture dictionary
 - [ ] New window on the same document

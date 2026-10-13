@@ -293,7 +293,12 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `setPageOffset`), and footnote numbers run on from the chapters before
     (`footnotesBefore`, `editor.setFootnoteStart`; also in printing and e-books).
     Page view has `ruler.tsx` and `statusbar.tsx` (page,
-    words, headings, zoom).
+    words, headings, zoom); `viewtools.tsx` is Outline view (the editor's
+    `setOutlineView`: `data-ol` levels, markers dragged by `dragOutline`, moves by
+    `moveBlocks`/`sectionOf`, `shiftLevel`) and Pages on screen
+    (`settings.pageLayout` one/multi/book, `pagesPerRow`: the paginator's
+    `perRow`/`book` place pages in rows); `thumbs.tsx` is the right sidebar's
+    Pages tab (page thumbnails).
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
   - Looks: `ui/theme.ts` sets `data-theme` and `data-look` on the page: Crumpet's

@@ -448,3 +448,22 @@ span.fld[data-field='wrapbreak']::after { content: none; }
 .pt-mid { width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; opacity: 0.7; cursor: copy; }
 .blk-shape.editing-points .shape-text { pointer-events: none; }
 .blk-shape.editing-points .shape-box { outline: 1px dashed var(--accent, #4a7); }
+
+/* Word's outline view: each paragraph indented by its level, a marker at its left (⊕ a heading with something under it, ⊖ one without, a dot for body text) to drag it or fold a heading. */
+.editor.outline-view .blk[data-ol] { position: relative; padding-left: calc(var(--ol, 0) * 28px + 26px) !important; margin-left: 0 !important; text-indent: 0 !important; }
+.editor.outline-view .blk[data-ol]::before { position: absolute; left: calc(var(--ol, 0) * 28px + 4px); top: 0.1em; width: 16px; text-align: center; color: var(--muted, #888); font: 600 14px/1.4 var(--ui-font, system-ui, sans-serif); cursor: grab; }
+.editor.outline-view .blk[data-ol='b']::before { content: '•'; font-size: 16px; }
+.editor.outline-view .blk:is([data-ol='1'], [data-ol='2'], [data-ol='3'], [data-ol='4'])::before { content: '⊖'; }
+.editor.outline-view .blk[data-ol-more]::before { content: '⊕'; color: var(--accent, #4a7); }
+.editor.outline-view .blk[data-ol][data-folded]::before { text-decoration: underline; }
+.editor.outline-view .blk:is([data-ol='1'], [data-ol='2'], [data-ol='3'], [data-ol='4']) { margin-top: 6px; margin-bottom: 4px; }
+.editor.outline-view .blk[data-ol='b'] { margin-top: 0; margin-bottom: 4px; }
+.editor.outline-view.outline-first-line .blk[data-ol='b'] > .text { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.editor.outline-view[data-show-level] .blk[data-ol='b'],
+.editor.outline-view[data-show-level='1'] .blk:is([data-ol='2'], [data-ol='3'], [data-ol='4']),
+.editor.outline-view[data-show-level='2'] .blk:is([data-ol='3'], [data-ol='4']),
+.editor.outline-view[data-show-level='3'] .blk[data-ol='4'] { display: none; }
+.editor.outline-view[data-show-level] .blk-shape, .editor.outline-view[data-show-level] .blk-image, .editor.outline-view[data-show-level] .blk-table { display: none; }
+.ol-drop { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--accent, #4a7); pointer-events: none; z-index: 20; }
+.editor.outline-view .blk > .fold { display: none; }
+.editor.paged.pg-rows { position: relative; }
