@@ -198,6 +198,10 @@ export interface Settings {
   pageView?: { notes?: boolean; projects?: boolean };
   /** Page view zoom in per cent; unset fits the page to the window. */
   zoom?: number;
+  /** Page view's zoom: the whole page in the window, several pages in a row, or pages side by side like a book (unset: the page's width). */
+  pageLayout?: 'one' | 'multi' | 'book';
+  /** Multiple pages: how many in a row. */
+  pagesPerRow?: number;
   /** Show the ruler above the pages. */
   ruler?: boolean;
   /** The welcome guide has been seen (or closed) on this device, so it doesn't open by itself again. */
@@ -231,7 +235,7 @@ export interface LayoutPrefs {
   listWidth?: number;
   /** The right sidebar (outline, styles, comments, links): shown, which tab, and its width. */
   right?: boolean;
-  rightTab?: 'outline' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
+  rightTab?: 'outline' | 'pages' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
   rightWidth?: number;
   /** The writing area's panes and their tabs (a `Workspace` from `panes.ts`, checked when read). */
   panes?: unknown;

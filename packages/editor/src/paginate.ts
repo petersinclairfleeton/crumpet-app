@@ -29,6 +29,9 @@ export interface PageGeometry {
   /** Columns in the first section, and the space between columns (px). */
   cols?: number;
   colGap?: number;
+  /** Pages side by side: this many in each row (Word's Multiple Pages), the first alone on the right like a book's (`book`). */
+  perRow?: number;
+  book?: boolean;
 }
 
 /** Where a page is, relative to the top left of the text (unscaled px), and its size. */
@@ -154,6 +157,8 @@ export class Paginator {
   /** Puts the text back as one flow of blocks (continuations joined back on, pages taken away). */
   clear(): void {
     const root = this.root;
+    root.style.removeProperty('height');
+    root.classList.remove('pg-rows');
     root.querySelectorAll('.toc-page:not([data-fixed])').forEach((el) => el.textContent && (el.textContent = ''));
     if (!root.querySelector('.pg, .pg-measure')) return;
     // Continuations hand their text back to the block they continue.
@@ -535,6 +540,21 @@ export class Paginator {
     const rest = new Map<number, { el: HTMLElement; from: number }>();
     blocks.forEach((el, i) => rest.set(i, { el, from: 0 }));
     let top = 0;
+    // Pages side by side: each row as tall as its tallest page, each page centred in a column as wide as the widest.
+    const per = Math.max(1, Math.round(g.perRow ?? 1));
+    const slotOf = (n: number) => n + (per > 1 && g.book ? 1 : 0);
+    const rowTops: number[] = [];
+    if (per > 1) {
+      const rows = Math.floor(slotOf(pages.length - 1) / per) + 1;
+      let y = 0;
+      for (let r = 0; r < rows; r++) {
+        rowTops[r] = y;
+        const tall = Math.max(0, ...pages.filter((_, n) => Math.floor(slotOf(n) / per) === r).map((p) => p.height));
+        y += tall + g.gap;
+      }
+      root.classList.add('pg-rows');
+      root.style.height = `${Math.max(0, y - g.gap)}px`;
+    }
     pages.forEach((p, n) => {
       const box = document.createElement('div');
       box.className = 'pg';
@@ -571,6 +591,17 @@ export class Paginator {
       }
       root.appendChild(box);
       this.pageNotes[n] = p.notes;
+      if (per > 1) {
+        const slot = slotOf(n);
+        const left = (slot % per) * (widest + g.gap) + (widest - p.width) / 2;
+        const rowTop = rowTops[Math.floor(slot / per)] ?? 0;
+        box.style.position = 'absolute';
+        box.style.left = `${left}px`;
+        box.style.top = `${rowTop}px`;
+        box.style.margin = '0';
+        this.pageBoxes.push({ top: rowTop, left, width: p.width, height: p.height, landscape: p.landscape, margins: p.margins, sectionBlock: blocks[p.sect.start]?.dataset.block, sectionFirst: p.sectFirst });
+        return;
+      }
       this.pageBoxes.push({ top, left: (widest - p.width) / 2, width: p.width, height: p.height, landscape: p.landscape, margins: p.margins, sectionBlock: blocks[p.sect.start]?.dataset.block, sectionFirst: p.sectFirst });
       top += p.height + g.gap;
     });

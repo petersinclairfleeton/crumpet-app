@@ -76,32 +76,40 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   const laid = enabled ? (editor?.pageBoxes ?? []) : [];
   const baseMargins = { top: m.top * PX_PER_IN, right: m.right * PX_PER_IN, bottom: m.bottom * PX_PER_IN, left: m.left * PX_PER_IN };
   const boxes = laid.length ? laid : [{ top: 0, left: 0, width, height, landscape: width > height, margins: baseMargins }];
-  const widest = Math.max(...boxes.map((b) => b.width));
-  const last = boxes[boxes.length - 1];
-  const tallest = last.top + last.height;
+  // The pages' width all told (pages side by side make it wider).
+  const widest = Math.max(...boxes.map((b) => b.left + b.width));
+  const tallest = Math.max(...boxes.map((b) => b.top + b.height));
 
   // Fit the page to the width available (never larger than real size), or the zoom chosen.
   const zoom = settings.zoom;
+  const layout = print ? undefined : settings.pageLayout;
+  const onePage = layout === 'one';
   useLayoutEffect(() => {
     const el = outer.current;
     if (!el || !enabled || print) return;
-    if (zoom) {
+    if (zoom && !onePage) {
       setScale(zoom / 100);
       return;
     }
-    const fit = () => setScale(Math.min(1, Math.max(0.3, (el.clientWidth - 24) / widest)));
+    // One page: the whole page in the window (as tall as the space below the page's top allows).
+    const fit = () => {
+      const byWidth = (el.clientWidth - 24) / widest;
+      const room = window.innerHeight - Math.max(0, el.getBoundingClientRect().top) - 48;
+      setScale(Math.min(1, Math.max(0.15, onePage ? Math.min(byWidth, room / height) : byWidth)));
+    };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [widest, enabled, print, zoom]);
+  }, [widest, enabled, print, zoom, onePage, height]);
 
   // Tell the editor how big a page is; lay out again when fonts arrive or the styles change.
   const px = (n: number) => n * PX_PER_IN;
-  const geometryKey = JSON.stringify([width, height, m, gap, page.cols ?? 1]);
+  const perRow = layout === 'book' ? 2 : layout === 'multi' ? Math.max(2, Math.min(6, settings.pagesPerRow ?? 2)) : 1;
+  const geometryKey = JSON.stringify([width, height, m, gap, page.cols ?? 1, perRow, layout === 'book']);
   useEffect(() => {
     if (!editor || !enabled) return;
-    editor.setPages({ width, height, margins: { top: px(m.top), right: px(m.right), bottom: px(m.bottom), left: px(m.left) }, gap, noteGap: NOTE_GAP, cols: page.cols ?? 1, colGap: px(0.5) });
+    editor.setPages({ width, height, margins: { top: px(m.top), right: px(m.right), bottom: px(m.bottom), left: px(m.left) }, gap, noteGap: NOTE_GAP, cols: page.cols ?? 1, colGap: px(0.5), perRow, book: layout === 'book' });
     return () => editor.setPages(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, geometryKey, enabled]);

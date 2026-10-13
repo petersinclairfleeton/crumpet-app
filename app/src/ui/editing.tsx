@@ -22,6 +22,7 @@ import { useLayoutItems } from './layouttools';
 import type { PageSetup } from '../data/styles';
 import { insertItems } from './inserttools';
 import { designItems, applyThemeLook } from './designtools';
+import { OutlineHost, viewItems } from './viewtools';
 import { addFile } from '../data/files';
 import { BrushGlyph, MicGlyph, SpeakerGlyph } from './speechglyphs';
 import { painterClick, usePainter } from './painter';
@@ -261,7 +262,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     tool('dictate', 1, speech.kind === 'dictating' ? 'Stop dictating' : 'Dictate', `Dictate: type by speaking (${mod}${isMac ? '⌥' : 'Alt+'}D)`, <MicGlyph />, () => ed && toggleDictation(ed), { active: speech.kind === 'dictating', disabled: !canDictate }),
     tool('stylespane', 1, 'Styles pane', 'Styles pane: every style, with how often it’s used', <span className="glyph-styles">A¶</span>, () => store.updateLayout(stylesPane ? { right: false } : { right: true, rightTab: 'styles' }), { active: stylesPane }),
   ];
-  items.push(...tableItems(ed, off), ...insertItems(ed, off), ...designItems(ed, off), ...referenceItems(ed, off), ...snippetItems(ed, off));
+  items.push(...tableItems(ed, off), ...insertItems(ed, off), ...designItems(ed, off), ...viewItems(ed, off), ...referenceItems(ed, off), ...snippetItems(ed, off));
   if (attach)
     items.push(
       tool(
@@ -289,6 +290,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       <DefineListHost ed={ed} />
       <TableHost ed={ed} />
       <ReferencesHost />
+      <OutlineHost ed={ed} />
       {layout.dialog}
     </>
   );

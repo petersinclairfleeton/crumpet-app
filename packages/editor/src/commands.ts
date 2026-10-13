@@ -1533,3 +1533,94 @@ function takeCover(b: Builder): ParaLook {
   if (!sameAttrs(attrsOf(first), restAttrs)) b.step({ type: 'setAttrs', block: first.id, from: attrsOf(first), to: restAttrs });
   return settings;
 }
+
+/**
+ * Moves blocks `ids` (next to each other, in order) to just before block
+ * `before` (null: to the end), as Word's outline view moves a paragraph or a
+ * heading with its section. Copies go in first (each taking the target's
+ * place, the target moving on), then the originals are taken out.
+ */
+export function moveBlocks(state: EditorState, ids: string[], before: string | null): Transaction | null {
+  const doc = state.doc;
+  const moving = ids.map((id) => getBlock(doc, id));
+  if (!moving.length || (before && ids.includes(before))) return null;
+  const last = blockIndex(doc, ids[ids.length - 1]);
+  if (before && doc.blocks[last + 1]?.id === before) return null;
+  if (!before && last === doc.blocks.length - 1) return null;
+  const b = new Builder(doc);
+  let target = before;
+  const copies: string[] = [];
+  for (const blk of moving) {
+    if (target) {
+      const next = newId();
+      const t = getBlock(b.doc, target);
+      b.step({ type: 'split', block: target, offset: 0, newBlock: next, newAttrs: attrsOf(t) });
+      const here = getBlock(b.doc, target);
+      b.step({ type: 'setAttrs', block: target, from: attrsOf(here), to: attrsOf(blk) });
+      if (blk.runs.length) b.step({ type: 'insert', block: target, offset: 0, runs: blk.runs });
+      copies.push(target);
+      target = next;
+    } else {
+      const end = b.doc.blocks[b.doc.blocks.length - 1];
+      const id = newId();
+      b.step({ type: 'split', block: end.id, offset: runsLength(end.runs), newBlock: id, newAttrs: attrsOf(blk) });
+      if (blk.runs.length) b.step({ type: 'insert', block: id, offset: 0, runs: blk.runs });
+      copies.push(id);
+    }
+  }
+  // The originals out, last first: each joined into the block before it (or, at the very start, the block after takes its place).
+  for (const id of [...ids].reverse()) {
+    const i = blockIndex(b.doc, id);
+    const blk = b.doc.blocks[i];
+    if (blk.runs.length) b.step({ type: 'remove', block: id, offset: 0, runs: blk.runs });
+    const prev = b.doc.blocks[i - 1];
+    if (prev) b.step({ type: 'join', block: prev.id, second: id, offset: runsLength(prev.runs), secondAttrs: attrsOf(getBlock(b.doc, id)) });
+    else {
+      const next = b.doc.blocks[i + 1];
+      const nextAttrs = attrsOf(next);
+      const emptied = getBlock(b.doc, id);
+      b.step({ type: 'join', block: id, second: next.id, offset: 0, secondAttrs: nextAttrs });
+      b.step({ type: 'setAttrs', block: id, from: attrsOf(emptied), to: nextAttrs });
+    }
+  }
+  const at = { block: copies[0], offset: 0 };
+  return tx(state, b, { anchor: at, focus: at });
+}
+
+/** The blocks a heading heads: itself and everything up to the next heading of its level or higher (other blocks: just themselves). */
+export function sectionOf(doc: Doc, id: string): string[] {
+  const i = blockIndex(doc, id);
+  const blk = doc.blocks[i];
+  if (!isHeading(blk.type)) return [id];
+  const level = Number(blk.type.slice(-1));
+  const out = [id];
+  for (let k = i + 1; k < doc.blocks.length; k++) {
+    const t = doc.blocks[k].type;
+    if (isHeading(t) && Number(t.slice(-1)) <= level) break;
+    out.push(doc.blocks[k].id);
+  }
+  return out;
+}
+
+/** Word's outline Promote and Demote on the selected paragraphs: a heading a level up or down; body text promoted to a heading under the one before it, and Heading 4 demoted to body text. */
+export function shiftLevel(state: EditorState, dir: -1 | 1, toBody = false): Transaction {
+  const b = new Builder(state.doc);
+  const blocks = selectedBlocks(state);
+  for (const blk of blocks) {
+    let type: BlockType | null = null;
+    if (toBody) type = isHeading(blk.type) ? 'paragraph' : null;
+    else if (isHeading(blk.type)) {
+      const n = Number(blk.type.slice(-1)) + dir;
+      type = n < 1 ? null : n > 4 ? 'paragraph' : (`heading${n}` as BlockType);
+    } else if (blk.type === 'paragraph' && dir < 0) {
+      // Body text up: a heading one level under the heading above it.
+      const i = blockIndex(b.doc, blk.id);
+      const above = [...b.doc.blocks.slice(0, i)].reverse().find((x) => isHeading(x.type));
+      type = `heading${Math.min(4, above ? Number(above.type.slice(-1)) + 1 : 1)}` as BlockType;
+    }
+    if (!type || type === blk.type) continue;
+    const cur = getBlock(b.doc, blk.id);
+    b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(cur), to: attrsOf({ ...cur, type, style: undefined }) });
+  }
+  return tx(state, b, state.selection);
+}
