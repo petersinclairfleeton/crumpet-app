@@ -329,3 +329,23 @@ describe('Word: more shapes', () => {
     expect(back[2]).toMatchObject({ kind: 'line', head: 'open', tail: 'dot' });
   });
 });
+
+describe('Word: freeforms, drawings, linked text boxes', () => {
+  it('a freeform, a drawing, and two linked boxes with text turned and aligned go to Word and come back', async () => {
+    const free = makeBlock('shape', '', [], { shape: { kind: 'freeform', w: 2, h: 1, fill: '#cfe2f3', line: '#333333', pts: [[0, 0], [1, 0.2], [0.6, 1]], wrap: 'inline', text: '' } });
+    const icon = makeBlock('shape', '', [], { shape: { kind: 'path', w: 1, h: 1, fill: '#333333', line: null, d: 'M12 2C20 2 22 10 22 22H2Z', vb: [24, 24], wrap: 'inline', text: '' } });
+    const one = makeBlock('shape', '', [], { shape: { kind: 'rect', w: 2, h: 1, fill: '#ffffff', line: '#333333', wrap: 'inline', text: 'First line&#10;Second line', ta: 'left', dir: 'down', chain: 'c1' } });
+    const two = makeBlock('shape', '', [], { shape: { kind: 'rect', w: 2, h: 1, fill: '#ffffff', line: '#333333', wrap: 'inline', text: '', chain: 'c1' } });
+    const bytes = await toDocx([{ doc: { blocks: [free, icon, one, two] } }], { title: 'T' });
+    const xml = new TextDecoder().decode((await readZip(bytes)).get('word/document.xml'));
+    expect(xml.match(/<a:custGeom>/g)).toHaveLength(2);
+    expect(xml).toContain('<wps:txbx id="1">');
+    expect(xml).toContain('<wps:linkedTxbx id="1" seq="1"/>');
+    expect(xml).toContain('vert="vert"');
+    const back = (await fromDocx(bytes)).doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
+    expect(back[0]).toMatchObject({ kind: 'freeform', pts: [[0, 0], [1, 0.2], [0.6, 1]] });
+    expect(back[1]).toMatchObject({ kind: 'path', vb: [24000, 24000] });
+    expect(back[2]).toMatchObject({ chain: 'c1', ta: 'left', dir: 'down', text: 'First line&#10;Second line' });
+    expect(back[3]).toMatchObject({ chain: 'c1' });
+  });
+});

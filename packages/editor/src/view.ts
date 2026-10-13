@@ -857,7 +857,7 @@ function buildMedia(block: Block): HTMLElement {
     };
     frame.append(crop, handle('pic-grip', 'resize', 'Drag to resize'), handle('pic-rot', 'rotate', 'Drag to turn (Shift: in steps of 15°)'), handle('pic-move', 'move', 'Drag to move', '✥'));
     box.appendChild(frame);
-    box.appendChild(pictureMenu(p));
+    box.appendChild(pictureMenu(p, /\.svg$|^data:image\/svg\+xml/i.test(src)));
   } else {
     const a = document.createElement('a');
     a.className = 'file-chip';
@@ -883,7 +883,7 @@ const MASK_NAMES: Record<PicMask, string> = { oval: 'Oval', rounded: 'Rounded', 
 const STYLE_NAMES: Record<PicStyle, string> = { frame: 'Simple frame', white: 'White frame', shadow: 'Shadow', rounded: 'Rounded corners', soft: 'Soft edges', polaroid: 'Snapshot' };
 
 /** The Picture ▾ menu under a picture: wrapping, turning, size, alt text, change, reset, delete. */
-function pictureMenu(p: PicLook): HTMLElement {
+function pictureMenu(p: PicLook, svg = false): HTMLElement {
   const wrap = p.wrap ?? 'inline';
   const tools = document.createElement('span');
   tools.className = 'table-tools shape-tools pic-tools';
@@ -956,6 +956,7 @@ function pictureMenu(p: PicLook): HTMLElement {
     button('change', 'Change picture…', 'Another picture in its place, keeping its size and look'),
     button('size', 'Original size', 'Back to the picture’s own size'),
     button('reset', 'Reset picture', 'Back to how it was inserted, the original file too (keeps the alt text)'),
+    ...(svg ? [button('toshape', 'Convert to shape', 'An SVG drawing becomes a shape: change its colours, line and effects like any shape’s')] : []),
   ]);
   group('', [button('delete', 'Delete picture')]);
   tools.appendChild(menu);
@@ -1091,8 +1092,15 @@ function shapeArt(s: ShapeLook): SVGSVGElement {
   const sw = (s.lw ?? 1.5) * (96 / 72);
   const dash = s.dash === 'dash' ? `${sw * 4} ${sw * 2}` : s.dash === 'dot' ? `${sw} ${sw * 1.5}` : s.dash === 'dashdot' ? `${sw * 4} ${sw * 2} ${sw} ${sw * 2}` : '';
   const lineAttrs = (extra: Record<string, string | number> = {}) => ({ fill, stroke, 'stroke-width': sw, ...(dash ? { 'stroke-dasharray': dash } : {}), 'stroke-linejoin': 'round', ...extra });
-  const path = shapePath(s.kind, W, H);
+  const path = s.kind === 'freeform' ? `M${(s.pts ?? []).map(([px, py]) => `${px * W},${py * H}`).join('L')}Z` : shapePath(s.kind, W, H);
   let body: Element | null = null;
+  if (s.kind === 'path' && s.d) {
+    // A drawing: its outline scaled from its own box to the shape's.
+    const [vw, vh] = s.vb ?? [24, 24];
+    const g = make('g', { transform: `scale(${W / vw} ${H / vh})` });
+    body = make('path', lineAttrs({ d: s.d, 'fill-rule': 'evenodd' }), g);
+    body.setAttribute('vector-effect', 'non-scaling-stroke');
+  } else
   if (s.kind === 'rect') body = add('rect', lineAttrs({ x: sw / 2, y: sw / 2, width: Math.max(0, W - sw), height: Math.max(0, H - sw) }));
   else if (s.kind === 'rounded') body = add('rect', lineAttrs({ x: sw / 2, y: sw / 2, width: Math.max(0, W - sw), height: Math.max(0, H - sw), rx: Math.min(W, H) * 0.18 }));
   else if (s.kind === 'ellipse') body = add('ellipse', lineAttrs({ cx: W / 2, cy: H / 2, rx: Math.max(0, W / 2 - sw / 2), ry: Math.max(0, H / 2 - sw / 2) }));
@@ -1232,6 +1240,19 @@ function buildShape(block: Block): HTMLElement {
   } else {
     group('Effects', [['', 'None'], ['shadow', 'Shadow'], ['glow', 'Glow'], ['soft', 'Soft edges'], ['bevel', 'Bevel'], ['reflect', 'Reflection']].map(([v, n]) => button('fx', n, n === 'None' ? 'No effect' : n, v)));
     group('Text colour', [['', 'Automatic'], ['#ffffff', 'White'], ['#000000', 'Black'], ['#1f3864', 'Navy'], ['#c00000', 'Red']].map(([v, n]) => button('tc', n, `Text: ${n.toLowerCase()}`, v)));
+    group('Text', [
+      button('ta', 'Text left', 'Text to the left', 'left'),
+      button('ta', 'Text centred', 'Text in the middle', ''),
+      button('ta', 'Text right', 'Text to the right', 'right'),
+      button('tv', 'Text at top', 'Text at the top', 'top'),
+      button('tv', 'Text in middle', 'Text halfway down', ''),
+      button('tv', 'Text at bottom', 'Text at the bottom', 'bottom'),
+      button('dir', 'Across', 'Text reads across', ''),
+      button('dir', 'Down', 'Text turned to read downwards', 'down'),
+      button('dir', 'Up', 'Text turned to read upwards', 'up'),
+    ]);
+    group('Text boxes', [button('link', 'Link to next box', 'Text that doesn’t fit runs on into the next text box below (in the document)'), button('unlink', 'Break link', 'This box keeps its own text again')]);
+    if (s.kind !== 'path') group('Edit shape', [button('points', 'Edit points', 'Drag its corners to reshape it; drag a side’s middle to add a corner; double-click a corner to take it away')]);
   }
   group('Wrap text', [
     button('wrap', 'In line with text', 'In line with text', 'inline'),
@@ -1271,6 +1292,11 @@ function buildShape(block: Block): HTMLElement {
 function markShapeBox(box: HTMLElement, s: ShapeLook): void {
   box.style.color = s.tc ?? '';
   box.classList.toggle('fx-reflect', s.fx === 'reflect');
+  const set = (k: string, v: string | undefined) => (v === undefined ? delete box.dataset[k] : (box.dataset[k] = v));
+  set('ta', s.ta);
+  set('tv', s.chain ? 'top' : s.tv);
+  set('dir', s.dir);
+  set('chain', s.chain);
 }
 
 /** The shape's block: how the text goes round it, where it's placed from, its place in the stack, its group. */
@@ -1306,6 +1332,10 @@ function markShape(wrap: HTMLElement, s: ShapeLook): void {
   on('tc', s.tc ?? '');
   on('head', s.head ?? (s.kind === 'arrow' ? 'arrow' : ''));
   on('tail', s.tail ?? '');
+  on('ta', s.ta ?? '');
+  on('tv', s.tv ?? '');
+  on('dir', s.dir ?? '');
+  wrap.querySelectorAll<HTMLElement>('[data-shape-action="unlink"]').forEach((b) => (b.hidden = !s.chain));
   wrap.querySelectorAll<HTMLElement>('[data-shape-action="grad"]').forEach((b) => b.classList.toggle('on', !!s.grad));
   wrap.querySelectorAll<HTMLElement>('[data-shape-action="ungroup"]').forEach((b) => (b.hidden = !s.grp));
   wrap.querySelectorAll<HTMLElement>('.shape-floating-only').forEach((g) => (g.hidden = !floating));

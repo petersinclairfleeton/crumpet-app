@@ -119,7 +119,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - `shape.ts`: text boxes and shapes (`shape` blocks: 35 kinds in
     `SHAPE_GROUPS`, outlines from `shapePath`, Word names in `WORD_SHAPES`,
     styles in `SHAPE_STYLES`; fill `grad`/`img`, line `lw`/`dash`/`head`/`tail`,
-    effect `fx`, text colour `tc`; size in inches, fill, line, wrapping left/right or
+    effect `fx`, text colour `tc`, text `ta`/`tv`/`dir` (lines kept as `&#10;`),
+    linked boxes `chain` (laid out by `Editor.flowChains`), `freeform` corners
+    `pts` (Edit points), `path` drawings `d` in `vb` (icons in `icons.ts`; an
+    SVG picture's Convert to shape, read by `app/src/data/svgpath.ts`, which
+    also writes them for Word); size in inches, fill, line, wrapping left/right or
     in front of the text at `x`,`y` inches from its paragraph (`wrap=free`,
     dragged by its ✥ handle), turned by `rot` degrees, and one line of
     inline Markdown text). Also `wrap=behind` (under the text, brought up by

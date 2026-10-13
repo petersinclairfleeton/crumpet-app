@@ -146,7 +146,7 @@ At the end there's a suggested order for building what's missing.
 | Pictures from the device | ✅ | Also pasted or dropped in. |
 | Stock images, online pictures | ❌ | |
 | Shapes | ✅ | 35 shapes in groups: lines, basic shapes, block arrows, stars and banners, callouts, flowchart. Word has more still. |
-| Icons | ❌ | |
+| Icons | ✅ | 30 icons in groups (signs, people, things, nature), put in as shapes to recolour and size. |
 | 3D Models | ❌ | |
 | SmartArt | 🟡 | Diagrams written as text (Mermaid flowcharts, timelines); no picture-based SmartArt gallery. |
 | Chart | ❌ | No bar/line/pie charts from data. |
@@ -157,7 +157,7 @@ At the end there's a suggested order for building what's missing.
 | Cross-reference ("see page 12", "see Figure 3") | ✅ | References → Cross-reference…: to a heading, caption or bookmark, as its number, its text, its page (page view) or above/below; updates by itself. |
 | Comments | ✅ | |
 | Header, Footer, Page Number | ✅ | Left/centre/right places, fields such as page number, number of pages, chapter title, author, date. |
-| Text Box | ✅ | |
+| Text Box | ✅ | Linked text boxes too: text that doesn't fit runs on into the next box (Link to next box, in its menu). |
 | Drop Cap | 🟡 | Dropped, 2 to 5 lines tall; to and from Word. No "in margin" kind, and no font or distance of its own. |
 | Signature Line | ❌ | |
 | Date & Time | ✅ | In a choice of forms, as text or (Update automatically) a field that shows the day it's read; to and from Word as DATE/TIME fields. |
@@ -359,13 +359,13 @@ At the end there's a suggested order for building what's missing.
 | Feature | | Crumpet today |
 |---|---|---|
 | Insert shapes | ✅ | 35 kinds, from the Shapes gallery. |
-| Edit Shape / Edit Points | ❌ | |
+| Edit Shape / Edit Points | ✅ | Edit points turns a shape into a freeform: drag corners, drag a side's middle to add one, double-click to take one away (curves become many corners). |
 | Shape Styles (ready-made looks) | ✅ | Twelve styles in the shape's menu (fills, gradients, lines, effects, text colour). |
 | Fill, Outline | ✅ | Colours, a gradient, a picture fill; line thickness, dashes, and arrowheads, open arrows or dots at a line's ends. |
 | Effects (shadow, glow, 3D) | ✅ | Shadow, glow, soft edges, bevel and reflection (one at a time); go to Word. |
 | WordArt Styles | ❌ | |
-| Text in a shape | 🟡 | One paragraph of text. |
-| Text Direction | ❌ | |
+| Text in a shape | ✅ | Several lines, bullets ("- "), left, centre or right, top, middle or bottom. |
+| Text Direction | ✅ | Across, or turned to read down or up. |
 | Arrange (wrap, position, rotate) | ✅ | See Layout → Arrange. |
 | Size | ✅ | Drag the corner. |
 
@@ -373,7 +373,7 @@ At the end there's a suggested order for building what's missing.
 
 | Feature | | Crumpet today |
 |---|---|---|
-| Graphics Format (icons, SVG, Convert to Shape) | ❌ | |
+| Graphics Format (icons, SVG, Convert to Shape) | ✅ | Icons are shapes; an SVG picture's Convert to shape makes it one (its outlines, first colour). |
 | SmartArt Design/Format | ❌ | (Mermaid diagrams are the stand-in.) |
 | Chart Design/Format | ❌ | |
 
@@ -568,11 +568,11 @@ Where: `packages/editor/src/shape.ts`, `view.ts` (the Shape menu), `paginate.ts`
 - [x] Shape styles gallery
 - [x] Fill and line options: gradients, picture fill, thickness, dashes, arrowheads
 - [x] Shape effects (shadow, glow, soft edges, 3D)
-- [ ] Several paragraphs and lists in a shape
-- [ ] Text direction in shapes
-- [ ] Linked text boxes
-- [ ] Edit points
-- [ ] Icons library; convert icons and SVGs to shapes
+- [x] Several paragraphs and lists in a shape
+- [x] Text direction in shapes
+- [x] Linked text boxes
+- [x] Edit points
+- [x] Icons library; convert icons and SVGs to shapes
 - [x] Gridlines
 
 **10. Views and windows**

@@ -16,6 +16,8 @@ export const SHAPE_KINDS = [
   'callout', 'ocallout',
   // Flowchart.
   'terminator', 'document', 'data', 'predefined',
+  // Drawn by hand (Edit Points: corners at `pts`), and drawings (an icon, or an SVG made a shape: `d` in a `vb` box).
+  'freeform', 'path',
 ] as const;
 export type ShapeKind = (typeof SHAPE_KINDS)[number];
 
@@ -80,6 +82,17 @@ export interface ShapeLook {
   fx?: ShapeEffect;
   /** The colour of the text inside. */
   tc?: string;
+  /** The text's alignment across (unset: centred) and down (unset: middle), and its direction (turned to read up or down). */
+  ta?: 'left' | 'right';
+  tv?: 'top' | 'bottom';
+  dir?: 'down' | 'up';
+  /** Linked text boxes: boxes with the same chain name share one text, running on from one to the next (in the document's order). */
+  chain?: string;
+  /** A freeform's corners, as fractions of its width and height. */
+  pts?: [number, number][];
+  /** A drawing's outline (SVG path data) in a box `vb` wide and high. */
+  d?: string;
+  vb?: [number, number];
 }
 
 export function defaultShape(kind: ShapeKind, textBox = false): ShapeLook {
@@ -142,6 +155,18 @@ export function tidyShape(s: Partial<ShapeLook> | undefined): ShapeLook {
   }
   if (s?.fx === 'shadow' || s?.fx === 'glow' || s?.fx === 'soft' || s?.fx === 'bevel' || s?.fx === 'reflect') out.fx = s.fx;
   if (hex(s?.tc)) out.tc = hex(s?.tc)!;
+  if (s?.ta === 'left' || s?.ta === 'right') out.ta = s.ta;
+  if (s?.tv === 'top' || s?.tv === 'bottom') out.tv = s.tv;
+  if (s?.dir === 'down' || s?.dir === 'up') out.dir = s.dir;
+  if (typeof s?.chain === 'string' && /^[a-z0-9]{1,12}$/.test(s.chain) && !isLineKind(kind)) out.chain = s.chain;
+  if (kind === 'freeform') {
+    const pts = Array.isArray(s?.pts) ? s!.pts.filter((p) => Array.isArray(p) && p.length === 2 && p.every((n) => typeof n === 'number' && Number.isFinite(n))).map(([x, y]) => [Math.round(Math.max(0, Math.min(1, x)) * 1000) / 1000, Math.round(Math.max(0, Math.min(1, y)) * 1000) / 1000] as [number, number]) : [];
+    out.pts = pts.length >= 3 ? pts.slice(0, 200) : [[0.5, 0], [1, 1], [0, 1]];
+  }
+  if (kind === 'path') {
+    out.d = typeof s?.d === 'string' && /^[MmLlHhVvCcSsQqTtAaZz0-9eE.,+\- ]{1,20000}$/.test(s.d) ? s.d.trim() : 'M0 0H24V24H0Z';
+    out.vb = Array.isArray(s?.vb) && s!.vb.length === 2 && s!.vb.every((n) => typeof n === 'number' && n > 0 && n < 100000) ? [s!.vb[0], s!.vb[1]] : [24, 24];
+  }
   return out;
 }
 
@@ -169,6 +194,13 @@ export function shapeLine(s: ShapeLook, align?: string): string {
   if (s.tail) parts.push(`tail=${s.tail}`);
   if (s.fx) parts.push(`fx=${s.fx}`);
   if (s.tc) parts.push(`tc=${s.tc}`);
+  if (s.ta) parts.push(`ta=${s.ta}`);
+  if (s.tv) parts.push(`tv=${s.tv}`);
+  if (s.dir) parts.push(`dir=${s.dir}`);
+  if (s.chain) parts.push(`chain=${s.chain}`);
+  if (s.pts) parts.push(`pts=${s.pts.map((p) => p.join(',')).join(';')}`);
+  if (s.vb) parts.push(`vb=${s.vb.join(',')}`);
+  if (s.d) parts.push(`d=${encodeURIComponent(s.d)}`);
   if (s.rot) parts.push(`rot=${s.rot}`);
   if (s.hide) parts.push('hide=1');
   if (align) parts.push(`align=${align}`);
@@ -176,6 +208,14 @@ export function shapeLine(s: ShapeLook, align?: string): string {
 }
 
 export const SHAPE_LINE = /^\{shape ([a-z0-9]+)((?: [a-z]+=[^\s}]+)*)\}(?: (.*))?$/;
+
+function safeDecode(v: string): string | undefined {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return undefined;
+  }
+}
 
 /** Reads a shape's line back: the look, its alignment, and the text. */
 export function readShapeLine(line: string): { shape: ShapeLook; align?: string } | null {
@@ -187,7 +227,7 @@ export function readShapeLine(line: string): { shape: ShapeLook; align?: string 
     v[k] = val;
   }
   const color = (c: string | undefined) => (c === 'none' ? null : c);
-  const shape = tidyShape({ kind: m[1] as ShapeKind, w: Number(v.w), h: Number(v.h), fill: color(v.fill), line: color(v.line), wrap: v.wrap as ShapeWrap, text: m[3] ?? '', rot: v.rot ? Number(v.rot) : undefined, x: v.x ? Number(v.x) : undefined, y: v.y ? Number(v.y) : undefined, hide: v.hide === '1', tight: v.tight === '1', rel: v.rel as ShapeLook['rel'], z: v.z ? Number(v.z) : undefined, grp: v.grp, grad: v.grad, img: v.img, lw: v.lw ? Number(v.lw) : undefined, dash: v.dash as ShapeLook['dash'], head: v.head as LineEnd, tail: v.tail as LineEnd, fx: v.fx as ShapeEffect, tc: v.tc });
+  const shape = tidyShape({ kind: m[1] as ShapeKind, w: Number(v.w), h: Number(v.h), fill: color(v.fill), line: color(v.line), wrap: v.wrap as ShapeWrap, text: m[3] ?? '', rot: v.rot ? Number(v.rot) : undefined, x: v.x ? Number(v.x) : undefined, y: v.y ? Number(v.y) : undefined, hide: v.hide === '1', tight: v.tight === '1', rel: v.rel as ShapeLook['rel'], z: v.z ? Number(v.z) : undefined, grp: v.grp, grad: v.grad, img: v.img, lw: v.lw ? Number(v.lw) : undefined, dash: v.dash as ShapeLook['dash'], head: v.head as LineEnd, tail: v.tail as LineEnd, fx: v.fx as ShapeEffect, tc: v.tc, ta: v.ta as ShapeLook['ta'], tv: v.tv as ShapeLook['tv'], dir: v.dir as ShapeLook['dir'], chain: v.chain, pts: v.pts ? v.pts.split(';').map((p) => p.split(',').map(Number) as [number, number]) : undefined, vb: v.vb ? (v.vb.split(',').map(Number) as [number, number]) : undefined, d: v.d ? safeDecode(v.d) : undefined });
   return { shape, align: v.align === 'center' || v.align === 'right' ? v.align : undefined };
 }
 
@@ -292,7 +332,19 @@ export const WORD_SHAPES: Record<ShapeKind, string> = {
   rarrow: 'rightArrow', larrow: 'leftArrow', uarrow: 'upArrow', darrow: 'downArrow', lrarrow: 'leftRightArrow', chevron: 'chevron',
   star4: 'star4', star5: 'star5', star8: 'star8', banner: 'ribbon2', wave: 'wave', callout: 'wedgeRectCallout', ocallout: 'wedgeEllipseCallout',
   terminator: 'flowChartTerminator', document: 'flowChartDocument', data: 'flowChartInputOutput', predefined: 'flowChartPredefinedProcess',
+  freeform: 'custom', path: 'custom',
 };
+
+/** A shape's corners for Edit Points, when it's made of straight sides (as fractions of its size); null for curved ones. */
+export function cornersOf(kind: ShapeKind): [number, number][] | null {
+  if (kind === 'rect') return [[0, 0], [1, 0], [1, 1], [0, 1]];
+  const d = shapePath(kind, 1, 1);
+  if (!d || /[AQCT]/.test(d) || (d.match(/M/g) ?? []).length > 1) return null;
+  const nums = d.replace(/[MLZ]/g, ' ').trim().split(/[\s,]+/).map(Number);
+  const pts: [number, number][] = [];
+  for (let i = 0; i + 1 < nums.length; i += 2) pts.push([Math.round(nums[i] * 1000) / 1000, Math.round(nums[i + 1] * 1000) / 1000]);
+  return pts.length >= 3 ? pts : null;
+}
 
 /** Word's shape styles gallery: ready-made fills, lines, effects and text colours. */
 export const SHAPE_STYLES: { name: string; look: Partial<ShapeLook> }[] = [

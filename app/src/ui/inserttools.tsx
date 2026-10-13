@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import { SHAPE_GROUPS, isLineKind, shapePath } from '@crumpet/editor/shape';
+import { ICONS, ICON_GROUPS } from '@crumpet/editor/icons';
 import { FIELDS, fieldValue } from '@crumpet/editor/fields';
 import { Popover } from './Sidebar';
 import { type ToolItem, closeMore } from './toolbar';
@@ -207,6 +208,52 @@ function ShapesTool({ ed, off }: { ed: Editor | null; off: boolean }) {
   );
 }
 
+/** Word's Icons: simple drawings put in as shapes, to colour and size like any shape. */
+function IconsTool({ ed, off }: { ed: Editor | null; off: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="tool-drop">
+      <button type="button" aria-label="Icons" aria-expanded={open} title="Icons" disabled={off} onClick={() => setOpen(!open)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d={ICONS.find((i) => i.id === 'star')!.d} />
+        </svg>
+        <span aria-hidden="true" className="caret">▾</span>
+      </button>
+      {open && (
+        <Popover label="Icons" onClose={() => setOpen(false)}>
+          <div className="shape-gallery-groups">
+            {ICON_GROUPS.map((g) => (
+              <div key={g} className="shape-gallery" role="group" aria-label={`${g} icons`}>
+                <span className="menu-head">{g}</span>
+                {ICONS.filter((i) => i.group === g).map((icon) => (
+                  <button
+                    key={icon.id}
+                    type="button"
+                    className="symbol-btn"
+                    aria-label={icon.name}
+                    title={icon.name}
+                    onClick={() => {
+                      setOpen(false);
+                      closeMore();
+                      ed?.focus();
+                      ed?.insertShape('path', false, { d: icon.d, vb: [24, 24], fill: '#333333', line: null, w: 1, h: 1 });
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd" aria-hidden="true">
+                      <path d={icon.d} />
+                    </svg>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+          <p className="menu-note">An icon is a shape: change its colour, size and effects from its Shape menu.</p>
+        </Popover>
+      )}
+    </span>
+  );
+}
+
 export function insertItems(ed: Editor | null, off: boolean): ToolItem[] {
   const textBox = () => {
     ed?.focus();
@@ -253,6 +300,7 @@ export function insertItems(ed: Editor | null, off: boolean): ToolItem[] {
       ),
     },
     { key: 'shapes', label: 'Shapes', pri: 1, node: <ShapesTool ed={ed} off={off} /> },
+    { key: 'icons', label: 'Icons', pri: 1, node: <IconsTool ed={ed} off={off} /> },
     {
       key: 'toc',
       pri: 1,

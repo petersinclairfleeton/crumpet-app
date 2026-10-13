@@ -9,7 +9,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
-import { addFile } from '../data/files';
+import { addFile, fileBlob, mediaUrl } from '../data/files';
+import { svgToShapeLook } from '../data/svgpath';
 import { type PicEffect, type PicLook, picFilter } from '@crumpet/editor/picture';
 import { backgroundPreview, compressPicture, fileSize, loadPicture, withoutBackground } from '../data/picedit';
 import { IconClose } from './icons';
@@ -24,8 +25,21 @@ export function usePictureActions(editor: Editor | null): void {
       if (action !== 'change') window.dispatchEvent(new CustomEvent(OPEN, { detail: { editor, id, kind: action } }));
       else choosePicture(editor, id);
     };
+    // Convert to Shape: the SVG file's outlines as a drawing shape.
+    editor.onSvgToShape = async (src) => {
+      try {
+        const blob = (await fileBlob(src)) ?? (await (await fetch(await mediaUrl(src))).blob());
+        const look = svgToShapeLook(await blob.text());
+        if (!look) alert('This drawing couldn’t be made a shape (it may hold pictures or text rather than outlines).');
+        return look;
+      } catch {
+        alert('The drawing couldn’t be read.');
+        return null;
+      }
+    };
     return () => {
       editor.onPictureAction = null;
+      editor.onSvgToShape = null;
     };
   }, [editor]);
 }
