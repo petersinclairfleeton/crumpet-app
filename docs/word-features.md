@@ -21,7 +21,7 @@ At the end there's a suggested order for building what's missing.
 | Open | ✅ | Upload or drop in Word, PDF, Markdown, pictures and other files; each opens as what it is. |
 | Save / AutoSave | ✅ | Everything saves as you type and syncs to Google Drive or a folder on the computer. |
 | Save to OneDrive / SharePoint | 🟡 | No direct connection, but a OneDrive folder on a computer works as "a folder on the computer". |
-| Save As / change file type | 🟡 | Word (.docx), e-book (.epub), PDF (by printing), and Markdown (the files themselves). No RTF, OpenDocument (.odt), web page (.html) or plain text (.txt) download. |
+| Save As / change file type | ✅ | Word (.docx), e-book (.epub), PDF (by printing), OpenDocument (.odt), Rich Text (.rtf), web page (.html, pictures inside), plain text (.txt), and Markdown (the files themselves). |
 | Word files saved back to themselves | ✅ | An uploaded .docx is written back to its own file as it's edited. |
 | Protect: password | ❌ | |
 | Protect: restrict editing / read-only | ❌ | |
@@ -33,7 +33,7 @@ At the end there's a suggested order for building what's missing.
 | Version history | ✅ | Automatic versions while writing, plus snapshots you take, compared side by side and restored. |
 | Recover unsaved documents | ✅ | Not needed: nothing is ever unsaved. |
 | Print | ✅ | Prints exactly as page view shows (headers, footers, footnotes). |
-| Print settings, page ranges, preview | 🟡 | Through the browser's print window (which has page ranges, copies and a preview), not a print screen of Crumpet's own. |
+| Print settings, page ranges, preview | ✅ | Crumpet's own print window: a preview of every page, which pages (1-3, 5), how many copies; then the browser's window for the printer or a PDF. |
 | Export PDF | ✅ | "Print or save as PDF". |
 | Export XPS | ➖ | Microsoft-only format. |
 | Share (send a link, work together) | ❌ | Known gap: no sharing yet. |
@@ -595,8 +595,8 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [x] Clarity suggestions (from the Writing tab's highlights, plus wordy phrases)
 - [x] Inclusive language
 - [ ] Grammar checking (needs an outside service such as LanguageTool: ask Peter first)
-- [ ] More download types: .odt, .rtf, .html, .txt
-- [ ] Crumpet's own print screen (preview, page ranges, copies)
+- [x] More download types: .odt, .rtf, .html, .txt
+- [x] Crumpet's own print screen (preview, page ranges, copies)
 - [ ] Password protection
 - [ ] Read-only / restrict editing
 - [ ] Mark as final

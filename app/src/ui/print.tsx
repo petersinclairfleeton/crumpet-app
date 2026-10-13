@@ -123,7 +123,8 @@ export function PrintJob({ title, parts, page, sheet, chapters = false, onDone }
     };
   }, [page.size, title]);
 
-  // Once every page is laid out (and the fonts are in), print.
+  // Once every page is laid out (and the fonts are in): the pages ready to print, and the print window to choose from.
+  const [pagesReady, setPagesReady] = useState(0);
   useEffect(() => {
     if (!ready || printed.current) return;
     let cancelled = false;
@@ -133,25 +134,141 @@ export function PrintJob({ title, parts, page, sheet, chapters = false, onDone }
       if (cancelled || printed.current) return;
       printed.current = true;
       if (root.current) printPages(root.current);
-      const done = () => {
-        window.removeEventListener('afterprint', done);
-        onDone();
-      };
-      window.addEventListener('afterprint', done);
-      window.print();
+      setPagesReady(root.current?.querySelectorAll(':scope > .print-pages > .print-page').length ?? 0);
     };
     void go();
     return () => {
       cancelled = true;
     };
-  }, [ready, onDone]);
+  }, [ready]);
 
-  return createPortal(
-    <div ref={root} className={`print-root ${sheetClass}`} aria-hidden="true">
-      {parts.map((p, i) => (
-        <Part key={p.id} part={p} page={page} sheetClass={sheetClass} offset={offsets[i]} total={ready ? total : undefined} chapters={chapters} onPages={onPages} footnoteStart={parts.slice(0, i).reduce((n, x) => n + footnotes(x.doc).length, 0)} />
-      ))}
-    </div>,
-    document.body,
+  /** The pages chosen, as many copies as asked for, to the browser's print window. */
+  const print = (pages: number[], copies: number) => {
+    const out = root.current?.querySelector<HTMLElement>(':scope > .print-pages');
+    if (!out) return;
+    const all = Array.from(out.children) as HTMLElement[];
+    const chosen = pages.map((n) => all[n - 1]).filter(Boolean);
+    out.textContent = '';
+    for (let c = 0; c < copies; c++) for (const el of chosen) out.appendChild(c === 0 ? el : (el.cloneNode(true) as HTMLElement));
+    const done = () => {
+      window.removeEventListener('afterprint', done);
+      onDone();
+    };
+    window.addEventListener('afterprint', done);
+    window.print();
+  };
+
+  return (
+    <>
+      {createPortal(
+        <div ref={root} className={`print-root ${sheetClass}`} aria-hidden="true">
+          {parts.map((p, i) => (
+            <Part key={p.id} part={p} page={page} sheetClass={sheetClass} offset={offsets[i]} total={ready ? total : undefined} chapters={chapters} onPages={onPages} footnoteStart={parts.slice(0, i).reduce((n, x) => n + footnotes(x.doc).length, 0)} />
+          ))}
+        </div>,
+        document.body,
+      )}
+      {createPortal(<PrintDialog title={title} count={pagesReady} root={root} sheetClass={sheetClass} onPrint={print} onCancel={onDone} />, document.body)}
+    </>
+  );
+}
+
+/** "1-3, 5, 8-" as page numbers (from 1 to `count`), or null when it doesn't read. */
+export function pageRange(text: string, count: number): number[] | null {
+  const out: number[] = [];
+  for (const part of text.split(/[,;]/).map((x) => x.trim()).filter(Boolean)) {
+    const m = /^(\d+)?\s*(?:(-|–)\s*(\d+)?)?$/.exec(part);
+    if (!m || (!m[1] && !m[3])) return null;
+    const from = m[1] ? Number(m[1]) : 1;
+    const to = m[2] ? (m[3] ? Number(m[3]) : count) : from;
+    if (from < 1 || to < from) return null;
+    for (let n = from; n <= Math.min(to, count); n++) if (!out.includes(n)) out.push(n);
+  }
+  return out.length ? out.sort((a, b) => a - b) : null;
+}
+
+/** Crumpet's print window: a preview of every page, which pages, how many copies; then the browser's own window (printer, or save as PDF). */
+function PrintDialog({ title, count, root, sheetClass, onPrint, onCancel }: { title: string; count: number; root: React.RefObject<HTMLDivElement>; sheetClass: string; onPrint(pages: number[], copies: number): void; onCancel(): void }) {
+  const [which, setWhich] = useState<'all' | 'range'>('all');
+  const [range, setRange] = useState('');
+  const [copies, setCopies] = useState(1);
+  const preview = useRef<HTMLDivElement>(null);
+  const pages = which === 'all' ? Array.from({ length: count }, (_, i) => i + 1) : pageRange(range, count);
+  // A small copy of each page.
+  useEffect(() => {
+    const box = preview.current;
+    const src = root.current?.querySelector(':scope > .print-pages');
+    if (!box || !src || !count) return;
+    box.textContent = '';
+    Array.from(src.children).forEach((pg, i) => {
+      const el = pg as HTMLElement;
+      const w = parseFloat(el.style.width) || 816;
+      const h = parseFloat(el.style.height) || 1056;
+      const scale = 132 / Math.max(w, h * 0.77);
+      const item = document.createElement('div');
+      item.className = 'print-thumb';
+      item.dataset.page = String(i + 1);
+      item.style.width = `${w * scale}px`;
+      item.style.height = `${h * scale}px`;
+      const copy = el.cloneNode(true) as HTMLElement;
+      copy.style.transform = `scale(${scale})`;
+      copy.style.transformOrigin = '0 0';
+      const holder = document.createElement('div');
+      holder.className = `print-thumb-page ${sheetClass}`;
+      holder.appendChild(copy);
+      const num = document.createElement('span');
+      num.className = 'thumb-num';
+      num.textContent = String(i + 1);
+      item.append(holder, num);
+      box.appendChild(item);
+    });
+  }, [count, root, sheetClass]);
+  useEffect(() => {
+    preview.current?.querySelectorAll<HTMLElement>('.print-thumb').forEach((t) => t.classList.toggle('left-out', !!pages && !pages.includes(Number(t.dataset.page))));
+  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+  return (
+    <div className="dialog-backdrop print-backdrop">
+      <div className="dialog print-dialog" role="dialog" aria-modal="true" aria-label="Print">
+        <header className="dialog-head">
+          <h2>Print {title ? `“${title}”` : ''}</h2>
+        </header>
+        <div className="print-body">
+          <div className="print-preview" ref={preview} aria-label="Preview">
+            {!count && <p className="sync-hint">Laying out the pages…</p>}
+          </div>
+          <div className="print-options">
+            <fieldset>
+              <legend>Pages</legend>
+              <label className="check">
+                <input type="radio" name="print-which" checked={which === 'all'} onChange={() => setWhich('all')} /> All {count ? `${count} page${count === 1 ? '' : 's'}` : ''}
+              </label>
+              <label className="check">
+                <input type="radio" name="print-which" checked={which === 'range'} onChange={() => setWhich('range')} /> Pages
+              </label>
+              <input aria-label="Pages to print" placeholder="e.g. 1-3, 5" value={range} onFocus={() => setWhich('range')} onChange={(e) => setRange(e.target.value)} />
+              {which === 'range' && range && !pages && <p className="error">Write pages like 1-3, 5 (from 1 to {count}).</p>}
+            </fieldset>
+            <label className="style-num">
+              <span>Copies</span>
+              <input type="number" min={1} max={99} aria-label="Copies" value={copies} onChange={(e) => setCopies(Math.max(1, Math.min(99, Math.round(Number(e.target.value) || 1))))} />
+            </label>
+            <p className="sync-hint">Next, your browser’s print window chooses the printer, or saves a PDF.</p>
+          </div>
+        </div>
+        <footer className="dialog-foot print-foot">
+          <button type="button" className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className="btn primary" disabled={!count || !pages} onClick={() => pages && onPrint(pages, copies)}>
+            Print{pages && count ? ` ${pages.length * copies} page${pages.length * copies === 1 ? '' : 's'}` : ''}
+          </button>
+        </footer>
+      </div>
+    </div>
   );
 }

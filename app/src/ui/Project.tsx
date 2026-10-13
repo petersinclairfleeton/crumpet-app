@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { fullSheet, manuscriptPage } from '../data/styles';
 import { chapterPages, rememberPages } from '../data/pagecount';
 import { type PageFields, PageToggle, PageView } from './pages';
+import { ExportItems } from './exportmenu';
 import { StylesDialog, useSheetClass, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { chapterWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
@@ -29,7 +30,7 @@ import { SlashMenu } from './slash';
 import { EndnoteList, FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
 import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from './changes';
-import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, projectDocx, projectEpub } from '../data/wordfiles';
+import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, projectDocx, projectEpub, projectParts } from '../data/wordfiles';
 import { PrintJob } from './print';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
@@ -173,6 +174,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                     >
                       Download as e-book (ePub)
                     </button>
+                    <ExportItems title={project.name} parts={() => projectParts(store.getState(), project)} onDone={() => setMenu(null)} />
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                       Delete project
                     </button>

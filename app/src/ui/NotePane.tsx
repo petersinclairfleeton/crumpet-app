@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
 import { PageToggle } from './pages';
+import { ExportItems } from './exportmenu';
 import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useNav } from './hooks';
@@ -199,6 +200,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           >
             <IconDownload size={14} /> E-book <small className="menu-hint">.epub</small>
           </button>
+          <ExportItems title={note.title} parts={() => [{ doc: note.doc }]} onDone={() => setMenu(false)} />
           <button
             type="button"
             className="menu-item"

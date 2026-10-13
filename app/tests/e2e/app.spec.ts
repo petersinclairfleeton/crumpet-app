@@ -1817,8 +1817,14 @@ test('print or save as PDF: the pages as page view shows them, and e-books downl
   });
   await page.getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('button', { name: 'Print or save as PDF' }).click();
+  // Crumpet's print window first: a preview of each page, then Print.
+  const printDialog = page.getByRole('dialog', { name: 'Print' });
+  await expect.poll(() => printDialog.locator('.print-thumb').count()).toBeGreaterThan(1);
+  const previewed = await printDialog.locator('.print-thumb').count();
+  await printDialog.getByRole('button', { name: /^Print \d+ pages$/ }).click();
   await expect.poll(() => page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(1);
   const sheets = await page.locator('.print-root .print-page').count();
+  expect(sheets).toBe(previewed);
   expect(sheets).toBeGreaterThan(1);
   await expect(page.locator('.print-root .page-notes-zone').first()).toContainText('A note at the foot.');
   const pdf = await page.pdf({ preferCSSPageSize: true });
@@ -1827,10 +1833,36 @@ test('print or save as PDF: the pages as page view shows them, and e-books downl
   // Closing the print window tidies up.
   await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
   await expect(page.locator('.print-root')).toHaveCount(0);
+  // Just page 2, twice.
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'Print or save as PDF' }).click();
+  await expect.poll(() => printDialog.locator('.print-thumb').count()).toBeGreaterThan(1);
+  await printDialog.getByLabel('Pages to print').fill('2');
+  await printDialog.getByLabel('Copies').fill('2');
+  await expect(printDialog.locator('.print-thumb.left-out')).toHaveCount(previewed - 1);
+  await printDialog.getByRole('button', { name: 'Print 2 pages' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { printed: number }).printed)).toBe(2);
+  await expect(page.locator('.print-root .print-pages > .print-page')).toHaveCount(2);
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  await expect(page.locator('.print-root')).toHaveCount(0);
   // E-book.
   await page.getByRole('button', { name: 'More', exact: true }).click();
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as e-book (ePub)' }).click()]);
   expect(download.suggestedFilename()).toBe('Long essay.epub');
+  // Other formats: OpenDocument, Rich Text, a web page and plain text.
+  for (const [name, ext, has] of [['OpenDocument (LibreOffice)', 'odt', 'mimetypeapplication/vnd.oasis.opendocument.text'], ['Rich Text', 'rtf', '{\\rtf1'], ['Web page', 'html', '<p>Line 1 of the essay'], ['Plain text', 'txt', 'Line 50 of the essay']] as const) {
+    await page.getByRole('button', { name: 'More', exact: true }).click();
+    const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: `Download as ${name}` }).click()]);
+    expect(file.suggestedFilename()).toBe(`Long essay.${ext}`);
+    const body = await new Promise<string>((done) => {
+      void file.createReadStream().then((st) => {
+        let out = '';
+        st.on('data', (c: { toString(enc: string): string }) => (out += c.toString('latin1')));
+        st.on('end', () => done(out));
+      });
+    });
+    expect(body).toContain(has);
+  }
 });
 
 test('corkboard and research: chapters as cards to edit and reorder, research notes and files beside the writing', async ({ page }) => {

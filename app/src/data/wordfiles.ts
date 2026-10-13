@@ -6,6 +6,7 @@ import type { Doc } from '@crumpet/editor/model';
 import { DOCX_TYPE, type DocxImport, type DocxOptions, fromDocx, toDocx } from './docx';
 import { bibliography, inText } from './citations';
 import { EPUB_TYPE, toEpub } from './epub';
+import { EXPORT_TYPES, type ExportPart, toHtml, toOdt, toRtf, toText } from './exports';
 import { addFile, mediaUrl } from './files';
 import { type HFContext, type HFRun, cleanHF, fieldValue } from './headers';
 import { docWords, projectChapters } from './selectors';
@@ -143,3 +144,15 @@ export function fileName(title: string, ext: string): string {
 }
 
 export { DOCX_TYPE, EPUB_TYPE };
+
+/** A note's or project's text in another format (Word's Save As types). */
+export async function exportAs(kind: keyof typeof EXPORT_TYPES, title: string, parts: ExportPart[]): Promise<void> {
+  const t = title || 'Untitled';
+  const data = kind === 'txt' ? toText(t, parts) : kind === 'html' ? await toHtml(t, parts, mediaBytes) : kind === 'rtf' ? toRtf(t, parts) : await toOdt(t, parts, mediaBytes);
+  download(typeof data === 'string' ? new TextEncoder().encode(data) : data, fileName(t, kind), EXPORT_TYPES[kind].type);
+}
+
+/** A project's chapters, each under its title, for exporting. */
+export function projectParts(state: AppState, project: Project): ExportPart[] {
+  return projectChapters(project, state.chapters).map(({ chapter, number }) => ({ heading: chapter.title || `Chapter ${number}`, doc: chapter.doc }));
+}
