@@ -124,6 +124,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     (`w:sdt`, `w14:checkbox`). A table's look `sheet` shows it as a spreadsheet
     (column letters and row numbers from `data-col`/`data-row` on its cells;
     Table → Spreadsheet, `editor.insertSpreadsheet`).
+    A ```` ```ink ```` block is a drawing (`editor/src/ink.ts`: strokes as JSON,
+    `inkSvg`, `recognizeShape` for Ink to Shape, `strokeNear`/`insideLasso`);
+    clicking it (`editor.onInkEdit`) or Draw (`insertDrawing`) opens
+    `ui/inktools.tsx`'s drawing window (pointer events, pressure, undo,
+    replay); Word gets a PNG of it (`inkPng` in `docx.ts`, browser only).
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines, and the gallery's styles,
     `TABLE_STYLES`, which go to Word as table styles "Crumpet Blue" and so on) and keeping it in step as rows and

@@ -542,11 +542,11 @@ export function fromMarkdown(md: string): Doc {
       } else code.lines.push(raw);
       continue;
     }
-    const codeOpen = !fence && !para.length ? /^ {0,3}(`{3,}|~{3,})[ \t]*(math|latex|tex|mermaid|canvas|locked|chart)[ \t]*$/i.exec(raw) : null;
+    const codeOpen = !fence && !para.length ? /^ {0,3}(`{3,}|~{3,})[ \t]*(math|latex|tex|mermaid|canvas|locked|chart|ink)[ \t]*$/i.exec(raw) : null;
     if (codeOpen) {
       flushPara();
       listIndents = [];
-      code = { char: codeOpen[1][0], length: codeOpen[1].length, lang: /mermaid/i.test(codeOpen[2]) ? 'mermaid' : /canvas/i.test(codeOpen[2]) ? 'canvas' : /locked/i.test(codeOpen[2]) ? 'locked' : /chart/i.test(codeOpen[2]) ? 'chart' : 'math', lines: [] };
+      code = { char: codeOpen[1][0], length: codeOpen[1].length, lang: /mermaid/i.test(codeOpen[2]) ? 'mermaid' : /canvas/i.test(codeOpen[2]) ? 'canvas' : /locked/i.test(codeOpen[2]) ? 'locked' : /chart/i.test(codeOpen[2]) ? 'chart' : /^ink$/i.test(codeOpen[2]) ? 'ink' : 'math', lines: [] };
       continue;
     }
     if (fence) {

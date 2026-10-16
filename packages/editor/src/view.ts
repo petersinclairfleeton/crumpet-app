@@ -7,6 +7,7 @@ import { DEFAULT_TAB } from './model';
 import { fieldKind, fieldLabel, fieldValue, formShown, readForm } from './fields';
 import { CHART_TYPES, chartSvg, parseChart } from './chart';
 import { playable, videoEmbed } from './video';
+import { inkSvg, parseInk } from './ink';
 import { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
 export { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
 import { TABLE_STYLES, type TableStyleKey, isCovered, mergeAt } from './table';
@@ -1449,7 +1450,7 @@ function drawCode(preview: HTMLElement, c: CodeLook): void {
   if (preview.dataset.drawn === `${c.lang}\n${c.text}`) return;
   preview.dataset.drawn = `${c.lang}\n${c.text}`;
   preview.textContent = '';
-  if (!c.text.trim()) {
+  if (!c.text.trim() && c.lang !== 'ink') {
     preview.textContent = c.lang === 'math' ? 'Type maths (LaTeX), like E = mc^2 or \\frac{a}{b}' : c.lang === 'mermaid' ? 'Type a diagram (Mermaid), like graph LR; A --> B' : c.lang === 'chart' ? 'Type the chart’s numbers: a row a line, cells parted by commas' : 'An empty board';
     preview.classList.add('code-empty');
     return;
@@ -1457,6 +1458,7 @@ function drawCode(preview: HTMLElement, c: CodeLook): void {
   preview.classList.remove('code-empty');
   // Charts are drawn here (chart.ts); maths and diagrams by the app.
   if (c.lang === 'chart') preview.innerHTML = chartSvg(parseChart(c.text));
+  else if (c.lang === 'ink') preview.innerHTML = inkSvg(parseInk(c.text));
   else if (codeRenderer) codeRenderer(c.lang, c.text, preview);
   else preview.textContent = c.text;
 }
@@ -1506,7 +1508,7 @@ function buildCode(block: Block): HTMLElement {
   const preview = document.createElement('div');
   preview.className = 'code-preview';
   preview.dataset.codePreview = '';
-  preview.title = 'Click to edit';
+  preview.title = c.lang === 'ink' ? 'Click to draw' : 'Click to edit';
   wrap.append(head, src, preview);
   drawCode(preview, c);
   return wrap;

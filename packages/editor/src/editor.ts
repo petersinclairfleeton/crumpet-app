@@ -1451,6 +1451,25 @@ export class Editor {
     this.insertTableOf(rows, { sheet: true, totalRow: true });
   }
 
+  /** Clicks on a drawing (the app opens it to draw on). */
+  onInkEdit: ((id: string, text: string) => void) | null = null;
+
+  /** Word's Draw → Drawing canvas: an empty drawing at the caret, opened to draw on. */
+  insertDrawing(): void {
+    if (this.isReadOnly) return;
+    const text = '{"w":600,"h":300,"strokes":[]}';
+    this.insertCode('ink', text);
+    // The new drawing: just before the caret's line.
+    const blk = this.state.doc.blocks.find((b, i, all) => b.type === 'code' && b.code?.lang === 'ink' && all[i + 1]?.id === this.state.selection.focus.block);
+    if (blk) this.onInkEdit?.(blk.id, text);
+  }
+
+  /** Changes a maths block's, chart's or drawing's text. */
+  setCodeText(id: string, text: string): void {
+    if (this.isReadOnly) return;
+    this.dispatch(setCode(this.state, id, { text }), 'command');
+  }
+
   /** A chart (Word's Insert Chart): a column chart of some numbers to change. */
   insertChart(text = SAMPLE_CHART): void {
     this.insertCode('chart', text);
@@ -3021,6 +3040,14 @@ export class Editor {
       // ⌘/Ctrl-click opens a link; a plain click just places the caret, so links stay editable.
       e.preventDefault();
       window.open(link.href, '_blank', 'noopener');
+      return;
+    }
+    // Clicking a drawing opens it to draw on (the app's drawing window).
+    const inked = (e.target as Element).closest?.<HTMLElement>('.code-wrap[data-lang="ink"] [data-code-preview]');
+    const inkId = inked?.closest<HTMLElement>('[data-block]')?.dataset.block;
+    if (inked && inkId && !this.isReadOnly && this.onInkEdit) {
+      e.preventDefault();
+      this.onInkEdit(inkId, getBlock(this.state.doc, inkId).code?.text ?? '');
       return;
     }
     // Clicking drawn maths or a diagram opens its source to edit.

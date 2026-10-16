@@ -5,6 +5,7 @@
 // with bold, italic, underline, strikethrough, links and colours in the text.
 
 import { chartSvg, parseChart } from '@crumpet/editor/chart';
+import { inkSvg, parseInk } from '@crumpet/editor/ink';
 import type { Block, Doc, Run } from '@crumpet/editor/model';
 import { FIELD, FOOTNOTE, isHeading, isList } from '@crumpet/editor/model';
 import { cellRuns } from '@crumpet/editor/cells';
@@ -49,6 +50,7 @@ function walk(parts: ExportPart[]): { items: Item[]; notes: string[] } {
       } else if (b.type === 'table') items.push({ kind: 'table', rows: (b.rows ?? []).map((row) => row.map((cell) => cellRuns(cell))) });
       else if (b.type === 'image' && b.src) items.push({ kind: 'image', src: b.src, alt: b.pic?.alt ?? runs.map((r) => r.text).join('') });
       else if (b.type === 'code') items.push({ kind: 'code', text: b.code?.text ?? '', lang: b.code?.lang });
+      // (A drawing's strokes are no use as text: the text downloads say it's there.)
       else if (b.type === 'shape') {
         if (b.shape?.text) items.push({ kind: 'p', runs: cellRuns(b.shape.text) });
       } else if (b.type === 'toc') {
@@ -90,7 +92,7 @@ export function toText(title: string, parts: ExportPart[]): string {
     else if (it.kind === 'li') lines.push(`${'  '.repeat(it.level)}${it.checked !== undefined ? (it.checked ? '[x] ' : '[ ] ') : it.ordered ? `${it.number}. ` : '• '}${plainRuns(it.runs)}`);
     else if (it.kind === 'table') lines.push(...it.rows.map((row) => row.map(plainRuns).join('\t')), '');
     else if (it.kind === 'image') lines.push(`[Picture${it.alt ? `: ${it.alt}` : ''}]`, '');
-    else if (it.kind === 'code') lines.push(it.text, '');
+    else if (it.kind === 'code') lines.push(it.lang === 'ink' ? '[Drawing]' : it.text, '');
     else lines.push('', '* * *', '');
   }
   if (notes.length) lines.push('', 'Notes', ...notes.map((n, i) => `${i + 1}. ${n}`));
@@ -144,7 +146,7 @@ export async function toHtml(title: string, parts: ExportPart[], media?: Media):
       const got = await media?.(it.src);
       const src = got ? `data:${got.type};base64,${base64(got.bytes)}` : /^https?:/.test(it.src) ? it.src : '';
       if (src) out.push(`<figure><img src="${esc(src)}" alt="${esc(it.alt)}"></figure>`);
-    } else if (it.kind === 'code') out.push(it.lang === 'chart' ? `<figure class="chart">${chartSvg(parseChart(it.text), '#222')}</figure>` : `<pre>${esc(it.text)}</pre>`);
+    } else if (it.kind === 'code') out.push(it.lang === 'chart' ? `<figure class="chart">${chartSvg(parseChart(it.text), '#222')}</figure>` : it.lang === 'ink' ? `<figure class="drawing">${inkSvg(parseInk(it.text))}</figure>` : `<pre>${esc(it.text)}</pre>`);
     else out.push('<hr class="page-break">');
   }
   closeLists();
@@ -243,7 +245,7 @@ export function toRtf(title: string, parts: ExportPart[]): string {
       }
       body.push('{\\pard\\par}');
     } else if (it.kind === 'image') body.push(`{\\pard\\i [Picture${it.alt ? `: ${rtfText(it.alt)}` : ''}]\\par}`);
-    else if (it.kind === 'code') body.push(`{\\pard\\f1\\fs20 ${rtfText(it.text)}\\par}`);
+    else if (it.kind === 'code') body.push(`{\\pard\\f1\\fs20 ${rtfText(it.lang === 'ink' ? '[Drawing]' : it.text)}\\par}`);
     else body.push('\\page');
   }
   if (notes.length) body.push(`{\\pard\\sb240\\b Notes\\par}`, ...notes.map((n, i) => `{\\pard\\fs20 ${i + 1}. ${rtfText(n)}\\par}`));
@@ -334,7 +336,7 @@ export async function toOdt(title: string, parts: ExportPart[], media?: Media): 
         const h = size ? (w * size.height) / size.width : w * 0.66;
         body.push(`<text:p text:style-name="Centre"><draw:frame draw:name="Picture ${pics.length}" text:anchor-type="as-char" svg:width="${w.toFixed(2)}in" svg:height="${h.toFixed(2)}in"><draw:image xlink:href="${name}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>${it.alt ? `<svg:desc>${xml(it.alt)}</svg:desc>` : ''}</draw:frame></text:p>`);
       }
-    } else if (it.kind === 'code') body.push(...it.text.split('\n').map((l) => `<text:p text:style-name="Preformatted_20_Text">${xml(l).replace(/ {2,}/g, (sp) => ` <text:s text:c="${sp.length - 1}"/>`)}</text:p>`));
+    } else if (it.kind === 'code') body.push(...(it.lang === 'ink' ? '[Drawing]' : it.text).split('\n').map((l) => `<text:p text:style-name="Preformatted_20_Text">${xml(l).replace(/ {2,}/g, (sp) => ` <text:s text:c="${sp.length - 1}"/>`)}</text:p>`));
     else body.push('<text:p text:style-name="Page_20_break"/>');
   }
   closeLists();

@@ -1,6 +1,7 @@
 import { useOfferHelped } from './helpers';
 import { MathBlockBar, MathCard } from './mathtools';
 import { FormCard } from './formtools';
+import { InkHost } from './inktools';
 import { ProtectBanner } from './protecttools';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { noteLinkTitle } from '@crumpet/editor/markdown';
@@ -155,6 +156,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
       )}
       {!readOnly && !reading && <SlashMenu editor={ed} host={host} notes={state.notes} />}
       {!readOnly && !reading && <MathCard editor={ed} />}
+      {!readOnly && !reading && <InkHost editor={ed} />}
       {(!readOnly || prot === 'forms') && !reading && <FormCard editor={ed} design={!readOnly} />}
       {!readOnly && !reading && <MathBlockBar host={host} />}
       {floating && ed && (
