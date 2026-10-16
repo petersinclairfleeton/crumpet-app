@@ -960,6 +960,9 @@ body.pane-resizing iframe { pointer-events: none; }
 .right-tabs button { flex: none; padding: 4px 8px; border: none; border-radius: 8px; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px; cursor: pointer; }
 .right-tabs button:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
 .right-tabs button.on { color: var(--text); background: var(--page); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
+.right-tabs.calm { flex-wrap: nowrap; }
+.right-more { position: relative; display: inline-flex; }
+.right-more .popover { top: 100%; left: auto; right: 0; min-width: 170px; }
 .right-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
 .right-empty { margin: 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
 /* In this chapter: the characters and places a chapter names, as cards. */

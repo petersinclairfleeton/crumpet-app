@@ -249,21 +249,6 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [store]);
 
-  // ⌘K / Ctrl+K: search, unless editing text with a selection (then the editor uses it for links).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === 'k' && !e.defaultPrevented) {
-        e.preventDefault();
-        const search = document.getElementById('search') as HTMLInputElement | null;
-        search?.focus();
-        search?.select();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   // Ctrl+O (⌘O): the quick switcher; Ctrl+P (⌘P) or Ctrl+Shift+P: the command palette.
   const [finder, setFinder] = useState<null | 'switch' | 'commands' | 'compare'>(null);
   const [compareFrom, setCompareFrom] = useState<string | null>(null);
@@ -284,8 +269,9 @@ export function App() {
       if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
       const k = e.key.toLowerCase();
       // Remember the selected text, for commands that act on it once the window closes.
-      if (k === 'o' || k === 'p') currentHelped()?.editor.currentSelection();
-      if (k === 'o' && !e.shiftKey) {
+      if (k === 'o' || k === 'p' || k === 'k') currentHelped()?.editor.currentSelection();
+      // ⌘K / Ctrl+K (unless the editor took it for a link) and ⌘O: Find anything.
+      if ((k === 'o' || k === 'k') && !e.shiftKey && !e.defaultPrevented) {
         e.preventDefault();
         setFinder('switch');
       } else if (k === 'p') {
