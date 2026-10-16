@@ -784,6 +784,31 @@ input, select { font: inherit; color: inherit; }
 [data-look='crumpet'] .welcome li > :is(a, button):hover b { text-decoration: none; }
 [data-look='crumpet'] .welcome li > :is(a, button)::before { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; background: var(--accent-soft); font-size: 20px; }
 [data-look='crumpet'] .welcome b { font-weight: 500; }
+/* Ticks, radio buttons and sliders take the honey. */
+[data-look='crumpet'] input:is([type='checkbox'], [type='radio'], [type='range']) { accent-color: var(--accent); }
+/* Cards (a book's chapters on a board): clean paper cards with a status dot, on a warm desk. */
+[data-look='crumpet'] .corkboard { background: color-mix(in srgb, var(--page) 55%, var(--field)); padding: 24px; }
+[data-look='crumpet'] .cork-card { border: 1px solid var(--line); border-top-width: 1px; border-radius: 12px; box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04); }
+[data-look='crumpet'] .cork-card:hover { box-shadow: var(--lift); }
+[data-look='crumpet'] .cork-card header { flex-direction: column; align-items: flex-start; gap: 2px; padding: 16px 16px 4px; border-bottom: none; }
+[data-look='crumpet'] .cork-num { font-weight: 500; }
+[data-look='crumpet'] .cork-title { font-size: 18px; font-weight: 500; line-height: 1.25; }
+[data-look='crumpet'] .cork-synopsis { padding: 4px 16px 8px; background: none; font-size: 13.5px; line-height: 1.5; color: var(--text2); }
+[data-look='crumpet'] .cork-card footer { justify-content: flex-start; padding: 8px 16px 12px; }
+[data-look='crumpet'] .cork-card footer::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--status, #b9b2a6); }
+[data-look='crumpet'] .cork-card footer select { border-color: transparent; background: transparent; margin-left: -8px; }
+[data-look='crumpet'] .cork-card footer > :last-child { margin-left: auto; }
+[data-look='crumpet'] .cork-part { font-size: 22px; margin-top: 16px; }
+/* Boards: rounder cards on a warm, dotted desk. */
+[data-look='crumpet'] .board-tools { border-bottom: none; padding: 8px 16px; }
+[data-look='crumpet'] .board-surface { background-color: color-mix(in srgb, var(--page) 55%, var(--field)); background-size: 24px 24px; }
+[data-look='crumpet'] .board-card { border-width: 1px; border-radius: 12px; box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06), 0 6px 16px rgba(31, 35, 40, 0.06); }
+[data-look='crumpet'] .board-group { border-radius: 16px; }
+[data-look='crumpet'] .board-group :is(.group-label) { padding: 2px 10px; border-radius: 999px; background: var(--page); font-weight: 600; font-size: 12px; }
+/* The Immersive reader: a quiet bar of pills over the page. */
+[data-look='crumpet'] .reader-bar { border-bottom: none; padding: 12px 16px; }
+[data-look='crumpet'] .reader-bar .btn { border-radius: 999px; border-color: color-mix(in srgb, var(--r-ink) 18%, transparent); background: color-mix(in srgb, var(--r-bg) 70%, #fff); }
+[data-look='crumpet'] .reader-panel { border-bottom: none; }
 /* Settings' theme cards: a small picture of each look. */
 [data-look='crumpet'] .theme-card { padding: 8px 8px 12px; border-radius: 12px; gap: 4px; }
 [data-look='crumpet'] .theme-card[aria-pressed='true'] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }

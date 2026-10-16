@@ -22,6 +22,7 @@ export const WHATS_NEW: WhatsNew[] = [
       'Chapters open like a book’s: a honey “Chapter 1” above the title and a short line under it.',
       'In a book, the notes sidebar steps back to a strip of icons so the outline is your side panel, and the right sidebar’s new In this chapter tab shows who and where the chapter names.',
       'A friendlier first visit, warmer theme pictures in Settings → Look, and a roomier quick switcher (Ctrl/⌘+O).',
+      'A book’s Cards are clean paper cards with a status dot; boards and the Immersive reader match the new look, and tick boxes and sliders are honey.',
       'Corners, colours and shadows match all through the app, in light and dark.',
     ],
   },
