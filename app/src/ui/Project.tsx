@@ -76,7 +76,7 @@ export function shownOutline(project: Project, chapters: Chapter[], word: string
   return out;
 }
 
-export function ProjectOutline({ project, onOpenChapter }: { project: Project; onOpenChapter(id: string): void }) {
+export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Project; onOpenChapter(id: string): void; onBack?(): void }) {
   const state = useAppState();
   const store = useAppStore();
   const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'deadline' | 'delete'>(null);
@@ -108,6 +108,10 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
   // and keywords are for Cards, and the characters and research fold under two rows at its foot.
   const narrowScreen = useMedia('(max-width: 759px)');
   const calm = !state.settings.toolbarAll && !narrowScreen;
+  // The calm phone (design 17): back to the library, a big title, the words against the goal,
+  // then Chapters, Cast and Research side by side; chapters as cards with their synopses.
+  const phone = !state.settings.toolbarAll && narrowScreen;
+  const [phoneTab, setPhoneTab] = useState<'chapters' | 'cast' | 'research'>('chapters');
   const [footOpen, setFootOpen] = useState<null | 'cast' | 'research'>(null);
   const researchCount = state.notes.filter((n) => n.projectId === project.id && n.trashedAt === null).length;
   const show = { synopsis: true, status: true, keywords: true, ...state.settings.cardShow };
@@ -119,7 +123,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
   };
 
   return (
-    <section className={`list outline${calm ? ' book-side' : ''}`} aria-label="Outline">
+    <section className={`list outline${calm ? ' book-side' : ''}${phone ? ' phone-book' : ''}`} aria-label="Outline">
       {exporting && (
         <ExportBook
           project={project}
@@ -132,6 +136,14 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
       )}
       {printing && <PrintJob title={project.name} parts={printParts} page={project.page ?? manuscriptPage()} sheet={fullSheet(project.styles, 'manuscript')} chapters onDone={() => setPrinting(false)} />}
       <header className={`list-head${calm ? ' book-head' : ''}`}>
+        {phone && (
+          <div className="phone-bar">
+            <button type="button" className="icon-btn back" aria-label="Back to the library" onClick={onBack}>
+              <IconBack size={18} />
+              <span className="back-label">Crumpet</span>
+            </button>
+          </div>
+        )}
         <div className="list-title">
           {calm && (
             <button type="button" className="icon-btn" aria-label="Back to notes" title="Back to notes" onClick={() => store.setView({ kind: 'all' })}>
@@ -169,7 +181,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                     <button type="button" className="menu-item" onClick={() => setMenu('rename')}>
                       Rename project
                     </button>
-                    {calm && (
+                    {(calm || phone) && (
                       <button type="button" className="menu-item" aria-label="Add part" onClick={() => (setMenu(null), setRenaming(store.addPart(project.id) ?? null))}>
                         Add a part
                       </button>
@@ -258,7 +270,35 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
             </div>}
           </>
         )}
-        {!calm && <div className="list-sub">
+        {phone && (
+          <>
+            <div className="book-progress phone-progress">
+              <div className="book-progress-words">
+                <span>{words(total)}</span>
+                {goal ? <span>{Math.round((total / goal) * 100)}% of {goal.toLocaleString()}</span> : null}
+              </div>
+              {goal ? (
+                <div className="book-bar" role="progressbar" aria-label="Project progress" aria-valuenow={total} aria-valuemin={0} aria-valuemax={goal}>
+                  <i style={{ width: `${Math.min(100, (total / goal) * 100)}%` }} />
+                </div>
+              ) : null}
+            </div>
+            <div className="segmented phone-tabs" role="group" aria-label="Show">
+              {(
+                [
+                  ['chapters', 'Chapters'],
+                  ['cast', 'Cast'],
+                  ['research', 'Research'],
+                ] as const
+              ).map(([t, label]) => (
+                <button key={t} type="button" aria-pressed={phoneTab === t} onClick={() => setPhoneTab(t)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {!calm && !phone && <div className="list-sub">
           <span>
             {words(total)}
             {goal ? ` of ${goal.toLocaleString()}` : ''}
@@ -276,12 +316,14 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
             </button>
           </div>
         </div>}
-        {!calm && <Progress value={total} goal={goal} label="Project progress" />}
+        {!calm && !phone && <Progress value={total} goal={goal} label="Project progress" />}
         <KeywordFilter project={project} />
         {project.deadline && goal ? <DeadlineLine project={project} goal={goal} total={total} onEdit={() => setMenu('deadline')} /> : null}
       </header>
 
-      {calm && mode === 'corkboard' ? (
+      {phone && phoneTab !== 'chapters' ? (
+        phoneTab === 'cast' ? <CastList project={project} /> : <ResearchList project={project} />
+      ) : calm && mode === 'corkboard' ? (
         <div className="book-show" role="group" aria-label="Show on the cards">
           <p className="book-label">Show</p>
           {(
@@ -399,13 +441,13 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
               <button type="button" className="outline-open" aria-current={state.chapterId === c.id ? 'true' : undefined} onClick={() => onOpenChapter(c.id)}>
                 <span className="outline-row">
                   <span className={`status-dot ${c.status}`} title={STATUSES.find((s) => s.id === c.status)?.label} />
-                  <span className="outline-num">{number}.</span>
-                  <span className="grow ellipsis outline-title">{c.title || 'Untitled chapter'}</span>
+                  {!phone && <span className="outline-num">{number}.</span>}
+                  <span className="grow ellipsis outline-title">{phone && `${number}. `}{c.title || 'Untitled chapter'}</span>
                   <span className="outline-words">{c.goal ? `${n.toLocaleString()} / ${c.goal.toLocaleString()}` : n.toLocaleString()}</span>
                 </span>
-                {!calm && c.synopsis && <span className="outline-synopsis">{c.synopsis}</span>}
-                {!calm && <KeywordChips chapter={c} />}
-                {!calm && c.goal ? <Progress value={n} goal={c.goal} label={`Progress of ${c.title || 'chapter'}`} /> : null}
+                {(!calm || phone) && c.synopsis && <span className="outline-synopsis">{c.synopsis}</span>}
+                {!calm && !phone && <KeywordChips chapter={c} />}
+                {!calm && !phone && c.goal ? <Progress value={n} goal={c.goal} label={`Progress of ${c.title || 'chapter'}`} /> : null}
               </button>
               <div className="note-actions">
                 <button type="button" className="icon-btn" aria-label={`Options for ${c.title || 'chapter'}`} aria-expanded={itemMenu === item.id} onClick={() => setItemMenu(itemMenu === item.id ? null : item.id)}>
@@ -429,7 +471,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
         })}
       </ol>
 
-      {calm ? (
+      {phone ? null : calm ? (
         <button type="button" className="book-new" aria-label="Add chapter" onClick={() => store.addChapter(project.id)}>
           <IconPlus size={16} /> New chapter
         </button>
@@ -469,7 +511,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
         </div>
       ) : (
       <>
-      {chapters.size > 1 && (
+      {chapters.size > 1 && !phone && (
         <ul className="status-key" aria-label="What the dots mean">
           {STATUSES.map((s) => (
             <li key={s.id}>
@@ -478,8 +520,8 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
           ))}
         </ul>
       )}
-      <CastList project={project} />
-      <ResearchList project={project} />
+      {!phone && <CastList project={project} />}
+      {!phone && <ResearchList project={project} />}
       </>
       )}
     </section>

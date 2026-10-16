@@ -399,6 +399,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   (`maximum-scale=1`, iOS only), swipes in from the left edge go back to the
   list (`useSwipeBack`), and Safari shows a guide to adding it
   (`HomeScreenGuide`); touch details are in `app.css` ("iPhone and iPad").
+  In the calm look a phone has no bar of tabs (`.app.phone`, `data-calm='phone'`):
+  `ui/phone.tsx`'s `PhoneLibrary` comes first (the pane starts at 'sidebar'), lists
+  have a back arrow, big title and search (`NoteList`'s `phone`), a note has Share
+  (its star, notebook and tags in ···), and a book's outline has Chapters/Cast/Research
+  (`ProjectOutline`'s `phone`); the round + (`.fab`) makes a note or a chapter.
   Note: the Home Screen app keeps its own notes, apart from Safari's.
 - `desktop/`: Crumpet for Mac (Electron). `main.cjs` serves the built web app
   (`app/dist`, packed inside as `resources/web`) from `app://crumpet/`, with a

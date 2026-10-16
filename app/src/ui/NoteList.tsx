@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { mediaUrl } from '../data/files';
-import { useAppState, useAppStore } from './hooks';
+import { useAppState, useAppStore, useMedia } from './hooks';
 import { type Group, type SnippetPart, chapterText, displayTitle, groupByDate, listedNotes, matchingChapters, matchingNotebooks, noteText, preview, shortTime, snippet, viewTitle } from '../data/selectors';
 import type { Note, View } from '../data/types';
 import { reminderGroups } from '../data/reminders';
@@ -14,15 +14,17 @@ import { tabDrag, useFileDrop } from './tabdrag';
 import { uploadFiles } from './uploads';
 import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import { usePanes } from './panes';
-import { IconCards, IconChevronDown, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
+import { IconBack, IconMore, IconSearch, IconCards, IconChevronDown, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenNote(id: string): void;
   onNewNote(): void;
   onOpenView(view: View): void;
+  /** Phones: back to the library. */
+  onBack?(): void;
 }
 
-export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
+export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
   const state = useAppState();
   const store = useAppStore();
   const searching = !!state.query.trim();
@@ -82,15 +84,41 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
   // The calm look: the list's title and one menu for sorting and showing; cards say only when and where.
   const calm = !state.settings.toolbarAll;
   const sortName = { edited: 'Last edited', created: 'Date created', title: 'Title' }[sort];
+  // The calm phone (designs 4 and 18): back to the library and the list's menu above a big title, then its search box.
+  const narrowScreen = useMedia('(max-width: 759px)');
+  const phone = calm && narrowScreen;
 
   return (
-    <section className={`list${fileDrop.over ? ' files-over' : ''}`} aria-label="Notes" {...fileDrop.props}>
+    <section className={`list${fileDrop.over ? ' files-over' : ''}${phone ? ' phone' : ''}`} aria-label="Notes" {...fileDrop.props}>
       <header className="list-head">
+        {phone && (
+          <>
+            {!searching && (
+              <div className="phone-bar">
+                <button type="button" className="icon-btn" aria-label="Back to the library" onClick={onBack}>
+                  <IconBack size={22} />
+                </button>
+                <span className="grow" />
+                {!trash && !reminders && <ListMenu sort={sort} sortName={sortName} icon />}
+              </div>
+            )}
+            <label className={`phone-search${searching ? ' on' : ''}`}>
+              <IconSearch size={18} />
+              <span className="visually-hidden">Search notes</span>
+              <input id="search" type="search" autoComplete="off" placeholder="Search" value={state.query} onChange={(e) => store.setQuery(e.target.value)} />
+              {searching && (
+                <button type="button" className="link-btn phone-cancel" onClick={() => store.setQuery('')}>
+                  Cancel
+                </button>
+              )}
+            </label>
+          </>
+        )}
         <div className="list-title">
           {nb && <NotebookIcon color={nb.color} size={15} cut="var(--list-bg)" />}
           <h1>{title}</h1>
           <span className="grow" />
-          {calm ? !trash && !reminders && <ListMenu sort={sort} sortName={sortName} /> : <FoldButton what="list" />}
+          {phone ? null : calm ? !trash && !reminders && <ListMenu sort={sort} sortName={sortName} /> : <FoldButton what="list" />}
         </div>
         <div className={`list-sub${calm ? ' calm' : ''}`}>
           <span className="list-count">
@@ -342,16 +370,15 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu,
 }
 
 /** The calm list's one menu: how the notes are sorted and shown, and folding the list away. */
-function ListMenu({ sort, sortName }: { sort: SortBy; sortName: string }) {
+function ListMenu({ sort, sortName, icon = false }: { sort: SortBy; sortName: string; icon?: boolean }) {
   const state = useAppState();
   const store = useAppStore();
   const [open, setOpen] = useState(false);
   const style = state.settings.listStyle ?? 'cards';
   return (
     <span className="list-menu">
-      <button type="button" className="list-menu-btn" aria-label={`Sort and show: ${sortName}`} aria-expanded={open} onClick={() => setOpen(!open)}>
-        {sortName}
-        <IconChevronDown size={14} />
+      <button type="button" className={icon ? 'icon-btn' : 'list-menu-btn'} aria-label={`Sort and show: ${sortName}`} aria-expanded={open} onClick={() => setOpen(!open)}>
+        {icon ? <IconMore size={22} /> : <>{sortName}<IconChevronDown size={14} /></>}
       </button>
       {open && (
         <Popover label="Sort and show" onClose={() => setOpen(false)}>

@@ -7,6 +7,8 @@ import { type Nav, NavContext, useAppState, useAppStore } from './hooks';
 import { findByTitle } from '../data/links';
 import { ClipDialog } from './clipper';
 import { Sidebar } from './Sidebar';
+import { PhoneLibrary } from './phone';
+import { IconPlus } from './icons';
 import { NoteList } from './NoteList';
 import { NotePane } from './NotePane';
 import { ProjectOutline, ProjectPane } from './Project';
@@ -52,7 +54,8 @@ const MEDIUM = '(max-width: 1099px)';
 export function App() {
   const state = useAppState();
   const store = useAppStore();
-  const [pane, setPane] = useState<Pane>('list');
+  // Phones in the calm look start on the library (design 16), like Apple's Notes.
+  const [pane, setPane] = useState<Pane>(() => (window.matchMedia(NARROW).matches && !state.settings.toolbarAll ? 'sidebar' : 'list'));
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const panes = usePanesState();
   const panesRef = useRef(panes);
@@ -70,9 +73,17 @@ export function App() {
   useEffect(() => applyTheme(state.settings), [state.settings]);
   // The calm layout on a computer, marked on the page for what sits outside the app (the wash, floating bars).
   const calmLayout = !narrow && !state.settings.toolbarAll;
+  const calmPhone = narrow && !state.settings.toolbarAll;
   useEffect(() => {
-    document.documentElement.dataset.calm = calmLayout ? '1' : '';
-  }, [calmLayout]);
+    document.documentElement.dataset.calm = calmLayout ? '1' : calmPhone ? 'phone' : '';
+  }, [calmLayout, calmPhone]);
+  // Switching the look on a phone starts again from its first screen: the library, or the list.
+  const lastPhone = useRef(calmPhone);
+  useEffect(() => {
+    if (lastPhone.current === calmPhone) return;
+    lastPhone.current = calmPhone;
+    setPane(calmPhone ? 'sidebar' : 'list');
+  }, [calmPhone]);
 
   // A character card or research note opening in a project takes the whole screen on a phone.
   useEffect(() => {
@@ -334,6 +345,7 @@ export function App() {
   const sizes = narrow ? undefined : ({ '--side-w': layout.sidebarWidth ? `${sideW}px` : undefined, '--list-w': layout.listWidth ? `${listW}px` : undefined, '--right-w': layout.rightWidth ? `${rightW}px` : undefined} as React.CSSProperties);
   const target = () => appRef.current;
   const peekable = !narrow && !state.focusMode;
+  const phoneCalm = narrow && !state.settings.toolbarAll;
   // Crumpet's calm look on a computer: the sidebar, the list and the page, as separate sheets over the wash.
   const calm = !narrow && !state.settings.toolbarAll;
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
@@ -341,7 +353,7 @@ export function App() {
   return (
     <NavContext.Provider value={nav}>
     <PanesContext.Provider value={panes}>
-    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${calm ? ' calm' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
+    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${calm ? ' calm' : ''}${narrow && !state.settings.toolbarAll ? ' phone' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
       {state.focusMode && (
         <div className="focus-bar">
           <button
@@ -415,26 +427,26 @@ export function App() {
             <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={peekCtl.close} onToday={openToday} onTemplate={newFromTemplate} onImport={importNote} />
           </div>
         )}
-        {sidebarMode === 'full' && <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} onToday={openToday} onTemplate={newFromTemplate} onImport={importNote} />}
+        {sidebarMode === 'full' && (phoneCalm ? <PhoneLibrary onOpenView={openView} onToday={openToday} /> : <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} onToday={openToday} onTemplate={newFromTemplate} onImport={importNote} />)}
         {sidebarMode === 'full' && !narrow && <Resizer label="Sidebar width" value={sideW} {...SIDEBAR} cssVar="--side-w" target={target} onChange={(v) => store.updateLayout({ sidebarWidth: Math.round(v) })} />}
         {sidebarMode === 'icons' && <SidebarRail onOpenView={openView} onNewNote={newNote} onToday={openToday} />}
         <div className="workspace">
-          <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} calm={calm} />
+          {!phoneCalm && <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} calm={calm} />}
           <div className="panes">
             {peekable && !showList && !whole && sidebarMode !== 'hidden' && <div className="peek-edge" aria-hidden="true" onMouseEnter={() => peekCtl.open('list')} onMouseLeave={peekCtl.leave} />}
             {peekable && !showList && peek === 'list' && (
               <div className="peek-panel list-peek" onMouseEnter={peekCtl.stay} onMouseLeave={peekCtl.leave}>
-                {project ? <ProjectOutline project={project} onOpenChapter={openChapter} /> : <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />}
+                {project ? <ProjectOutline project={project} onOpenChapter={openChapter} onBack={() => setPane('sidebar')} /> : <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />}
               </div>
             )}
             {project ? (
               <>
-                {showList && <ProjectOutline project={project} onOpenChapter={openChapter} />}
+                {showList && <ProjectOutline project={project} onOpenChapter={openChapter} onBack={() => setPane('sidebar')} />}
                 {showList && !narrow && <Resizer label="Outline width" value={listW} {...LIST} cssVar="--list-w" target={target} onChange={(v) => store.updateLayout({ listWidth: Math.round(v) })} />}
               </>
             ) : (
               <>
-                {showList && <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />}
+                {showList && <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} onBack={() => setPane('sidebar')} />}
                 {showList && !narrow && <Resizer label="Note list width" value={listW} {...LIST} cssVar="--list-w" target={target} onChange={(v) => store.updateLayout({ listWidth: Math.round(v) })} />}
               </>
             )}
@@ -456,8 +468,14 @@ export function App() {
         )}
       </div>
       </PeekContext.Provider>
-      {narrow && pane === 'list' && !state.focusMode && <HomeScreenGuide />}
-      {narrow && pane === 'list' && !state.focusMode && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
+      {narrow && (pane === 'list' || (phoneCalm && pane === 'sidebar')) && !state.focusMode && <HomeScreenGuide />}
+      {narrow && pane === 'list' && !state.focusMode && !phoneCalm && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
+      {/* The calm phone: no bar of tabs, just the round + on a list (or a book's chapters). */}
+      {phoneCalm && pane === 'list' && !state.focusMode && (
+        <button type="button" className="fab" aria-label={project ? 'New chapter' : 'New note'} onClick={() => (project ? store.addChapter(project.id) : newNote())}>
+          <IconPlus size={26} />
+        </button>
+      )}
     </div>
     </PanesContext.Provider>
     </NavContext.Provider>
