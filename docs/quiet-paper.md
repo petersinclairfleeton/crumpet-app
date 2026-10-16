@@ -31,10 +31,10 @@ items are in the app; the PR that built each is in brackets.
 ## iPhone and iPad
 - [x] 4 iPhone list as paper cards (#147)
 - [x] 5 iPhone note: ‹ Notes (#147)
-- [ ] 5 iPhone keyboard bar: Aa, checklist, list, picture, More, Done
-- [ ] 16 iPhone library: grouped lists
-- [ ] 17 iPhone book: Chapters / Cast / Research
-- [ ] 18 iPhone search: filters
+- [x] 5 iPhone keyboard bar: Aa, checklist, list, picture, More, Done (#153)
+- [x] 16 iPhone library: grouped lists (#153)
+- [x] 17 iPhone book: chapters as cards (#153; Chapter / Manuscript / Cards stay as the switch, with characters and research below)
+- [x] 18 iPhone search: quick filters (#153)
 - [x] 14 iPad landscape (#147, already close)
-- [ ] 15 iPad portrait: the inspector as a sheet from the bottom
-- [ ] The Mac app's window
+- [x] 15 iPad portrait: the right sidebar as a sheet from the bottom (#153)
+- [x] The Mac app's window: checked with the new look, nothing needed changing (#153)

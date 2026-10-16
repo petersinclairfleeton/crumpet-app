@@ -144,6 +144,23 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
               </button>
             ))}
             <FilterMenu />
+            {/* On a phone, a row of quick filters to narrow the results with one tap. */}
+            <span className="quick-chips" role="group" aria-label="Quick filters">
+              {(
+                [
+                  ['is:favorite', 'Favourites'],
+                  ['has:picture', 'Pictures'],
+                  ['has:todo', 'Checklists'],
+                  ['has:file', 'Files'],
+                ] as const
+              )
+                .filter(([t]) => !state.query.split(/\s+/).includes(t))
+                .map(([t, label]) => (
+                  <button key={t} type="button" className="filter-chip quick" onClick={() => store.setQuery(withToken(state.query, t))}>
+                    {label}
+                  </button>
+                ))}
+            </span>
             {saving ? (
               <InlineInput
                 label="Name for this search"
