@@ -421,7 +421,8 @@ input, select { font: inherit; color: inherit; }
 .list-head { padding: 14px 16px 6px; display: flex; flex-direction: column; gap: 6px; }
 .list-title { display: flex; align-items: center; gap: 8px; }
 .list-title h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.list-sub { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.list-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: var(--muted); }
+.list-sub > span:first-child { white-space: nowrap; }
 .list-note { margin: 0; font-size: 12px; color: var(--muted); }
 .jumps { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 6px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border: none; border-radius: 4px; background: var(--chip); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -2522,6 +2523,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   [data-look='crumpet'] .right-side::before { content: ''; flex: none; width: 40px; height: 5px; margin: 8px auto 0; border-radius: 999px; background: var(--line2); }
   [data-look='crumpet'] .frame > .resizer[aria-label='Right sidebar width'] { display: none; }
   [data-look='crumpet'] .right-side .right-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  [data-look='crumpet'] .right-side .right-tabs.calm { overflow: visible; }
   [data-look='crumpet'] .right-side .chapter-cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 }
 

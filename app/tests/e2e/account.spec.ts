@@ -87,7 +87,7 @@ async function openSignIn(page: Page) {
 test('accounts: create one with email, sign out, sign in again, reset a password, and delete it', async ({ page }) => {
   const fake = await fakeAccounts(page);
   await page.goto('/');
-  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   let dialog = await openSignIn(page);
   await dialog.getByRole('button', { name: 'Create an account' }).click();
   dialog = page.getByRole('dialog', { name: 'Create your account' });
@@ -155,7 +155,7 @@ test('accounts: continue with Google, and the screen on a first visit (or carry 
   await expect(page.locator('.account-name')).toHaveText('Robin Hart');
   await page.reload();
   // Signed in: not asked again.
-  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   await expect(dialog).toHaveCount(0);
 
   // Another device, never signed in: "Continue without an account" isn't asked again.
@@ -167,7 +167,7 @@ test('accounts: continue with Google, and the screen on a first visit (or carry 
   await there.getByRole('button', { name: 'Continue without an account' }).click();
   await expect(there).toHaveCount(0);
   await other.reload();
-  await expect(other.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(other.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   await expect(there).toHaveCount(0);
   await other.close();
 });

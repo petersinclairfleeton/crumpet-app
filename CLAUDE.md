@@ -372,6 +372,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `data/paper.ts`, `ui/paper.tsx`) sets `--paper`/`--paper-ink` and
     `data-paper` on the page. Tokens and look rules are in `app.css`;
     the theme list (names, previews) in `ui/themes.ts`.
+    The calm look is `!settings.toolbarAll` (Settings → Appearance → Show every
+    formatting tool): five tools and a short More (`QUICK_TOOLS`, then All writing
+    tools…), the note's views in its ··· menu, three right-sidebar tabs plus More,
+    no list before the first note, and a note in page view with the sidebar as
+    its strip and the list folded. Browser tests' `open()` turns the full bar on.
 - iPhone and iPad: the app added to the Home Screen from Safari (no App Store
   app). `index.html` has the launch screens (`public/splash/`, made per iPhone
   size, light and dark) and a status bar in the app's own colour
