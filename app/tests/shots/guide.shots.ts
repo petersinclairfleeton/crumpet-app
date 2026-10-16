@@ -15,7 +15,7 @@ async function shot(page: Page, name: string) {
 /** A writer's library: notebooks, notes and a book in progress. */
 async function library(page: Page) {
   await page.goto('/');
-  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   await page.evaluate(async () => {
     const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
     const c = (window as unknown as { crumpet: Crumpet }).crumpet;

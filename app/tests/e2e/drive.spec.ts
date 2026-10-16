@@ -39,7 +39,7 @@ async function device(browser: Browser, drive: FakeDrive): Promise<Page> {
   });
   const page = await context.newPage();
   await page.goto('/');
-  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   return page;
 }
 
@@ -133,7 +133,7 @@ test('keep notes in a folder on this computer: files written there, changes made
   await context.addInitScript(FAKE_FOLDER_PICKER);
   const page = await context.newPage();
   await page.goto('/');
-  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   await sidebar(page).getByRole('button', { name: 'New Note', exact: true }).click();
   await page.keyboard.type('Harbour');
   await page.keyboard.press('Enter');

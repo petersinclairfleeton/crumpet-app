@@ -117,6 +117,11 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const viewsInMenu = narrow || calm;
   const trail = trashed ? null : (
     <div className="note-actions">
+      {calm && paged && !narrow && (
+        <button type="button" className="btn small back-to-writing" onClick={togglePage}>
+          Back to writing view
+        </button>
+      )}
       {!viewsInMenu && (
         <>
           <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" data-tip={`Focus mode · ${isMac ? '⌘⇧F' : 'Ctrl+Shift+F'}`} onClick={() => store.setFocusMode(true)}>

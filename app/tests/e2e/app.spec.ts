@@ -12,9 +12,11 @@ const list = (page: Page) => page.getByRole('region', { name: 'Notes', exact: tr
 
 async function open(page: Page) {
   await page.goto('/');
-  await expect(list(page)).toBeVisible();
+  await expect(page.locator('.app')).toBeVisible();
   // These tests reach every formatting button, so they use the full bar (the calm one has its own test).
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
+  // With the full bar the list shows even before the first note.
+  await expect(list(page)).toBeVisible();
 }
 
 async function newNote(page: Page, title: string, body = '') {
@@ -5607,4 +5609,21 @@ test('the calm right sidebar: three tabs, the rest under More', async ({ page })
   // The tab chosen from More shows beside the three while it's open.
   await expect(right.getByRole('tab', { name: 'Thesaurus' })).toHaveAttribute('aria-selected', 'true');
   await expect(right.getByRole('tab')).toHaveCount(4);
+});
+
+test('calm room: no list before the first note, and a note in page view has the width to itself', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: false }));
+  await expect(list(page)).toHaveCount(0);
+  await page.getByRole('region', { name: 'Welcome' }).getByRole('button', { name: /Write a note/ }).click();
+  await page.keyboard.type('Pages');
+  await expect(list(page)).toBeVisible();
+  await page.locator('.note-actions').getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Note options' }).getByRole('button', { name: 'Page view' }).click();
+  await expect(page.locator('.pg').first()).toBeVisible();
+  await expect(list(page)).toHaveCount(0);
+  await expect(page.locator('nav.rail')).toBeVisible();
+  await page.getByRole('button', { name: 'Back to writing view' }).click();
+  await expect(list(page)).toBeVisible();
+  await expect(page.locator('nav.sidebar')).toBeVisible();
 });
