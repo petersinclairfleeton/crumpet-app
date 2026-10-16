@@ -169,7 +169,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
       </div>
       {narrow && ed && !readOnly && !reading && (
         <KeyboardBar host={host}>
-          <FormatTools compact editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />
+          <FormatTools compact keyboard editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />
         </KeyboardBar>
       )}
       {!readOnly && !reading && <SlashMenu editor={ed} host={host} notes={state.notes} />}

@@ -21,6 +21,8 @@ export interface ToolItem {
 
 /** The calm bar keeps these five on show; everything else waits under More, in groups. */
 export const CORE_TOOLS = new Set(['style', 'bold', 'italic', 'bullet', 'link']);
+/** Above a phone's keyboard: style, checklist, bullets and a picture; the rest under More. */
+export const PHONE_TOOLS = new Set(['style', 'todo', 'bullet', 'attach']);
 export type ToolGroup = 'Text' | 'Paragraph' | 'Insert' | 'Layout' | 'References' | 'Review' | 'Tools';
 export const TOOL_GROUPS: ToolGroup[] = ['Text', 'Paragraph', 'Insert', 'Layout', 'References', 'Review', 'Tools'];
 const GROUP_KEYS: Record<ToolGroup, string[]> = {
@@ -48,8 +50,8 @@ export function closeMore(): void {
  * are under More, in groups. `menus`: those groups are menus of their own on the
  * bar (Text ▾, Insert ▾, Layout ▾…), as Word's tabs are, for page view.
  */
-export function OverflowRow({ items: all, fit = true, calm = false, menus = false }: { items: ToolItem[]; fit?: boolean; calm?: boolean; menus?: boolean }) {
-  const items = calm ? all.filter((i) => CORE_TOOLS.has(i.key) || i.pri >= 9) : all;
+export function OverflowRow({ items: all, fit = true, calm = false, menus = false, core = CORE_TOOLS }: { items: ToolItem[]; fit?: boolean; calm?: boolean; menus?: boolean; core?: Set<string> }) {
+  const items = calm ? all.filter((i) => core.has(i.key) || i.pri >= 9) : all;
   const waiting = calm ? all.filter((i) => !items.includes(i)) : [];
   const row = useRef<HTMLDivElement>(null);
   const widths = useRef(new Map<string, number>());

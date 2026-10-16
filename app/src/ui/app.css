@@ -1103,6 +1103,13 @@ body.pane-resizing iframe { pointer-events: none; }
   .keyboard-tools { flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .keyboard-tools .tools { flex-wrap: nowrap; order: 0; flex-basis: auto; }
   .keyboard-tools .tools button { min-width: 42px; height: 42px; }
+  /* The More menu above the keyboard opens upwards. */
+  .keyboard-bar .popover { top: auto; bottom: calc(100% + 8px); max-height: 60vh; overflow-y: auto; }
+  /* Above the keyboard the style button is just Aa. */
+  .keyboard-tools .style-current { min-width: 0; width: auto; border: none; background: none; padding: 0 8px; }
+  .keyboard-tools .style-current > span:first-child { font-size: 0; }
+  .keyboard-tools .style-current > span:first-child::before { content: 'Aa'; font: 500 19px var(--title-font, Georgia, serif); }
+  .keyboard-tools .style-current > span:last-child { display: none; }
   .kb-done { flex: 0 0 auto; height: 40px; padding: 0 12px; border: none; border-radius: 8px; background: var(--field); color: var(--accent-ink); font-weight: 700; cursor: pointer; }
   .note-scroll { padding-bottom: 64px; }
 }
@@ -2491,3 +2498,25 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .reader-stop { width: 36px; height: 36px; border: none; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 12px; cursor: pointer; }
 .reader-track { width: 140px; height: 4px; border-radius: 999px; background: color-mix(in srgb, currentColor 15%, transparent); overflow: hidden; }
 .reader-track > span { display: block; height: 100%; background: var(--accent); transition: width 0.3s ease; }
+
+/* ---- iPhone: the library as grouped lists, a book's chapters as cards, quick filters ---- */
+.quick-chips { display: none; }
+@media (max-width: 759px) {
+  .quick-chips { display: contents; }
+  .filter-chip.quick { background: var(--page); border: 1px solid var(--line); color: var(--text2); }
+  [data-look='crumpet'] .app.narrow .sidebar { gap: 16px; }
+  [data-look='crumpet'] .app.narrow .sidebar > .side-section { padding: 6px; border-radius: 12px; background: color-mix(in srgb, var(--page) 80%, transparent); }
+  [data-look='crumpet'] .app.narrow .sidebar :is(.side-row, .side-row .row-main) { min-height: 46px; font-size: 16px; }
+  [data-look='crumpet'] .app.narrow .sidebar .side-row.active { box-shadow: none; background: var(--accent-soft); }
+  [data-look='crumpet'] .app.narrow :is(.side-heading, .side-label) { padding-top: 6px; }
+  [data-look='crumpet'] .app.narrow .outline-items .outline-chapter { margin-bottom: 8px; border-radius: 12px; background: color-mix(in srgb, var(--page) 78%, transparent); }
+}
+
+/* ---- iPad held upright: the right sidebar slides up from the bottom as a sheet ---- */
+@media (min-width: 760px) and (max-width: 1099px) and (orientation: portrait) and (pointer: coarse) {
+  [data-look='crumpet'] .right-side { position: fixed; z-index: 40; left: 12px; right: 12px; bottom: 0; width: auto; height: 42vh; border: none; border-radius: 16px 16px 0 0; background: color-mix(in srgb, var(--page) 94%, transparent); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); box-shadow: 0 -8px 32px rgba(31, 35, 40, 0.12); }
+  [data-look='crumpet'] .right-side::before { content: ''; flex: none; width: 40px; height: 5px; margin: 8px auto 0; border-radius: 999px; background: var(--line2); }
+  [data-look='crumpet'] .frame > .resizer[aria-label='Right sidebar width'] { display: none; }
+  [data-look='crumpet'] .right-side .right-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  [data-look='crumpet'] .right-side .chapter-cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+}
