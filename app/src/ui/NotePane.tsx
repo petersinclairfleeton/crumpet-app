@@ -540,6 +540,56 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
       const last = made[made.length - 1];
       if (last) nav.openNote(last.id);
     });
+  // The calm look (design 6): three ways to start, each with its picture, and one line about ⌘K and the tour.
+  if (!store.getState().settings.toolbarAll)
+    return (
+      <div className="welcome calm">
+        {touring && <Tour onDone={() => setTouring(false)} />}
+        <h2>A clean page.</h2>
+        <p className="lede">Your notes stay on this device as plain files you own. Start however suits you.</p>
+        <ol>
+          <li>
+            <button type="button" onClick={onNewNote}>
+              <span className="welcome-icon" aria-hidden="true">
+                <IconPen size={18} />
+              </span>
+              <span>
+                <b>Write a note</b>
+                <small>Just start typing. File it later.</small>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button type="button" onClick={onNewProject}>
+              <span className="welcome-icon" aria-hidden="true">
+                <IconBook size={18} />
+              </span>
+              <span>
+                <b>Start a book</b>
+                <small>Chapters, an outline, characters and research.</small>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button type="button" onClick={bringIn}>
+              <span className="welcome-icon" aria-hidden="true">
+                <IconDownload size={18} />
+              </span>
+              <span>
+                <b>Bring in your writing</b>
+                <small>Word files, Markdown, or a folder.</small>
+              </span>
+            </button>
+          </li>
+        </ol>
+        <p className="welcome-keys">
+          Press <kbd>{isMac ? '⌘K' : 'Ctrl K'}</kbd> any time to find a note or a command.{' '}
+          <button type="button" className="link-btn" onClick={() => setTouring(true)}>
+            Take the two-minute tour
+          </button>
+        </p>
+      </div>
+    );
   return (
     <div className="welcome">
       {touring && <Tour onDone={() => setTouring(false)} />}

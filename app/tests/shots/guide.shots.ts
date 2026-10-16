@@ -140,6 +140,7 @@ test('the guide’s pictures', async ({ page }) => {
   // Keeping notes on every device.
   await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Settings…' }).click();
+  await page.getByRole('tab', { name: 'Sync and storage' }).click();
   await expect(page.getByRole('group', { name: /Where/ })).toBeVisible();
   await shot(page, 'sync');
 });

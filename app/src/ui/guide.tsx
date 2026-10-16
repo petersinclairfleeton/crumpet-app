@@ -68,7 +68,7 @@ const CHAPTERS: Chapter[] = [
     lede: 'Everything Word can do, without the clutter: it’s there when you need it.',
     points: [
       { title: 'Type / for anything', text: 'Headings, lists, checklists, tables, pictures, footnotes, maths and diagrams: type / at the start of a line and pick. Alt+= puts an equation in the line (LaTeX or UnicodeMath, with structures and symbols to pick). Chart draws your numbers (or a table’s, from its menu); Online video plays YouTube and Vimeo in the text; Screenshot puts in a picture of a window. Object shows a PDF inside the page; 3D model puts in a model to turn. Form control adds tick boxes, drop-down lists, dates and fill-in boxes; Table → Spreadsheet gives a table with A, B, C and sums. Draw opens a drawing in the text: pen, pencil, highlighter and eraser, with a finger, mouse or Apple Pencil. Macros records typing and formatting to play back with a key, and More → Customise the bar chooses its buttons. The Table button draws tables, makes them from text, or starts from a calendar or list; in a cell, =SUM(ABOVE) adds up the numbers above it.' },
-      { title: 'Format as you go', text: `Five everyday buttons sit at the top of the page (style, bold, italic, list and link; they fade while you type and come back when you move the mouse), and a note’s ··· menu can float them over selected text instead. Fold the sidebar away (the panel button at its top) for room to write: the sidebar becomes a slim strip, the list steps aside, the top of the page shows where the note is and its word count, and the tools float over the words you select (back arrow for the list, the strip’s foot for the sidebar). The ··· beside them opens a few more (font, colour and highlight, footnotes, tables, track changes), and All writing tools… shows everything else in groups, and in page view the groups are menus like Word’s: Format, Insert, Layout, References and Review. Settings → Appearance → Show every formatting tool puts them all on the bar; ${mod}D opens the Font window (small caps, underline styles, spacing, effects), and Multilevel list numbers an outline as Chapter 1, 1.1, 1.1.1 or a pattern of your own. Make styles of your own from the Styles tab in the right sidebar (it shows Outline, Review and Links, or In this chapter in a book; More ▾ has Styles, Pages, Check, Thesaurus and the rest), or dress the whole document with a theme (Themes, Theme colours, Theme fonts and Paragraph spacing, under More).` },
+      { title: 'Format as you go', text: `Five everyday buttons sit at the top of the page (style, bold, italic, list and link; they fade while you type and come back when you move the mouse), and a note’s ··· menu can float them over selected text instead. Fold the sidebar away (the panel button at its top) for room to write: the sidebar becomes a slim strip, the list steps aside, the top of the page shows where the note is and its word count, and the tools float over the words you select (back arrow for the list, the strip’s foot for the sidebar). The ··· beside them opens a few more (font, colour and highlight, footnotes, tables, track changes), and All writing tools… shows everything else in groups, and in page view the groups are menus like Word’s: Format, Insert, Layout, References and Review. Settings → Appearance → Show every formatting tool puts them all on the bar; ${mod}D opens the Font window (small caps, underline styles, spacing, effects), and Multilevel list numbers an outline as Chapter 1, 1.1, 1.1.1 or a pattern of your own. Make styles of your own from the Styles tab in the right sidebar (it shows Outline, Review and Links, or In this chapter, Notes and Comments beside a chapter; More has Styles, Pages, Check, Thesaurus and the rest), or dress the whole document with a theme (Themes, Theme colours, Theme fonts and Paragraph spacing, under More).` },
       { title: 'Put right as you type', text: `AutoCorrect curls quotes, makes dashes, fixes typos like “teh” and starts sentences with a capital (${mod}Z takes one back). Settings → Writing turns each off and keeps your own dictionary; characters’ names are never marked as misspelt.` },
       { title: 'Captions, references and an index', text: 'The References button numbers captions (Figure 1, Table 2), adds cross-references that keep up (“see Figure 3”), bookmarks, a table of figures, an index of words you mark, and fields such as page numbers and word counts; footnotes and endnotes; citations in APA, MLA or Chicago with a bibliography. The Search tab in the right sidebar looks things up on Wikipedia.' },
       { title: 'Snippets', text: 'Keep bits of text you use again (a sign-off, a heading block) with the Snippets button, then drop one in from its menu or type its name and press F3. Text from file pours a whole Word or Markdown document in at the caret.' },
@@ -103,7 +103,7 @@ const CHAPTERS: Chapter[] = [
     points: [
       { title: 'A card for everyone', text: 'Add characters and places to a project. Crumpet spots their names in your chapters; hover over one to see their card.' },
       { title: 'Research beside you', text: 'Keep notes, pictures and PDFs in a project’s Research (drag a note onto the project to add it), and open them next to the chapter you’re writing.' },
-      { title: 'Clip the web', text: 'The web clipper (Settings → Clipper & app) saves a web page, or the part you select, as a note in one click.' },
+      { title: 'Clip the web', text: 'The web clipper (Settings → Clipper and Mac app) saves a web page, or the part you select, as a note in one click.' },
       { title: 'See the connections', text: 'The Graph draws your notes and the links between them, so related ideas find each other. Rest the mouse on a dot to see its links and notebook; zoom with − Fit + in the corner.' },
     ],
     pictures: [
@@ -132,14 +132,14 @@ const CHAPTERS: Chapter[] = [
     title: 'Your notes, on every device',
     lede: 'Connect once, and your notes and books follow you, kept as files in your own Google Drive.',
     points: [
-      { title: 'Google Drive', text: 'Settings → Account & sync → Continue with Google, then choose a folder (or a new “Crumpet” one). Do the same on each device.' },
+      { title: 'Google Drive', text: 'Settings → Sync and storage → Continue with Google, then choose a folder (or a new “Crumpet” one). Do the same on each device.' },
       // Only when this copy of Crumpet offers accounts (docs/accounts-setup.md).
-      ...(accountsReady ? [{ title: 'An account, if you like', text: 'Sign in with Google or an email and password (Settings → Account & sync) to have your name on every device. It’s optional, and your notes never go to it.' }] : []),
-      { title: 'Mac, iPhone and iPad', text: 'Crumpet for Mac is a download in Settings → Clipper & app. On iPhone and iPad, open Crumpet in Safari and add it to the Home Screen.' },
+      ...(accountsReady ? [{ title: 'An account, if you like', text: 'Sign in with Google or an email and password (Settings → Account) to have your name on every device. It’s optional, and your notes never go to it.' }] : []),
+      { title: 'Mac, iPhone and iPad', text: 'Crumpet for Mac is a download in Settings → Clipper and Mac app. On iPhone and iPad, open Crumpet in Safari and add it to the Home Screen.' },
       { title: 'Or a folder', text: 'Prefer Dropbox, OneDrive or iCloud Drive? Choose “Use a folder on this computer” and pick a folder they keep in step.' },
       { title: 'Nothing is ever lost', text: 'Crumpet keeps everything on the device too, and works offline; when two devices change the same note, it merges them, or keeps both.' },
     ],
-    pictures: [pic('sync', 'Settings, Account and sync, with Continue with Google', 'Settings → Account & sync: Continue with Google.')],
+    pictures: [pic('sync', 'Settings, Sync and storage, with Continue with Google', 'Settings → Sync and storage: Continue with Google.')],
   },
 ];
 
@@ -184,7 +184,7 @@ const WORKFLOWS: Workflow[] = [
     lede: 'Gather, connect and find it again.',
     icon: <IconSearch size={20} />,
     steps: [
-      'Drag the web clipper to your bookmarks bar (Settings → Clipper & app) and clip pages as you read.',
+      'Drag the web clipper to your bookmarks bar (Settings → Clipper and Mac app) and clip pages as you read.',
       'Tag what you gather, for example research/lighthouses, and add PDFs and pictures: Crumpet reads the words in them too.',
       'Write your own notes and link them with [[ to the sources they came from.',
       `Open the Graph (Graph of links in the sidebar’s ⚙ menu, or ${mod}G) to see what connects, and search to find any line again in seconds.`,

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import type { Doc } from '@crumpet/editor/model';
 import { useAppState, useAppStore, useMedia, useSync, keep, remember } from './hooks';
 import { statusText } from './SyncSettings';
-import { SettingsDialog } from './Settings';
+import { SettingsDialog, type SettingsSection } from './Settings';
 import { canUseFolder } from '../sync/folder';
 import { openReminders } from '../data/reminders';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
@@ -51,13 +51,15 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const [footMenu, setFootMenu] = useState<null | 'menu' | 'templates'>(null);
   // A link ending in #connect opens straight to connecting Google Drive.
   const [settingsOpen, setSettingsOpen] = useState(() => typeof location !== 'undefined' && location.hash === '#connect');
+  // Where Settings opens: where the notes are kept, from the foot's status or a #connect link.
+  const [settingsAt, setSettingsAt] = useState<SettingsSection | undefined>(() => (typeof location !== 'undefined' && location.hash === '#connect' ? 'sync' : undefined));
   const { state: sync } = useSync();
   const [statsOpen, setStatsOpen] = useState(false);
   const [menuAt, setMenuAt] = useState<NoteMenuAt | null>(null);
   const todayWords = useTodayWords();
   const panes = usePanes();
   useEffect(() => {
-    const onHash = () => location.hash === '#connect' && setSettingsOpen(true);
+    const onHash = () => location.hash === '#connect' && (setSettingsAt('sync'), setSettingsOpen(true));
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -250,14 +252,16 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
     <SideRow icon={<IconBell size={calm ? 18 : 13} />} label="Reminders" count={openReminders(state.notes) || undefined} active={active({ kind: 'reminders' })} onClick={() => onOpenView({ kind: 'reminders' })} strong />
   );
   const fixSync = sync.config && ((sync.status?.phase === 'error' && sync.status.error?.kind !== 'offline') || !!sync.status?.unseen?.length) && (
-    <button type="button" className="link-btn foot-link" onClick={() => setSettingsOpen(true)}>
+    <button type="button" className="link-btn foot-link" onClick={() => (setSettingsAt('sync'), setSettingsOpen(true))}>
       Fix…
     </button>
   );
 
+  // A first visit (design 6): nothing to find yet, so just New note and All notes, and a word about the rest.
+  const fresh = !state.notes.length && !state.notebooks.length && !state.stacks.length && !state.projects.length && !sync.config;
   if (calm)
     return (
-      <nav className="sidebar calm" aria-label="Notebooks">
+      <nav className={`sidebar calm${fresh ? ' fresh' : ''}`} aria-label="Notebooks">
         <div className="side-top">
           <span className="brand">
             <span className="brand-mark" aria-hidden="true">
@@ -270,7 +274,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             <IconClose />
           </button>
         </div>
-        {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+        {settingsOpen && <SettingsDialog section={settingsAt} onClose={() => (setSettingsOpen(false), setSettingsAt(undefined))} />}
         {statsOpen && <StatsDialog onClose={() => setStatsOpen(false)} />}
         {menuAt && <NoteMenu at={menuAt} onClose={() => setMenuAt(null)} />}
 
@@ -279,7 +283,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             <IconPlus size={18} />
             New note
           </button>
-          <label className="side-search">
+          {!fresh && <label className="side-search">
             <IconSearch size={18} />
             <span className="visually-hidden">Search notes</span>
             <input
@@ -301,11 +305,18 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
                 {isMac ? '⌘K' : 'Ctrl K'}
               </button>
             )}
-          </label>
+          </label>}
         </div>
 
         <Bookmarks />
 
+        {fresh ? (
+          <section className="side-section" aria-label="Library">
+            <h2 className="side-label">Library</h2>
+            <SideRow icon={<IconNote size={18} />} label="All notes" active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
+          </section>
+        ) : (
+        <>
         <section className="side-section" aria-label="Capture">
           <h2 className="side-label">Capture</h2>
           <SideRow icon={<IconInbox size={18} />} label="Inbox" count={inboxCount || undefined} active={active({ kind: 'inbox' })} onClick={() => onOpenView({ kind: 'inbox' })} strong files={upload({ notebookId: null })} />
@@ -356,13 +367,15 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           )}
           {projectRows}
         </section>
+        </>
+        )}
 
         <div className="side-foot">
           {/* Where the notes are kept; clicking it opens Settings to keep them in Google Drive or a folder. */}
-          <button type="button" className="foot-status" title={sync.config ? 'Where your notes are kept' : 'Keep your notes in Google Drive or a folder'} onClick={() => setSettingsOpen(true)}>
+          {fresh ? <p className="side-hint">Notebooks, tags and projects appear here once you make them.</p> : <button type="button" className="foot-status" title={sync.config ? 'Where your notes are kept' : 'Keep your notes in Google Drive or a folder'} onClick={() => (setSettingsAt('sync'), setSettingsOpen(true))}>
             <IconCheck size={16} className="saved-tick" />
             <span aria-live="polite">{calmFootText(state.temporary, sync)}</span>
-          </button>
+          </button>}
           {fixSync}
           <SideMenu
             open={footMenu}
