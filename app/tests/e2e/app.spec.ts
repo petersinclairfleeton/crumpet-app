@@ -13,6 +13,8 @@ const list = (page: Page) => page.getByRole('region', { name: 'Notes', exact: tr
 async function open(page: Page) {
   await page.goto('/');
   await expect(list(page)).toBeVisible();
+  // These tests reach every formatting button, so they use the full bar (the calm one has its own test).
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
 }
 
 async function newNote(page: Page, title: string, body = '') {
@@ -5459,4 +5461,33 @@ test('in a book the sidebar steps back to its strip, and In this chapter lists w
   // Back in the notes, the sidebar is whole again.
   await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
   await expect(page.locator('nav.sidebar')).toBeVisible();
+});
+
+test('the calm bar: five buttons, the rest under More in groups, and page view’s menus', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: false, toolbar: 'always' }));
+  await newNote(page, 'Calm', 'Some words');
+  const bar = page.locator('.note-toolbar .tools.fit');
+  await expect(bar.getByRole('button', { name: 'Bold' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Italic' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Link' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Underline' })).toHaveCount(0);
+  await bar.getByRole('button', { name: 'More formatting' }).click();
+  const more = page.getByRole('dialog', { name: 'More formatting' });
+  for (const g of ['Text', 'Paragraph', 'Insert', 'Layout']) await expect(more.getByRole('group', { name: g })).toBeVisible();
+  await expect(more.getByRole('group', { name: 'Text' }).getByRole('button', { name: /Underline/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  // Settings → Look → Show every formatting tool puts them all back on the bar.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
+  await expect(bar.getByRole('button', { name: 'Underline' })).toBeVisible();
+  // In page view, the groups are menus of their own, as Word's tabs are.
+  await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: { updateSettings(p: object): void; updateLayout(p: object): void } }).crumpet;
+    c.updateSettings({ toolbarAll: false });
+    c.updateLayout({ list: false });
+  });
+  await page.getByRole('button', { name: 'Page view' }).click();
+  for (const m of ['Format ▾', 'Insert ▾', 'References ▾', 'Review ▾']) await expect(bar.getByRole('button', { name: m })).toBeVisible();
+  await bar.getByRole('button', { name: 'Layout ▾' }).click();
+  await expect(page.getByRole('dialog', { name: 'Layout tools' })).toBeVisible();
 });

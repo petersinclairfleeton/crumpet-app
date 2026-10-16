@@ -469,6 +469,12 @@ input, select { font: inherit; color: inherit; }
 .note-toolbar { transition: opacity 0.3s ease; }
 .note-pane.typing > .note-toolbar:not(:focus-within) { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .note-toolbar { transition: none; } }
+/* Settings → Look → Reduce motion. */
+[data-motion='reduce'] *, [data-motion='reduce'] ::before, [data-motion='reduce'] ::after { animation: none !important; transition: none !important; }
+/* The More menu's groups (Text, Paragraph, Insert…) and page view's menus. */
+.more-group + .more-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+.more-group > .menu-label { margin: 4px 8px 2px; }
+.tools .group-menu > button { width: auto; padding: 0 10px; font-weight: 500; font-size: 13px; }
 .linkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--list-bg); }
 .linkbar label { font-size: 12px; font-weight: 700; color: var(--text2); }
 .linkbar input { flex: 1 1 220px; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); font-size: 14px; }

@@ -43,6 +43,9 @@ export function applyTheme(settings: Settings): void {
     root.style.removeProperty('--paper');
     root.style.removeProperty('--paper-ink');
   }
+  // Less movement, when asked for in Settings.
+  if (settings.reduceMotion) root.setAttribute('data-motion', 'reduce');
+  else root.removeAttribute('data-motion');
   // The font notes are written in.
   const font = settings.noteFont;
   if (font?.source === 'google') loadGoogleFont(font.family, font.styles);

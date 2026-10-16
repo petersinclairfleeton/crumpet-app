@@ -203,7 +203,7 @@ export function chooseFiles(ed: Editor): void {
 }
 
 /** The formatting buttons, acting on whichever editor is given. */
-export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true, fit = false, page, onPage, chapters }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean; fit?: boolean; page?: PageSetup | null; onPage?(p: PageSetup): void; chapters?: boolean }) {
+export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true, fit = false, menus = false, page, onPage, chapters }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean; fit?: boolean; /** In page view: the groups as menus of their own, like Word's tabs. */ menus?: boolean; page?: PageSetup | null; onPage?(p: PageSetup): void; chapters?: boolean }) {
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
   const fontItems = useFontItems(ed, off, sheet);
@@ -293,7 +293,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   items.push(tool('customise', 0, 'Customise the bar…', 'Customise the formatting bar: choose its buttons', '⚙', openCustomise));
   return (
     <>
-      <OverflowRow items={customised(items, settings.toolbarCustom)} fit={fit} />
+      <OverflowRow items={customised(items, settings.toolbarCustom)} fit={fit} calm={!settings.toolbarAll && (!compact || !attach)} menus={menus} />
       {fit && <CustomiseHost items={items} />}
       {para.dialog}
       <DefineListHost ed={ed} />

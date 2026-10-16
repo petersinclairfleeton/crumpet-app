@@ -149,7 +149,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
     <div ref={paneRef} className={`note-pane ${styles}${reading ? ' reading' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
-        {!floating && !narrow && <FormatTools fit editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}
+        {!floating && !narrow && <FormatTools fit menus={paged} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}
         <span className="grow" />
         {!readOnly && !reading && <RevisionChip />}
         {!readOnly && !reading && <TrackToggle editor={ed} />}

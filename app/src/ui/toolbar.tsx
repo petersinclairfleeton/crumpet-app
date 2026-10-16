@@ -2,7 +2,7 @@
 // least-used controls move into a "More" menu at the end (as in Word when its
 // window is narrow). Each control has a priority; lower priorities go first.
 
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { type MouseEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Popover } from './Sidebar';
 
 export interface ToolItem {
@@ -19,17 +19,60 @@ export interface ToolItem {
   sep?: boolean;
 }
 
+/** The calm bar keeps these five on show; everything else waits under More, in groups. */
+export const CORE_TOOLS = new Set(['style', 'bold', 'italic', 'bullet', 'link']);
+export type ToolGroup = 'Text' | 'Paragraph' | 'Insert' | 'Layout' | 'References' | 'Review' | 'Tools';
+export const TOOL_GROUPS: ToolGroup[] = ['Text', 'Paragraph', 'Insert', 'Layout', 'References', 'Review', 'Tools'];
+const GROUP_KEYS: Record<ToolGroup, string[]> = {
+  Text: ['font', 'size', 'grow', 'shrink', 'fontdlg', 'color', 'highlight', 'case', 'effects', 'clear', 'underline', 'strike', 'code', 'sup', 'sub', 'dropcap', 'style', 'bold', 'italic'],
+  Paragraph: ['align', 'spacing', 'bullet', 'numbered', 'multilevel', 'todo', 'borders', 'shading', 'h', 'marks'],
+  Insert: ['link', 'table', 'symbol', 'date', 'chart', 'video', 'screenshot', 'object', 'model3d', 'equation', 'form', 'draw', 'shapes', 'textbox', 'icons', 'attach', 'snippets', 'signature', 'blankpage', 'cover', 'create'],
+  Layout: ['breaks', 'columns', 'orientation', 'linenumbers', 'hyphenation', 'pagesetup', 'pageborders', 'watermark', 'paper', 'gridlines', 'pageslayout', 'outlineview', 'newwindow', 'syncscroll', 'reader', 'pages', 'design', 'themes'],
+  References: ['references', 'toc', 'chapter', 'outline', 'links', 'search', 'thesaurus'],
+  Review: ['comment', 'comments', 'bright', 'protect', 'check', 'snapshots', 'writing'],
+  Tools: [],
+};
+/** Which group of the More menu a button belongs in. */
+export function toolGroup(key: string): ToolGroup {
+  return TOOL_GROUPS.find((g) => GROUP_KEYS[g].includes(key)) ?? 'Tools';
+}
+
 const CLOSE_MORE = 'crumpet:close-more';
 /** Closes the bar's More menu (a tool in it has done what it was asked). */
 export function closeMore(): void {
   window.dispatchEvent(new Event(CLOSE_MORE));
 }
 
-export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: boolean }) {
+/**
+ * `calm`: only the five everyday buttons (and any kept on the bar) show; the rest
+ * are under More, in groups. `menus`: those groups are menus of their own on the
+ * bar (Text ▾, Insert ▾, Layout ▾…), as Word's tabs are, for page view.
+ */
+export function OverflowRow({ items: all, fit = true, calm = false, menus = false }: { items: ToolItem[]; fit?: boolean; calm?: boolean; menus?: boolean }) {
+  const items = calm ? all.filter((i) => CORE_TOOLS.has(i.key) || i.pri >= 9) : all;
+  const waiting = calm ? all.filter((i) => !items.includes(i)) : [];
   const row = useRef<HTMLDivElement>(null);
   const widths = useRef(new Map<string, number>());
   const [hidden, setHidden] = useState<string[]>([]);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<string | false>(false);
+  // Page view's menus fold back into one More when the bar hasn't room for them all.
+  const [squeezed, setSqueezed] = useState(false);
+  const menusWidth = useRef(0);
+  useLayoutEffect(() => {
+    const el = row.current;
+    if (!el || !menus) return;
+    const check = () => {
+      if (!squeezed) {
+        const need = (Array.from(el.children) as HTMLElement[]).reduce((n, c) => n + c.offsetWidth + 2, 0);
+        menusWidth.current = need;
+        if (need > el.clientWidth + 1) setSqueezed(true);
+      } else if (menusWidth.current && el.clientWidth >= menusWidth.current) setSqueezed(false);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [menus, squeezed, all.length]);
   // Measured again when the buttons, or which stay longest (a button kept on the bar), change.
   const keys = items.map((i) => `${i.key}:${i.pri}`).join();
   const measureRef = useRef<() => void>(() => {});
@@ -80,8 +123,23 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
     return () => window.removeEventListener(CLOSE_MORE, close);
   }, []);
   // Floating over the text, the bar keeps to the most-used controls.
-  const shown = fit ? items.filter((i) => !hidden.includes(i.key)) : items.filter((i) => i.pri >= 2);
-  const extra = fit ? items.filter((i) => hidden.includes(i.key)) : [];
+  const shown = fit ? items.filter((i) => !hidden.includes(i.key)) : calm ? items : items.filter((i) => i.pri >= 2);
+  const extra = [...(fit ? items.filter((i) => hidden.includes(i.key)) : []), ...waiting];
+  // In page view the groups are fewer and broader, like Word's tabs: Format, Insert, Layout, References, Review.
+  const asMenus = menus && !squeezed;
+  const menuOf = (k: string): string => {
+    const g = toolGroup(k);
+    return !asMenus ? g : g === 'Text' || g === 'Paragraph' ? 'Format' : g === 'Tools' ? 'Review' : g;
+  };
+  const names = asMenus ? ['Format', 'Insert', 'Layout', 'References', 'Review'] : TOOL_GROUPS;
+  const grouped = calm ? names.map((g) => ({ g, list: extra.filter((i) => menuOf(i.key) === g) })).filter((x) => x.list.length) : [{ g: 'More', list: extra }];
+  const moreRow = (i: ToolItem) => (
+    <div key={i.key} className="more-row">
+      {i.menu ?? i.node}
+      {!i.menu && i.label && <span className="more-label">{i.label}</span>}
+    </div>
+  );
+  const closeOnPick = (e: MouseEvent) => (e.target as Element).closest('button.menu-item:not(.keep-open)') && setOpen(false);
   return (
     <div ref={row} className={`tools${fit ? ' fit' : ''}`} onMouseDown={(e) => !(e.target as Element).closest('input, select, textarea') && e.preventDefault()}>
       {shown.map((i, n) => (
@@ -90,25 +148,44 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
           {i.node}
         </span>
       ))}
-      {extra.length > 0 && (
-        <span className="tool more-tools">
-          <button type="button" aria-label="More formatting" aria-expanded={open} data-tip="More" onClick={() => setOpen(!open)}>
-            More ▾
-          </button>
-          {open && (
-            <Popover label="More formatting" onClose={() => setOpen(false)}>
-              <div className="more-menu" onClick={(e) => (e.target as Element).closest('button.menu-item:not(.keep-open)') && setOpen(false)}>
-                {extra.map((i) => (
-                  <div key={i.key} className="more-row">
-                    {i.menu ?? i.node}
-                    {!i.menu && i.label && <span className="more-label">{i.label}</span>}
+      {extra.length > 0 && asMenus && calm
+        ? grouped.map(({ g, list }) => (
+            <span key={g} className="tool more-tools group-menu">
+              <button type="button" aria-expanded={open === g} onClick={() => setOpen(open === g ? false : g)}>
+                {g} ▾
+              </button>
+              {open === g && (
+                <Popover label={`${g} tools`} onClose={() => setOpen(false)}>
+                  <div className="more-menu" onClick={closeOnPick}>
+                    {list.map(moreRow)}
                   </div>
-                ))}
-              </div>
-            </Popover>
+                </Popover>
+              )}
+            </span>
+          ))
+        : extra.length > 0 && (
+            <span className="tool more-tools">
+              <button type="button" aria-label="More formatting" aria-expanded={open === 'more'} data-tip="More" onClick={() => setOpen(open === 'more' ? false : 'more')}>
+                More ▾
+              </button>
+              {open === 'more' && (
+                <Popover label="More formatting" onClose={() => setOpen(false)}>
+                  <div className="more-menu" onClick={closeOnPick}>
+                    {grouped.map(({ g, list }) =>
+                      calm ? (
+                        <div key={g} className="more-group" role="group" aria-label={g}>
+                          <p className="menu-label">{g}</p>
+                          {list.map(moreRow)}
+                        </div>
+                      ) : (
+                        list.map(moreRow)
+                      ),
+                    )}
+                  </div>
+                </Popover>
+              )}
+            </span>
           )}
-        </span>
-      )}
     </div>
   );
 }
