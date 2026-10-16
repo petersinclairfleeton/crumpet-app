@@ -236,6 +236,8 @@ export function TrackToggle({ editor = null }: { editor?: Editor | null }) {
 
 function TrackToggleMine({ editor, menu, setMenu, state, store }: { editor: Editor | null; menu: boolean; setMenu(v: boolean): void; state: ReturnType<typeof useAppState>; store: ReturnType<typeof useAppStore> }) {
   const on = !!state.settings.trackChanges;
+  // The calm bar keeps it under More until it's on.
+  if (!on && !state.settings.toolbarAll) return null;
   return (
     <span className="track-wrap">
     <button type="button" className={`track-toggle${on ? ' on' : ''}`} aria-pressed={on} data-tip={on ? 'Tracking changes: click to stop' : 'Track changes: mark what’s added and deleted'} onClick={() => store.updateSettings({ trackChanges: !on })}>

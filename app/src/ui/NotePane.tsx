@@ -18,7 +18,7 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
-import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { BoardView } from './board';
 import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
@@ -42,6 +42,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const editorRef = useRef<Editor | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const [menu, setMenu] = useState(false);
+  const [remind, setRemind] = useState(0);
   const [addingTag, setAddingTag] = useState(false);
   const [reading, setReading] = useState(false);
   const [stylesOpen, setStylesOpen] = useState<string | boolean>(false);
@@ -111,9 +112,12 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   ) : null;
 
   const togglePage = () => store.updateSettings({ pageView: { ...state.settings.pageView, notes: !paged } });
+  // The calm look keeps the corner to the star and the menu: the views wait in the menu.
+  const calm = !state.settings.toolbarAll;
+  const viewsInMenu = narrow || calm;
   const trail = trashed ? null : (
     <div className="note-actions">
-      {!narrow && (
+      {!viewsInMenu && (
         <>
           <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" data-tip={`Focus mode · ${isMac ? '⌘⇧F' : 'Ctrl+Shift+F'}`} onClick={() => store.setFocusMode(true)}>
             <IconFocus size={16} />
@@ -124,12 +128,12 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           </button>
         </>
       )}
-      {narrow && reading && (
+      {viewsInMenu && reading && (
         <button type="button" className="icon-btn read-toggle on" aria-pressed="true" aria-label="Back to editing" onClick={() => setReading(false)}>
           <IconPen size={16} />
         </button>
       )}
-      {!note.projectId && <ReminderButton note={note} />}
+      {!note.projectId && <ReminderButton note={note} quiet={calm} ask={remind} />}
       <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} data-tip={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} onClick={() => store.toggleFavorite(note.id)}>
         {note.favorite ? <IconStarFilled size={16} /> : <IconStar size={16} />}
       </button>
@@ -138,7 +142,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
       </button>
       {menu && (
         <Popover onClose={() => setMenu(false)} label="Note options">
-          {narrow && (
+          {viewsInMenu && (
             <>
               <p className="menu-label">View</p>
               <button type="button" className="menu-item" onClick={() => (setMenu(false), setReading(!reading))}>
@@ -173,6 +177,11 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           >
             <IconPicture size={14} /> Add a picture or file…
           </button>
+          {calm && !note.projectId && !note.reminder && (
+            <button type="button" className="menu-item" onClick={() => (setMenu(false), setRemind((n) => n + 1))}>
+              <IconBell size={14} /> Add a reminder…
+            </button>
+          )}
           <button
             type="button"
             className="menu-item"

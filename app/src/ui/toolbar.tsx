@@ -21,6 +21,8 @@ export interface ToolItem {
 
 /** The calm bar keeps these five on show; everything else waits under More, in groups. */
 export const CORE_TOOLS = new Set(['style', 'bold', 'italic', 'bullet', 'link']);
+/** The calm More menu opens on these few; "All writing tools…" shows the rest, in groups. */
+export const QUICK_TOOLS = ['fontdlg', 'color', 'highlight', 'clear', 'references', 'table', 'attach', 'comment', 'track'];
 /** Above a phone's keyboard: style, checklist, bullets and a picture; the rest under More. */
 export const PHONE_TOOLS = new Set(['style', 'todo', 'bullet', 'attach']);
 export type ToolGroup = 'Text' | 'Paragraph' | 'Insert' | 'Layout' | 'References' | 'Review' | 'Tools';
@@ -57,6 +59,8 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
   const widths = useRef(new Map<string, number>());
   const [hidden, setHidden] = useState<string[]>([]);
   const [open, setOpen] = useState<string | false>(false);
+  // The calm More menu: a few everyday tools until "All writing tools…" is asked for.
+  const [everything, setEverything] = useState(false);
   // Page view's menus fold back into one More when the bar hasn't room for them all.
   const [squeezed, setSqueezed] = useState(false);
   const menusWidth = useRef(0);
@@ -141,6 +145,7 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
       {!i.menu && i.label && <span className="more-label">{i.label}</span>}
     </div>
   );
+  const quick = calm && !asMenus && !everything ? QUICK_TOOLS.map((k) => extra.find((i) => i.key === k)).filter((i): i is ToolItem => !!i) : [];
   const closeOnPick = (e: MouseEvent) => (e.target as Element).closest('button.menu-item:not(.keep-open)') && setOpen(false);
   return (
     <div ref={row} className={`tools${fit ? ' fit' : ''}`} onMouseDown={(e) => !(e.target as Element).closest('input, select, textarea') && e.preventDefault()}>
@@ -167,13 +172,21 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
           ))
         : extra.length > 0 && (
             <span className="tool more-tools">
-              <button type="button" aria-label="More formatting" aria-expanded={open === 'more'} data-tip="More" onClick={() => setOpen(open === 'more' ? false : 'more')}>
+              <button type="button" aria-label="More formatting" aria-expanded={open === 'more'} data-tip="More" onClick={() => (setEverything(false), setOpen(open === 'more' ? false : 'more'))}>
                 More ▾
               </button>
               {open === 'more' && (
                 <Popover label="More formatting" onClose={() => setOpen(false)}>
-                  <div className="more-menu" onClick={closeOnPick}>
-                    {grouped.map(({ g, list }) =>
+                  <div className={`more-menu${quick.length ? ' quick' : ''}`} onClick={closeOnPick}>
+                    {quick.length > 0 && (
+                      <>
+                        {quick.map(moreRow)}
+                        <button type="button" className="menu-item keep-open all-tools" onClick={() => setEverything(true)}>
+                          All writing tools…
+                        </button>
+                      </>
+                    )}
+                    {!quick.length && grouped.map(({ g, list }) =>
                       calm ? (
                         <div key={g} className="more-group" role="group" aria-label={g}>
                           <p className="menu-label">{g}</p>
