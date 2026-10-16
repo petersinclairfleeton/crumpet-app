@@ -360,8 +360,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   - `public/`: icons, logos (`brand/`), the offline service worker (`sw.js`),
     privacy and terms pages.
   - Looks: `ui/theme.ts` sets `data-theme` and `data-look` on the page: Crumpet's
-    own themes (`system`, `light`, `dark`) get `data-look='crumpet'` (the frosted
-    window over a wash, Onest), `paper` gets `data-look='paper'` (Paper and ink);
+    own themes (`system`, `light`, `dark`) get `data-look='crumpet'` (Quiet Paper: the
+    frosted window over a wash, warm paper sheets, Onest for the interface and
+    Newsreader for titles, honey once per screen, corners only 8px/12px/round),
+    `paper` gets `data-look='paper'` (Paper and ink);
     the rest keep the classic frame. The paper colour (`settings.paper`,
     `data/paper.ts`, `ui/paper.tsx`) sets `--paper`/`--paper-ink` and
     `data-paper` on the page. Tokens and look rules are in `app.css`;
