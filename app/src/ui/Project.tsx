@@ -613,6 +613,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
           }
         }}
       />
+      <span className="chapter-rule" aria-hidden="true" />
       <div className="note-meta chapter-meta">
         <label className={`status-pick ${chapter.status}`}>
           <span className={`status-dot ${chapter.status}`} aria-hidden="true" />
@@ -979,6 +980,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
       <ChangesBar doc={chapter.doc} editor={editor} />
       <p className="chapter-kicker">Chapter {number}</p>
       <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
+      <span className="chapter-rule" aria-hidden="true" />
       <PageView
         enabled={!!page}
         editor={editor}

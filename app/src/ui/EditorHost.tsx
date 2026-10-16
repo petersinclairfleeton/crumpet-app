@@ -114,6 +114,24 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
   const scrollBox = useRef<HTMLDivElement>(null);
   const statusEditors = useMemo(() => (ed ? [ed] : []), [ed]);
   useTypewriter(readOnly || reading ? null : ed);
+  // While typing, the bar above the note fades away; moving the pointer brings it back.
+  useEffect(() => {
+    const pane = paneRef.current;
+    const el = host.current;
+    // Only with a mouse or trackpad: on a touch screen nothing would bring it back.
+    if (!pane || !el || readOnly || reading || !window.matchMedia?.('(pointer: fine)').matches) return;
+    const typing = (e: KeyboardEvent) => {
+      if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) pane.classList.add('typing');
+    };
+    const awake = () => pane.classList.remove('typing');
+    el.addEventListener('keydown', typing);
+    window.addEventListener('pointermove', awake);
+    return () => {
+      el.removeEventListener('keydown', typing);
+      window.removeEventListener('pointermove', awake);
+      awake();
+    };
+  }, [readOnly, reading]);
 
   // Links to notes that don't exist (yet) look different; clicking one makes the note.
   useEffect(() => {

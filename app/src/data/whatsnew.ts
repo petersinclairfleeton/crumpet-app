@@ -18,6 +18,8 @@ export const WHATS_NEW: WhatsNew[] = [
       'The note you’re on is lifted onto paper with a small honey dot, instead of a ring round it.',
       'New note is the one honey button, so it’s easy to find.',
       'A tidier sidebar: Library, Projects and Notebooks; Recent notes, Writing stats and the Graph fold away under Explore.',
+      'While you type, the bar above the note fades away; move the mouse and it’s back.',
+      'Chapters open like a book’s: a honey “Chapter 1” above the title and a short line under it.',
       'Corners, colours and shadows match all through the app, in light and dark.',
     ],
   },
