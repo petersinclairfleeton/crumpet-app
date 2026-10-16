@@ -7,7 +7,7 @@ import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useNav } from './hooks';
-import { viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
+import { recentNotes, viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
 import { chooseFiles, isMac } from './editing';
@@ -22,7 +22,7 @@ import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDown
 import { BoardView } from './board';
 import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
-import { isBoard } from '../data/board';
+import { boardOf, isBoard } from '../data/board';
 import { InlineInput, Popover } from './Sidebar';
 import { ShowButton } from './fold';
 import { tagColour } from '../data/selectors';
@@ -310,6 +310,13 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
     </div>
   );
 
+  // Back from a board with the window to itself: the note you were on before it, or your notes.
+  const leaveBoard = () => {
+    const before = recentNotes(state.notes, 6).find((n) => n.id !== note.id && !isBoard(n));
+    if (before) nav.openNote(before.id);
+    else store.select(null);
+  };
+
   const nbSelect = (
     <select value={note.notebookId ?? ''} disabled={trashed} onChange={(e) => store.moveNote(note.id, e.target.value || null)}>
       <option value="">No notebook (Inbox)</option>
@@ -469,6 +476,21 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         </div>
         <LockedNote key={note.id} id={note.id} title={note.title} doc={note.doc} />
       </section>
+    ) : isBoard(note) && calm && !narrow ? (
+      // The calm look (design 20): the board has the window, its name on a small floating card.
+      <section className="pane board-pane calm" aria-label="Board">
+        <div className="board-float" role="toolbar" aria-label="Board options">
+          <button type="button" className="icon-btn" aria-label="Back to your notes" title="Back to your notes" onClick={leaveBoard}>
+            <IconBack size={18} />
+          </button>
+          <input className="board-title" aria-label="Title" placeholder="Untitled board" value={note.title} onChange={(e) => store.setTitle(note.id, e.target.value)} />
+          <span className="board-count">
+            Board · {boardOf(note).nodes.length} card{boardOf(note).nodes.length === 1 ? '' : 's'}
+          </span>
+          {trail}
+        </div>
+        <BoardView key={note.id} note={note} />
+      </section>
     ) : isBoard(note) ? (
       <section className="pane board-pane" aria-label="Board">
         <div className="note-toolbar" role="toolbar" aria-label="Board options">
@@ -516,10 +538,10 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         onDoc={(doc) => (locked ? opened.save(doc) : store.setDoc(note.id, doc))}
         readOnly={trashed || reading}
         reading={reading && !trashed}
-        lead={lead}
+        lead={calm && paged && !narrow ? <span className="paged-title">{displayTitle(note)}</span> : lead}
         trail={trail}
         floatTools={room}
-        header={header}
+        header={calm && paged && !narrow && !trashed ? null : header}
         footer={footer}
         onEditor={(ed) => {
           editorRef.current = ed;

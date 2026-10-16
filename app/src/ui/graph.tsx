@@ -18,6 +18,8 @@ export function GraphView() {
   const [local, setLocal] = useState(0);
   const [filter, setFilter] = useState('');
   const centre = local ? state.selectedId : null;
+  // The calm look (design 19): hollow rings named beside them, the open note a honey dot with its links in honey.
+  const calm = !state.settings.toolbarAll;
   const graph = useMemo<Graph>(() => buildGraph(state.notes, { orphans, around: centre, depth: local }), [state.notes, orphans, centre, local]);
   const colors = useMemo(() => new Map(state.notebooks.map((n) => [n.id, n.color])), [state.notebooks]);
   const view = useRef({ x: 0, y: 0, k: 1 });
@@ -78,6 +80,7 @@ export function GraphView() {
       const text = css(el, '--text', '#333');
       const muted = css(el, '--muted', '#999');
       const accent = css(el, '--accent', '#d4a257');
+      const paper = css(el, '--page', '#fffdf8');
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.clearRect(0, 0, w, h);
       g.translate(w / 2 + v.x, h / 2 + v.y);
@@ -89,13 +92,42 @@ export function GraphView() {
       for (const e of graph.edges) {
         const a = graph.nodes[e.a];
         const b = graph.nodes[e.b];
-        const on = hov !== null && (e.a === hov || e.b === hov);
+        const sel = calm && hov === null && (graph.nodes[e.a].id === state.selectedId || graph.nodes[e.b].id === state.selectedId);
+        const on = sel || (hov !== null && (e.a === hov || e.b === hov));
         g.strokeStyle = on ? accent : muted;
         g.globalAlpha = hov !== null && !on ? 0.12 : on ? 0.9 : 0.35;
+        if (sel) g.lineWidth = 1.6 / v.k;
         g.beginPath();
         g.moveTo(a.x, a.y);
         g.lineTo(b.x, b.y);
         g.stroke();
+        g.lineWidth = 1 / v.k;
+      }
+      if (calm) {
+        g.font = `13px Onest, system-ui, sans-serif`;
+        for (const [i, p] of graph.nodes.entries()) {
+          const hub = p.id === state.selectedId;
+          const r = hub ? 9 : 6;
+          const dim = (hov !== null && i !== hov && !near.has(i)) || !lit(p.title);
+          g.globalAlpha = dim ? 0.25 : 1;
+          g.beginPath();
+          g.arc(p.x, p.y, r, 0, Math.PI * 2);
+          g.fillStyle = hub || i === hov ? accent : paper;
+          g.fill();
+          g.lineWidth = 1.5 / v.k;
+          g.strokeStyle = hub || i === hov ? accent : muted;
+          g.stroke();
+          g.lineWidth = 1 / v.k;
+          g.fillStyle = text;
+          g.font = `${(hub ? 15 : 13) / Math.max(v.k, 0.6)}px Onest, system-ui, sans-serif`;
+          g.textAlign = 'left';
+          g.textBaseline = 'middle';
+          g.fillText(p.title.length > 40 ? `${p.title.slice(0, 39)}…` : p.title, p.x + r + 8 / Math.max(v.k, 0.6), p.y);
+        }
+        g.globalAlpha = 1;
+        g.textBaseline = 'alphabetic';
+        frame = requestAnimationFrame(draw);
+        return;
       }
       for (const [i, p] of graph.nodes.entries()) {
         const r = 4 + Math.min(10, Math.sqrt(p.degree) * 2.2);
@@ -124,7 +156,7 @@ export function GraphView() {
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [graph, colors, filter, state.selectedId]);
+  }, [graph, colors, filter, state.selectedId, calm]);
 
   /** The dot under a point of the canvas, if any. */
   const hit = (cx: number, cy: number): number | null => {
@@ -150,8 +182,31 @@ export function GraphView() {
   };
 
   return (
-    <section className="graph-view" aria-label="Graph">
-      <div className="graph-tools">
+    <section className={`graph-view${calm ? ' calm' : ''}`} aria-label="Graph">
+      {calm && (
+        <div className="graph-head">
+          <h1>Graph</h1>
+          <div className="graph-chips" role="group" aria-label="Which notes">
+            {(
+              [
+                [0, 'All notes'],
+                [1, 'Near the open note'],
+                [2, 'Two links away'],
+              ] as const
+            ).map(([n, label]) => (
+              <button key={n} type="button" className="graph-chip" aria-pressed={local === n} onClick={() => setLocal(n)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <span className="grow" />
+          <input type="search" className="graph-find" placeholder="Find" aria-label="Find in the graph" value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <label className="check-row">
+            <input type="checkbox" checked={orphans} onChange={(e) => setOrphans(e.target.checked)} /> Notes without links
+          </label>
+        </div>
+      )}
+      {!calm && <div className="graph-tools">
         <input type="search" placeholder="Find in the graph" aria-label="Find in the graph" value={filter} onChange={(e) => setFilter(e.target.value)} />
         <label>
           <select aria-label="Which notes" value={local} onChange={(e) => setLocal(Number(e.target.value))}>
@@ -166,7 +221,7 @@ export function GraphView() {
         <span className="graph-count">
           {graph.nodes.length} note{graph.nodes.length === 1 ? '' : 's'} · {graph.edges.length} link{graph.edges.length === 1 ? '' : 's'}
         </span>
-      </div>
+      </div>}
       <canvas
         ref={canvas}
         className="graph-canvas"

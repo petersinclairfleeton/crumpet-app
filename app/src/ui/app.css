@@ -2995,3 +2995,26 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .welcome.calm .welcome-keys .link-btn { font-weight: 500; }
 .welcome.calm li > :is(a, button)::after { content: none !important; }
 .settings-dialog.calm .settings > :first-child { border-top: none; padding-top: 0; margin-top: 0; }
+
+/* ---- Quiet Paper: the whole window (designs 19, 20 and 22) ---- */
+.graph-view.calm .graph-head { display: flex; align-items: center; gap: 16px; padding: 20px 24px 0; }
+[data-look='crumpet'] .graph-head h1 { margin: 0; font: 500 28px/1.2 var(--title-font); letter-spacing: -0.01em; }
+.graph-chips { display: flex; gap: 6px; }
+.graph-chip { height: 28px; padding: 0 12px; border: none; border-radius: 999px; background: var(--calm-chip); font: 400 13px var(--ui-font); color: var(--calm-chip-ink); cursor: pointer; }
+.graph-chip[aria-pressed='true'] { background: var(--text); color: var(--page); }
+.graph-find { width: 140px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; font: inherit; font-size: 13px; color: var(--text); }
+.graph-view.calm .graph-head .check-row { font-size: 13px; color: var(--muted); }
+[data-look='crumpet'] .app.calm .board-pane.calm { position: relative; }
+.board-pane.calm .board-float { position: absolute; z-index: 5; left: 24px; top: 24px; display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 8px 0 4px; border-radius: 12px; background: var(--calm-card); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06), 0 8px 24px rgba(31, 35, 40, 0.08); }
+.board-pane.calm .board-title { width: 12ch; border: none; outline: none; background: transparent; font: 500 22px var(--title-font); color: var(--text); field-sizing: content; min-width: 4ch; }
+.board-pane.calm .board-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.board-pane.calm .board-float .note-actions { margin-left: 4px; }
+.board-pane.calm .board-tools { position: absolute; z-index: 5; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 4px; border-radius: 12px; background: var(--calm-card); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06), 0 8px 24px rgba(31, 35, 40, 0.1); border: none; }
+.board-pane.calm .board { height: 100%; }
+.paged-title { margin-right: 12px; font: 500 20px var(--title-font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 24ch; }
+.app.calm .status-bar .zoom input[type='range'] { display: none; }
+.app.calm .status-bar .zoom .zoom-level { min-width: 44px; }
+.reader-heading { margin-bottom: 40px; }
+.reader-heading p { margin: 0 0 8px; font: 500 13px var(--ui-font); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-ink); }
+.reader-heading h1 { margin: 0; font: 400 46px/1.15 var(--title-font); letter-spacing: -0.01em; }
+[data-look='crumpet'] .app.calm .graph-view { border-radius: 12px; box-shadow: var(--calm-sheet-shadow); overflow: hidden; }

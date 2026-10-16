@@ -3,6 +3,7 @@
 // picture of the first page. The project itself isn't changed.
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Project } from '../data/types';
 import type { AppState } from '../data/store';
 import { useAppStore } from './hooks';
@@ -66,7 +67,8 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
     onClose();
   };
 
-  return (
+  // At the top of the page: a frosted panel around the button that opened it would hold it inside.
+  return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog export-book" role="dialog" aria-modal="true" aria-label={`Export ${project.name}`}>
         <div className="export-main">
@@ -136,6 +138,7 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
           <small>Page 1</small>
         </aside>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

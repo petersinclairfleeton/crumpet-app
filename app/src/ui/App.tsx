@@ -14,6 +14,8 @@ import { TopBar } from './TopBar';
 import { LIST, RIGHT, Resizer, SIDEBAR, SidebarRail, TabBar } from './layout';
 import { type Peek, PeekContext } from './fold';
 import { PaneArea, PanesContext, usePanesState } from './panes';
+import { activeTab, groups } from '../data/panes';
+import { isBoard } from '../data/board';
 import { RightSidebar } from './rightside';
 import { Finder, onOpenFinder } from './finder';
 import { currentHelped } from './helpers';
@@ -314,10 +316,17 @@ export function App() {
   const pagedNote = !narrow && !state.settings.toolbarAll && !!state.settings.pageView?.notes && state.view.kind !== 'project' && !!state.selectedId;
   // The calm look in a book: the book's outline is the sidebar (its strip only while the outline is folded away).
   const calmBook = !narrow && !state.settings.toolbarAll && state.view.kind === 'project' && !state.query.trim();
-  const sidebarMode = calmBook ? (layout.list === false ? 'icons' : 'none') : chosenSidebar === 'full' && !narrow && ((state.view.kind === 'project' && layout.bookSidebar !== 'full') || pagedNote) ? 'icons' : chosenSidebar;
+  // The calm look gives some things the whole window (designs 19, 20 and 22): the graph keeps only the
+  // slim strip; a board and a note in page view have it all (their own back buttons return).
+  const single = groups(panes.ws).length === 1;
+  const tabNow = activeTab(panes.ws);
+  const noteNow = tabNow?.kind === 'note' ? state.notes.find((n) => n.id === tabNow.id) : undefined;
+  const calmWide = !narrow && !state.settings.toolbarAll && single && !state.focusMode;
+  const whole = !calmWide ? null : tabNow?.kind === 'graph' ? 'graph' : noteNow && isBoard(noteNow) ? 'board' : pagedNote ? 'page' : null;
+  const sidebarMode = whole === 'graph' ? 'icons' : whole ? 'none' : calmBook ? (layout.list === false ? 'icons' : 'none') : chosenSidebar === 'full' && !narrow && ((state.view.kind === 'project' && layout.bookSidebar !== 'full') || pagedNote) ? 'icons' : chosenSidebar;
   // Before the first note there's nothing to list: the welcome has the room.
   const noNotesYet = !narrow && !state.settings.toolbarAll && state.notes.length === 0 && state.view.kind === 'all' && !state.query;
-  const showList = layout.list !== false && !pagedNote && !noNotesYet;
+  const showList = layout.list !== false && !pagedNote && !noNotesYet && !whole;
   const showRight = !!layout.right && !state.focusMode;
   const rightW = layout.rightWidth ?? RIGHT.normal;
   const sideW = layout.sidebarWidth ?? SIDEBAR.normal;
@@ -412,7 +421,7 @@ export function App() {
         <div className="workspace">
           <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} calm={calm} />
           <div className="panes">
-            {peekable && !showList && sidebarMode !== 'hidden' && <div className="peek-edge" aria-hidden="true" onMouseEnter={() => peekCtl.open('list')} onMouseLeave={peekCtl.leave} />}
+            {peekable && !showList && !whole && sidebarMode !== 'hidden' && <div className="peek-edge" aria-hidden="true" onMouseEnter={() => peekCtl.open('list')} onMouseLeave={peekCtl.leave} />}
             {peekable && !showList && peek === 'list' && (
               <div className="peek-panel list-peek" onMouseEnter={peekCtl.stay} onMouseLeave={peekCtl.leave}>
                 {project ? <ProjectOutline project={project} onOpenChapter={openChapter} /> : <NoteList onOpenNote={openNote} onNewNote={newNote} onOpenView={openView} />}

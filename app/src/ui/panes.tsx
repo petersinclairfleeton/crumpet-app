@@ -393,7 +393,8 @@ function GroupView({ group, only = false, narrow, onBack, onNewNote, onNewProjec
     </div>
   );
   // The calm look shows tabs only once there's more than one: a single note is just its page.
-  const solo = !state.settings.toolbarAll && !narrow && !many && group.tabs.length <= 1 && !dragging;
+  // (Nor while the graph has the window, design 19: the strip beside it leaves it.)
+  const solo = !state.settings.toolbarAll && !narrow && !many && (group.tabs.length <= 1 || tab?.kind === 'graph') && !dragging;
   if (only || solo) return <section className="pane-group active only">{body}</section>;
 
   return (

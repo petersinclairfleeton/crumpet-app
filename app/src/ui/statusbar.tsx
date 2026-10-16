@@ -18,6 +18,8 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
   const store = useAppStore();
   const [, setTick] = useState(0);
   const [headings, setHeadings] = useState(false);
+  // The calm look (design 22): one page or two side by side, and the zoom as − 90% +; headings are in Go To and the outline.
+  const calm = !settings.toolbarAll;
 
   useEffect(() => {
     const again = () => setTick((t) => t + 1);
@@ -82,9 +84,9 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
       </span>
       <span className="grow" />
       <span className="status-drop">
-        <button type="button" className="status-btn" aria-expanded={headings} onClick={() => setHeadings(!headings)}>
+        {!calm && <button type="button" className="status-btn" aria-expanded={headings} onClick={() => setHeadings(!headings)}>
           Headings
-        </button>
+        </button>}
         {headings && (
           <Popover label="Headings" onClose={() => setHeadings(false)}>
             <div className="headings-list">
@@ -101,6 +103,16 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
       <button type="button" className="status-btn" aria-pressed={!!settings.ruler} onClick={() => store.updateSettings({ ruler: !settings.ruler })}>
         Ruler
       </button>
+      {calm && (
+        <>
+          <button type="button" className="status-btn" aria-pressed={(settings.pageLayout ?? 'one') === 'one'} onClick={() => store.updateSettings({ pageLayout: 'one' })}>
+            One page
+          </button>
+          <button type="button" className="status-btn" aria-pressed={settings.pageLayout === 'multi' && (settings.pagesPerRow ?? 2) === 2} onClick={() => store.updateSettings({ pageLayout: 'multi', pagesPerRow: 2 })}>
+            Two pages
+          </button>
+        </>
+      )}
       <span className="zoom" role="group" aria-label="Zoom">
         <button type="button" className="status-btn" aria-label="Zoom out" onClick={() => step(-1)}>
           −
