@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
 import type { ListLevel } from '@crumpet/editor/commands';
 import { BULLETS, type BulletKind, type NumFormat, type ParaLook, makeBlock, listLabels, tidyBorder } from '@crumpet/editor/model';
-import { IconClose } from './icons';
+import { IconBullets, IconClose } from './icons';
 import { Popover } from './Sidebar';
 import type { ToolItem } from './toolbar';
 
@@ -53,7 +53,7 @@ function ListTool({ ed, off, kind }: { ed: Editor | null; off: boolean; kind: 'b
   return (
     <span className="tool-drop split-tool">
       <button type="button" className={active ? 'active' : ''} aria-label={label} aria-pressed={active} title={label} disabled={off} onClick={() => ed?.setBlockType(kind)}>
-        {kind === 'bullet' ? '•≡' : '1≡'}
+        {kind === 'bullet' ? <IconBullets size={18} /> : '1≡'}
       </button>
       <button type="button" className="split-caret" aria-label={kind === 'bullet' ? 'Bullet styles' : 'Numbering styles'} aria-expanded={open} title={kind === 'bullet' ? 'Bullet styles' : 'Numbering styles'} disabled={off} onClick={() => setOpen(!open)}>
         ▾

@@ -44,7 +44,7 @@ const CHAPTERS: Chapter[] = [
       { title: 'Books, start to finish', text: 'Chapters and parts, an outline, index cards, characters and places, then a manuscript ready for Word, PDF or e-book.' },
       { title: 'Your words stay yours', text: 'Notes are plain text files (Markdown) in your own Google Drive or a folder you choose, readable by any app, for good.' },
     ],
-    pictures: [pic('notes', 'Crumpet with notebooks on the left, a list of notes, and a note open on the right', 'Notebooks on the left, your notes in the middle, the one you’re writing on the right.')],
+    pictures: [pic('notes', 'Crumpet with the sidebar on the left, a list of notes, and a note open on the right', 'The sidebar on the left, your notes in the middle, the one you’re writing on the right.')],
   },
   {
     id: 'notes',
@@ -52,11 +52,11 @@ const CHAPTERS: Chapter[] = [
     title: 'Notes, notebooks and tags',
     lede: 'Start writing straight away; organise later, in whichever way suits you.',
     points: [
-      { title: 'A new note', text: `Click New Note, or press N anywhere. The first line is its title.` },
-      { title: 'Notebooks and stacks', text: 'Group notes in notebooks, and notebooks in stacks. Drag a note onto a notebook in the sidebar to file it; drag notebooks onto a stack to put them in it, or above one another to change their order.' },
+      { title: 'A new note', text: `Click New note, or press N anywhere. The first line is its title. Notes not yet in a notebook wait in the Inbox; file one from the notebook’s name above its title.` },
+      { title: 'Notebooks and stacks', text: 'Group notes in notebooks, and notebooks in stacks. Open Notebooks in the sidebar to see them all, and drag a note onto one to file it; drag notebooks onto a stack to put them in it, or above one another to change their order.' },
       { title: 'Tags and favourites', text: 'Add tags under a note’s title (tags can nest, like book/characters), and star the notes you keep coming back to.' },
-      { title: 'Find anything', text: `${mod}K opens Find anything: any note, chapter or heading by name or by a word in it, grouped into notes, what’s in your books and headings, each with a line of its text, and Search everything at the bottom lists every note, chapter, PDF and picture with the words (the top bar’s search box does the same, with filters); ${mod}P lists every command. Inside a note, ${mod}F finds and replaces, with wildcards, formatting and a list of results under More options.` },
-      { title: 'Upload anything', text: 'The ↑ button next to New Note uploads files, or drag them from your computer onto a notebook, the list or a pane. Pictures, PDFs, video and sound show as they are (drag a picture’s corner to resize it; its Picture menu wraps the text round it, turns, crops, frames or brightens it; Insert has 35 shapes, from stars to flowchart boxes, and 30 icons; a shape’s menu gives it a style, gradient, picture, line and effect, lines of text turned any way, a link to the next text box, edit points to reshape it, puts it behind the text, in order, lined up or grouped with others you Shift+click); Word documents open to edit and are saved back as Word documents.' },
+      { title: 'Find anything', text: `${mod}K opens Find anything: any note, chapter or heading by name or by a word in it, grouped into notes, what’s in your books and headings, each with a line of its text, and Search everything at the bottom lists every note, chapter, PDF and picture with the words (the Search box in the sidebar does the same, with filters); ${mod}P lists every command. Inside a note, ${mod}F finds and replaces, with wildcards, formatting and a list of results under More options.` },
+      { title: 'Upload anything', text: 'Upload files… in the sidebar’s ⚙ menu (at its foot) uploads files, or drag them from your computer onto a notebook, the list or a pane. Pictures, PDFs, video and sound show as they are (drag a picture’s corner to resize it; its Picture menu wraps the text round it, turns, crops, frames or brightens it; Insert has 35 shapes, from stars to flowchart boxes, and 30 icons; a shape’s menu gives it a style, gradient, picture, line and effect, lines of text turned any way, a link to the next text box, edit points to reshape it, puts it behind the text, in order, lined up or grouped with others you Shift+click); Word documents open to edit and are saved back as Word documents.' },
       { title: 'Right-click for more', text: 'Right-click a note to rename, move, tag, duplicate, open it beside another, or put it in the Trash.' },
     ],
     pictures: [pic('notes', 'The note list and an open note with headings, a list and tags', 'A note with headings and a list, filed in the Ideas notebook and tagged #idea.')],
@@ -68,11 +68,11 @@ const CHAPTERS: Chapter[] = [
     lede: 'Everything Word can do, without the clutter: it’s there when you need it.',
     points: [
       { title: 'Type / for anything', text: 'Headings, lists, checklists, tables, pictures, footnotes, maths and diagrams: type / at the start of a line and pick. Alt+= puts an equation in the line (LaTeX or UnicodeMath, with structures and symbols to pick). Chart draws your numbers (or a table’s, from its menu); Online video plays YouTube and Vimeo in the text; Screenshot puts in a picture of a window. Object shows a PDF inside the page; 3D model puts in a model to turn. Form control adds tick boxes, drop-down lists, dates and fill-in boxes; Table → Spreadsheet gives a table with A, B, C and sums. Draw opens a drawing in the text: pen, pencil, highlighter and eraser, with a finger, mouse or Apple Pencil. Macros records typing and formatting to play back with a key, and More → Customise the bar chooses its buttons. The Table button draws tables, makes them from text, or starts from a calendar or list; in a cell, =SUM(ABOVE) adds up the numbers above it.' },
-      { title: 'Format as you go', text: `Select text and a formatting bar appears. Click Aa in the corner to keep it on screen (it fades while you type, and comes back when you move the mouse). It shows five everyday buttons; More opens on a few more (font, colour and highlight, footnotes, tables, track changes), and All writing tools… shows everything else in groups, and in page view the groups are menus like Word’s: Format, Insert, Layout, References and Review. Settings → Appearance → Show every formatting tool puts them all on the bar; ${mod}D opens the Font window (small caps, underline styles, spacing, effects), and Multilevel list numbers an outline as Chapter 1, 1.1, 1.1.1 or a pattern of your own. Make styles of your own from the Styles tab in the right sidebar (it shows Outline, Review and Links, or In this chapter in a book; More ▾ has Styles, Pages, Check, Thesaurus and the rest), or dress the whole document with a theme (Themes, Theme colours, Theme fonts and Paragraph spacing, under More).` },
+      { title: 'Format as you go', text: `Five everyday buttons sit at the top of the page (style, bold, italic, list and link; they fade while you type and come back when you move the mouse), and a note’s ··· menu can float them over selected text instead. The ··· beside them opens a few more (font, colour and highlight, footnotes, tables, track changes), and All writing tools… shows everything else in groups, and in page view the groups are menus like Word’s: Format, Insert, Layout, References and Review. Settings → Appearance → Show every formatting tool puts them all on the bar; ${mod}D opens the Font window (small caps, underline styles, spacing, effects), and Multilevel list numbers an outline as Chapter 1, 1.1, 1.1.1 or a pattern of your own. Make styles of your own from the Styles tab in the right sidebar (it shows Outline, Review and Links, or In this chapter in a book; More ▾ has Styles, Pages, Check, Thesaurus and the rest), or dress the whole document with a theme (Themes, Theme colours, Theme fonts and Paragraph spacing, under More).` },
       { title: 'Put right as you type', text: `AutoCorrect curls quotes, makes dashes, fixes typos like “teh” and starts sentences with a capital (${mod}Z takes one back). Settings → Writing turns each off and keeps your own dictionary; characters’ names are never marked as misspelt.` },
       { title: 'Captions, references and an index', text: 'The References button numbers captions (Figure 1, Table 2), adds cross-references that keep up (“see Figure 3”), bookmarks, a table of figures, an index of words you mark, and fields such as page numbers and word counts; footnotes and endnotes; citations in APA, MLA or Chicago with a bibliography. The Search tab in the right sidebar looks things up on Wikipedia.' },
       { title: 'Snippets', text: 'Keep bits of text you use again (a sign-off, a heading block) with the Snippets button, then drop one in from its menu or type its name and press F3. Text from file pours a whole Word or Markdown document in at the caret.' },
-      { title: 'Link your notes', text: 'Type [[ and a note’s name to link to it. Every note shows the notes that link to it, and the Graph shows them all.' },
+      { title: 'Link your notes', text: 'Type [[ and a note’s name to link to it. The Links tab in the right sidebar shows the notes that link to the one open, and the Graph shows them all.' },
       { title: 'Pages, like on paper', text: 'Page view (in the ··· menu at the top of a note) shows your writing on real pages, with the width to itself (Back to writing view returns), with headers, footers and page numbers; Pages on screen shows one page, several in a row or facing pages like a book, and the Pages tab in the right sidebar has a small copy of each. Outline view shows your headings and paragraphs as an outline to promote, demote and move. The Layout tools under More set the paper (any size, even one per section), columns, breaks (a chapter can start on an odd page), line numbers in the margin and hyphenation; Watermark, Page borders, Page colour and Cover page dress the pages. Double-click a header to write it, and each section can have its own. Focus mode hides everything else.' },
       { title: 'Comments and changes', text: 'Comment on a passage, and track changes as Word does, to review your own edits or someone else’s. The Review tab in the right sidebar lists them all, with who and when, and shows the text with or without the markup. Track everyone’s changes in a document, and lock that with a password, from the ▾ beside Track changes (Track changes is under More until it’s on).' },
     ],
@@ -84,11 +84,11 @@ const CHAPTERS: Chapter[] = [
     title: 'Books and long writing',
     lede: 'A project holds a book, a thesis or any long piece, in chapters you can move around.',
     points: [
-      { title: 'Chapters and parts', text: 'Start a project from Projects in the sidebar. Each chapter has a status (to do, draft, revised, done), a synopsis and a word goal.' },
+      { title: 'Chapters and parts', text: 'Start a book with + beside Writing in the sidebar. Each chapter has a status (to do, draft, revised, done), a synopsis and a word goal.' },
       { title: 'Room to write', text: 'In a book the notes sidebar steps back to a strip of icons, so the outline sits beside your chapter (the strip’s top button brings the sidebar back). The right sidebar’s In this chapter tab shows the characters and places the chapter names, as cards to open.' },
       { title: 'Three ways to see it', text: 'Chapter to write one at a time, Manuscript to read the whole book, Cards to plan on an index-card board and drag chapters into order (Show ▾ picks whether the cards show synopses, statuses and keywords).' },
       { title: 'Looks like a manuscript', text: 'Chapters use manuscript format (or Book, or your own styles), with page numbers that run through the whole book.' },
-      { title: 'Goals and deadlines', text: 'Set a word goal and a deadline for the book; Writing stats (under Explore in the sidebar) keeps your daily words and streaks.' },
+      { title: 'Goals and deadlines', text: 'Set a word goal and a deadline for the book; Writing stats (in the sidebar’s ⚙ menu) keeps your daily words and streaks.' },
     ],
     pictures: [
       pic('book', 'A book’s outline with parts and chapters beside a chapter shown as a page', 'The outline on the left, beside the strip of icons; the chapter on the page, in manuscript format.'),
@@ -158,7 +158,7 @@ const WORKFLOWS: Workflow[] = [
     lede: 'From the first idea to a manuscript you can send.',
     icon: <IconBook size={20} />,
     steps: [
-      'Click + next to Projects in the sidebar and name your book.',
+      'Click + next to Writing in the sidebar and name your book.',
       'Switch to Cards and add a card for each chapter you can see: a title and a line about what happens. Drag them until the order feels right.',
       'Add the people and places under Characters & places, so their cards are a hover away while you write.',
       'Set a word goal and a deadline from the project’s ••• menu.',
@@ -174,7 +174,7 @@ const WORKFLOWS: Workflow[] = [
     steps: [
       'Click Today in the sidebar: it opens today’s note, dated, in a Daily notes notebook.',
       'Want the same prompts each day? Write them in a note in a notebook called Templates, named “Daily note”.',
-      'Set a daily word goal in Writing stats (under Explore in the sidebar) and watch the calendar fill in.',
+      'Set a daily word goal in Writing stats (in the sidebar’s ⚙ menu) and watch the calendar fill in.',
       'Add a reminder from a note’s ··· menu to be reminded about it on a given day; the bell then shows at the top of the note.',
     ],
   },
@@ -187,7 +187,7 @@ const WORKFLOWS: Workflow[] = [
       'Drag the web clipper to your bookmarks bar (Settings → Clipper & app) and clip pages as you read.',
       'Tag what you gather, for example research/lighthouses, and add PDFs and pictures: Crumpet reads the words in them too.',
       'Write your own notes and link them with [[ to the sources they came from.',
-      `Open the Graph (under Explore in the sidebar, or ${mod}G) to see what connects, and search to find any line again in seconds.`,
+      `Open the Graph (Graph of links in the sidebar’s ⚙ menu, or ${mod}G) to see what connects, and search to find any line again in seconds.`,
     ],
   },
   {
@@ -197,7 +197,7 @@ const WORKFLOWS: Workflow[] = [
     icon: <IconPen size={20} />,
     steps: [
       'Download the chapter or book as a Word document and send it.',
-      'When it comes back, upload it (the ↑ button next to New Note, or drag it onto Crumpet): it opens as a Word document, with their comments and tracked changes, and stays one as you work on it.',
+      'When it comes back, upload it (Upload files… in the sidebar’s ⚙ menu, or drag it onto Crumpet): it opens as a Word document, with their comments and tracked changes, and stays one as you work on it.',
       'Go through them one by one: accept or reject each change, and reply to comments.',
       'Not sure what changed? Compare two versions word by word from the command palette (Compare…).',
     ],
@@ -210,7 +210,7 @@ const pageName = (p: Page) => (p.kind === 'chapter' ? p.chapter.name : p.kind ==
 
 const OPEN = 'crumpet-open-guide';
 
-/** Opens the guide (from the ? button, the command palette or the welcome page). */
+/** Opens the guide (from the sidebar's ⚙ menu or the ? button, the command palette or the welcome page). */
 export function openGuide(): void {
   window.dispatchEvent(new Event(OPEN));
 }

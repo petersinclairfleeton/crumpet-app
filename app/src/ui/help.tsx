@@ -17,14 +17,40 @@ const OPEN_NEWS = 'crumpet:whats-new';
 const OPEN_FEEDBACK = 'crumpet:feedback';
 export const openWhatsNew = () => window.dispatchEvent(new Event(OPEN_NEWS));
 
+/** The guide, what's new, feedback and support, as menu items (here and in the sidebar's menu). */
+export function HelpItems({ onPick }: { onPick(): void }) {
+  const { settings } = useAppState();
+  const news = hasNews(settings.whatsNewSeen);
+  const pick = (f: () => void) => () => {
+    onPick();
+    f();
+  };
+  return (
+    <>
+      <button type="button" className="menu-item" onClick={pick(openGuide)}>
+        Guide to Crumpet
+      </button>
+      <button type="button" className="menu-item" onClick={pick(openWhatsNew)}>
+        What’s new {news && <span className="news-dot inline" />}
+      </button>
+      {FEEDBACK_EMAIL && (
+        <button type="button" className="menu-item" onClick={pick(() => window.dispatchEvent(new Event(OPEN_FEEDBACK)))}>
+          Send feedback…
+        </button>
+      )}
+      {SUPPORT_URL && (
+        <a className="menu-item" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" onClick={onPick}>
+          Contact support ↗
+        </a>
+      )}
+    </>
+  );
+}
+
 export function HelpMenu() {
   const { settings } = useAppState();
   const [open, setOpen] = useState(false);
   const news = hasNews(settings.whatsNewSeen);
-  const pick = (f: () => void) => () => {
-    setOpen(false);
-    f();
-  };
   return (
     <span className="help-menu">
       <button type="button" className="icon-btn guide-btn" aria-label="Help" aria-expanded={open} data-tip="Help" onClick={() => setOpen(!open)}>
@@ -34,22 +60,7 @@ export function HelpMenu() {
       {open && (
         <Popover label="Help" onClose={() => setOpen(false)}>
           <div className="menu-list">
-            <button type="button" className="menu-item" onClick={pick(openGuide)}>
-              Guide to Crumpet
-            </button>
-            <button type="button" className="menu-item" onClick={pick(openWhatsNew)}>
-              What’s new {news && <span className="news-dot inline" />}
-            </button>
-            {FEEDBACK_EMAIL && (
-              <button type="button" className="menu-item" onClick={pick(() => window.dispatchEvent(new Event(OPEN_FEEDBACK)))}>
-                Send feedback…
-              </button>
-            )}
-            {SUPPORT_URL && (
-              <a className="menu-item" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)}>
-                Contact support ↗
-              </a>
-            )}
+            <HelpItems onPick={() => setOpen(false)} />
           </div>
         </Popover>
       )}

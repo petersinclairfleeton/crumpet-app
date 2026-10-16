@@ -376,7 +376,14 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     formatting tool): five tools and a short More (`QUICK_TOOLS`, then All writing
     tools…), the note's views in its ··· menu, three right-sidebar tabs plus More,
     no list before the first note, and a note in page view with the sidebar as
-    its strip and the list folded. Browser tests' `open()` turns the full bar on.
+    its strip and the list folded. On a computer the calm look is also the Quiet Paper
+    layout (`.app.calm`, design canvas "Crumpet Quiet Paper" in Peter's artifacts): no
+    top bar, the sidebar (`Sidebar.tsx`'s calm branch: logo, Search with ⌘K, Capture
+    (Inbox = notes in no notebook, view `inbox`), Library (Notebooks and Tags folded),
+    Writing, and a ⚙ menu at its foot for Settings, templates, uploads, stats, the
+    Graph, Trash and help), the list and the page as separate sheets on the wash; the
+    five tools stay on the page (`settings.toolbar === 'selection'` floats them); the
+    tab strip shows only with two or more tabs. Browser tests' `open()` turns the full bar on.
 - iPhone and iPad: the app added to the Home Screen from Safari (no App Store
   app). `index.html` has the launch screens (`public/splash/`, made per iPhone
   size, light and dark) and a status bar in the app's own colour

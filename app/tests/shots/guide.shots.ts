@@ -80,7 +80,7 @@ test('the guide’s pictures', async ({ page }) => {
   await library(page);
 
   // Notes: the library, a note open.
-  await sidebar(page).getByRole('button', { name: /^All Notes/ }).click();
+  await sidebar(page).getByRole('button', { name: /^All notes/ }).click();
   await page.getByRole('region', { name: 'Notes', exact: true }).locator('.card').filter({ has: page.locator('.card-title', { hasText: /^Story ideas$/ }) }).click();
   await page.locator('.note-editor').first().click({ position: { x: 5, y: 5 } });
   await shot(page, 'notes');
@@ -127,14 +127,15 @@ test('the guide’s pictures', async ({ page }) => {
   await page.keyboard.press('Escape');
 
   // Links between notes: the graph.
-  await sidebar(page).getByRole('button', { name: /^All Notes/ }).click();
-  await sidebar(page).getByRole('button', { name: 'Explore', exact: true }).click();
-  await sidebar(page).getByRole('button', { name: 'Graph' }).click();
+  await sidebar(page).getByRole('button', { name: /^All notes/ }).click();
+  await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: 'Graph of links' }).click();
   await page.waitForTimeout(2500);
   await shot(page, 'graph');
 
   // Keeping notes on every device.
-  await sidebar(page).locator('.account').click();
+  await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: 'Settings…' }).click();
   await expect(page.getByRole('group', { name: /Where/ })).toBeVisible();
   await shot(page, 'sync');
 });

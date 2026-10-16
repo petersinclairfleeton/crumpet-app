@@ -237,9 +237,11 @@ export function recentNotes(notes: Note[], n = 3): Note[] {
 export function viewTitle(view: View, state: Pick<AppState, 'notebooks' | 'stacks' | 'projects'>): string {
   switch (view.kind) {
     case 'all':
-      return 'All Notes';
+      return 'All notes';
+    case 'inbox':
+      return 'Inbox';
     case 'favorites':
-      return 'Favorites';
+      return 'Favourites';
     case 'reminders':
       return 'Reminders';
     case 'trash':
@@ -253,6 +255,14 @@ export function viewTitle(view: View, state: Pick<AppState, 'notebooks' | 'stack
     case 'project':
       return state.projects.find((p) => p.id === view.id)?.name ?? 'Project';
   }
+}
+
+/** A tag's own soft colour (the same every time), for the dot on its chip. */
+export function tagColour(tag: string): string {
+  const colours = ['#D4A257', '#8DA6C4', '#9DB89A', '#C9958A', '#B4A0C8', '#C9B07A'];
+  let h = 0;
+  for (const ch of tag) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return colours[h % colours.length];
 }
 
 export function sameView(a: View, b: View): boolean {

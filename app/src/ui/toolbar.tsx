@@ -4,6 +4,7 @@
 
 import { type MouseEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Popover } from './Sidebar';
+import { IconMore } from './icons';
 
 export interface ToolItem {
   key: string;
@@ -129,7 +130,10 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
     return () => window.removeEventListener(CLOSE_MORE, close);
   }, []);
   // Floating over the text, the bar keeps to the most-used controls.
-  const shown = fit ? items.filter((i) => !hidden.includes(i.key)) : calm ? items : items.filter((i) => i.pri >= 2);
+  const shownRaw = fit ? items.filter((i) => !hidden.includes(i.key)) : calm ? items : items.filter((i) => i.pri >= 2);
+  // The calm bar reads like the design: style | bold, italic, list, link, then More.
+  const order = [...CORE_TOOLS];
+  const shown = calm ? [...shownRaw].sort((a, b) => (order.indexOf(a.key) + 1 || 99) - (order.indexOf(b.key) + 1 || 99)) : shownRaw;
   const extra = [...(fit ? items.filter((i) => hidden.includes(i.key)) : []), ...waiting];
   // In page view the groups are fewer and broader, like Word's tabs: Format, Insert, Layout, References, Review.
   const asMenus = menus && !squeezed;
@@ -173,7 +177,7 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
         : extra.length > 0 && (
             <span className="tool more-tools">
               <button type="button" aria-label="More formatting" aria-expanded={open === 'more'} data-tip="More" onClick={() => (setEverything(false), setOpen(open === 'more' ? false : 'more'))}>
-                More ▾
+                {calm ? <IconMore size={18} /> : 'More ▾'}
               </button>
               {open === 'more' && (
                 <Popover label="More formatting" onClose={() => setOpen(false)}>

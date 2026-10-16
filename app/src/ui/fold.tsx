@@ -36,8 +36,8 @@ export function FoldButton({ what }: { what: Panel }) {
         else store.updateLayout(what === 'sidebar' ? { sidebar: peeking ? 'full' : 'hidden' } : what === 'right' ? { right: peeking } : { list: peeking });
       }}
     >
-      {/* The right sidebar folds the other way. */}
-      {peeking === (what === 'right') ? <IconFoldLeft size={16} /> : <IconFoldRight size={16} />}
+      {/* The calm sidebar folds with its own panel icon; the right sidebar folds the other way. */}
+      {what === 'sidebar' && !state.settings.toolbarAll && !peeking ? <IconSidebar size={18} /> : peeking === (what === 'right') ? <IconFoldLeft size={16} /> : <IconFoldRight size={16} />}
     </button>
   );
 }

@@ -18,12 +18,14 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
-import { IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { BoardView } from './board';
 import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
 import { isBoard } from '../data/board';
 import { InlineInput, Popover } from './Sidebar';
+import { ShowButton } from './fold';
+import { tagColour } from '../data/selectors';
 
 interface PaneProps {
   onBack(): void;
@@ -115,6 +117,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   // The calm look keeps the corner to the star and the menu: the views wait in the menu.
   const calm = !state.settings.toolbarAll;
   const viewsInMenu = narrow || calm;
+  // The calm look keeps its five tools on show at the top of the page, unless asked to float them over selected text.
+  const toolsAtRest = state.settings.toolbar !== 'selection';
   const trail = trashed ? null : (
     <div className="note-actions">
       {calm && paged && !narrow && (
@@ -139,9 +143,10 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         </button>
       )}
       {!note.projectId && <ReminderButton note={note} quiet={calm} ask={remind} />}
-      <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} data-tip={note.favorite ? 'Remove from Favorites' : 'Add to Favorites'} onClick={() => store.toggleFavorite(note.id)}>
+      <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favourites' : 'Add to Favourites'} data-tip={note.favorite ? 'Remove from Favourites' : 'Add to Favourites'} onClick={() => store.toggleFavorite(note.id)}>
         {note.favorite ? <IconStarFilled size={16} /> : <IconStar size={16} />}
       </button>
+      {calm && !narrow && !state.settings.layout?.right && <ShowButton what="right" />}
       <button type="button" className="icon-btn" aria-label="More" data-tip="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>
         <IconMore size={16} />
       </button>
@@ -159,6 +164,11 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               <button type="button" className="menu-item" onClick={() => (setMenu(false), store.setFocusMode(true))}>
                 <IconFocus size={14} /> Focus mode
               </button>
+              {calm && !narrow && (
+                <button type="button" className="menu-item" aria-pressed={toolsAtRest} onClick={() => (setMenu(false), store.updateSettings({ toolbar: toolsAtRest ? 'selection' : 'always' }))}>
+                  <span className="menu-aa" aria-hidden="true">Aa</span> {toolsAtRest ? 'Formatting only on selected text' : 'Formatting bar always on show'}
+                </button>
+              )}
               <hr className="menu-sep" />
             </>
           )}
@@ -275,6 +285,26 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
     </div>
   );
 
+  const nbSelect = (
+    <select value={note.notebookId ?? ''} disabled={trashed} onChange={(e) => store.moveNote(note.id, e.target.value || null)}>
+      <option value="">No notebook (Inbox)</option>
+      {loose.map((n) => (
+        <option key={n.id} value={n.id}>
+          {n.name}
+        </option>
+      ))}
+      {stacks.filter((s) => s.notebooks.length).map((s) => (
+        <optgroup key={s.stack.id} label={s.stack.name}>
+          {s.notebooks.map((n) => (
+            <option key={n.id} value={n.id}>
+              {n.name}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+
   const header = (
     <>
       {trashed && (
@@ -288,7 +318,20 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           </button>
         </div>
       )}
-      <p className="note-kicker">{editedText(note.updatedAt, Date.now())}</p>
+      {calm && !narrow ? (
+        <p className="note-kicker calm">
+          <label className="kicker-nb" title="Notebook">
+            {nb ? <span className="kicker-mark" style={{ background: nb.color }} aria-hidden="true" /> : <IconInbox size={13} />}
+            <span className="visually-hidden">Notebook</span>
+            {nbSelect}
+            <span aria-hidden="true">{nb?.name ?? 'Inbox'}</span>
+          </label>
+          <span aria-hidden="true">·</span>
+          <span>{editedText(note.updatedAt, Date.now())}</span>
+        </p>
+      ) : (
+        <p className="note-kicker">{editedText(note.updatedAt, Date.now())}</p>
+      )}
       <textarea
         ref={titleRef}
         className="note-title"
@@ -308,31 +351,18 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
       <p className="reading-meta">
         {[nb?.name, longTime(note.updatedAt), `${wordCount(note)} words`].filter(Boolean).join(' · ')}
       </p>
-      <div className="note-meta">
-        <label className="nb-picker" title="Notebook">
-          {nb ? <NotebookIcon color={nb.color} size={11} cut="var(--chip)" /> : <IconNotebook size={12} />}
-          <span className="visually-hidden">Notebook</span>
-          <select value={note.notebookId ?? ''} disabled={trashed} onChange={(e) => store.moveNote(note.id, e.target.value || null)}>
-            <option value="">No notebook</option>
-            {loose.map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.name}
-              </option>
-            ))}
-            {stacks.filter((s) => s.notebooks.length).map((s) => (
-              <optgroup key={s.stack.id} label={s.stack.name}>
-                {s.notebooks.map((n) => (
-                  <option key={n.id} value={n.id}>
-                    {n.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
+      <div className={`note-meta${calm && !narrow ? ' calm' : ''}`}>
+        {!(calm && !narrow) && (
+          <label className="nb-picker" title="Notebook">
+            {nb ? <NotebookIcon color={nb.color} size={11} cut="var(--chip)" /> : <IconNotebook size={12} />}
+            <span className="visually-hidden">Notebook</span>
+            {nbSelect}
+          </label>
+        )}
         {note.tags.map((t) => (
           <span key={t} className="tag-chip">
-            #{t}
+            {calm && !narrow ? <span className="tag-dot" style={{ background: tagColour(t) }} aria-hidden="true" /> : '#'}
+            {t}
             {!trashed && (
               <button type="button" aria-label={`Remove tag ${t}`} onClick={() => store.removeTag(note.id, t)}>
                 ×
@@ -352,8 +382,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               }}
             />
           ) : (
-            <button type="button" className="add-tag" onClick={() => setAddingTag(true)}>
-              <IconTag size={12} /> Add tag
+            <button type="button" className="add-tag" aria-label={calm && !narrow ? 'Add tag' : undefined} title={calm && !narrow ? 'Add tag' : undefined} onClick={() => setAddingTag(true)}>
+              {calm && !narrow ? <IconPlus size={12} /> : <><IconTag size={12} /> Add tag</>}
             </button>
           ))}
       </div>
@@ -363,7 +393,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
 
   const words = docWords(note.doc);
   const linkedFrom = backlinks(note, state.notes);
-  const footer = (
+  const footer = calm && !narrow ? null : (
     <>
       {linkedFrom.length > 0 && (
         <section className="backlinks" aria-label="Linked from">

@@ -288,6 +288,17 @@ function Highlight({ text, match }: { text: string; match: Match }) {
   );
 }
 
+const OPEN_FINDER = 'crumpet:open-finder';
+/** Opens Find anything (⌘K), as from the sidebar's search box. */
+export function openFinder(): void {
+  window.dispatchEvent(new Event(OPEN_FINDER));
+}
+/** Calls `fn` whenever Find anything is asked for. */
+export function onOpenFinder(fn: () => void): () => void {
+  window.addEventListener(OPEN_FINDER, fn);
+  return () => window.removeEventListener(OPEN_FINDER, fn);
+}
+
 export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch' | 'commands' | 'compare'; actions: Actions; onClose(): void; compareFrom?: string }) {
   const store = useAppStore();
   const opener = useOpener();

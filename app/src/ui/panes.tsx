@@ -392,7 +392,9 @@ function GroupView({ group, only = false, narrow, onBack, onNewNote, onNewProjec
       {zone && <div className={`pane-drop ${zone}`} aria-hidden="true" />}
     </div>
   );
-  if (only) return <section className="pane-group active only">{body}</section>;
+  // The calm look shows tabs only once there's more than one: a single note is just its page.
+  const solo = !state.settings.toolbarAll && !narrow && !many && group.tabs.length <= 1 && !dragging;
+  if (only || solo) return <section className="pane-group active only">{body}</section>;
 
   return (
     <section className={`pane-group${active && many ? ' active' : ''}`} aria-label="Pane" onMouseDownCapture={activate} onFocusCapture={activate}>

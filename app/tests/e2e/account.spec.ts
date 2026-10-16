@@ -79,7 +79,8 @@ async function fakeAccounts(page: Page) {
 }
 
 async function openSignIn(page: Page) {
-  await page.getByRole('button', { name: /Your notes|Robin|Sam/ }).first().click();
+  await page.getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: 'Settings…' }).click();
   await page.getByRole('button', { name: 'Sign in or create an account' }).click();
   return page.getByRole('dialog', { name: 'Sign in to Crumpet' });
 }
@@ -103,13 +104,14 @@ test('accounts: create one with email, sign out, sign in again, reset a password
   expect(fake.users.map((u) => [u.email, u.displayName])).toEqual([['sam@example.com', 'Sam Reed']]);
   expect(fake.sent).toEqual([{ requestType: 'VERIFY_EMAIL', email: 'sam@example.com' }]);
   // The name fills in, and Settings says who's signed in.
-  await expect(page.locator('.account-name')).toHaveText('Sam Reed');
+  await expect(page.locator('.settings').getByLabel('Your name')).toHaveValue('Sam Reed');
   const settings = page.locator('.settings');
   await expect(settings).toContainText('Signed in as Sam Reed (sam@example.com) with email.');
   await expect(settings).toContainText('Check your inbox for the link to confirm your email.');
   // Still signed in after a reload.
   await page.reload();
-  await page.getByRole('button', { name: /Sam Reed/ }).click();
+  await page.getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: 'Settings…' }).click();
   await expect(settings).toContainText('Signed in as Sam Reed');
 
   // Sign out, and a wrong password says so.
@@ -152,7 +154,7 @@ test('accounts: continue with Google, and the screen on a first visit (or carry 
   // Then the welcome guide.
   await expect(page.getByRole('dialog', { name: /Welcome to Crumpet/ })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.account-name')).toHaveText('Robin Hart');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { name: string } } } }).crumpet.getState().settings.name)).toBe('Robin Hart');
   await page.reload();
   // Signed in: not asked again.
   await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
