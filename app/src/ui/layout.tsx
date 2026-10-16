@@ -112,11 +112,11 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
         <IconSearch size={18} />
       </button>
       <span className="rail-gap" />
-      {item({ kind: 'all' }, 'All Notes', <IconNote size={18} />)}
+      {item({ kind: 'all' }, 'All notes', <IconNote size={18} />)}
       <button type="button" className="rail-btn" aria-label="Today" title="Today’s note" onClick={onToday}>
         <IconSun size={18} />
       </button>
-      {item({ kind: 'favorites' }, 'Favorites', <IconStar size={18} />)}
+      {item({ kind: 'favorites' }, 'Favourites', <IconStar size={18} />)}
       {state.projects.map((p) => item({ kind: 'project', id: p.id }, p.name, <IconBook size={18} />))}
       <span className="rail-gap" />
       {state.notebooks.map((nb) =>

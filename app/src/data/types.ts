@@ -262,6 +262,8 @@ export interface LayoutPrefs {
 /** What the note list is showing. */
 export type View =
   | { kind: 'all' }
+  /** Notes not filed in a notebook yet (quick captures). */
+  | { kind: 'inbox' }
   | { kind: 'favorites' }
   | { kind: 'reminders' }
   | { kind: 'notebook'; id: string }
@@ -284,4 +286,4 @@ export const ACCENTS: { name: string; hex: string; ink: string; on: string }[] =
 export const TRASH_DAYS = 30;
 
 /** Note text size in px when none is chosen. */
-export const DEFAULT_NOTE_SIZE = 18;
+export const DEFAULT_NOTE_SIZE = 19;

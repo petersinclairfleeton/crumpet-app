@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-quiet-paper-notes',
+    date: '16 October 2026',
+    title: 'Quiet Paper: the notes screen',
+    points: [
+      'The sidebar, the list and the page now sit as separate sheets on the soft wash, with no bar across the top.',
+      'The sidebar has Search (Ctrl/⌘+K opens Find anything) and three groups: Capture (Inbox, Today), Library (All notes, Favourites, and Notebooks and Tags folded into one row each) and Writing (your books).',
+      'New: the Inbox. Notes you haven’t put in a notebook wait there; file one from the notebook’s name above its title.',
+      'The ⚙ at the foot of the sidebar holds Settings, templates, uploads, Writing stats, the Graph, the Trash and help.',
+      'A note’s five everyday tools stay on show at the top of the page; its ··· menu can float them over selected text instead. The list’s Last edited ▾ sorts, shows as cards or a table, and hides the list.',
+    ],
+  },
+  {
     id: '2026-10-16-closer',
     date: '16 October 2026',
     title: 'Even quieter',

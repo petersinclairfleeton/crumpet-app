@@ -83,7 +83,7 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
               </>
             )}
             <button type="button" className="menu-item" onClick={each((n) => n.favorite === allFav && store.toggleFavorite(n.id))}>
-              <IconStar size={14} /> {allFav ? 'Remove from Favorites' : 'Add to Favorites'}
+              <IconStar size={14} /> {allFav ? 'Remove from Favourites' : 'Add to Favourites'}
             </button>
             {!notes.some((n) => n.projectId) && (
               <button type="button" className="menu-item" onClick={() => setMode('move')}>

@@ -18,7 +18,7 @@ function icon(paths: ReactElement, fill = false) {
         strokeLinecap="round"
         strokeLinejoin="round"
         aria-hidden="true"
-        className={className}
+        className={className ? `ic ${className}` : 'ic'}
       >
         {paths}
       </svg>
@@ -27,25 +27,25 @@ function icon(paths: ReactElement, fill = false) {
 }
 
 export const IconPlus = icon(<path d="M12 5v14M5 12h14" />);
-export const IconNote = icon(<path d="M6 3h9l4 4v14H6zM9 11h7M9 15h7" />);
+export const IconNote = icon(<path d="M7 3h7l5 5v13H7zM14 3v5h5" />);
 export const IconNotebook = icon(<path d="M6 3h11a2 2 0 0 1 2 2v16H8a2 2 0 0 1-2-2zM10 3v18" />);
 export const IconStack = icon(<path d="M4 7h13v13H4zM7 4h13v13" />);
-export const IconStar = icon(<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />);
+export const IconStar = icon(<path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z" />);
 export const IconBell = icon(<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2.2 2.2 0 0 0 4 0" />);
-export const IconStarFilled = icon(<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />, true);
+export const IconStarFilled = icon(<path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z" />, true);
 export const IconTag = icon(
   <>
     <path d="M3 12V4h8l10 10-8 8z" />
     <circle cx="7.5" cy="8.5" r="1.5" />
   </>,
 );
-export const IconBook = icon(<path d="M3 5.5C5.5 4 9 4 12 6c3-2 6.5-2 9-.5V19c-2.5-1.5-6-1.5-9 .5-3-2-6.5-2-9-.5zM12 6v13.5" />);
+export const IconBook = icon(<path d="M4 5.5C6.5 4 9.5 4 12 6c2.5-2 5.5-2 8-.5V19c-2.5-1.5-5.5-1.5-8 .5-2.5-2-5.5-2-8-.5zM12 6v13.5" />);
 export const IconPen = icon(<path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />);
 export const IconTrash = icon(<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" />);
 export const IconSearch = icon(
   <>
-    <circle cx="11" cy="11" r="7" />
-    <path d="M20 20l-3.5-3.5" />
+    <circle cx="11" cy="11" r="6" />
+    <path d="m20 20-4.5-4.5" />
   </>,
 );
 export const IconChevron = icon(<path d="M9 6l6 6-6 6" />);
@@ -72,16 +72,40 @@ export const IconRestore = icon(<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />);
 export const IconSettings = icon(
   <>
     <circle cx="12" cy="12" r="3" />
-    <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" />
+    <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
   </>,
 );
-export const IconSun = icon(<path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />);
+export const IconSun = icon(
+  <>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
+  </>,
+);
+export const IconInbox = icon(<path d="M4 13h4l2 3h4l2-3h4M5 5h14l1 8v5H4v-5z" />);
+export const IconCheck = icon(<path d="m5 12 4 4 10-10" />);
+/** The crumpet itself: a round with its holes. */
+export const IconCrumpet = icon(
+  <>
+    <ellipse cx="12" cy="13" rx="8" ry="5" />
+    <path d="M7 11.5h.01M11 10.5h.01M15 11h.01M10 14h.01M14 14.5h.01" />
+  </>,
+);
 export const IconChart = icon(<path d="M4 20V10M10 20V4M16 20v-7M21 20H3" />);
-export const IconSidebar = icon(<path d="M4 4h16v16H4zM9 4v16" />);
+export const IconSidebar = icon(
+  <>
+    <rect x="3" y="4" width="18" height="16" rx="3" />
+    <path d="M9 4v16" />
+  </>,
+);
 export const IconFoldLeft = icon(<path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" />);
 export const IconFoldRight = icon(<path d="M13 17l5-5-5-5M6 17l5-5-5-5" />);
 export const IconListPanel = icon(<path d="M4 4h16v16H4zM9 4v16M12 9h5M12 13h5" />);
-export const IconRightPanel = icon(<path d="M4 4h16v16H4zM15 4v16" />);
+export const IconRightPanel = icon(
+  <>
+    <rect x="3" y="4" width="18" height="16" rx="3" />
+    <path d="M15 4v16" />
+  </>,
+);
 export const IconGraph = icon(
   <>
     <circle cx="6" cy="6.5" r="2.5" />
@@ -92,6 +116,7 @@ export const IconGraph = icon(
 );
 export const IconLayout = icon(<path d="M4 4h16v16H4zM12 4v16" />);
 export const IconFocus = icon(<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />);
+export const IconBullets = icon(<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />);
 export const IconList = icon(<path d="M4 6h16M4 12h16M4 18h16" />);
 export const IconPage = icon(<path d="M6 3h9l4 4v14H6zM9 9h6M9 13h6M9 17h4" />);
 export const IconPicture = icon(<path d="M4 5h16v14H4zM4 16l5-5 4 4 2-2 5 5M15.5 9.5h.01" />);

@@ -14,7 +14,7 @@ import { tabDrag, useFileDrop } from './tabdrag';
 import { uploadFiles } from './uploads';
 import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import { usePanes } from './panes';
-import { IconCards, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
+import { IconCards, IconChevronDown, IconList, IconPlus, IconStar, Logo, NotebookIcon } from './icons';
 
 interface Props {
   onOpenNote(id: string): void;
@@ -79,6 +79,9 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
   const style = state.settings.listStyle;
   const jumps = searching ? matchingNotebooks(state) : [];
   const title = searching ? 'Search results' : viewTitle(state.view, state);
+  // The calm look: the list's title and one menu for sorting and showing; cards say only when and where.
+  const calm = !state.settings.toolbarAll;
+  const sortName = { edited: 'Last edited', created: 'Date created', title: 'Title' }[sort];
 
   return (
     <section className={`list${fileDrop.over ? ' files-over' : ''}`} aria-label="Notes" {...fileDrop.props}>
@@ -87,10 +90,10 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
           {nb && <NotebookIcon color={nb.color} size={15} cut="var(--list-bg)" />}
           <h1>{title}</h1>
           <span className="grow" />
-          <FoldButton what="list" />
+          {calm ? !trash && !reminders && <ListMenu sort={sort} sortName={sortName} /> : <FoldButton what="list" />}
         </div>
-        <div className="list-sub">
-          <span>
+        <div className={`list-sub${calm ? ' calm' : ''}`}>
+          <span className="list-count">
             {notes.length} note{notes.length === 1 ? '' : 's'}
             {chapters.length > 0 && ` · ${chapters.length} chapter${chapters.length === 1 ? '' : 's'}`}
           </span>
@@ -105,7 +108,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
             </button>
           )}
           <span className="grow" />
-          {!trash && !reminders && (
+          {!calm && !trash && !reminders && (
             <label className="sort-pick">
               <span className="visually-hidden">Sort by</span>
               <select aria-label="Sort by" value={sort} onChange={(e) => store.updateSettings({ sort: e.target.value as SortBy })}>
@@ -115,14 +118,14 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
               </select>
             </label>
           )}
-          <div className="segmented small" role="group" aria-label="List style">
+          {!calm && <div className="segmented small" role="group" aria-label="List style">
             <button type="button" aria-pressed={style === 'cards'} aria-label="Cards" title="Cards" onClick={() => store.updateSettings({ listStyle: 'cards' })}>
               <IconCards size={13} />
             </button>
             <button type="button" aria-pressed={style === 'table'} aria-label="Table" title="Table" onClick={() => store.updateSettings({ listStyle: 'table' })}>
               <IconList size={13} />
             </button>
-          </div>
+          </div>}
         </div>
         {renamingTag && state.view.kind === 'tag' && (
           <InlineInput
@@ -228,7 +231,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView }: Props) {
             <div key={g.label} className="group" role="group" aria-label={g.label}>
               <h2 className="group-label">{g.label}</h2>
               {g.notes.map((n) => (
-                <Card key={n.id} note={n} words={words} selected={pickedNow.length ? pickedNow.includes(n.id) : n.id === state.selectedId} now={now} trash={trash} showNotebook={state.view.kind !== 'notebook' || searching} onOpen={(e) => open(n.id, e)} onMenu={onMenu(n.id)} carries={pickedNow.includes(n.id) ? pickedNow : undefined} />
+                <Card key={n.id} calm={calm} note={n} words={words} selected={pickedNow.length ? pickedNow.includes(n.id) : n.id === state.selectedId} now={now} trash={trash} showNotebook={state.view.kind !== 'notebook' || searching} onOpen={(e) => open(n.id, e)} onMenu={onMenu(n.id)} carries={pickedNow.includes(n.id) ? pickedNow : undefined} />
               ))}
             </div>
           ))}
@@ -269,7 +272,7 @@ function Snippet({ parts, fallback }: { parts: SnippetPart[] | null; fallback: s
   return <span className="card-preview">{parts.map((p, i) => (p.hit ? <mark key={i}>{p.text}</mark> : p.text))}</span>;
 }
 
-function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu, carries }: { note: Note; words: string[]; selected: boolean; now: number; trash: boolean; showNotebook: boolean; onOpen(e: React.MouseEvent): void; onMenu(e: React.MouseEvent): void; carries?: string[] }) {
+function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu, carries, calm = false }: { calm?: boolean; note: Note; words: string[]; selected: boolean; now: number; trash: boolean; showNotebook: boolean; onOpen(e: React.MouseEvent): void; onMenu(e: React.MouseEvent): void; carries?: string[] }) {
   const store = useAppStore();
   const panes = usePanes();
   const nb = store.notebook(note.notebookId);
@@ -289,12 +292,27 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu,
       onAuxClick={(e) => e.button === 1 && panes.open({ kind: 'note', id: note.id }, 'tab')}
     >
       {picture && <Thumb src={picture} />}
+      {calm ? (
+        <>
+          <span className="card-top">
+            <span className="card-title ellipsis">
+              <Marked text={displayTitle(note)} words={words} />
+            </span>
+          </span>
+          <Snippet parts={hits} fallback={text} />
+          {!trash && <ReminderTag note={note} now={now} />}
+          <span className="card-meta">
+            {[shortTime(trash ? (note.trashedAt ?? note.updatedAt) : note.updatedAt, now), nb?.name].filter(Boolean).join(' · ')}
+          </span>
+        </>
+      ) : (
+        <>
       <span className="card-top">
         <span className="card-title ellipsis">
           <Marked text={displayTitle(note)} words={words} />
         </span>
         {note.favorite && !trash && (
-          <span className="pin" title="In Favorites">
+          <span className="pin" title="In Favourites">
             <IconStar size={11} />
           </span>
         )}
@@ -317,7 +335,57 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu,
           ))}
         </span>
       )}
+        </>
+      )}
     </button>
+  );
+}
+
+/** The calm list's one menu: how the notes are sorted and shown, and folding the list away. */
+function ListMenu({ sort, sortName }: { sort: SortBy; sortName: string }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const [open, setOpen] = useState(false);
+  const style = state.settings.listStyle ?? 'cards';
+  return (
+    <span className="list-menu">
+      <button type="button" className="list-menu-btn" aria-label={`Sort and show: ${sortName}`} aria-expanded={open} onClick={() => setOpen(!open)}>
+        {sortName}
+        <IconChevronDown size={14} />
+      </button>
+      {open && (
+        <Popover label="Sort and show" onClose={() => setOpen(false)}>
+          <p className="menu-label">Sort by</p>
+          {(
+            [
+              ['edited', 'Last edited'],
+              ['created', 'Date created'],
+              ['title', 'Title'],
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} type="button" className="menu-item" role="menuitemradio" aria-checked={sort === k} onClick={() => (store.updateSettings({ sort: k }), setOpen(false))}>
+              {label} {sort === k && <span className="menu-tick">✓</span>}
+            </button>
+          ))}
+          <hr className="menu-sep" />
+          <p className="menu-label">Show as</p>
+          {(
+            [
+              ['cards', 'Cards'],
+              ['table', 'Table'],
+            ] as const
+          ).map(([k, label]) => (
+            <button key={k} type="button" className="menu-item" role="menuitemradio" aria-checked={style === k} onClick={() => (store.updateSettings({ listStyle: k }), setOpen(false))}>
+              {label} {style === k && <span className="menu-tick">✓</span>}
+            </button>
+          ))}
+          <hr className="menu-sep" />
+          <button type="button" className="menu-item" onClick={() => (store.updateLayout({ list: false }), setOpen(false))}>
+            Hide the list
+          </button>
+        </Popover>
+      )}
+    </span>
   );
 }
 
@@ -330,13 +398,14 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
   } else if (view.kind === 'trash') {
     text = 'The Trash is empty.';
     action = false;
-  } else if (view.kind === 'favorites') text = 'Star a note to keep it in Favorites.';
+  } else if (view.kind === 'favorites') text = 'Star a note to keep it in Favourites.';
   else if (view.kind === 'reminders') {
     text = 'No reminders yet. Click the bell at the top of a note to be reminded about it.';
     action = false;
   }
   else if (view.kind === 'stack') text = 'No notes in this stack’s notebooks yet.';
   else if (view.kind === 'tag') text = 'No notes have this tag any more.';
+  else if (view.kind === 'inbox') text = 'Your inbox is clear. Notes you haven’t put in a notebook wait here.';
   else if (view.kind === 'all') text = 'No notes yet. Write your first one, then file it in a notebook whenever you like.';
   else text = 'No notes here yet.';
   return (
@@ -400,7 +469,7 @@ function FilterMenu() {
       </button>
       {open && (
         <Popover label="Add a filter" onClose={() => setOpen(false)}>
-          <button type="button" className="menu-item" onClick={() => add('is:favorite')}>Favorites</button>
+          <button type="button" className="menu-item" onClick={() => add('is:favorite')}>Favourites</button>
           <button type="button" className="menu-item" onClick={() => add('has:picture')}>With pictures</button>
           <button type="button" className="menu-item" onClick={() => add('has:file')}>With files</button>
           <button type="button" className="menu-item" onClick={() => add('has:checklist')}>With checklists</button>
@@ -476,7 +545,7 @@ function PickedBar({ ids, onDone }: { ids: string[]; onDone(): void }) {
             </Popover>
           )}
         </span>
-        <button type="button" className="btn small" aria-label={allFav ? 'Remove from Favorites' : 'Add to Favorites'} onClick={() => all((id) => (store.note(id)?.favorite === allFav ? store.toggleFavorite(id) : undefined))}>
+        <button type="button" className="btn small" aria-label={allFav ? 'Remove from Favourites' : 'Add to Favourites'} onClick={() => all((id) => (store.note(id)?.favorite === allFav ? store.toggleFavorite(id) : undefined))}>
           <IconStarFilled size={13} />
         </button>
         <button type="button" className="btn small danger" aria-label="Move to Trash" onClick={() => (all((id) => store.trashNote(id)), onDone())}>

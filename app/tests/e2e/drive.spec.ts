@@ -55,21 +55,21 @@ function vault(drive: FakeDrive, name: string): string[] {
 test('connect Google Drive in two clicks, then a second device finds the same notes', async ({ browser }) => {
   const drive = new FakeDrive();
   const mac = await device(browser, drive);
-  await sidebar(mac).getByRole('button', { name: 'Connect Google Drive' }).click();
+  await sidebar(mac).getByRole('button', { name: 'Saved on this device' }).click();
   await where(mac).getByRole('button', { name: 'Continue with Google' }).click();
   await where(mac).getByRole('button', { name: /A new “Crumpet” folder/ }).click();
   await expect(where(mac)).toContainText('in the folder Crumpet');
   await expect(sidebar(mac).locator('.side-foot')).toContainText('Google Drive · synced');
 
   await mac.keyboard.press('Escape');
-  await sidebar(mac).getByRole('button', { name: 'New Note', exact: true }).click();
+  await sidebar(mac).getByRole('button', { name: 'New note', exact: true }).click();
   await mac.keyboard.type('Hello Drive');
   await mac.keyboard.press('Enter');
   await mac.keyboard.type('Written on the Mac.');
   await expect.poll(() => vault(drive, 'Crumpet'), { timeout: 15_000 }).toContain('Hello Drive.md');
 
   const phone = await device(browser, drive);
-  await sidebar(phone).getByRole('button', { name: 'Connect Google Drive' }).click();
+  await sidebar(phone).getByRole('button', { name: 'Saved on this device' }).click();
   await where(phone).getByRole('button', { name: 'Continue with Google' }).click();
   await where(phone).getByRole('button', { name: /Your Crumpet folder/ }).click();
   await phone.keyboard.press('Escape');
@@ -134,11 +134,11 @@ test('keep notes in a folder on this computer: files written there, changes made
   const page = await context.newPage();
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
-  await sidebar(page).getByRole('button', { name: 'New Note', exact: true }).click();
+  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
   await page.keyboard.type('Harbour');
   await page.keyboard.press('Enter');
   await page.keyboard.type('The boats come in at dusk.');
-  await sidebar(page).getByRole('button', { name: 'Connect Google Drive' }).click();
+  await sidebar(page).getByRole('button', { name: 'Saved on this device' }).click();
   await where(page).getByRole('button', { name: 'Use a folder on this computer…' }).click();
   await expect(where(page)).toContainText('In the folder My notes on this computer');
   await expect(where(page).getByRole('status')).toHaveText(/Synced/);

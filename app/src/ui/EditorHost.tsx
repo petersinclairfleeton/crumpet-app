@@ -69,7 +69,9 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
   const nav = useNav();
   const [linkOpen, setLinkOpen] = useState(false);
   // The formatting bar floats above selected text, unless pinned (phones keep it in place).
-  const floating = !narrow && !readOnly && !reading && (state.focusMode || state.settings.toolbar !== 'always');
+  // The calm look keeps them on show at the top unless asked to float them; the full bar floats unless pinned.
+  const calm = !state.settings.toolbarAll;
+  const floating = !narrow && !readOnly && !reading && (state.focusMode || (calm ? state.settings.toolbar === 'selection' : state.settings.toolbar !== 'always'));
   const styles = useSheetClass(sheet);
   const paged = !!page && !reading;
   const { host, editor: ed } = useDocEditor({
@@ -153,7 +155,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
         <span className="grow" />
         {!readOnly && !reading && <RevisionChip />}
         {!readOnly && !reading && <TrackToggle editor={ed} />}
-        {!narrow && !readOnly && !reading && (
+        {!narrow && !readOnly && !reading && !calm && (
           <button
             type="button"
             className={`icon-btn pin-tools${floating ? '' : ' on'}`}

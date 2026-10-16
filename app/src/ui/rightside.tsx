@@ -46,7 +46,10 @@ function useEdits(editor: Editor | null): void {
   const [, setTick] = useState(0);
   useEffect(() => {
     if (!editor) return;
-    return editor.onChange(() => setTick((t) => t + 1));
+    const off = editor.onChange(() => setTick((t) => t + 1));
+    // Catch a change made between drawing and listening.
+    setTick((t) => t + 1);
+    return off;
   }, [editor]);
 }
 

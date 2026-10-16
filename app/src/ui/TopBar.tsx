@@ -5,9 +5,22 @@ import { HelpMenu } from './help';
 import { LayoutMenu } from './layout';
 import { ShowButton } from './fold';
 
-export function TopBar({ onMenu, onNewNote }: { onMenu(): void; onNewNote(): void }) {
+export function TopBar({ onMenu, onNewNote, calm = false }: { onMenu(): void; onNewNote(): void; calm?: boolean }) {
   const state = useAppState();
   const store = useAppStore();
+  // The calm look has no bar across the top: search is in the sidebar, the rest in its menu.
+  // Only the buttons that bring back a folded-away sidebar or list stay, when they're needed.
+  if (calm) {
+    const sidebarHidden = state.settings.layout?.sidebar === 'hidden';
+    const listHidden = state.settings.layout?.list === false;
+    if (!sidebarHidden && !listHidden) return null;
+    return (
+      <header className="topbar calm">
+        {sidebarHidden && <ShowButton what="sidebar" />}
+        {listHidden && <ShowButton what="list" />}
+      </header>
+    );
+  }
   const nb = state.view.kind === 'notebook' ? store.notebook(state.view.id) : undefined;
   const stack = store.stack(nb?.stackId ?? null);
   const listHidden = state.settings.layout?.list === false;

@@ -23,7 +23,12 @@ const KINDS: [Kind, string][] = [
 /** Redraws when the text changes. */
 function useEdits(editor: Editor): number {
   const [n, setN] = useState(0);
-  useEffect(() => editor.onChange(() => setN((x) => x + 1)), [editor]);
+  useEffect(() => {
+    const off = editor.onChange(() => setN((x) => x + 1));
+    // Catch a change made between drawing and listening (a document loaded just as the tab opened).
+    setN((x) => x + 1);
+    return off;
+  }, [editor]);
   return n;
 }
 

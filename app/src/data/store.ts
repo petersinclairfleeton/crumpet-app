@@ -1334,6 +1334,9 @@ export function visibleIn(state: Pick<AppState, 'notes' | 'notebooks'>, view: Vi
       // A project's research stays with the project (searching finds it, though).
       out = search ? live : live.filter((n) => !n.projectId);
       break;
+    case 'inbox':
+      out = live.filter((n) => !n.notebookId && !n.projectId);
+      break;
     case 'favorites':
       out = live.filter((n) => n.favorite);
       break;

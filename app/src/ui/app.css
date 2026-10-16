@@ -2578,3 +2578,186 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 [data-look='crumpet'] .ms-chapter .chapter-rule { align-self: center; width: 40px; }
 [data-look='crumpet'] .ms-chapter .ms-title { text-align: center; }
 [data-look='crumpet'] .chapter-opening + .chapter-meta { justify-content: center; }
+
+/* ---- Quiet Paper, the calm layout on a computer (designs 1 and 8) ----
+   No window frame and no bar across the top: the wash fills the screen, and the
+   sidebar (frosted), the list (straight on the wash) and the page (paper) sit on
+   it as separate sheets, 16px apart. */
+:root {
+  --calm-side: rgba(255, 255, 255, 0.48);
+  --calm-edge: rgba(255, 255, 255, 0.7);
+  --calm-field: rgba(255, 255, 255, 0.6);
+  --calm-sel: rgba(255, 255, 255, 0.85);
+  --calm-hover: rgba(255, 255, 255, 0.55);
+  --calm-nav: #3a3f47;
+  --calm-muted: #6b7079;
+  --calm-icon: #4a4f57;
+  --calm-chip: #f4efe6;
+  --calm-chip-ink: #4a4f57;
+  --calm-hair: #e7e2d8;
+  --calm-prose: #24282f;
+  --calm-link-line: #e3c38d;
+  --calm-ok: #3e7b57;
+  --calm-card: #fffdf8;
+  --calm-card-shadow: 0 1px 2px rgba(31, 35, 40, 0.05), 0 8px 24px rgba(31, 35, 40, 0.07);
+  --calm-sheet-shadow: 0 1px 2px rgba(31, 35, 40, 0.05), 0 12px 40px rgba(31, 35, 40, 0.08);
+  --calm-sel-shadow: 0 1px 2px rgba(31, 35, 40, 0.06);
+  --calm-wash: radial-gradient(1100px 700px at 0% 0%, color-mix(in srgb, var(--accent) 34%, #efede8) 0%, rgba(243, 226, 195, 0) 70%), radial-gradient(1000px 700px at 100% 100%, #dce3ee 0%, rgba(220, 227, 238, 0) 70%), #efede8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --calm-side: rgba(38, 40, 46, 0.55);
+    --calm-edge: rgba(255, 255, 255, 0.06);
+    --calm-field: rgba(255, 255, 255, 0.06);
+    --calm-sel: rgba(255, 255, 255, 0.1);
+    --calm-hover: rgba(255, 255, 255, 0.05);
+    --calm-nav: #c9c4bb;
+    --calm-muted: #a39e95;
+    --calm-icon: #c9c4bb;
+    --calm-chip: rgba(255, 255, 255, 0.06);
+    --calm-chip-ink: #c9c4bb;
+    --calm-hair: rgba(255, 255, 255, 0.08);
+    --calm-prose: #dad5cc;
+    --calm-link-line: rgba(232, 194, 133, 0.45);
+    --calm-ok: #86c9a2;
+    --calm-card: #232220;
+    --calm-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --calm-sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.4);
+    --calm-sel-shadow: none;
+    --calm-wash: radial-gradient(1100px 700px at 0% 0%, rgba(212, 162, 87, 0.16) 0%, rgba(212, 162, 87, 0) 70%), radial-gradient(1000px 700px at 100% 100%, rgba(70, 95, 140, 0.22) 0%, rgba(70, 95, 140, 0) 70%), #121316;
+  }
+}
+:root[data-theme='dark'] {
+  --calm-side: rgba(38, 40, 46, 0.55);
+  --calm-edge: rgba(255, 255, 255, 0.06);
+  --calm-field: rgba(255, 255, 255, 0.06);
+  --calm-sel: rgba(255, 255, 255, 0.1);
+  --calm-hover: rgba(255, 255, 255, 0.05);
+  --calm-nav: #c9c4bb;
+  --calm-muted: #a39e95;
+  --calm-icon: #c9c4bb;
+  --calm-chip: rgba(255, 255, 255, 0.06);
+  --calm-chip-ink: #c9c4bb;
+  --calm-hair: rgba(255, 255, 255, 0.08);
+  --calm-prose: #dad5cc;
+  --calm-link-line: rgba(232, 194, 133, 0.45);
+  --calm-ok: #86c9a2;
+  --calm-card: #232220;
+  --calm-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --calm-sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.4);
+  --calm-sel-shadow: none;
+  --calm-wash: radial-gradient(1100px 700px at 0% 0%, rgba(212, 162, 87, 0.16) 0%, rgba(212, 162, 87, 0) 70%), radial-gradient(1000px 700px at 100% 100%, rgba(70, 95, 140, 0.22) 0%, rgba(70, 95, 140, 0) 70%), #121316;
+}
+[data-look='crumpet'] body:has(.app.calm) { background: var(--calm-wash); background-attachment: fixed; }
+[data-look='crumpet'] .app.calm { padding: 16px; }
+[data-look='crumpet'] .app.calm .frame { gap: 16px; border-radius: 0; overflow: visible; box-shadow: none; }
+[data-look='crumpet'] .app.calm .workspace { background: transparent; }
+[data-look='crumpet'] .app.calm .panes { gap: 16px; }
+[data-look='crumpet'] .app.calm > .frame > .resizer, [data-look='crumpet'] .app.calm .panes > .resizer { margin: 0 -16px; width: 16px; background: transparent; }
+
+/* The sidebar: a frosted card. */
+[data-look='crumpet'] .app.calm :is(.sidebar, .rail) { border-radius: 12px; background: var(--calm-side); border: 1px solid var(--calm-edge); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
+[data-look='crumpet'] .sidebar.calm { flex-basis: var(--side-w, 248px); width: var(--side-w, 248px); padding: 16px 12px; gap: 24px; box-sizing: border-box; }
+.sidebar.calm .side-top { padding: 0 4px 0 8px; gap: 8px; }
+.sidebar.calm .brand { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: var(--side-text); }
+.sidebar.calm .brand-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
+.sidebar.calm .icon-btn { width: 32px; height: 32px; color: var(--calm-icon); }
+.sidebar.calm .icon-btn:hover { background: rgba(31, 35, 40, 0.06); }
+.sidebar.calm .side-top .fold-btn { opacity: 1; }
+.sidebar.calm .side-start { display: flex; flex-direction: column; gap: 8px; }
+[data-look='crumpet'] .sidebar.calm .new-note { height: 40px; min-height: 40px; gap: 8px; font-size: 14px; font-weight: 600; justify-content: center; }
+.sidebar.calm .side-search { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 12px; border-radius: 8px; background: var(--calm-field); color: var(--calm-muted); font-size: 14px; }
+.sidebar.calm .side-search input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font: inherit; color: var(--side-text); }
+.sidebar.calm .side-search input::placeholder { color: var(--calm-muted); }
+.sidebar.calm .side-search input::-webkit-search-cancel-button { display: none; }
+.sidebar.calm .find-key { border: none; background: none; padding: 2px 4px; border-radius: 4px; font: inherit; font-size: 12px; color: var(--calm-muted); cursor: pointer; white-space: nowrap; }
+.sidebar.calm .find-key:hover { background: rgba(31, 35, 40, 0.06); color: var(--side-text); }
+.sidebar.calm .side-section { gap: 0; }
+[data-look='crumpet'] .sidebar.calm :is(.side-label, .side-heading) { margin: 0 0 4px; padding: 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted); }
+[data-look='crumpet'] .sidebar.calm .side-heading { display: flex; align-items: center; justify-content: space-between; padding-right: 4px; }
+.sidebar.calm .side-heading .side-label { margin: 0; padding: 0; }
+.sidebar.calm .side-heading .icon-btn { width: 24px; height: 24px; }
+[data-look='crumpet'] .sidebar.calm :is(.side-row, .side-row .row-main) { min-height: 36px; font-size: 14px; }
+[data-look='crumpet'] .sidebar.calm .side-row { gap: 12px; padding: 0 12px; border-radius: 8px; color: var(--calm-nav); font-weight: 400; }
+[data-look='crumpet'] .sidebar.calm .side-row.strong { font-weight: 400; font-size: 14px; }
+.sidebar.calm .side-row .row-main { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; border: none; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.sidebar.calm .side-row svg.ic { flex: none; color: currentColor; }
+.sidebar.calm .side-row:hover { background: var(--calm-hover); }
+[data-look='crumpet'] .sidebar.calm .side-row.active { background: var(--calm-sel); box-shadow: var(--calm-sel-shadow); font-weight: 500; color: var(--side-text); }
+[data-look='crumpet'] .sidebar.calm .side-row .count { margin-left: auto; font-size: 12px; color: var(--calm-muted); font-weight: 400; }
+.sidebar.calm .fold-row { position: relative; }
+.sidebar.calm .fold-row .row-more { position: absolute; right: 6px; top: 6px; opacity: 0; width: 24px; height: 24px; }
+.sidebar.calm .fold-row:is(:hover, :focus-within) .row-more, .sidebar.calm .fold-row .row-more[aria-expanded='true'] { opacity: 1; }
+.sidebar.calm .fold-row:is(:hover, :focus-within):has(.row-more) .count { visibility: hidden; }
+.sidebar.calm .fold-row .count { margin-left: auto; }
+.sidebar.calm .side-folded, .sidebar.calm .tag-list { display: flex; flex-direction: column; }
+.sidebar.calm .quiet-row { color: var(--calm-muted); }
+.sidebar.calm .side-foot { margin-top: auto; padding: 0 4px 0 12px; gap: 8px; flex-wrap: nowrap; font-size: 12px; color: var(--muted); }
+.sidebar.calm .foot-status { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 32px; margin-left: -6px; padding: 0 6px; border: none; border-radius: 8px; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+.sidebar.calm .foot-status:hover { background: rgba(31, 35, 40, 0.06); color: var(--side-text); }
+.sidebar.calm .side-foot [aria-live] { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar.calm .saved-tick { color: var(--calm-ok); flex: none; }
+.side-menu { position: relative; margin-left: auto; }
+.side-menu-pop { top: auto; width: 260px; }
+.app.calm .rot90 { transition: transform 0.15s ease; }
+
+/* The list: straight on the wash. */
+[data-look='crumpet'] .app.calm .list { flex-basis: var(--list-w, 328px); width: var(--list-w, 328px); padding: 16px 4px 0; box-sizing: border-box; background: transparent; gap: 16px; }
+[data-look='crumpet'] .app.calm .list-head { padding: 0 12px; gap: 0; }
+[data-look='crumpet'] .app.calm .list-title { align-items: baseline; }
+[data-look='crumpet'] .app.calm .list-title h1 { font-size: 28px; line-height: 1.2; }
+.app.calm .list-sub.calm .list-count { display: none; }
+.app.calm .list-sub.calm:not(:has(button, .link-btn)) { display: none; }
+.list-menu { position: relative; }
+.list-menu-btn { height: 32px; display: inline-flex; align-items: center; gap: 4px; padding: 0 8px; border: none; border-radius: 8px; background: none; font: 500 13px var(--ui-font); color: var(--muted); cursor: pointer; }
+.list-menu-btn:hover { background: rgba(31, 35, 40, 0.06); }
+.list-menu .popover { right: 0; left: auto; min-width: 200px; }
+.menu-tick { margin-left: auto; color: var(--accent-ink); }
+[data-look='crumpet'] .app.calm .cards { padding: 0 0 20px; display: flex; flex-direction: column; gap: 4px; }
+.app.calm .cards .group { display: flex; flex-direction: column; gap: 4px; }
+[data-look='crumpet'] .app.calm .group-label { margin: 8px 0; padding: 0 12px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted); }
+.app.calm .cards .group + .group .group-label { margin-top: 16px; }
+[data-look='crumpet'] .app.calm .card { padding: 16px; gap: 0; margin: 0; border-radius: 12px; }
+[data-look='crumpet'] .app.calm .card:hover { background: var(--calm-hover); }
+[data-look='crumpet'] .app.calm .card.selected { background: var(--calm-card); box-shadow: var(--calm-card-shadow); }
+[data-look='crumpet'] .app.calm .card-top { margin-bottom: 4px; }
+[data-look='crumpet'] .app.calm .card-title { font-size: 15px; font-weight: 500; line-height: 1.35; }
+[data-look='crumpet'] .app.calm .card-preview { margin-bottom: 8px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+[data-look='crumpet'] .app.calm .card-meta { font-size: 12px; color: var(--calm-muted); }
+
+/* The page: paper, its tools along the top. */
+[data-look='crumpet'] .app.calm :is(.pane, .pane-empty) { margin: 0; border-radius: 12px; box-shadow: var(--calm-sheet-shadow); }
+[data-look='crumpet'] .app.calm .note-toolbar { height: 56px; box-sizing: border-box; padding: 0 16px; gap: 4px; flex-wrap: nowrap; }
+.app.calm .note-toolbar .tools { gap: 2px; }
+.app.calm .note-toolbar .tools button { height: 32px; min-width: 32px; padding: 0 8px; font: 500 14px var(--ui-font); color: var(--calm-nav); }
+.app.calm .note-toolbar .tools button:hover:not(:disabled) { background: rgba(31, 35, 40, 0.06); }
+.app.calm .note-toolbar .tools .sep { height: 16px; margin: 0 4px; background: var(--calm-hair); }
+.app.calm .note-toolbar .tool[data-tool='bullet'] .sep, .app.calm .note-toolbar .tool[data-tool='link'] .sep { display: none; }
+.app.calm .note-toolbar .split-caret { display: none !important; }
+.app.calm .note-toolbar .tool[data-tool='italic'] button { font-family: var(--title-font); font-style: italic; font-size: 16px; font-weight: 400; }
+.app.calm .note-toolbar .tool[data-tool='bold'] button { font-weight: 700; }
+.app.calm .note-toolbar .note-actions { gap: 4px; }
+[data-look='crumpet'] .app.calm .note-toolbar .note-actions .icon-btn { width: 32px; height: 32px; opacity: 1; color: var(--calm-icon); }
+[data-look='crumpet'] .app.calm .note-toolbar .note-actions .icon-btn.on { color: var(--accent-ink); }
+[data-look='crumpet'] .app.calm .note-body { max-width: 640px; padding: 32px 0 80px; gap: 0; box-sizing: content-box; }
+.app.calm .note-scroll { padding: 0 48px; }
+.note-kicker.calm { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; font-size: 12px; color: var(--calm-muted); }
+.kicker-nb { position: relative; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.kicker-nb select { position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 12px; }
+.kicker-nb:hover > span:last-child { color: var(--text); }
+.kicker-nb:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.kicker-mark { width: 8px; height: 12px; border-radius: 2px; flex: none; }
+[data-look='crumpet'] .app.calm .note-title { margin: 0 0 16px; font-size: 44px; line-height: 1.15; }
+.note-meta.calm { gap: 8px; margin: 0 0 32px; }
+.note-meta.calm:not(:has(.tag-chip, .inline-input)) { margin-bottom: 16px; }
+[data-look='crumpet'] .note-meta.calm .tag-chip { height: 28px; gap: 6px; padding: 0 12px; border-radius: 999px; background: var(--calm-chip); color: var(--calm-chip-ink); font-size: 13px; font-weight: 400; }
+.note-meta.calm .tag-chip button { width: 0; overflow: hidden; margin-right: -6px; transition: width 0.12s; }
+.note-meta.calm .tag-chip:is(:hover, :focus-within) button { width: 16px; margin-right: -4px; }
+.tag-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+[data-look='crumpet'] .note-meta.calm .add-tag { width: 28px; height: 28px; padding: 0; justify-content: center; border: 1px dashed var(--calm-hair); border-radius: 999px; opacity: 0; transition: opacity 0.15s; }
+.note-body:is(:hover, :focus-within) .note-meta.calm .add-tag, .note-meta.calm .add-tag:focus-visible { opacity: 1; }
+/* The writing: Newsreader at 19px, headings at 500 like the titles. */
+[data-look='crumpet'] .app.calm .note-editor.editor { color: var(--calm-prose); }
+[data-look='crumpet'] .note-editor :is(.blk-heading1, .blk-heading2, .blk-heading3, .blk[data-style='title']) { font-weight: 500; }
+[data-look='crumpet'] .app.calm .note-editor a { text-decoration-color: var(--calm-link-line); text-underline-offset: 3px; }
+.menu-aa { display: inline-block; width: 14px; font-family: var(--title-font); font-size: 13px; text-align: center; }

@@ -15,7 +15,7 @@ import { LIST, RIGHT, Resizer, SIDEBAR, SidebarRail, TabBar } from './layout';
 import { type Peek, PeekContext } from './fold';
 import { PaneArea, PanesContext, usePanesState } from './panes';
 import { RightSidebar } from './rightside';
-import { Finder } from './finder';
+import { Finder, onOpenFinder } from './finder';
 import { currentHelped } from './helpers';
 import { SettingsDialog } from './Settings';
 import { Guide, onOpenGuide, shouldOpenGuide } from './guide';
@@ -254,6 +254,7 @@ export function App() {
   const [compareFrom, setCompareFrom] = useState<string | null>(null);
   const [compare, setCompare] = useState<{ a: string; b: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => onOpenFinder(() => setFinder('switch')), []);
   // The guide: by itself on a first visit, and from the ? button or the command palette.
   const [guide, setGuide] = useState(false);
   const [touring, setTouring] = useState(false);
@@ -317,12 +318,14 @@ export function App() {
   const sizes = narrow ? undefined : ({ '--side-w': layout.sidebarWidth ? `${sideW}px` : undefined, '--list-w': layout.listWidth ? `${listW}px` : undefined, '--right-w': layout.rightWidth ? `${rightW}px` : undefined} as React.CSSProperties);
   const target = () => appRef.current;
   const peekable = !narrow && !state.focusMode;
+  // Crumpet's calm look on a computer: the sidebar, the list and the page, as separate sheets over the wash.
+  const calm = !narrow && !state.settings.toolbarAll;
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
 
   return (
     <NavContext.Provider value={nav}>
     <PanesContext.Provider value={panes}>
-    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
+    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${calm ? ' calm' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
       {state.focusMode && (
         <div className="focus-bar">
           <button
@@ -400,7 +403,7 @@ export function App() {
         {sidebarMode === 'full' && !narrow && <Resizer label="Sidebar width" value={sideW} {...SIDEBAR} cssVar="--side-w" target={target} onChange={(v) => store.updateLayout({ sidebarWidth: Math.round(v) })} />}
         {sidebarMode === 'icons' && <SidebarRail onOpenView={openView} onNewNote={newNote} onToday={openToday} />}
         <div className="workspace">
-          <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} />
+          <TopBar onMenu={() => setPane('sidebar')} onNewNote={newNote} calm={calm} />
           <div className="panes">
             {peekable && !showList && sidebarMode !== 'hidden' && <div className="peek-edge" aria-hidden="true" onMouseEnter={() => peekCtl.open('list')} onMouseLeave={peekCtl.leave} />}
             {peekable && !showList && peek === 'list' && (

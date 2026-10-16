@@ -20,7 +20,7 @@ async function open(page: Page) {
 }
 
 async function newNote(page: Page, title: string, body = '') {
-  await sidebar(page).getByRole('button', { name: 'New Note', exact: true }).click();
+  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
   await expect(page.getByLabel('Title')).toBeFocused();
   await page.keyboard.type(title);
   if (body) {
@@ -104,9 +104,9 @@ test('create notebooks and stacks, file notes, and see a stack’s notes togethe
 
   // Move a note out of any notebook.
   await list(page).locator('.card', { hasText: 'Soda bread' }).click();
-  await page.locator('.nb-picker select').selectOption({ label: 'No notebook' });
+  await page.locator('.nb-picker select').selectOption({ label: 'No notebook (Inbox)' });
   await expect(list(page).locator('.card')).toHaveCount(1);
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await expect(list(page).locator('.card')).toHaveCount(2);
 });
 
@@ -167,7 +167,7 @@ test('search finds notes across notebooks and offers notebooks to jump to', asyn
   await newNotebook(page, 'Lighthouse');
   await newNote(page, 'Opening', 'She counted the steps every night.');
   await newNote(page, 'Tides', 'The causeway floods twice.');
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await newNote(page, 'Groceries', 'Milk.');
   await page.locator('.note-editor').click();
   // Ctrl+K opens Find anything; its last lines search everything, with filters, in the list.
@@ -198,7 +198,7 @@ test('Trash: move a note there, restore it, then delete it forever', async ({ pa
   await expect(page.getByRole('status').filter({ hasText: 'Trash' })).toContainText('This note is in the Trash');
   await expect(page.locator('.note-editor')).toHaveAttribute('contenteditable', 'false');
   await page.getByRole('button', { name: 'Restore' }).click();
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await expect(list(page)).toContainText('Villain who is right');
 
   await list(page).locator('.card', { hasText: 'Villain who is right' }).click();
@@ -213,7 +213,7 @@ test('Trash: move a note there, restore it, then delete it forever', async ({ pa
 test('drag and drop: notes onto a notebook, Favorites, a tag and the Trash, and back out of the Trash', async ({ page }) => {
   await open(page);
   await newNotebook(page, 'Recipes');
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await newNote(page, 'Soda bread', 'Buttermilk and flour.');
   await page.getByRole('button', { name: 'Add tag' }).click();
   await page.keyboard.type('baking');
@@ -226,7 +226,7 @@ test('drag and drop: notes onto a notebook, Favorites, a tag and the Trash, and 
   await card('Scones').dragTo(recipes);
   await expect(recipes.locator('.count')).toHaveText('1');
   // Onto Favorites: starred.
-  await card('Scones').dragTo(sidebar(page).getByRole('button', { name: /^Favorites/ }));
+  await card('Scones').dragTo(sidebar(page).getByRole('button', { name: /^Favourites/ }));
   await expect(card('Scones').locator('.pin')).toBeVisible();
   // Onto a tag: tagged.
   await sidebar(page).getByRole('button', { name: 'Tags' }).click();
@@ -290,7 +290,7 @@ test('drag and drop in the sidebar: notebooks into and out of stacks, reordering
   expect((await projects()).map((t) => t.split('\n')[0])).toEqual(['Essay', 'Novel']);
 
   // A note dropped on a project becomes its research.
-  await side.getByRole('button', { name: 'All Notes' }).click();
+  await side.getByRole('button', { name: 'All notes' }).click();
   await newNote(page, 'Old letters', 'Found in the attic.');
   await list(page).locator('.card', { hasText: 'Old letters' }).dragTo(side.getByRole('button', { name: /^Novel/ }));
   await expect(list(page).locator('.card', { hasText: 'Old letters' })).toHaveCount(0);
@@ -312,7 +312,7 @@ test('drag and drop in the sidebar: notebooks into and out of stacks, reordering
 test('right click on a note: rename, favourite, move, tag, duplicate, trash, and restore or delete from the Trash', async ({ page }) => {
   await open(page);
   await newNotebook(page, 'Ideas');
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await newNote(page, 'Plot twist', 'The butler was right.');
   const card = (title: string) => list(page).locator('.card', { hasText: title });
   const menu = page.locator('.context-menu');
@@ -325,7 +325,7 @@ test('right click on a note: rename, favourite, move, tag, duplicate, trash, and
   await expect(menu).toHaveCount(0);
 
   await card('Big twist').click({ button: 'right' });
-  await menu.getByRole('button', { name: 'Add to Favorites' }).click();
+  await menu.getByRole('button', { name: 'Add to Favourites' }).click();
   await expect(card('Big twist').locator('.pin')).toBeVisible();
 
   await card('Big twist').click({ button: 'right' });
@@ -355,7 +355,7 @@ test('right click on a note: rename, favourite, move, tag, duplicate, trash, and
   await expect(list(page)).toContainText('The Trash is empty');
 
   // Escape closes it; Recent Notes have it too, and notebooks open their own menu.
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await card('Big twist').click({ button: 'right' });
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
@@ -370,13 +370,13 @@ test('right click on a note: rename, favourite, move, tag, duplicate, trash, and
 test('Favorites: starring a note keeps it there', async ({ page }) => {
   await open(page);
   await newNote(page, 'Weekly review', 'Empty the inbox.');
-  await page.getByRole('button', { name: 'Add to Favorites' }).click();
-  await sidebar(page).getByRole('button', { name: /^Favorites/ }).click();
-  await expect(list(page).locator('h1')).toHaveText('Favorites');
+  await page.getByRole('button', { name: 'Add to Favourites' }).click();
+  await sidebar(page).getByRole('button', { name: /^Favourites/ }).click();
+  await expect(list(page).locator('h1')).toHaveText('Favourites');
   await expect(list(page)).toContainText('Weekly review');
-  await page.getByRole('button', { name: 'Remove from Favorites' }).click();
+  await page.getByRole('button', { name: 'Remove from Favourites' }).click();
   await expect(list(page)).not.toContainText('Weekly review');
-  await expect(list(page)).toContainText('Star a note to keep it in Favorites');
+  await expect(list(page)).toContainText('Star a note to keep it in Favourites');
 });
 
 test('settings: dark appearance and a different accent', async ({ page }) => {
@@ -458,9 +458,11 @@ test('example notes from the first version are cleared on upgrade, but your own 
   await page.goto('/');
   await expect(list(page).locator('.card')).toHaveCount(1);
   await expect(list(page)).toContainText('Sonnet');
+  // The calm sidebar keeps notebooks folded under one row.
+  await sidebar(page).getByRole('button', { name: 'Notebooks', exact: true }).click();
   await expect(sidebar(page).locator('.stack-row')).toContainText('2 Areas');
   await expect(sidebar(page).locator('.nb-row')).toHaveText(/Poems/);
-  await sidebar(page).getByRole('button', { name: /^Favorites/ }).click();
+  await sidebar(page).getByRole('button', { name: /^Favourites/ }).click();
   await expect(list(page)).toContainText('Sonnet');
 });
 
@@ -808,7 +810,8 @@ test('the page scrolls to follow the typing, in normal view and page view', asyn
 
 test('page view: typing inside a paragraph redraws just that paragraph, not every page', async ({ page }) => {
   await open(page);
-  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true } }));
+  // (At 18px each paragraph's first line ends after "slick with salt.", where End takes the caret.)
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true }, noteSize: 18 }));
   await newNote(page, 'Pages', '');
   for (let i = 0; i < 30; i++) {
     await page.keyboard.insertText(`Paragraph ${i + 1}: the lamp had not been lit for eleven years, and the stairs were slick with salt.`);
@@ -1049,7 +1052,7 @@ test('a first visit can take a short tour, and N starts a note', async ({ page }
   await expect(page.getByLabel('Title')).toBeFocused();
 });
 
-test('the guide: opens by itself on a first visit, chapter by chapter with pictures and workflows, and again from the ? button', async ({ page }) => {
+test('the guide: opens by itself on a first visit, chapter by chapter with pictures and workflows, and again from the sidebar’s menu', async ({ page }) => {
   // (The guide waits for automated browsers like this one to ask; here it behaves as for a person.)
   await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
   await page.goto('/');
@@ -1076,22 +1079,22 @@ test('the guide: opens by itself on a first visit, chapter by chapter with pictu
   await expect(guide).toBeVisible();
   // Workflows open one at a time.
   await guide.getByRole('navigation').getByRole('button', { name: /Workflows/ }).click();
-  await expect(guide).toContainText('Click + next to Projects in the sidebar');
+  await expect(guide).toContainText('Click + next to Writing in the sidebar');
   await guide.getByRole('button', { name: /Keep a journal/ }).click();
   await expect(guide).toContainText('Click Today in the sidebar');
-  await expect(guide).not.toContainText('Click + next to Projects in the sidebar');
+  await expect(guide).not.toContainText('Click + next to Writing in the sidebar');
   // Ready: a name, then a first note.
   await guide.getByRole('button', { name: /^Next/ }).click();
   await guide.getByLabel('Your name').fill('Alex Rowan');
-  await expect(sidebar(page).locator('.avatar')).toHaveText('AR');
+  await expect.poll(() => page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { name: string } } } }).crumpet.getState().settings.name)).toBe('Alex Rowan');
   await guide.getByRole('button', { name: /Write a note/ }).click();
   await expect(guide).toHaveCount(0);
   await expect(page.getByLabel('Title')).toBeFocused();
-  // Seen: it doesn't open by itself again, but the ? button and the command palette bring it back.
+  // Seen: it doesn't open by itself again, but the sidebar's ⚙ menu and the command palette bring it back.
   await page.reload();
   await expect(list(page)).toBeVisible();
   await expect(guide).toHaveCount(0);
-  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Guide to Crumpet' }).click();
   await expect(guide.getByRole('heading', { name: 'Welcome to Crumpet' })).toBeVisible();
   await guide.getByRole('button', { name: 'Close the guide' }).click();
@@ -1177,7 +1180,7 @@ test('today’s note, and new notes from templates', async ({ page }) => {
   await expect(title).toHaveValue(today);
   await expect(sidebar(page).locator('.nb-row')).toContainText('Daily notes');
   // Again: the same note.
-  await sidebar(page).getByRole('button', { name: /^All Notes/ }).click();
+  await sidebar(page).getByRole('button', { name: /^All notes/ }).click();
   await sidebar(page).getByRole('button', { name: /^Today/ }).click();
   await expect(list(page).locator('.card')).toHaveCount(1);
   // From a template.
@@ -1249,9 +1252,9 @@ test('search: filters, saving a search, sorting, and working on several notes at
   await expect(bar).toContainText('1 selected');
   await list(page).locator('.card', { hasText: 'Banana' }).click({ modifiers: ['ControlOrMeta'] });
   await expect(bar).toContainText('2 selected');
-  await bar.getByRole('button', { name: 'Add to Favorites' }).click();
+  await bar.getByRole('button', { name: 'Add to Favourites' }).click();
   await bar.getByRole('button', { name: 'Clear selection' }).click();
-  await sidebar(page).getByRole('button', { name: /^Favorites/ }).click();
+  await sidebar(page).getByRole('button', { name: /^Favourites/ }).click();
   await expect(list(page).locator('.card')).toHaveCount(2);
   await expect(list(page)).toContainText('apple');
   await expect(list(page)).toContainText('Banana');
@@ -1471,13 +1474,13 @@ test('uploading files: each opens as what it is, from the Upload button or dropp
 
   // Dropped on a notebook in the sidebar: filed there.
   await newNotebook(page, 'Sounds');
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await dropFiles(sidebar(page).locator('.nb-row', { hasText: 'Sounds' }), [{ name: 'Birdsong.mp3', type: 'audio/mpeg', text: 'ID3' }]);
   await expect(sidebar(page).locator('.nb-row', { hasText: 'Sounds' }).locator('.count')).toHaveText('1');
   await expect(page.getByRole('region', { name: 'File' }).locator('audio')).toBeVisible();
 
   // Dropped on the list: a note there.
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await dropFiles(list(page), [{ name: 'Shopping.txt', type: 'text/plain', text: 'Eggs\nFlour' }]);
   await expect(page.getByLabel('Title')).toHaveValue('Shopping');
   await expect(page.locator('.note-editor .blk')).toHaveText(['Eggs', 'Flour']);
@@ -1928,7 +1931,7 @@ test('corkboard and research: chapters as cards to edit and reorder, research no
   // Research isn't in the note list, but search finds it.
   await research.getByRole('button', { name: 'Close research' }).click();
   await expect(research).toHaveCount(0);
-  await sidebar(page).getByRole('button', { name: /^All Notes/ }).click();
+  await sidebar(page).getByRole('button', { name: /^All notes/ }).click();
   await expect(list(page).locator('.card')).toHaveCount(0);
   await page.getByPlaceholder('Search notes').fill('paraffin');
   await expect(list(page).locator('.card')).toHaveCount(1);
@@ -5474,7 +5477,7 @@ test('in a book the sidebar steps back to its strip, and In this chapter lists w
   await sidebar(page).getByRole('button', { name: 'Hide the sidebar' }).click();
   await expect(page.locator('nav.rail')).toBeVisible();
   // Back in the notes, the sidebar is whole again.
-  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await expect(page.locator('nav.sidebar')).toBeVisible();
 });
 
@@ -5626,4 +5629,46 @@ test('calm room: no list before the first note, and a note in page view has the 
   await page.getByRole('button', { name: 'Back to writing view' }).click();
   await expect(list(page)).toBeVisible();
   await expect(page.locator('nav.sidebar')).toBeVisible();
+});
+
+test('the calm sidebar: Inbox, folded notebooks, search, and the menu at its foot', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Loose thought', 'Not filed yet.');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: false }));
+  const side = sidebar(page);
+  // No bar across the top: search is in the sidebar, and the top bar is gone.
+  await expect(page.locator('.topbar')).toHaveCount(0);
+  await expect(side.getByRole('button', { name: 'New note', exact: true })).toBeVisible();
+  // The Inbox holds notes not in a notebook.
+  await side.getByRole('button', { name: /^Inbox/ }).click();
+  await expect(list(page).locator('h1')).toHaveText('Inbox');
+  await expect(list(page).locator('.card')).toContainText('Loose thought');
+  // Filed in a notebook (from the line above the title), it leaves the Inbox.
+  await page.evaluate(() => (window as unknown as { crumpet: { createNotebook(n: string): unknown } }).crumpet.createNotebook('Ideas'));
+  await page.locator('.kicker-nb select').selectOption({ label: 'Ideas' });
+  await side.getByRole('button', { name: /^Inbox/ }).click();
+  await expect(list(page)).toContainText('Your inbox is clear');
+  // Notebooks fold under one row.
+  await expect(side.getByRole('button', { name: 'Ideas', exact: true })).toHaveCount(0);
+  await side.getByRole('button', { name: 'Notebooks', exact: true }).click();
+  await side.getByRole('button', { name: 'Ideas', exact: true }).click();
+  await expect(list(page).locator('h1')).toHaveText('Ideas');
+  // Typing in the sidebar's search filters the list; its key opens Find anything.
+  await side.getByPlaceholder('Search').fill('loose');
+  await expect(list(page).locator('h1')).toHaveText('Search results');
+  await side.getByPlaceholder('Search').fill('');
+  await side.getByRole('button', { name: 'Find anything' }).click();
+  await expect(page.getByRole('dialog').getByRole('combobox')).toBeVisible();
+  await page.keyboard.press('Escape');
+  // The list's one menu sorts and shows.
+  await list(page).getByRole('button', { name: /^Sort and show/ }).click();
+  await page.getByRole('menuitemradio', { name: /Title/ }).click();
+  await expect(list(page).getByRole('button', { name: /^Sort and show: Title/ })).toBeVisible();
+  // The menu at the foot: the Trash, the graph, settings and help.
+  await side.getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: /^Trash/ }).click();
+  await expect(list(page).locator('h1')).toHaveText('Trash');
+  await side.getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: 'Settings…' }).click();
+  await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
 });

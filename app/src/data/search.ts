@@ -64,7 +64,7 @@ export function parseQuery(query: string): { filters: Filters; tokens: Token[] }
       }
       if (k === 'is' && /^(favou?rite|starred)s?$/i.test(value)) {
         filters.favorite = true;
-        tokens.push({ text, label: 'Favorites' });
+        tokens.push({ text, label: 'Favourites' });
         continue;
       }
       if (k === 'has' && HAS.includes(value.toLowerCase() as Has)) {
