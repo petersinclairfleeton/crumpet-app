@@ -212,6 +212,10 @@ export interface Settings {
   macros?: { id: string; name: string; steps: import('@crumpet/editor/editor').MacroStep[]; key?: number }[];
   /** The formatting bar as you like it: buttons hidden, and buttons kept on the bar (never moved under More). */
   toolbarCustom?: { hide?: string[]; pin?: string[] };
+  /** Every formatting button on the bar (true), or the calm bar: five buttons and the rest under More, in groups. */
+  toolbarAll?: boolean;
+  /** Turn off sliding and fading in the app. */
+  reduceMotion?: boolean;
   /** The colour of the paper notes and chapters are written on (#rrggbb); unset: the theme's own. */
   paper?: string;
   /** Spelling: the browser's check on (unless `off`), its language, and words of your own it passes over. */

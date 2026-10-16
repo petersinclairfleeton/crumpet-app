@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-calm-bar',
+    date: '16 October 2026',
+    title: 'Five buttons, and the rest in groups',
+    points: [
+      'The formatting bar shows five everyday buttons: style, bold, italic, bullets and link. Everything else is under More, sorted into Text, Paragraph, Insert, Layout, References and Review.',
+      'In page view those groups become menus of their own, like Word’s: Format, Insert, Layout, References and Review.',
+      'Settings → Look → Calm: show every formatting tool, keep the right sidebar open, or reduce motion.',
+    ],
+  },
+  {
     id: '2026-10-16-quiet-paper',
     date: '16 October 2026',
     title: 'A calmer look: Quiet Paper',

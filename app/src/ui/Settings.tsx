@@ -112,6 +112,22 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
                 <p className="sync-hint">The colour of the page you write on, in notes and chapters (printing stays white).</p>
                 <PaperSwatches />
               </div>
+
+              <div className="field" role="group" aria-label="Calm">
+                <span>Calm</span>
+                <label className="check-row">
+                  <input type="checkbox" checked={!!s.toolbarAll} onChange={(e) => store.updateSettings({ toolbarAll: e.target.checked })} />
+                  Show every formatting tool (off: five on the bar, the rest under More)
+                </label>
+                <label className="check-row">
+                  <input type="checkbox" checked={!!s.layout?.right} onChange={(e) => store.updateLayout({ right: e.target.checked })} />
+                  Keep the right sidebar open (outline, styles, review and more)
+                </label>
+                <label className="check-row">
+                  <input type="checkbox" checked={!!s.reduceMotion} onChange={(e) => store.updateSettings({ reduceMotion: e.target.checked })} />
+                  Reduce motion (no sliding or fading)
+                </label>
+              </div>
             </>
           )}
 
