@@ -136,17 +136,20 @@ function Reader({ ed, onClose }: { ed: Editor; onClose(): void }) {
   return createPortal(
     <div className={`reader paper-${p.paper ?? 'sepia'}${pos.labels ? ' pos-labels' : ''}`} role="dialog" aria-modal="true" aria-label="Immersive reader">
       <header className="reader-bar">
-        <button type="button" className="btn small" aria-pressed={speaking} onClick={readAloud} disabled={!window.speechSynthesis}>
-          {speaking ? '■ Stop' : '▶ Read aloud'}
-        </button>
         <span className="grow" />
-        {(['text', 'grammar', 'reading'] as const).map((k) => (
-          <button key={k} type="button" className={`btn quiet small${panel === k ? ' on' : ''}`} aria-expanded={panel === k} onClick={() => setPanel(panel === k ? null : k)}>
-            {k === 'text' ? 'Text preferences' : k === 'grammar' ? 'Grammar options' : 'Reading preferences'}
+        <div className="reader-pill" role="group" aria-label="Reader tools">
+          {(['text', 'reading', 'grammar'] as const).map((k) => (
+            <button key={k} type="button" className={panel === k ? 'on' : ''} aria-label={k === 'text' ? 'Text preferences' : k === 'grammar' ? 'Grammar options' : 'Reading preferences'} aria-expanded={panel === k} onClick={() => setPanel(panel === k ? null : k)}>
+              {k === 'text' ? 'Aa' : k === 'grammar' ? 'Syllables' : 'Line focus'}
+            </button>
+          ))}
+          <button type="button" className="reader-aloud" aria-pressed={speaking} onClick={readAloud} disabled={!window.speechSynthesis}>
+            {speaking ? '■ Stop' : '▶ Read aloud'}
           </button>
-        ))}
-        <button type="button" className="icon-btn" aria-label="Close the reader" title="Close (Esc)" onClick={onClose}>
-          <IconClose />
+        </div>
+        <span className="grow" />
+        <button type="button" className="btn quiet small reader-done" aria-label="Close the reader" title="Close (Esc)" onClick={onClose}>
+          Done
         </button>
       </header>
       {panel && (

@@ -961,6 +961,7 @@ body.pane-resizing iframe { pointer-events: none; }
 .right-tabs button:hover { color: var(--text); background: color-mix(in srgb, var(--text) 6%, transparent); }
 .right-tabs button.on { color: var(--text); background: var(--page); box-shadow: 0 0 0 1px var(--line); font-weight: 600; }
 .right-tabs.calm { flex-wrap: nowrap; }
+.right-tabs.calm button { padding: 4px 6px; }
 .right-more { position: relative; display: inline-flex; }
 .right-more .popover { top: 100%; left: auto; right: 0; min-width: 170px; }
 .right-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
@@ -2545,3 +2546,33 @@ input.switch:checked { background: var(--accent); }
 input.switch:checked::after { transform: translateX(16px); }
 input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 [data-motion='reduce'] input.switch, [data-motion='reduce'] input.switch::after { transition: none; }
+
+/* Quiet Paper boards: white cards with a small label of what they are, titles in the book's font. */
+[data-look='crumpet'] .board-card:not(.tinted) { background: var(--page); border-color: var(--edge, var(--line)); }
+[data-look='crumpet'] .board-card.text .card-text::before,
+[data-look='crumpet'] .board-card.file .card-note::before { display: block; margin-bottom: 4px; font-family: var(--ui-font, inherit); font-size: 11.5px; font-weight: 500; color: var(--muted); }
+[data-look='crumpet'] .board-card.text .card-text::before { content: 'Text'; }
+[data-look='crumpet'] .board-card.file .card-note::before { content: 'Note'; }
+[data-look='crumpet'] .card-line.card-h,
+[data-look='crumpet'] .card-note-title { font-family: var(--title-font); font-weight: 500; font-size: 17px; letter-spacing: -0.01em; line-height: 1.25; margin-bottom: 4px; }
+[data-look='crumpet'] .card-note-title::before { content: none; }
+[data-look='crumpet'] .card-text { font-size: 13.5px; }
+[data-look='crumpet'] .card-note-preview { color: color-mix(in srgb, var(--text) 75%, var(--muted)); }
+[data-look='crumpet'] .board-group { border-style: dashed; border-width: 1px; }
+[data-look='crumpet'] .board-group .group-label { top: -12px; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--card) 18%, var(--page)); font-size: 12px; font-weight: 600; }
+.reader-pill { display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid color-mix(in srgb, var(--r-ink) 14%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--r-bg) 60%, #fff); box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); }
+.reader-pill button { height: 30px; padding: 0 12px; border: none; border-radius: 999px; background: none; color: var(--r-ink); font: inherit; font-size: 13px; cursor: pointer; }
+.reader-pill button:hover, .reader-pill button.on { background: color-mix(in srgb, var(--r-ink) 8%, transparent); }
+.reader-pill .reader-aloud { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+.reader-pill .reader-aloud:hover { background: color-mix(in srgb, var(--accent) 32%, transparent); }
+.reader-pill button:disabled { opacity: 0.5; cursor: default; }
+.reader-done { font-weight: 600; }
+/* A chapter opens as a book's chapter does: its number in words, the title and a honey line, centred. */
+.chapter-opening { display: flex; flex-direction: column; gap: 10px; }
+[data-look='crumpet'] .chapter-opening { align-items: center; text-align: center; margin-bottom: 6px; }
+[data-look='crumpet'] .chapter-opening .note-title { text-align: center; }
+[data-look='crumpet'] .chapter-opening .chapter-rule { width: 40px; margin: 2px auto 4px; }
+[data-look='crumpet'] .ms-chapter .chapter-kicker { align-self: center; }
+[data-look='crumpet'] .ms-chapter .chapter-rule { align-self: center; width: 40px; }
+[data-look='crumpet'] .ms-chapter .ms-title { text-align: center; }
+[data-look='crumpet'] .chapter-opening + .chapter-meta { justify-content: center; }

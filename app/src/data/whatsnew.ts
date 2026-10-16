@@ -19,6 +19,8 @@ export const WHATS_NEW: WhatsNew[] = [
       'Ctrl/⌘+K opens Find anything, the window that finds notes, chapters and headings as you type; Search everything at the bottom lists every match, with filters.',
       'The right sidebar shows three tabs (Outline, Review and Links; or In this chapter, Outline and Review in a book), with the rest under More ▾.',
       'Settings has its sections down the left; Appearance shows four themes (More themes has the rest), and its Calm settings are on/off switches.',
+      'A chapter opens centred, like a printed book: Chapter One, the title and a short honey line.',
+      'Board cards are white with a small Text or Note label and titles in the book’s font; the Immersive reader’s tools sit in one pill at the top (Aa, Line focus, Syllables, Read aloud) with Done beside.',
     ],
   },
   {

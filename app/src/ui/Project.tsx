@@ -7,7 +7,7 @@ import { chapterPages, rememberPages } from '../data/pagecount';
 import { type PageFields, PageToggle, PageView } from './pages';
 import { StylesDialog, useSheetClass, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
-import { chapterWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
+import { chapterWords, numberInWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
 import { dayKey, wordsToday } from '../data/stats';
 import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
@@ -591,7 +591,8 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
 
   const header = (
     <>
-      <p className="chapter-kicker">{[part?.title, `Chapter ${at + 1}`].filter(Boolean).join(' · ')}</p>
+      <div className="chapter-opening">
+      <p className="chapter-kicker">{[part?.title, `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ')}</p>
       <AutoTextarea
         className="note-title"
         aria-label="Chapter title"
@@ -606,6 +607,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         }}
       />
       <span className="chapter-rule" aria-hidden="true" />
+      </div>
       <div className="note-meta chapter-meta">
         <label className={`status-pick ${chapter.status}`}>
           <span className={`status-dot ${chapter.status}`} aria-hidden="true" />
@@ -971,7 +973,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
       <CommentCard editor={editor} />
       <ChangeCard editor={editor} />
       <ChangesBar doc={chapter.doc} editor={editor} />
-      <p className="chapter-kicker">Chapter {number}</p>
+      <p className="chapter-kicker">Chapter {numberInWords(number)}</p>
       <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
       <span className="chapter-rule" aria-hidden="true" />
       <PageView

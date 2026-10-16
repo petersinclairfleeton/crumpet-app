@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import type { Project } from '../data/types';
 import type { AppState } from '../data/store';
 import { useAppStore } from './hooks';
-import { blockText, chapterWords, projectChapters } from '../data/selectors';
+import { blockText, chapterWords, numberInWords, projectChapters } from '../data/selectors';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, exportAs, fileName, projectDocx, projectEpub, projectParts } from '../data/wordfiles';
 import { IconClose } from './icons';
 
@@ -24,8 +24,6 @@ const OTHERS: { id: Way; name: string }[] = [
   { id: 'txt', name: 'Plain text' },
 ];
 
-const NUMBERS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen', 'Twenty'];
-const inWords = (n: number) => NUMBERS[n] ?? String(n);
 
 /** The state as the export sees it: without the chapters marked To do, if asked. */
 function exportState(state: AppState, skipTodo: boolean): AppState {
@@ -125,7 +123,7 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
             {first ? (
               <>
                 <div className="export-page-title">
-                  Chapter {inWords(first.number)}
+                  Chapter {numberInWords(first.number)}
                   <br />
                   {first.chapter.title}
                 </div>
