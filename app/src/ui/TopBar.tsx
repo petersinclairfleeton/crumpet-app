@@ -13,10 +13,11 @@ export function TopBar({ onMenu, onNewNote, calm = false }: { onMenu(): void; on
   if (calm) {
     const sidebarHidden = state.settings.layout?.sidebar === 'hidden';
     const listHidden = state.settings.layout?.list === false;
-    if (!sidebarHidden && !listHidden) return null;
+    // (With the sidebar as its strip, the strip and the page's back button bring them back.)
+    if (!sidebarHidden) return null;
     return (
       <header className="topbar calm">
-        {sidebarHidden && <ShowButton what="sidebar" />}
+        <ShowButton what="sidebar" />
         {listHidden && <ShowButton what="list" />}
       </header>
     );

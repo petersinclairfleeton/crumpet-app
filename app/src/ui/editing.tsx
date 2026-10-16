@@ -11,8 +11,9 @@ import { stepsOf } from '@crumpet/editor/sync/transform';
 import type { Doc, Mark } from '@crumpet/editor/model';
 import type { StyleSheet } from '../data/styles';
 import { AlignTools, StylePicker } from './styles-ui';
-import { OverflowRow, PHONE_TOOLS, type ToolItem } from './toolbar';
+import { OverflowRow, PHONE_TOOLS, SELECTION_TOOLS, type ToolItem } from './toolbar';
 import { useFontItems } from './fonttools';
+import { openFontDialog } from './fontdialog';
 import { useParaItems } from './paratools';
 import { borderItems, DefineListHost, listItems } from './listtools';
 import { TableHost, tableItems } from './tabletools';
@@ -309,7 +310,14 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
   items.push(tool('customise', 0, 'Customise the bar…', 'Customise the formatting bar: choose its buttons', '⚙', openCustomise));
   return (
     <>
-      <OverflowRow items={customised(items, settings.toolbarCustom)} fit={fit} calm={!settings.toolbarAll && (!compact || !attach || keyboard)} menus={menus} core={keyboard ? PHONE_TOOLS : undefined} />
+      <OverflowRow
+        items={customised(items, settings.toolbarCustom)}
+        fit={fit}
+        calm={!settings.toolbarAll && (!compact || !attach || keyboard)}
+        menus={menus}
+        core={keyboard ? PHONE_TOOLS : compact && !attach ? SELECTION_TOOLS : undefined}
+        quickMenu={keyboard ? undefined : (showAll) => <QuickMenu ed={ed} off={off} items={items} onAll={showAll} />}
+      />
       {fit && <CustomiseHost items={items} />}
       {para.dialog}
       <DefineListHost ed={ed} />
@@ -317,6 +325,50 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       <ReferencesHost />
       <OutlineHost ed={ed} />
       {layout.dialog}
+    </>
+  );
+}
+
+/** The calm More menu, as the design has it: Text, Insert and Write, then All writing tools…. */
+function QuickMenu({ ed, off, items, onAll }: { ed: Editor | null; off: boolean; items: ToolItem[]; onAll(): void }) {
+  const store = useAppStore();
+  const { settings } = useAppState();
+  const node = (key: string) => items.find((i) => i.key === key)?.node;
+  const row = (label: string, onClick: () => void, hint?: string, on?: boolean) => (
+    <button type="button" className={`menu-item${on ? ' on' : ''}`} role="menuitem" disabled={off} onClick={onClick}>
+      {label}
+      {hint && <small className="menu-hint">{hint}</small>}
+      {on && <span className="menu-tick">✓</span>}
+    </button>
+  );
+  return (
+    <>
+      <div className="more-group quick-group" role="group" aria-label="Text">
+        <p className="menu-label">Text</p>
+        {row('Font and size…', () => ed && openFontDialog(ed), `${mod}D`)}
+        <div className="quick-colours">
+          <span>Colour and highlight</span>
+          <span className="tools">
+            <span className="tool">{node('color')}</span>
+            <span className="tool">{node('highlight')}</span>
+          </span>
+        </div>
+        {row('Clear formatting', () => ed?.clearFormatting())}
+      </div>
+      <div className="more-group quick-group" role="group" aria-label="Insert">
+        <p className="menu-label">Insert</p>
+        {row('Footnote', () => ed?.addFootnote())}
+        <button type="button" className="menu-item keep-open" role="menuitem" onClick={onAll}>
+          Table, picture, chart…
+        </button>
+      </div>
+      <div className="more-group quick-group" role="group" aria-label="Write">
+        <p className="menu-label">Write</p>
+        {row('Track changes', () => store.updateSettings({ trackChanges: !settings.trackChanges }), undefined, !!settings.trackChanges)}
+        <button type="button" className="menu-item keep-open all-tools" onClick={onAll}>
+          All writing tools… <small className="menu-hint">{mod}P</small>
+        </button>
+      </div>
     </>
   );
 }

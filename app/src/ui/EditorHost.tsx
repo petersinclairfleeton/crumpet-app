@@ -32,6 +32,8 @@ interface Props {
   lead?: React.ReactNode;
   /** Toolbar slot rendered after them (star, more menu). */
   trail?: React.ReactNode;
+  /** The tools float over selected text (the calm look's writing room), whatever the setting. */
+  floatTools?: boolean;
   /** Rendered above the body (title, notebook, tags). */
   header: React.ReactNode;
   footer: React.ReactNode;
@@ -56,7 +58,7 @@ interface Props {
 }
 
 /** One document with its toolbar: our editor engine, mounted once and re-loaded when a different document opens. */
-export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, trail, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, onSheet, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
+export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, trail, floatTools = false, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, onSheet, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
   const store = useAppStore();
   const state = useAppState();
   // Marked as final, or editing restricted (Word's Protect Document): read only, but comments still allowed when only comments are.
@@ -71,7 +73,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
   // The formatting bar floats above selected text, unless pinned (phones keep it in place).
   // The calm look keeps them on show at the top unless asked to float them; the full bar floats unless pinned.
   const calm = !state.settings.toolbarAll;
-  const floating = !narrow && !readOnly && !reading && (state.focusMode || (calm ? state.settings.toolbar === 'selection' : state.settings.toolbar !== 'always'));
+  const floating = !narrow && !readOnly && !reading && (state.focusMode || floatTools || (calm ? state.settings.toolbar === 'selection' : state.settings.toolbar !== 'always'));
   const styles = useSheetClass(sheet);
   const paged = !!page && !reading;
   const { host, editor: ed } = useDocEditor({
@@ -148,7 +150,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
   });
 
   return (
-    <div ref={paneRef} className={`note-pane ${styles}${reading ? ' reading' : ''}`}>
+    <div ref={paneRef} className={`note-pane ${styles}${reading ? ' reading' : ''}${floatTools ? ' room' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
         {!floating && !narrow && <FormatTools fit menus={paged} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}

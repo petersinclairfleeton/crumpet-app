@@ -7,7 +7,7 @@ import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useNav } from './hooks';
-import { allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
+import { viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
 import { chooseFiles, isMac } from './editing';
@@ -106,11 +106,26 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const { loose, stacks } = notebookTree(state.stacks, state.notebooks);
   const knownTags = allTags(state.notes).map((t) => t.tag).filter((t) => !note.tags.includes(t));
 
+  // The writing room: the calm sidebar folded to its strip and the list away. The page's top shows
+  // where the note is and its words, and the tools float over selected text.
+  const room = !state.settings.toolbarAll && !narrow && state.settings.layout?.list === false && !paged && !reading;
+  const noteWords = docWords(note.doc);
   const lead = narrow ? (
     <button type="button" className="icon-btn back" aria-label="Back to notes" onClick={onBack}>
       <IconBack size={18} />
       <span className="back-label">Notes</span>
     </button>
+  ) : room ? (
+    <>
+      <button type="button" className="icon-btn back" aria-label="Back to the list" onClick={() => store.updateLayout({ list: true })}>
+        <IconBack size={18} />
+      </button>
+      <p className="room-crumbs">
+        <span>{state.query.trim() ? 'Search' : viewTitle(state.view, state)}</span>
+        <span aria-hidden="true">/</span>
+        <span className="here">{displayTitle(note)}</span>
+      </p>
+    </>
   ) : null;
 
   const togglePage = () => store.updateSettings({ pageView: { ...state.settings.pageView, notes: !paged } });
@@ -141,6 +156,16 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         <button type="button" className="icon-btn read-toggle on" aria-pressed="true" aria-label="Back to editing" onClick={() => setReading(false)}>
           <IconPen size={16} />
         </button>
+      )}
+      {room && (
+        <>
+          <span className="room-words">
+            {noteWords.toLocaleString()} word{noteWords === 1 ? '' : 's'}
+          </span>
+          <button type="button" className="btn quiet small room-focus" onClick={() => store.setFocusMode(true)}>
+            Focus
+          </button>
+        </>
       )}
       {!note.projectId && <ReminderButton note={note} quiet={calm} ask={remind} />}
       <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favourites' : 'Add to Favourites'} data-tip={note.favorite ? 'Remove from Favourites' : 'Add to Favourites'} onClick={() => store.toggleFavorite(note.id)}>
@@ -305,6 +330,25 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
     </select>
   );
 
+  const kicker = (
+    <>
+        {calm && !narrow ? (
+          <p className="note-kicker calm">
+            <label className="kicker-nb" title="Notebook">
+              {nb ? <span className="kicker-mark" style={{ background: nb.color }} aria-hidden="true" /> : <IconInbox size={13} />}
+              <span className="visually-hidden">Notebook</span>
+              {nbSelect}
+              <span aria-hidden="true">{nb?.name ?? 'Inbox'}</span>
+            </label>
+            <span aria-hidden="true">·</span>
+            <span>{editedText(note.updatedAt, Date.now())}</span>
+          </p>
+        ) : (
+          <p className="note-kicker">{editedText(note.updatedAt, Date.now())}</p>
+        )}
+    </>
+  );
+
   const header = (
     <>
       {trashed && (
@@ -318,20 +362,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           </button>
         </div>
       )}
-      {calm && !narrow ? (
-        <p className="note-kicker calm">
-          <label className="kicker-nb" title="Notebook">
-            {nb ? <span className="kicker-mark" style={{ background: nb.color }} aria-hidden="true" /> : <IconInbox size={13} />}
-            <span className="visually-hidden">Notebook</span>
-            {nbSelect}
-            <span aria-hidden="true">{nb?.name ?? 'Inbox'}</span>
-          </label>
-          <span aria-hidden="true">·</span>
-          <span>{editedText(note.updatedAt, Date.now())}</span>
-        </p>
-      ) : (
-        <p className="note-kicker">{editedText(note.updatedAt, Date.now())}</p>
-      )}
+      {!room && kicker}
       <textarea
         ref={titleRef}
         className="note-title"
@@ -348,6 +379,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           }
         }}
       />
+      {room && kicker}
       <p className="reading-meta">
         {[nb?.name, longTime(note.updatedAt), `${wordCount(note)} words`].filter(Boolean).join(' · ')}
       </p>
@@ -486,6 +518,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         reading={reading && !trashed}
         lead={lead}
         trail={trail}
+        floatTools={room}
         header={header}
         footer={footer}
         onEditor={(ed) => {

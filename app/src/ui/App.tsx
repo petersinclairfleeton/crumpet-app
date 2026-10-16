@@ -66,6 +66,11 @@ export function App() {
   }, []);
 
   useEffect(() => applyTheme(state.settings), [state.settings]);
+  // The calm layout on a computer, marked on the page for what sits outside the app (the wash, floating bars).
+  const calmLayout = !narrow && !state.settings.toolbarAll;
+  useEffect(() => {
+    document.documentElement.dataset.calm = calmLayout ? '1' : '';
+  }, [calmLayout]);
 
   // A character card or research note opening in a project takes the whole screen on a phone.
   useEffect(() => {

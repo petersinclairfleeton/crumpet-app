@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-quiet-paper-writing',
+    date: '16 October 2026',
+    title: 'Quiet Paper: room to write',
+    points: [
+      'Fold the sidebar away with the panel button at its top: it becomes a slim strip, the list steps aside and the page gets the width.',
+      'The top of the page then says where the note is (All notes / Story ideas), its word count, and Focus.',
+      'Select words for a white bar of tools: style, bold, italic, highlight, link and comment. Its ··· opens Text, Insert and Write, then All writing tools….',
+      'The back arrow brings the list back; the button at the foot of the strip brings the sidebar.',
+    ],
+  },
+  {
     id: '2026-10-16-quiet-paper-notes',
     date: '16 October 2026',
     title: 'Quiet Paper: the notes screen',

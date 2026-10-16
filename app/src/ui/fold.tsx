@@ -33,6 +33,8 @@ export function FoldButton({ what }: { what: Panel }) {
         close();
         // In a book, folding the sidebar puts it back to its strip of icons (the book's own layout).
         if (what === 'sidebar' && !peeking && state.view.kind === 'project' && state.settings.layout?.bookSidebar === 'full') store.updateLayout({ bookSidebar: 'icons' });
+        // The calm look folds the sidebar to its strip and the list away: the room to write.
+        else if (what === 'sidebar' && !peeking && !state.settings.toolbarAll && state.view.kind !== 'project') store.updateLayout({ sidebar: 'icons', list: false });
         else store.updateLayout(what === 'sidebar' ? { sidebar: peeking ? 'full' : 'hidden' } : what === 'right' ? { right: peeking } : { list: peeking });
       }}
     >

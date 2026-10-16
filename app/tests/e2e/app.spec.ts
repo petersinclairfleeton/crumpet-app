@@ -5492,9 +5492,10 @@ test('the calm bar: five buttons, the rest under More in groups, and page view�
   await expect(bar.getByRole('button', { name: 'Underline' })).toHaveCount(0);
   await bar.getByRole('button', { name: 'More formatting' }).click();
   const more = page.getByRole('dialog', { name: 'More formatting' });
-  // More opens on a few everyday tools; All writing tools… shows the rest, in groups.
+  // More opens on a few everyday tools in Text, Insert and Write; All writing tools… shows the rest, in groups.
   await expect(more.getByRole('button', { name: /Highlight/ })).toBeVisible();
-  await expect(more.getByRole('button', { name: /Track changes/ })).toBeVisible();
+  await expect(more.getByRole('menuitem', { name: /Track changes/ })).toBeVisible();
+  await expect(more.getByRole('menuitem', { name: /Font and size/ })).toBeVisible();
   await expect(more.getByRole('button', { name: /Underline/ })).toHaveCount(0);
   await more.getByRole('button', { name: 'All writing tools…' }).click();
   for (const g of ['Text', 'Paragraph', 'Insert', 'Layout']) await expect(more.getByRole('group', { name: g })).toBeVisible();
@@ -5671,4 +5672,32 @@ test('the calm sidebar: Inbox, folded notebooks, search, and the menu at its foo
   await side.getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Settings…' }).click();
   await expect(page.getByRole('dialog', { name: 'Settings' })).toBeVisible();
+});
+
+test('the writing room: the sidebar folds to its strip and the list away, the tools float on a white bar, and More is in groups', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Story ideas', 'The light at Gull Rock was switched off in 1987.');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: false }));
+  // At rest, the five tools sit on the page.
+  await expect(page.locator('.note-toolbar').getByRole('button', { name: 'Bold', exact: true })).toBeVisible();
+  // Folding the sidebar makes the room: the strip, no list, and where the note is at the top.
+  await sidebar(page).getByRole('button', { name: /Hide the sidebar/ }).click();
+  await expect(page.locator('nav.rail')).toBeVisible();
+  await expect(list(page)).toHaveCount(0);
+  await expect(page.locator('.room-crumbs')).toContainText('All notes/Story ideas');
+  await expect(page.locator('.room-words')).toHaveText('10 words');
+  await expect(page.locator('.note-toolbar').getByRole('button', { name: 'Bold', exact: true })).toHaveCount(0);
+  // Selected words get the floating bar: style, bold, italic, highlight, link, comment, then More.
+  await page.locator('.note-editor p').first().click({ clickCount: 3 });
+  const bar = page.locator('.selection-bar');
+  for (const name of ['Bold', 'Italic', 'Highlight', 'Link', 'Comment']) await expect(bar.getByRole('button', { name, exact: true })).toBeVisible();
+  await bar.getByRole('button', { name: 'More formatting' }).click();
+  for (const g of ['Text', 'Insert', 'Write']) await expect(page.getByRole('group', { name: g })).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Clear formatting' }).isVisible();
+  await page.keyboard.press('Escape');
+  // Back brings the list; the strip's foot brings the sidebar.
+  await page.getByRole('button', { name: 'Back to the list' }).click();
+  await expect(list(page)).toBeVisible();
+  await page.getByRole('button', { name: 'Open the sidebar' }).click();
+  await expect(page.locator('nav.sidebar')).toBeVisible();
 });
