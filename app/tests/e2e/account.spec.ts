@@ -81,6 +81,7 @@ async function fakeAccounts(page: Page) {
 async function openSignIn(page: Page) {
   await page.getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Settings…' }).click();
+  await page.getByRole('tab', { name: 'Account', exact: true }).click();
   await page.getByRole('button', { name: 'Sign in or create an account' }).click();
   return page.getByRole('dialog', { name: 'Sign in to Crumpet' });
 }
@@ -112,6 +113,7 @@ test('accounts: create one with email, sign out, sign in again, reset a password
   await page.reload();
   await page.getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Settings…' }).click();
+  await page.getByRole('tab', { name: 'Account', exact: true }).click();
   await expect(settings).toContainText('Signed in as Sam Reed');
 
   // Sign out, and a wrong password says so.

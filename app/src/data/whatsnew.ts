@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-quiet-paper-settings',
+    date: '16 October 2026',
+    title: 'Quiet Paper: Settings, Find and a first visit',
+    points: [
+      'Settings opens on Appearance: four themes as pictures, the accent, the writing font and text size, and switches. Its sections run down the left: Writing, Formatting bar, Sync and storage, Account, Clipper and Mac app, and Advanced at the foot.',
+      'The new Formatting bar section floats the tools over selected text, or keeps them at the top, and opens Customise the bar.',
+      'Find anything (Ctrl/⌘+K) shows each result with its icon, a book’s name over its chapters, and offers a new note called what you typed.',
+      'A first visit is quieter: New note and All notes in the sidebar, and three ways to start.',
+      '“Saved on this device” and Fix… open Settings straight at Sync and storage.',
+    ],
+  },
+  {
     id: '2026-10-16-quiet-paper-books',
     date: '16 October 2026',
     title: 'Quiet Paper: books',

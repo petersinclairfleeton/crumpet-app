@@ -6,7 +6,8 @@ import { InstallSettings } from './install';
 import { ACCENTS, DEFAULT_NOTE_SIZE, type NoteFont } from '../data/types';
 import { DEFAULT_FONT, type FontChoice, canListAllSystemFonts, fontStack, googleFonts, loadGoogleFont, systemFonts } from './fonts';
 import { useAppState, useAppStore } from './hooks';
-import { IconClose } from './icons';
+import { IconChevronDown, IconClose } from './icons';
+import { openCustomise } from './customise';
 import { SyncSettings } from './SyncSettings';
 import { THEMES, themeInfo } from './themes';
 import { PaperSwatches } from './paper';
@@ -19,15 +20,33 @@ const SECTIONS = [
   { id: 'writing', label: 'Writing' },
   { id: 'app', label: 'Clipper & app' },
 ] as const;
-export type SettingsSection = (typeof SECTIONS)[number]['id'];
+/** The calm look's sections (design 13): Appearance first, sync and the account apart, Advanced at the foot. */
+const CALM_SECTIONS = [
+  { id: 'look', label: 'Appearance' },
+  { id: 'writing', label: 'Writing' },
+  { id: 'bar', label: 'Formatting bar' },
+  { id: 'sync', label: 'Sync and storage' },
+  { id: 'profile', label: 'Account' },
+  { id: 'app', label: 'Clipper and Mac app' },
+] as const;
+export type SettingsSection = (typeof SECTIONS)[number]['id'] | (typeof CALM_SECTIONS)[number]['id'] | 'advanced';
+/** The calm look's four themes, named as the design names them. */
+const CALM_THEMES: [string, string][] = [
+  ['light', 'Light'],
+  ['dark', 'Dark'],
+  ['system', 'Match my device'],
+  ['paper', 'Paper and ink'],
+];
 
 /** Settings, as a window over the app, in a few sections. */
-export function SettingsDialog({ onClose, section: first = 'account' }: { onClose(): void; section?: SettingsSection }) {
+export function SettingsDialog({ onClose, section: asked }: { onClose(): void; section?: SettingsSection }) {
   const state = useAppState();
   const store = useAppStore();
   const s = state.settings;
   const panel = useRef<HTMLDivElement>(null);
-  const [section, setSection] = useState<SettingsSection>(first);
+  const calm = !s.toolbarAll;
+  const [section, setSection] = useState<SettingsSection>(asked ?? (calm ? 'look' : 'account'));
+  const [fontOpen, setFontOpen] = useState(false);
   // Four themes up front; the rest wait under More themes (open while one of them is chosen).
   const [allThemes, setAllThemes] = useState(false);
   const shownThemes = allThemes || !MAIN_THEMES.includes(s.theme) ? THEMES : THEMES.filter((t) => MAIN_THEMES.includes(t.id));
@@ -46,6 +65,160 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
   }, []);
 
   const ownAccent = themeInfo(s.theme).accent;
+
+  if (calm) {
+    const title = section === 'advanced' ? 'Advanced' : (CALM_SECTIONS.find((x) => x.id === section)?.label ?? 'Appearance');
+    const shown: SettingsSection = section === 'account' ? 'profile' : section;
+    return createPortal(
+      <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+        <div className="dialog settings-dialog calm" role="dialog" aria-modal="true" aria-label="Settings" tabIndex={-1} ref={panel}>
+          <nav className="settings-nav">
+            <h2>Settings</h2>
+            <div className="settings-tabs" role="tablist" aria-label="Sections" aria-orientation="vertical">
+              {CALM_SECTIONS.map((x) => (
+                <button key={x.id} type="button" role="tab" id={`settings-${x.id}`} aria-selected={shown === x.id} aria-controls="settings-panel" onClick={() => setSection(x.id)}>
+                  {x.label}
+                </button>
+              ))}
+            </div>
+            <span className="grow" />
+            <button type="button" role="tab" id="settings-advanced" className="settings-advanced" aria-selected={shown === 'advanced'} aria-controls="settings-panel" onClick={() => setSection('advanced')}>
+              Advanced
+            </button>
+          </nav>
+          <div className="settings-main">
+            <header className="settings-head">
+              <h3>{title}</h3>
+              <button type="button" className="icon-btn" aria-label="Close settings" onClick={onClose}>
+                <IconClose size={18} />
+              </button>
+            </header>
+            <div className="settings" role="tabpanel" id="settings-panel" aria-labelledby={`settings-${shown}`}>
+              {shown === 'look' && (
+                <>
+                  <div className="field" role="group" aria-label="Theme">
+                    <span className="settings-label">Theme</span>
+                    <div className="theme-row">
+                      {(allThemes || !CALM_THEMES.some(([id]) => id === s.theme) ? THEMES.map((t) => [t.id, t.name] as [string, string]) : CALM_THEMES).map(([id, name]) => (
+                        <button key={id} type="button" className="theme-pick" aria-pressed={s.theme === id} aria-label={name} title={themeInfo(id as typeof s.theme).hint} onClick={() => store.updateSettings({ theme: id as typeof s.theme })}>
+                          <span className={`theme-pic ${id}`} aria-hidden="true">
+                            <i />
+                            <i />
+                          </span>
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+                    {!allThemes && CALM_THEMES.some(([id]) => id === s.theme) && (
+                      <button type="button" className="link-btn more-themes" onClick={() => setAllThemes(true)}>
+                        More themes ({THEMES.length - CALM_THEMES.length})
+                      </button>
+                    )}
+                  </div>
+                  <div className="settings-row" role="group" aria-label="Accent colour">
+                    <span>
+                      <b>Accent</b>
+                      <small>{ownAccent ? 'This theme has its own colours.' : 'Used once per screen: the New note button, the chosen dot.'}</small>
+                    </span>
+                    {!ownAccent && (
+                      <span className="accents">
+                        {ACCENTS.map((a) => (
+                          <button key={a.hex} type="button" className={`swatch big${s.accent === a.hex ? ' on' : ''}`} style={{ background: a.hex }} aria-label={a.name} aria-pressed={s.accent === a.hex} title={a.name} onClick={() => store.updateSettings({ accent: a.hex })} />
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                  <div className="settings-row">
+                    <span>
+                      <b>Writing font</b>
+                      <small>For titles and your text. Menus stay in Onest.</small>
+                    </span>
+                    <button type="button" className="font-choose" aria-expanded={fontOpen} onClick={() => setFontOpen(!fontOpen)} style={{ fontFamily: fontStack(s.noteFont ?? DEFAULT_FONT) }}>
+                      {(s.noteFont ?? DEFAULT_FONT).family}
+                      <IconChevronDown size={14} />
+                    </button>
+                  </div>
+                  {fontOpen && <FontPicker value={s.noteFont ?? DEFAULT_FONT} onChange={(f) => store.updateSettings({ noteFont: f })} />}
+                  <label className="settings-row">
+                    <span>
+                      <b>Text size</b>
+                      <small>The writing only. The interface follows your device.</small>
+                    </span>
+                    <span className="size-pick">
+                      <small aria-hidden="true">A</small>
+                      <input className="range" type="range" aria-label={`Text size, ${size}px`} min={13} max={24} step={1} value={size} style={{ '--pct': `${((size - 13) / 11) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
+                      <big aria-hidden="true">A</big>
+                    </span>
+                  </label>
+                  <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
+                  <Switch label="Open the inspector with every note" hint="Off means it opens only when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
+                  <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
+                </>
+              )}
+              {shown === 'writing' && (
+                <>
+                  <div className="field" role="group" aria-label="Paper">
+                    <span className="settings-label">Paper</span>
+                    <p className="sync-hint">The colour of the page you write on, in notes and chapters (printing stays white).</p>
+                    <PaperSwatches />
+                  </div>
+                  <div className="field" role="group" aria-label="Typewriter">
+                    <span className="settings-label">Typewriter</span>
+                    {TYPEWRITER.map(([key, label]) => (
+                      <label key={key} className="check-row">
+                        <input type="checkbox" checked={!!s.typewriter?.[key]} onChange={(e) => store.updateSettings({ typewriter: { ...s.typewriter, [key]: e.target.checked } })} />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  <AutoCorrectSettings />
+                  <SpellingSettings />
+                </>
+              )}
+              {shown === 'bar' && (
+                <>
+                  <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
+                  <Switch label="Tools only over selected text" hint="Off keeps the five tools at the top of the page; on, they float over the words you select." on={s.toolbar === 'selection'} onChange={(v) => store.updateSettings({ toolbar: v ? 'selection' : 'always' })} />
+                  <div className="settings-row">
+                    <span>
+                      <b>Choose the buttons</b>
+                      <small>Hide the ones you never use, keep the ones you do on the bar.</small>
+                    </span>
+                    <button type="button" className="btn" onClick={() => (onClose(), openCustomise())}>
+                      Customise the bar…
+                    </button>
+                  </div>
+                </>
+              )}
+              {shown === 'sync' && <SyncSettings />}
+              {shown === 'profile' && (
+                <>
+                  <label className="field">
+                    <span className="settings-label">Your name</span>
+                    <input value={s.name} placeholder="On manuscripts, comments and changes" onChange={(e) => store.updateSettings({ name: e.target.value })} />
+                  </label>
+                  <AccountSettings />
+                </>
+              )}
+              {shown === 'app' && (
+                <>
+                  <ClipperSettings />
+                  <InstallSettings />
+                </>
+              )}
+              {shown === 'advanced' && (
+                <>
+                  <Switch label="Keep earlier versions as you write" hint="Crumpet keeps the text as it was, at most every ten minutes, to compare and go back to." on={s.autoVersions !== false} onChange={(v) => store.updateSettings({ autoVersions: v })} />
+                  <Switch label="Keep the right sidebar open" hint="Outline, review, styles and more beside the writing." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    );
+  }
 
   // Drawn at the top of the page, so no panel's effects (like Glass's blur) can clip it.
   return createPortal(
@@ -171,6 +344,11 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
 }
 
 const MAIN_THEMES = ['system', 'light', 'dark', 'paper'];
+const TYPEWRITER = [
+  ['scroll', 'Keep the line you’re typing in the middle of the screen'],
+  ['fade', 'Fade the other paragraphs'],
+  ['sound', 'Typing sounds'],
+] as const;
 
 /** An on/off setting: its name and a line about it, with a switch at the end. */
 function Switch({ label, hint, on, onChange }: { label: string; hint: string; on: boolean; onChange(v: boolean): void }) {

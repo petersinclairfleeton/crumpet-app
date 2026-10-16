@@ -5749,3 +5749,36 @@ test('a book in the calm look: the outline is the sidebar, chapters open as plai
   await outline.getByRole('button', { name: 'Back to notes' }).click();
   await expect(page.locator('nav.sidebar')).toBeVisible();
 });
+
+test('calm Settings, Find and a first visit, as designed', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.app')).toBeVisible();
+  // A first visit: the sidebar keeps to New note and All notes, with a word about the rest; three ways to start.
+  const side = sidebar(page);
+  await expect(side.getByRole('button', { name: 'Inbox' })).toHaveCount(0);
+  await expect(side).toContainText('Notebooks, tags and projects appear here once you make them.');
+  const welcome = page.getByRole('region', { name: 'Welcome' });
+  await expect(welcome.getByRole('listitem')).toHaveCount(3);
+  await expect(welcome.getByRole('button', { name: 'Take the two-minute tour' })).toBeVisible();
+  // Settings opens on Appearance, with sections down the side and Advanced at the foot.
+  await side.getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: 'Settings…' }).click();
+  const settings = page.getByRole('dialog', { name: 'Settings' });
+  await expect(settings.getByRole('heading', { name: 'Appearance' })).toBeVisible();
+  for (const t of ['Appearance', 'Writing', 'Formatting bar', 'Sync and storage', 'Account', 'Clipper and Mac app', 'Advanced']) await expect(settings.getByRole('tab', { name: t, exact: true })).toBeVisible();
+  await settings.getByRole('button', { name: 'Dark', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await settings.getByRole('button', { name: 'Light', exact: true }).click();
+  await settings.getByRole('tab', { name: 'Formatting bar' }).click();
+  await settings.getByRole('switch', { name: /Tools only over selected text/ }).check();
+  expect(await page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { toolbar?: string } } } }).crumpet.getState().settings.toolbar)).toBe('selection');
+  await page.keyboard.press('Escape');
+  // Find anything: icons, the key at the foot, and a new note called what was typed.
+  await page.keyboard.press('Control+k');
+  const finder = page.getByRole('dialog', { name: 'Quick switcher' });
+  await page.keyboard.type('harbour');
+  await expect(finder.getByRole('option', { name: /New note called “harbour”/ })).toBeVisible();
+  await expect(finder.locator('.finder-keys')).toContainText('for commands');
+  await finder.getByRole('option', { name: /New note called/ }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('harbour');
+});

@@ -8,6 +8,7 @@ import { goToPlace, openGoTo } from './goto';
 import { MARKUP_VIEWS } from './review';
 import { openCombine } from './comparedocs';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { IconBook, IconNote, IconPeople, IconPlus, IconSearch } from './icons';
 import { useAppState, useAppStore } from './hooks';
 import { type Match, rank } from '../data/fuzzy';
 import { type SnippetPart, chapterText, displayTitle, noteText, recentNotes, snippet } from '../data/selectors';
@@ -299,9 +300,22 @@ export function onOpenFinder(fn: () => void): () => void {
   return () => window.removeEventListener(OPEN_FINDER, fn);
 }
 
+/** The calm look's icon for a result, by what it is. */
+function calmGlyph(key: string): React.ReactNode {
+  const kind = key.split(':')[0];
+  if (kind === 'note') return <IconNote size={16} />;
+  if (kind === 'chapter' || kind === 'project') return <IconBook size={16} />;
+  if (kind === 'cast') return <IconPeople size={16} />;
+  if (key === 'create') return <IconPlus size={16} />;
+  if (key === 'search') return <IconSearch size={16} />;
+  return null;
+}
+
 export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch' | 'commands' | 'compare'; actions: Actions; onClose(): void; compareFrom?: string }) {
   const store = useAppStore();
   const opener = useOpener();
+  // The calm look (design 11): icons in soft squares, a book's name over its chapters, the keys at the foot.
+  const calm = !store.getState().settings.toolbarAll;
   const [text, setText] = useState(mode === 'commands' ? '>' : '');
   const [at, setAt] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -355,7 +369,7 @@ export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch'
     }
     // Nothing to open: offer to make a note with that title.
     if (!commanding && !comparing && query.trim() && !found.some((r) => r.item.label.toLowerCase() === query.trim().toLowerCase())) {
-      found.push({ item: { key: 'create', label: `Create note “${query.trim()}”`, glyph: '+', group: 'Commands', run: (how) => {
+      found.push({ item: { key: 'create', label: calm ? `New note called “${query.trim()}”` : `Create note “${query.trim()}”`, glyph: '+', group: 'Commands', run: (how) => {
         const n = store.createNote({ title: query.trim() });
         opener.note(n.id, how);
       } }, match: { score: 0, hits: [] } });
@@ -363,6 +377,7 @@ export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch'
     return found;
   }, [query, commanding, comparing, commands, targets]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const books = [...new Set(results.filter((r) => r.item.key.startsWith('chapter:')).map((r) => r.item.where ?? ''))];
   useEffect(() => input.current?.focus(), []);
   useEffect(() => setAt(0), [text]);
   useEffect(() => {
@@ -380,6 +395,16 @@ export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch'
   return (
     <div className="dialog-backdrop finder-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="dialog finder" role="dialog" aria-modal="true" aria-label={comparing ? 'Compare with' : commanding ? 'Command palette' : 'Quick switcher'}>
+        {calm && (
+          <span className="finder-search" aria-hidden="true">
+            <IconSearch size={18} />
+          </span>
+        )}
+        {calm && (
+          <button type="button" className="finder-esc" aria-label="Close" onClick={onClose}>
+            esc
+          </button>
+        )}
         <input
           ref={input}
           className="finder-input"
@@ -414,18 +439,19 @@ export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch'
           {results.map((r, i) => [
             !commanding && !comparing && query.trim() && r.item.group && r.item.group !== results[i - 1]?.item.group && (
               <li key={`g:${r.item.group}`} role="presentation" className="finder-group">
-                {r.item.group}
+                {calm && r.item.group === 'In your books' && books.length === 1 ? `In ${books[0]}` : r.item.group}
               </li>
             ),
             <li key={r.item.key} id={`finder-${i}`} role="option" aria-selected={i === at} className={`${i === at ? 'on' : ''}${'snip' in r && r.snip ? ' with-snip' : ''}`} onMouseMove={() => i !== at && setAt(i)} onMouseDown={(e) => e.preventDefault()} onClick={(e) => choose(i, e.metaKey || e.ctrlKey ? 'tab' : e.shiftKey ? 'split' : 'here')}>
               <span className="finder-glyph" aria-hidden="true">
-                {r.item.glyph}
+                {calm ? calmGlyph(r.item.key) ?? r.item.glyph : r.item.glyph}
               </span>
               <span className="finder-label">
                 <Highlight text={r.item.label} match={r.match} />
                 {'snip' in r && r.snip && <span className="finder-snip">{r.snip.map((p, k) => (p.hit ? <mark key={k}>{p.text}</mark> : p.text))}</span>}
               </span>
-              {r.item.where && <span className={commanding ? 'finder-key' : 'finder-where'}>{r.item.where}</span>}
+              {r.item.where && !(calm && i === at && !commanding) && !(calm && books.length === 1 && r.item.key.startsWith('chapter:')) && <span className={commanding ? 'finder-key' : 'finder-where'}>{r.item.where}</span>}
+              {calm && i === at && !commanding && <span className="finder-enter">↵ open</span>}
             </li>,
           ])}
         </ul>
@@ -434,6 +460,12 @@ export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch'
             <span>↵ compare · Esc close</span>
           ) : commanding ? (
             <span>↵ run · Esc close</span>
+          ) : calm ? (
+            <span className="finder-keys">
+              <kbd>↑</kbd>
+              <kbd>↓</kbd> move <kbd>⇧</kbd>
+              <kbd>↵</kbd> open beside <span>Type</span> <kbd>&gt;</kbd> for commands
+            </span>
           ) : (
             <span>
               ↵ open · {mod}↵ new tab · ⇧↵ beside · <b>&gt;</b> commands

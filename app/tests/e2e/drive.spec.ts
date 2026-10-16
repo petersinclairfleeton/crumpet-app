@@ -45,6 +45,12 @@ async function device(browser: Browser, drive: FakeDrive): Promise<Page> {
 
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Notebooks' });
 const where = (page: Page) => page.getByRole('group', { name: /Where/ });
+/** Settings → Sync and storage, from the sidebar's ⚙ menu (a first visit's sidebar has no status line yet). */
+async function openSync(page: Page) {
+  await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: 'Settings…' }).click();
+  await page.getByRole('tab', { name: 'Sync and storage' }).click();
+}
 
 /** Live file paths under the vault folder in the fake Drive. */
 function vault(drive: FakeDrive, name: string): string[] {
@@ -55,7 +61,7 @@ function vault(drive: FakeDrive, name: string): string[] {
 test('connect Google Drive in two clicks, then a second device finds the same notes', async ({ browser }) => {
   const drive = new FakeDrive();
   const mac = await device(browser, drive);
-  await sidebar(mac).getByRole('button', { name: 'Saved on this device' }).click();
+  await openSync(mac);
   await where(mac).getByRole('button', { name: 'Continue with Google' }).click();
   await where(mac).getByRole('button', { name: /A new “Crumpet” folder/ }).click();
   await expect(where(mac)).toContainText('in the folder Crumpet');
@@ -69,7 +75,7 @@ test('connect Google Drive in two clicks, then a second device finds the same no
   await expect.poll(() => vault(drive, 'Crumpet'), { timeout: 15_000 }).toContain('Hello Drive.md');
 
   const phone = await device(browser, drive);
-  await sidebar(phone).getByRole('button', { name: 'Saved on this device' }).click();
+  await openSync(phone);
   await where(phone).getByRole('button', { name: 'Continue with Google' }).click();
   await where(phone).getByRole('button', { name: /Your Crumpet folder/ }).click();
   await phone.keyboard.press('Escape');
