@@ -2,6 +2,7 @@
 // synopsis and status, to see the shape of the book and drag it around.
 
 import { useState } from 'react';
+import { Popover } from './Sidebar';
 import { chapterWords, projectChapters } from '../data/selectors';
 import type { Project } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
@@ -15,6 +16,9 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
   const store = useAppStore();
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
+  const [showOpen, setShowOpen] = useState(false);
+  // Synopsis, status and keywords each shown unless turned off (Show ▾).
+  const show = { synopsis: true, status: true, keywords: true, ...state.settings.cardShow };
   const chapters = new Map(projectChapters(project, state.chapters).map((x) => [x.chapter.id, x]));
 
   const drop = () => {
@@ -38,6 +42,27 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
         )}
         <span className="corkboard-hint">Drag the cards to reorder. Click a title to write.</span>
         <span className="grow" />
+        <span className="note-actions">
+          <button type="button" className="btn quiet" aria-expanded={showOpen} onClick={() => setShowOpen(!showOpen)}>
+            Show ▾
+          </button>
+          {showOpen && (
+            <Popover label="Show on the cards" onClose={() => setShowOpen(false)}>
+              {(
+                [
+                  ['synopsis', 'Synopsis'],
+                  ['status', 'Status'],
+                  ['keywords', 'Keywords'],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="check-row menu-check">
+                  <input type="checkbox" checked={show[key]} onChange={(e) => store.updateSettings({ cardShow: { ...state.settings.cardShow, [key]: e.target.checked } })} />
+                  {label}
+                </label>
+              ))}
+            </Popover>
+          )}
+        </span>
         <button type="button" className="btn quiet" onClick={() => store.addChapter(project.id)}>
           <IconPlus size={13} /> Card
         </button>
@@ -86,16 +111,16 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
                   {c.title || 'Untitled chapter'}
                 </button>
               </header>
-              <textarea className="cork-synopsis" aria-label={`Synopsis of chapter ${number}`} placeholder="What happens…" value={c.synopsis} onChange={(e) => store.setChapterSynopsis(c.id, e.target.value)} />
-              <KeywordChips chapter={c} />
-              <footer>
-                <select aria-label={`Status of chapter ${number}`} value={c.status} onChange={(e) => store.setChapterStatus(c.id, e.target.value as typeof c.status)}>
+              {show.synopsis && <textarea className="cork-synopsis" aria-label={`Synopsis of chapter ${number}`} placeholder="What happens…" value={c.synopsis} onChange={(e) => store.setChapterSynopsis(c.id, e.target.value)} />}
+              {show.keywords && <KeywordChips chapter={c} />}
+              <footer className={show.status ? '' : 'no-status'}>
+                {show.status && <select aria-label={`Status of chapter ${number}`} value={c.status} onChange={(e) => store.setChapterStatus(c.id, e.target.value as typeof c.status)}>
                   {STATUSES.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.label}
                     </option>
                   ))}
-                </select>
+                </select>}
                 <span className="cork-words">{c.goal ? `${n.toLocaleString()} / ${c.goal.toLocaleString()}` : `${n.toLocaleString()} words`}</span>
               </footer>
             </article>

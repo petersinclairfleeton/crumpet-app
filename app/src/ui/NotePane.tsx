@@ -18,9 +18,9 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
-import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, Logo, NotebookIcon } from './icons';
+import { IconBack, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { BoardView } from './board';
-import { FileView, WordBanner, downloadFile } from './uploads';
+import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
 import { isBoard } from '../data/board';
 import { InlineInput, Popover } from './Sidebar';
@@ -452,29 +452,44 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   );
 }
 
-/** The first visit: three ways to start. */
+/** The first visit: a clean page, and ways to start. */
 function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(): void }) {
   const [touring, setTouring] = useState(false);
+  const store = useAppStore();
+  const nav = useNav();
+  const bringIn = () =>
+    chooseUploads(async (files) => {
+      const made = await uploadFiles(store, files);
+      const last = made[made.length - 1];
+      if (last) nav.openNote(last.id);
+    });
   return (
     <div className="welcome">
       {touring && <Tour onDone={() => setTouring(false)} />}
-      <Logo size={72} />
-      <h2>Welcome to Crumpet</h2>
-      <p className="lede">A quiet place for notes and long writing. Your words stay in files you own.</p>
+      <h2>A clean page.</h2>
+      <p className="lede">Your notes stay in plain files you own. Start however suits you.</p>
       <ol>
         <li>
           <button type="button" onClick={onNewNote}>
             <span>
-              <b>Write your first note</b>
-              <small>Just start typing. You can file it later.</small>
+              <b>Write a note</b>
+              <small>Just start typing. File it later.</small>
             </span>
           </button>
         </li>
         <li>
           <button type="button" onClick={onNewProject}>
             <span>
-              <b>Start a book or long piece</b>
-              <small>Chapters you can reorder, in manuscript format.</small>
+              <b>Start a book</b>
+              <small>Chapters, an outline, characters and research, in manuscript format.</small>
+            </span>
+          </button>
+        </li>
+        <li>
+          <button type="button" onClick={bringIn}>
+            <span>
+              <b>Bring in your writing</b>
+              <small>Word documents, Markdown, text, PDFs and pictures.</small>
             </span>
           </button>
         </li>
@@ -487,6 +502,9 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
           </a>
         </li>
       </ol>
+      <p className="welcome-keys">
+        Press <kbd>{isMac ? '⌘' : 'Ctrl'} K</kbd> any time to find a note, or <kbd>{isMac ? '⌘' : 'Ctrl'} P</kbd> for every command.
+      </p>
       <p className="welcome-tour">
         New here?{' '}
         <button type="button" className="link-btn" onClick={openGuide}>
