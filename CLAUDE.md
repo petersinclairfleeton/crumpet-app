@@ -263,7 +263,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `settings.layout.panes`), with pure functions to open, split, drop, move
     and close tabs. A tab shows a note, project, chapter, research note or
     character/place card.
-  - `src/ui/`: screens. `panes.tsx` draws the panes (tab bars, drop zones
+  - `src/ui/`: screens. In a book the notes sidebar steps back to its strip
+    (`SidebarRail`) so the outline is the side (`layout.bookSidebar`, App.tsx);
+    Explore in `Sidebar.tsx` folds Recent notes, Writing stats and the Graph away.
+    `panes.tsx` draws the panes (tab bars, drop zones
     while dragging, resizable edges) and keeps them in step with the note
     list and outline (`usePanesState`, `usePanes().open/split`); things are
     made draggable into panes with `tabDrag`/`startTabDrag` (`tabdrag.ts`);
