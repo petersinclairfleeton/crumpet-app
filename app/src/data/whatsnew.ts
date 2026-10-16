@@ -19,6 +19,7 @@ export const WHATS_NEW: WhatsNew[] = [
       'Settings → Look → Calm: show every formatting tool, keep the right sidebar open, or reduce motion.',
       'The quick switcher (Ctrl/⌘+O) finds words inside notes and chapters too, groups what it finds (notes, your books, headings) and shows a line of each.',
       'Each note says when it was last edited, above its title.',
+      'Export a book from its ••• menu: a manuscript for Word, an e-book, a PDF or another format, with or without chapters still To do, and a picture of page 1.',
     ],
   },
   {
