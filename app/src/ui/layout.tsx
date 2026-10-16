@@ -93,7 +93,7 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
   );
   return (
     <nav className="rail" aria-label="Notebooks">
-      <button type="button" className="rail-btn" aria-label="Show the sidebar" title="Show the sidebar" onClick={() => store.updateLayout({ sidebar: 'full' })}>
+      <button type="button" className="rail-btn" aria-label="Show the sidebar" title="Show the sidebar" onClick={() => store.updateLayout(state.view.kind === 'project' && (state.settings.layout?.sidebar ?? 'full') === 'full' ? { bookSidebar: 'full' } : { sidebar: 'full' })}>
         <IconSidebar size={18} />
       </button>
       <button type="button" className="rail-btn new" aria-label="New note" title="New note" onClick={onNewNote}>

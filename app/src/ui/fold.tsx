@@ -31,7 +31,9 @@ export function FoldButton({ what }: { what: Panel }) {
       title={`${label} (${shortcut(what)})`}
       onClick={() => {
         close();
-        store.updateLayout(what === 'sidebar' ? { sidebar: peeking ? 'full' : 'hidden' } : what === 'right' ? { right: peeking } : { list: peeking });
+        // In a book, folding the sidebar puts it back to its strip of icons (the book's own layout).
+        if (what === 'sidebar' && !peeking && state.view.kind === 'project' && state.settings.layout?.bookSidebar === 'full') store.updateLayout({ bookSidebar: 'icons' });
+        else store.updateLayout(what === 'sidebar' ? { sidebar: peeking ? 'full' : 'hidden' } : what === 'right' ? { right: peeking } : { list: peeking });
       }}
     >
       {/* The right sidebar folds the other way. */}

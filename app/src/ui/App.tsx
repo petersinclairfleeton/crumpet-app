@@ -315,7 +315,9 @@ export function App() {
 
   // On phones one pane shows at a time, so the layout choices are for bigger screens.
   const layout = narrow ? {} : (state.settings.layout ?? {});
-  const sidebarMode = layout.sidebar ?? (!narrow && window.matchMedia(MEDIUM).matches ? 'icons' : 'full');
+  const chosenSidebar = layout.sidebar ?? (!narrow && window.matchMedia(MEDIUM).matches ? 'icons' : 'full');
+  // In a book the notes sidebar steps back to its strip of icons, so the book's outline is the side.
+  const sidebarMode = chosenSidebar === 'full' && !narrow && state.view.kind === 'project' && layout.bookSidebar !== 'full' ? 'icons' : chosenSidebar;
   const showList = layout.list !== false;
   const showRight = !!layout.right && !state.focusMode;
   const rightW = layout.rightWidth ?? RIGHT.normal;

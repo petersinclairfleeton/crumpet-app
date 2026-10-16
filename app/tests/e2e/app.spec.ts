@@ -268,6 +268,8 @@ test('drag and drop in the sidebar: notebooks into and out of stacks, reordering
 
   // Projects: dragged into a new order.
   for (const name of ['Novel', 'Essay']) {
+    // In a book the sidebar steps back to its strip; bring it back to make another.
+    if (await side.getByRole('button', { name: 'Show the sidebar' }).count()) await side.getByRole('button', { name: 'Show the sidebar' }).click();
     await side.getByRole('button', { name: 'New project' }).click();
     await page.keyboard.type(name);
     await page.keyboard.press('Enter');
@@ -4563,6 +4565,7 @@ test('spelling: your dictionary and characters’ names are never marked, a lang
   await page.keyboard.press('Enter');
   await expect(editor.locator('.nosp')).toHaveText(['Maraweth', 'Mazz', 'zorbleck']);
   // Settings: the word is listed; a language; then the check off.
+  await sidebar(page).getByRole('button', { name: 'Show the sidebar' }).click();
   await sidebar(page).locator('.account').click();
   await page.getByRole('tab', { name: 'Writing' }).click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
@@ -5416,4 +5419,44 @@ test('the bar above a note fades while typing and comes back when the mouse move
   await page.mouse.move(400, 300);
   await expect(pane).not.toHaveClass(/\btyping\b/);
   await expect(pane.locator('> .note-toolbar')).toHaveCSS('opacity', '1');
+});
+
+test('in a book the sidebar steps back to its strip, and In this chapter lists who the chapter names', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    type C = { getState(): { projects: { id: string }[]; chapters: { id: string; projectId: string }[] }; addCastMember(p: string, k: string, n: string): { id: string }; updateCastMember(p: string, id: string, patch: object): void; setChapterDoc(id: string, doc: unknown): void; updateLayout(p: object): void };
+    const c = (window as unknown as { crumpet: C }).crumpet;
+    const p = c.getState().projects[0];
+    const mara = c.addCastMember(p.id, 'character', 'Mara');
+    c.updateCastMember(p.id, mara.id, { description: 'Came back to close the light.' });
+    c.addCastMember(p.id, 'place', 'Gull Rock');
+    c.addCastMember(p.id, 'character', 'Nobody');
+    const ch = c.getState().chapters.find((x) => x.projectId === p.id)!;
+    c.setChapterDoc(ch.id, md.fromMarkdown('Mara looked up at Gull Rock. Mara sighed.'));
+    c.updateLayout({ right: true });
+  });
+  // The notes sidebar is a strip of icons; the outline is beside it.
+  await expect(page.locator('nav.rail')).toBeVisible();
+  await expect(page.locator('nav.sidebar')).toHaveCount(0);
+  const right = page.getByRole('complementary', { name: 'Right sidebar' });
+  await expect(right.getByRole('tab', { name: 'In this chapter' })).toHaveAttribute('aria-selected', 'true');
+  const cards = right.locator('.cast-card');
+  await expect(cards).toHaveCount(2);
+  await expect(cards.first()).toContainText('Mara');
+  await expect(cards.first()).toContainText('Named 2 times');
+  await expect(right).not.toContainText('Nobody');
+  await cards.first().click();
+  await expect(page.getByRole('region', { name: 'Character card' })).toBeVisible();
+  // Showing the sidebar keeps it in books from then on; folding it puts it back to the strip.
+  await sidebar(page).getByRole('button', { name: 'Show the sidebar' }).click();
+  await expect(page.locator('nav.sidebar')).toBeVisible();
+  await sidebar(page).getByRole('button', { name: 'Hide the sidebar' }).click();
+  await expect(page.locator('nav.rail')).toBeVisible();
+  // Back in the notes, the sidebar is whole again.
+  await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
+  await expect(page.locator('nav.sidebar')).toBeVisible();
 });

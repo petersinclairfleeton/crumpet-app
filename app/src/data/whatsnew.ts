@@ -20,6 +20,7 @@ export const WHATS_NEW: WhatsNew[] = [
       'A tidier sidebar: Library, Projects and Notebooks; Recent notes, Writing stats and the Graph fold away under Explore.',
       'While you type, the bar above the note fades away; move the mouse and it’s back.',
       'Chapters open like a book’s: a honey “Chapter 1” above the title and a short line under it.',
+      'In a book, the notes sidebar steps back to a strip of icons so the outline is your side panel, and the right sidebar’s new In this chapter tab shows who and where the chapter names.',
       'Corners, colours and shadows match all through the app, in light and dark.',
     ],
   },
