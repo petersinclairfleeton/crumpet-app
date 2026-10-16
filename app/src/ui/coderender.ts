@@ -2,6 +2,7 @@
 // only when first needed, so notes without them open as fast as before.
 
 import { setCodeRenderer, setMathImage } from '@crumpet/editor/view';
+import { setModelLoader } from '@crumpet/editor/video';
 import type { CodeLang } from '@crumpet/editor/model';
 
 let katex: Promise<typeof import('katex')> | null = null;
@@ -131,3 +132,7 @@ setMathImage((tex, size, color, ready) => {
 
 /** KaTeX, loaded (for the equation tools' previews and Word files). */
 export const katexReady = loadKatex;
+
+// 3D models: Google's model viewer (with three.js), loaded the first time a model is shown.
+let viewer: Promise<unknown> | null = null;
+setModelLoader(() => (viewer ??= import('@google/model-viewer')));

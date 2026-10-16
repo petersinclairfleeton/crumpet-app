@@ -6,7 +6,7 @@ import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection, TabStop
 import { DEFAULT_TAB } from './model';
 import { fieldKind, fieldLabel, fieldValue, formShown, readForm } from './fields';
 import { CHART_TYPES, chartSvg, parseChart } from './chart';
-import { playable, videoEmbed } from './video';
+import { embeddable, loadModelViewer, playable, videoEmbed } from './video';
 import { inkSvg, parseInk } from './ink';
 import { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
 export { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
@@ -912,6 +912,44 @@ function buildMedia(block: Block): HTMLElement {
     link.textContent = iframe.title === 'Video' ? src : iframe.title;
     box.classList.add('media-video');
     box.append(frame, link);
+  } else if (embeddable(src) === 'model') {
+    // A 3D model: Google's model viewer, to turn with a finger or the mouse.
+    loadModelViewer();
+    const viewer = document.createElement('model-viewer');
+    viewer.setAttribute('camera-controls', '');
+    viewer.setAttribute('auto-rotate', '');
+    viewer.setAttribute('shadow-intensity', '1');
+    viewer.setAttribute('touch-action', 'pan-y');
+    viewer.setAttribute('alt', block.runs.map((r) => r.text).join('') || fileLabel(src));
+    viewer.className = 'model-view';
+    show((url) => viewer.setAttribute('src', url));
+    const name = document.createElement('span');
+    name.className = 'video-link';
+    name.textContent = `🧊 ${block.runs.map((r) => r.text).join('') || fileLabel(src)} · drag to turn it`;
+    box.classList.add('media-model');
+    box.append(viewer, name);
+  } else if (block.style === 'embed' && embeddable(src)) {
+    // A file shown inside the page (Word's embedded object): a PDF's pages, or a web page (kept apart from Crumpet).
+    const frame = document.createElement('iframe');
+    frame.className = 'embed-frame';
+    frame.title = block.runs.map((r) => r.text).join('') || fileLabel(src);
+    if (embeddable(src) === 'html') frame.setAttribute('sandbox', '');
+    show((url) => (frame.src = embeddable(src) === 'pdf' ? `${url}#view=FitH` : url));
+    const bar = document.createElement('span');
+    bar.className = 'embed-bar';
+    const a = document.createElement('a');
+    a.textContent = `📄 ${fileLabel(src)}`;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    show((url) => (a.href = url));
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.dataset.fileAction = 'chip';
+    chip.textContent = 'Show as an icon';
+    chip.tabIndex = -1;
+    bar.append(a, chip);
+    box.classList.add('media-embed');
+    box.append(frame, bar);
   } else if (playable(src)) {
     // An attached video or sound file plays where it is.
     const kind = playable(src)!;
@@ -931,6 +969,17 @@ function buildMedia(block: Block): HTMLElement {
     a.download = fileLabel(src);
     show((url) => (a.href = url));
     box.appendChild(a);
+    // A PDF or web page can be shown inside the page instead.
+    if (embeddable(src)) {
+      const inside = document.createElement('button');
+      inside.type = 'button';
+      inside.className = 'file-embed-btn';
+      inside.dataset.fileAction = 'embed';
+      inside.textContent = 'Show inside';
+      inside.title = 'Show it inside the page (Word’s embedded object)';
+      inside.tabIndex = -1;
+      box.appendChild(inside);
+    }
   }
   return box;
 }

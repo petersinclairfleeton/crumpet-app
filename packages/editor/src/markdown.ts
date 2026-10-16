@@ -91,9 +91,9 @@ function blockLine(b: Block, number: number): string {
     // A picture's size, wrapping, turn and alt text: {pic w=3 wrap=left …}, with its alignment.
     const pic = b.type === 'image' ? tidyPic(b.pic) : undefined;
     if (pic) return `${line} ${picAttrs(pic, b.align)}`;
-    // Online video: a link to it, marked as one.
-    if (b.type === 'file' && videoEmbed(b.src ?? '')) return `${line} {.video${b.align ? ` .${b.align}` : ''}}`;
-    return b.align ? `${line} {.${b.align}}` : line;
+    // Online video: a link to it, marked as one; a file shown inside the page, marked .embed.
+    const marks = [b.type === 'file' && videoEmbed(b.src ?? '') ? 'video' : '', b.style ?? '', b.align ?? ''].filter(Boolean);
+    return marks.length ? `${line} {${marks.map((m) => `.${m}`).join(' ')}}` : line;
   }
   // A scene break is Markdown's own section break.
   if (b.style === 'scenebreak' && !b.runs.length && !b.align) return '* * *';
