@@ -5,7 +5,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { fullSheet, manuscriptPage } from '../data/styles';
 import { chapterPages, rememberPages } from '../data/pagecount';
 import { type PageFields, PageToggle, PageView } from './pages';
-import { ExportItems } from './exportmenu';
 import { StylesDialog, useSheetClass, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { chapterWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
@@ -30,8 +29,8 @@ import { SlashMenu } from './slash';
 import { EndnoteList, FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
 import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from './changes';
-import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, projectDocx, projectEpub, projectParts } from '../data/wordfiles';
 import { PrintJob } from './print';
+import { ExportBook } from './exportbook';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
 import { CastList, CastPane, CastSpotting } from './cast';
@@ -83,16 +82,19 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
   const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'deadline' | 'delete'>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  // Printing from the Export window can leave out the chapters marked To do.
+  const [printSkipTodo, setPrintSkipTodo] = useState(false);
   const printParts = useMemo(
     () =>
       printing
-        ? projectChapters(project, state.chapters).map(({ chapter, number, part }) => ({
+        ? projectChapters(project, printSkipTodo ? state.chapters.filter((c) => c.status !== 'todo') : state.chapters).map(({ chapter, number, part }) => ({
             id: chapter.id,
             doc: { blocks: [makeBlock('heading1', chapter.title || `Chapter ${number}`), ...chapter.doc.blocks] },
             fields: { title: project.name, chapter: number, chapterTitle: chapter.title, part: part?.title, words: chapterWords(chapter) },
           }))
         : [],
-    [printing, project, state.chapters],
+    [printing, printSkipTodo, project, state.chapters],
   );
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
@@ -111,6 +113,16 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
 
   return (
     <section className="list outline" aria-label="Outline">
+      {exporting && (
+        <ExportBook
+          project={project}
+          onClose={() => setExporting(false)}
+          onPrint={(skip) => {
+            setPrintSkipTodo(skip);
+            setPrinting(true);
+          }}
+        />
+      )}
       {printing && <PrintJob title={project.name} parts={printParts} page={project.page ?? manuscriptPage()} sheet={fullSheet(project.styles, 'manuscript')} chapters onDone={() => setPrinting(false)} />}
       <header className="list-head">
         <div className="list-title">
@@ -147,34 +159,13 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                     <button
                       type="button"
                       className="menu-item"
-                      onClick={async () => {
-                        setMenu(null);
-                        download(await projectDocx(store.getState(), project), docxName(project.name), DOCX_TYPE);
-                      }}
-                    >
-                      Download as Word document
-                    </button>
-                    <button
-                      type="button"
-                      className="menu-item"
                       onClick={() => {
                         setMenu(null);
-                        setPrinting(true);
+                        setExporting(true);
                       }}
                     >
-                      Print or save as PDF
+                      Export: Word, e-book, PDF…
                     </button>
-                    <button
-                      type="button"
-                      className="menu-item"
-                      onClick={async () => {
-                        setMenu(null);
-                        download(await projectEpub(store.getState(), project), fileName(project.name, 'epub'), EPUB_TYPE);
-                      }}
-                    >
-                      Download as e-book (ePub)
-                    </button>
-                    <ExportItems title={project.name} parts={() => projectParts(store.getState(), project)} onDone={() => setMenu(null)} />
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                       Delete project
                     </button>

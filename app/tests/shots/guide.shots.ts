@@ -121,7 +121,8 @@ test('the guide’s pictures', async ({ page }) => {
 
   // Handing it in: Word, PDF, e-book.
   await outline.getByRole('button', { name: 'Project options' }).click();
-  await expect(page.getByRole('button', { name: 'Download as e-book (ePub)' })).toBeVisible();
+  await page.getByRole('button', { name: /^Export/ }).click();
+  await expect(page.getByRole('dialog', { name: /^Export/ })).toBeVisible();
   await shot(page, 'export');
   await page.keyboard.press('Escape');
 

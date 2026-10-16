@@ -124,7 +124,7 @@ const CHAPTERS: Chapter[] = [
       { title: 'Snapshots and versions', text: 'Take a snapshot before a big edit; Crumpet also keeps earlier versions as you write, and can compare any two.' },
       { title: 'Read it aloud', text: 'Hear your writing read back to catch what your eyes skip, or dictate instead of typing. The Immersive reader (under More) shows the text on its own, with spacing, line focus, syllables and parts of speech to help reading.' },
     ],
-    pictures: [pic('export', 'The project menu with Download as Word document, Print or save as PDF and Download as e-book', 'The project’s ••• menu: Word, PDF or e-book.')],
+    pictures: [pic('export', 'The Export window: a manuscript for Word, an e-book or a PDF, what’s included, and a picture of page 1', 'The project’s ••• → Export: Word, e-book or PDF, with page 1 to see.')],
   },
   {
     id: 'everywhere',
@@ -163,7 +163,7 @@ const WORKFLOWS: Workflow[] = [
       'Add the people and places under Characters & places, so their cards are a hover away while you write.',
       'Set a word goal and a deadline from the project’s ••• menu.',
       'Write a chapter at a time. Change its status as it moves from draft to done; take a snapshot before a big rewrite.',
-      'Read it through in Manuscript, then ••• → Download as Word document for agents and editors, or as an e-book for readers.',
+      'Read it through in Manuscript, then ••• → Export: a manuscript for Word for agents and editors, or an e-book for readers (leave out chapters still To do if you like).',
     ],
   },
   {

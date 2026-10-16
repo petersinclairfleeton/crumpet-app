@@ -5491,3 +5491,57 @@ test('the calm bar: five buttons, the rest under More in groups, and page view�
   await bar.getByRole('button', { name: 'Layout ▾' }).click();
   await expect(page.getByRole('dialog', { name: 'Layout tools' })).toBeVisible();
 });
+
+test('exporting a book: Word, e-book, PDF or another format, with or without the chapters still to do', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    type C = { getState(): { projects: { id: string }[]; chapters: { id: string; projectId: string }[] }; addChapter(p: string): { id: string }; setChapterTitle(id: string, t: string): void; setChapterDoc(id: string, d: unknown): void; setChapterStatus(id: string, s: string): void };
+    const c = (window as unknown as { crumpet: C }).crumpet;
+    const p = c.getState().projects[0];
+    const first = c.getState().chapters.find((x) => x.projectId === p.id)!;
+    c.setChapterTitle(first.id, 'Arrival');
+    c.setChapterDoc(first.id, md.fromMarkdown('The boat left her at the foot of the steps.'));
+    c.setChapterStatus(first.id, 'draft');
+    const second = c.addChapter(p.id);
+    c.setChapterTitle(second.id, 'Storm');
+    c.setChapterDoc(second.id, md.fromMarkdown('Not written yet, only a placeholder.'));
+    c.setChapterStatus(second.id, 'todo');
+  });
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await outline.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: /^Export/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Export The Lighthouse' });
+  await expect(dialog).toContainText('2 chapters');
+  await expect(dialog.getByLabel('Preview of page 1')).toContainText('Chapter One');
+  await expect(dialog.getByLabel('Preview of page 1')).toContainText('The boat left her');
+  // Word, the first choice.
+  const [docx] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download as Word document' }).click()]);
+  expect(docx.suggestedFilename()).toBe('The Lighthouse.docx');
+  // Plain text, leaving out the chapter still to do.
+  await outline.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: /^Export/ }).click();
+  await dialog.getByLabel(/Chapters marked To do/).uncheck();
+  await expect(dialog).toContainText('1 chapter ·');
+  await dialog.getByLabel('Another format').selectOption('txt');
+  const [txt] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download as Plain text' }).click()]);
+  expect(txt.suggestedFilename()).toBe('The Lighthouse.txt');
+  const body = await new Promise<string>((done) => {
+    void txt.createReadStream().then((st) => {
+      let out = '';
+      st.on('data', (d: { toString(): string }) => (out += d.toString()));
+      st.on('end', () => done(out));
+    });
+  });
+  expect(body).toContain('The boat left her');
+  expect(body).not.toContain('placeholder');
+  // The e-book.
+  await outline.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: /^Export/ }).click();
+  await dialog.getByRole('radio', { name: /E-book/ }).click();
+  const [epub] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download as e-book (ePub)' }).click()]);
+  expect(epub.suggestedFilename()).toBe('The Lighthouse.epub');
+});
