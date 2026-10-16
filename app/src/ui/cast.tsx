@@ -18,7 +18,7 @@ import { Popover } from './Sidebar';
 const KIND: Record<CastMember['kind'], string> = { character: 'Character', place: 'Place' };
 
 /** The address of a picture kept in Attachments (or on the web). */
-function useMedia(src: string | undefined): string | null {
+export function useMedia(src: string | undefined): string | null {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!src) return setUrl(null);

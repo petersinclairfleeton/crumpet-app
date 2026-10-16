@@ -81,6 +81,13 @@ export const IconSun = icon(
     <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
   </>,
 );
+export const IconPeople = icon(
+  <>
+    <circle cx="9" cy="8" r="3" />
+    <path d="M3 19c.5-3 3-5 6-5s5.5 2 6 5M16 5a3 3 0 0 1 0 6M18 14c1.6.6 2.7 2.4 3 5" />
+  </>,
+);
+export const IconBox = icon(<path d="M4 6h16v13H4zM9 6V4h6v2" />);
 export const IconInbox = icon(<path d="M4 13h4l2 3h4l2-3h4M5 5h14l1 8v5H4v-5z" />);
 export const IconCheck = icon(<path d="m5 12 4 4 10-10" />);
 /** The crumpet itself: a round with its holes. */

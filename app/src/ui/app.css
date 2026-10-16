@@ -2808,3 +2808,104 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .quick-colours .tools { gap: 2px; }
 .more-menu.quick .menu-item { width: 100%; box-sizing: border-box; justify-content: flex-start; text-align: left; }
 .more-menu.quick .menu-item.all-tools { color: var(--accent-ink); font-weight: 500; }
+
+/* ---- Quiet Paper: a book (designs 3, 9 and 12) ----
+   The outline is the book's sidebar, a frosted card; the chapter on paper in the plain view; the
+   inspector a frosted card of its own. */
+[data-look='crumpet'] .app.calm .list.outline.book-side { flex: 0 0 var(--list-w, 264px); width: var(--list-w, 264px); padding: 16px 12px; gap: 16px; box-sizing: border-box; border-radius: 12px; background: var(--calm-side); border: 1px solid var(--calm-edge); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
+.book-side .book-head { padding: 0; gap: 16px; }
+.book-side .book-head .list-title { align-items: center; gap: 8px; padding: 0 4px 0 0; }
+.book-side .book-head .list-title > .icon-btn { width: 32px; height: 32px; color: var(--calm-icon); }
+.book-name { flex: 1; min-width: 0; }
+[data-look='crumpet'] .book-side .book-name h1 { margin: 0; font: 500 18px/1.2 var(--title-font); letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.book-name p { margin: 0; font-size: 12px; color: var(--calm-muted); }
+.book-modes.segmented { display: flex; gap: 4px; padding: 4px; border-radius: 8px; background: rgba(31, 35, 40, 0.05); }
+.book-modes.segmented button { flex: 1; justify-content: center; height: 32px; padding: 0; border-radius: 8px; font: 500 13px var(--ui-font); color: var(--muted); }
+.book-modes.segmented button[aria-pressed='true'] { background: var(--calm-card); color: var(--text); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.08); }
+.book-progress { padding: 0 12px; }
+.book-progress-words { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 12px; color: var(--muted); }
+.book-bar { height: 4px; border-radius: 999px; background: rgba(31, 35, 40, 0.08); overflow: hidden; }
+.book-bar i { display: block; height: 4px; border-radius: 999px; background: var(--accent); }
+/* One line a chapter. */
+.book-side .outline-items { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; }
+[data-look='crumpet'] .book-side .outline-items li { border-radius: 8px; }
+.book-side .outline-part { margin: 0 0 4px !important; padding: 0 4px 0 12px !important; min-height: 24px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: var(--calm-muted); }
+.book-side .outline-chapter + .outline-part { margin-top: 16px !important; }
+.book-side .outline-chapter { position: relative; }
+.book-side .outline-chapter:hover { background: var(--calm-hover); }
+.book-side .outline-chapter.selected { background: var(--calm-card); box-shadow: var(--lift); }
+.book-side .outline-open { padding: 0 12px; min-height: 36px; justify-content: center; }
+.book-side .outline-row { gap: 12px; font-size: 14px; color: var(--calm-nav); }
+.book-side .outline-chapter.selected .outline-row { color: var(--text); }
+[data-look='crumpet'] .book-side .outline-title { font-weight: 400; }
+.book-side .outline-chapter.selected .outline-title { font-weight: 500; }
+.book-side .outline-num { margin-right: -8px; }
+.book-side .outline-words { font-size: 12px; color: var(--calm-muted); }
+.book-side .outline-chapter .note-actions { position: absolute; right: 36px; top: 2px; }
+.book-new { display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 12px; border: none; border-radius: 8px; background: none; font: 400 14px var(--ui-font); color: var(--muted); cursor: pointer; text-align: left; }
+.book-new:hover { background: var(--calm-hover); color: var(--text); }
+.book-show { display: flex; flex-direction: column; gap: 4px; padding: 0 12px; flex: 1; }
+.book-label { margin: 0 0 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted); }
+.book-show .check-row { display: flex; align-items: center; gap: 8px; height: 32px; font-size: 14px; color: var(--calm-nav); }
+.book-hint { margin: auto 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.book-foot { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding-top: 12px; border-top: 1px solid rgba(31, 35, 40, 0.08); }
+.book-row { display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 12px; border: none; border-radius: 8px; background: none; font: 400 14px var(--ui-font); color: var(--calm-nav); cursor: pointer; text-align: left; }
+.book-row:hover, .book-row[aria-expanded='true'] { background: var(--calm-hover); }
+.book-row .count { font-size: 12px; color: var(--calm-muted); }
+.book-foot .status-key { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 8px 12px 0; list-style: none; font-size: 12px; color: var(--muted); }
+.book-foot .status-key li { display: flex; align-items: center; gap: 4px; }
+.book-foot .research { max-height: 40vh; overflow: auto; }
+/* The design's dots: To do a hollow ring, Draft honey, Revised blue. */
+.app.calm .status-dot { background: var(--accent); }
+.app.calm .status-dot.todo { background: none; box-shadow: inset 0 0 0 1.5px #a3a8b0; }
+.app.calm .status-dot.revised { background: #7fa0c8; }
+.app.calm .status-dot.done { background: #6fa883; }
+/* The chapter. */
+.chapter-line { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.chapter-line .status-pick { height: 28px; padding: 0 6px; border-radius: 8px; background: none; }
+.chapter-line .status-pick:hover { background: rgba(31, 35, 40, 0.06); }
+.chapter-line .status-pick select { font-size: 13px; color: var(--muted); }
+[data-look='crumpet'] .app.calm .pane[aria-label='Chapter'] .note-pane.room .note-body { max-width: 600px; padding-top: 48px; }
+.app.calm .pane[aria-label='Chapter'] .chapter-opening { gap: 12px; margin-bottom: 40px; }
+[data-look='crumpet'] .app.calm .pane[aria-label='Chapter'] .chapter-kicker { margin: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.14em; color: var(--accent-ink); }
+[data-look='crumpet'] .app.calm .pane[aria-label='Chapter'] .note-title { margin: 0 !important; font-size: 46px; font-weight: 400; }
+[data-look='crumpet'] .app.calm .pane[aria-label='Chapter'] .chapter-rule { width: 40px; height: 2px; margin: 12px auto 0; border-radius: 2px; background: var(--accent); }
+/* The inspector. */
+[data-look='crumpet'] .app.calm .right-side { flex-basis: var(--right-w, 320px); width: var(--right-w, 320px); box-sizing: border-box; padding: 12px 16px 16px; border-radius: 12px; border: 1px solid var(--calm-edge); background: var(--calm-side); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
+.app.calm .right-head { padding: 0; border-bottom: 1px solid rgba(31, 35, 40, 0.08); }
+.app.calm .right-tabs.calm { gap: 20px; }
+.app.calm .right-tabs.calm button { height: 36px; padding: 0 4px; border-radius: 0; background: none; box-shadow: none; font: 500 13px var(--ui-font); color: var(--muted); border-bottom: 2px solid transparent; }
+.app.calm .right-tabs.calm button.on { color: var(--text); border-bottom-color: var(--accent); }
+.app.calm .right-side .chapter-cast { padding: 16px 0 0; gap: 16px; }
+.app.calm .right-side .cast-card { padding: 16px; gap: 4px; border: none; border-radius: 12px; background: #fff; box-shadow: 0 1px 2px rgba(31, 35, 40, 0.05); overflow: hidden; }
+:root[data-theme='dark'] .app.calm .right-side .cast-card { background: var(--calm-card); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .app.calm .right-side .cast-card { background: var(--calm-card); } }
+.app.calm .right-side .cast-card.with-picture { padding-top: 0; }
+.cast-card-picture { display: block; width: calc(100% + 32px); height: 112px; margin: 0 -16px 12px; object-fit: cover; }
+.app.calm .right-side .cast-card-head b { font: 500 15px var(--ui-font); }
+.app.calm .right-side .cast-card-text { font: 400 14px/1.55 var(--title-font); color: var(--calm-nav); }
+.cast-all { padding: 0 4px; font-size: 13px; font-weight: 500; text-decoration: none; }
+/* Cards (design 12). */
+.corkboard-pane.calm .cards-head { display: flex; align-items: baseline; gap: 12px; padding: 24px 24px 8px; }
+[data-look='crumpet'] .cards-head h1 { margin: 0; font: 500 28px/1.2 var(--title-font); }
+.cards-count { font-size: 13px; color: var(--muted); }
+.cards-head .btn { align-self: center; }
+[data-look='crumpet'] .corkboard-pane.calm .corkboard { padding: 8px 24px 24px; background: none; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+[data-look='crumpet'] .corkboard-pane.calm .cork-part { margin: 8px 0 -4px; font: 600 11px var(--ui-font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted); }
+[data-look='crumpet'] .corkboard-pane.calm .cork-card { min-height: 0; background: #fff; border-color: var(--calm-hair); }
+.cork-new { min-height: 112px; border: 1px dashed var(--line2); border-radius: 12px; background: none; font: 400 13px var(--ui-font); color: var(--muted); cursor: pointer; }
+.cork-new:hover { border-color: var(--accent); color: var(--text); }
+.app.calm .cork-card.status-draft { --status: var(--accent); }
+.app.calm .cork-card.status-revised { --status: #7fa0c8; }
+.app.calm .cork-card.status-done { --status: #6fa883; }
+[data-look='crumpet'] .app.calm .book-side .book-name h1 { font-size: 18px; line-height: 1.2; }
+.chapter-line .status-pick select, .corkboard-pane.calm .cork-card footer select { -webkit-appearance: none; appearance: none; padding-right: 2px; background-image: none; }
+/* The plain view writes a chapter in the writing font, as notes are; page view shows the manuscript's own. */
+[data-look='crumpet'] .app.calm .pane[aria-label='Chapter'] .note-pane.room .note-body:not(.paged) .note-editor .blk-paragraph:not([data-style]) { font-family: var(--note-font); font-size: var(--note-size, 19px); line-height: 1.7; margin: 0; }
+.book-side .book-head .list-title > .grow { display: none; }
+.app.calm .book-modes.segmented { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.app.calm .book-bar { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.app.calm .book-foot { border-top-color: color-mix(in srgb, var(--text) 8%, transparent); }
+.book-foot .research-toggle { display: none; }
+.book-foot .research-head { justify-content: flex-end; min-height: 0; padding: 0 4px; }
+.book-foot .research { padding: 0; }

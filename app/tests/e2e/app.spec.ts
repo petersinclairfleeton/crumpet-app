@@ -5701,3 +5701,51 @@ test('the writing room: the sidebar folds to its strip and the list away, the to
   await page.getByRole('button', { name: 'Open the sidebar' }).click();
   await expect(page.locator('nav.sidebar')).toBeVisible();
 });
+
+test('a book in the calm look: the outline is the sidebar, chapters open as plain writing, and the inspector shows who’s in them', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    type C = { getState(): { projects: { id: string }[]; chapters: { id: string; projectId: string }[] }; addCastMember(p: string, k: string, n: string): { id: string }; setChapterDoc(id: string, doc: unknown): void; setProjectGoal(p: string, g: number): void; addResearchNote(p: string, n: object, open: boolean): void; updateSettings(p: object): void };
+    const c = (window as unknown as { crumpet: C }).crumpet;
+    const p = c.getState().projects[0];
+    c.addCastMember(p.id, 'character', 'Mara');
+    c.setProjectGoal(p.id, 80000);
+    c.addResearchNote(p.id, { title: 'Lighthouse lamps', doc: md.fromMarkdown('Fresnel lenses.') }, false);
+    const ch = c.getState().chapters.find((x) => x.projectId === p.id)!;
+    c.setChapterDoc(ch.id, md.fromMarkdown('Mara looked up at the tower.'));
+    c.updateSettings({ toolbarAll: false });
+  });
+  const outline = page.getByRole('region', { name: 'Outline' });
+  // No notes sidebar or strip: the outline is the side, with Write, Cards and Read, and the goal.
+  await expect(page.locator('nav.sidebar, nav.rail')).toHaveCount(0);
+  await expect(outline.getByRole('button', { name: 'Write', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(outline.getByRole('progressbar', { name: 'Project progress' })).toBeVisible();
+  await expect(outline).toContainText('of 80,000');
+  // The chapter is plain writing (no pages), with its status and words at the top.
+  await outline.locator('.outline-chapter').first().click();
+  await expect(page.locator('.pg')).toHaveCount(0);
+  await expect(page.locator('.chapter-line')).toContainText('6 words');
+  await expect(page.locator('.chapter-kicker')).toHaveText(/Chapter one/i);
+  // The inspector: In this chapter, Notes and Comments.
+  await page.getByRole('button', { name: 'Open the inspector' }).click();
+  const right = page.getByRole('complementary', { name: 'Right sidebar' });
+  for (const t of ['In this chapter', 'Notes', 'Comments']) await expect(right.getByRole('tab', { name: t })).toBeVisible();
+  await expect(right.locator('.cast-card')).toContainText('Mara');
+  await right.getByRole('tab', { name: 'Notes' }).click();
+  await expect(right).toContainText('Lighthouse lamps');
+  // Characters and research fold under the outline's foot.
+  await outline.getByRole('button', { name: /^Characters & places/ }).click();
+  await expect(outline.locator('.research-item', { hasText: 'Mara' })).toBeVisible();
+  // Cards: what the cards show is chosen beside them.
+  await outline.getByRole('button', { name: 'Cards', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Corkboard' })).toBeVisible();
+  await outline.getByLabel('Synopsis').uncheck();
+  await expect(page.getByRole('region', { name: 'Corkboard' }).getByLabel('Synopsis of chapter 1')).toHaveCount(0);
+  // Back to the notes.
+  await outline.getByRole('button', { name: 'Back to notes' }).click();
+  await expect(page.locator('nav.sidebar')).toBeVisible();
+});

@@ -94,26 +94,30 @@ test('the guide’s pictures', async ({ page }) => {
   await page.keyboard.press('Escape');
   await page.keyboard.press('Backspace');
 
-  // A book: the outline and a chapter in page view.
+  // A book: the outline as the sidebar, a chapter, and the inspector with who's in it.
   await sidebar(page).getByRole('button', { name: /^The Lighthouse/ }).click();
   const outline = page.getByRole('region', { name: 'Outline' });
   await outline.locator('.outline-chapter', { hasText: 'Arrival' }).click();
-  await expect(page.locator('.pg').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Open the inspector' }).click();
+  await expect(page.getByRole('complementary', { name: 'Right sidebar' })).toBeVisible();
   await shot(page, 'book');
+  await page.getByRole('button', { name: 'Close the inspector' }).click();
 
   // The corkboard.
   await outline.getByRole('button', { name: 'Cards' }).click();
   await expect(page.getByRole('region', { name: 'Corkboard' })).toBeVisible();
   await shot(page, 'cards');
-  await outline.getByRole('button', { name: 'Chapter', exact: true }).click();
+  await outline.getByRole('button', { name: 'Write', exact: true }).click();
 
   // A character's card beside the writing.
+  await outline.getByRole('button', { name: /^Characters & places/ }).click();
   await outline.locator('.research-item', { hasText: 'Tam' }).click();
   await expect(page.getByRole('region', { name: 'Character card' })).toBeVisible();
   await shot(page, 'cast');
   await page.getByRole('region', { name: 'Character card' }).getByRole('button', { name: 'Close card' }).click();
 
   // Research beside the writing.
+  await outline.getByRole('button', { name: /^Research/ }).last().click();
   await outline.locator('.research-item', { hasText: 'Lighthouse lamps' }).click();
   await expect(page.getByRole('region', { name: 'Research note' })).toBeVisible();
   await shot(page, 'research');
@@ -127,7 +131,7 @@ test('the guide’s pictures', async ({ page }) => {
   await page.keyboard.press('Escape');
 
   // Links between notes: the graph.
-  await sidebar(page).getByRole('button', { name: /^All notes/ }).click();
+  await page.getByRole('region', { name: 'Outline' }).getByRole('button', { name: 'Back to notes' }).click();
   await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Graph of links' }).click();
   await page.waitForTimeout(2500);

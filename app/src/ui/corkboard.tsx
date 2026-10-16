@@ -31,8 +31,23 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
     store.setProjectMode('chapter');
   };
 
+  // The calm look (design 12): a heading with the count, + Chapter; what the cards show is chosen in the outline.
+  const calm = !state.settings.toolbarAll && !narrow;
+  const total = [...chapters.values()].reduce((sum, x) => sum + chapterWords(x.chapter), 0);
   return (
-    <section className="pane corkboard-pane" aria-label="Corkboard">
+    <section className={`pane corkboard-pane${calm ? ' calm' : ''}`} aria-label="Corkboard">
+      {calm ? (
+        <header className="cards-head">
+          <h1>Cards</h1>
+          <span className="cards-count">
+            {chapters.size} chapter{chapters.size === 1 ? '' : 's'} · {total.toLocaleString()} words
+          </span>
+          <span className="grow" />
+          <button type="button" className="btn" onClick={() => store.addChapter(project.id)}>
+            <IconPlus size={14} /> Chapter
+          </button>
+        </header>
+      ) : (
       <div className="note-toolbar" role="toolbar" aria-label="Corkboard">
         {narrow && (
           <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
@@ -67,6 +82,7 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
           <IconPlus size={13} /> Card
         </button>
       </div>
+      )}
       <div className="corkboard" onDragOver={(e) => dragging && e.preventDefault()} onDrop={drop}>
         {project.outline.map((item, index) => {
           if (!shown.has(item.id)) return null;
@@ -126,7 +142,12 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
             </article>
           );
         })}
-        {!project.outline.length && <p className="cork-empty">No chapters yet. Add a card to start.</p>}
+        {calm && (
+          <button type="button" className="cork-new" onClick={() => store.addChapter(project.id)}>
+            + New chapter
+          </button>
+        )}
+        {!project.outline.length && !calm && <p className="cork-empty">No chapters yet. Add a card to start.</p>}
       </div>
     </section>
   );
