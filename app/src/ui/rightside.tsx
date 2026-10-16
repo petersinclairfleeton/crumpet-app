@@ -2,6 +2,7 @@
 // in a tab: the headings outline, the Styles pane, the Reviewing pane
 // (changes and comments), and links.
 
+import { Popover } from './Sidebar';
 import { useEffect, useState } from 'react';
 import type { Block } from '@crumpet/editor/model';
 import type { Editor } from '@crumpet/editor/editor';
@@ -58,16 +59,38 @@ export function RightSidebar() {
   const tabs = chapter ? TABS : TABS.filter((t) => t.key !== 'chapter');
   const chosen: RightTab = state.settings.layout?.rightTab ?? (chapter ? 'chapter' : 'outline');
   const tab: RightTab = chosen === 'chapter' && !chapter ? 'outline' : chosen;
+  // The calm look shows three tabs (and the one open); the rest wait under More.
+  const calm = !state.settings.toolbarAll;
+  const main: RightTab[] = chapter ? ['chapter', 'outline', 'comments'] : ['outline', 'comments', 'links'];
+  const shownTabs = calm ? tabs.filter((t) => main.includes(t.key) || t.key === tab) : tabs;
+  const moreTabs = tabs.filter((t) => !shownTabs.includes(t));
+  const [more, setMore] = useState(false);
   useEdits(helped?.editor ?? null);
   return (
     <aside className="right-side" aria-label="Right sidebar">
       <header className="right-head">
-        <div className="right-tabs" role="tablist" aria-label="Helpers">
-          {tabs.map((t) => (
+        <div className={`right-tabs${calm ? ' calm' : ''}`} role="tablist" aria-label="Helpers">
+          {shownTabs.map((t) => (
             <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={() => store.updateLayout({ rightTab: t.key })}>
               {t.label}
             </button>
           ))}
+          {moreTabs.length > 0 && (
+            <span className="right-more">
+              <button type="button" aria-expanded={more} aria-label="More helpers" onClick={() => setMore(!more)}>
+                More ▾
+              </button>
+              {more && (
+                <Popover label="More helpers" onClose={() => setMore(false)}>
+                  {moreTabs.map((t) => (
+                    <button key={t.key} type="button" className="menu-item" onClick={() => (setMore(false), store.updateLayout({ rightTab: t.key }))}>
+                      {t.label}
+                    </button>
+                  ))}
+                </Popover>
+              )}
+            </span>
+          )}
         </div>
         <FoldButton what="right" />
       </header>

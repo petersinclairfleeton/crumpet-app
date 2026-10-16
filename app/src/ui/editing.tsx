@@ -101,7 +101,7 @@ export function useDocEditor(opts: DocEditorOptions): { host: RefObject<HTMLDivE
     });
     const onFocus = () => latest.current.onActive?.(ed);
     const onKey = (e: KeyboardEvent) => {
-      // ⌘K on selected text (or inside a link) edits the link; otherwise it falls through to search.
+      // ⌘K on selected text (or inside a link) edits the link; otherwise it falls through to Find anything.
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && latest.current.onLinkKey) {
         const sel = ed.currentSelection();
         const collapsed = sel.anchor.block === sel.focus.block && sel.anchor.offset === sel.focus.offset;

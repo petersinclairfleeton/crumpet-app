@@ -168,10 +168,14 @@ test('search finds notes across notebooks and offers notebooks to jump to', asyn
   await sidebar(page).getByRole('button', { name: 'All Notes' }).click();
   await newNote(page, 'Groceries', 'Milk.');
   await page.locator('.note-editor').click();
+  // Ctrl+K opens Find anything; its last lines search everything, with filters, in the list.
   await page.keyboard.press('ControlOrMeta+k');
-  await expect(page.locator('#search')).toBeFocused();
+  const finder = page.getByRole('dialog', { name: 'Quick switcher' });
+  await expect(finder).toBeVisible();
   await page.keyboard.type('lighthouse');
+  await finder.getByRole('option', { name: /Search everything for “lighthouse”/ }).click();
   await expect(list(page).locator('h1')).toHaveText('Search results');
+  await expect(page.locator('#search')).toHaveValue('lighthouse');
   await expect(list(page).locator('.card')).toHaveCount(2);
   await list(page).locator('.jumps').getByRole('button', { name: 'Lighthouse' }).click();
   await expect(list(page).locator('h1')).toHaveText('Lighthouse');
@@ -5585,4 +5589,19 @@ test('a book’s cards: Show picks what each card shows', async ({ page }) => {
   await expect(board.getByLabel('Status of chapter 1')).toHaveCount(0);
   await menu.getByLabel('Synopsis').check();
   await expect(board.getByLabel('Synopsis of chapter 1')).toBeVisible();
+});
+
+test('the calm right sidebar: three tabs, the rest under More', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void; updateLayout(p: object): void } }).crumpet.updateSettings({ toolbarAll: false }));
+  await newNote(page, 'Helpers', 'Some words');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'outline' }));
+  const right = page.getByRole('complementary', { name: 'Right sidebar' });
+  await expect(right.getByRole('tab')).toHaveCount(3);
+  await expect(right.getByRole('tab', { name: 'Thesaurus' })).toHaveCount(0);
+  await right.getByRole('button', { name: 'More helpers' }).click();
+  await page.getByRole('dialog', { name: 'More helpers' }).getByRole('button', { name: 'Thesaurus' }).click();
+  // The tab chosen from More shows beside the three while it's open.
+  await expect(right.getByRole('tab', { name: 'Thesaurus' })).toHaveAttribute('aria-selected', 'true');
+  await expect(right.getByRole('tab')).toHaveCount(4);
 });

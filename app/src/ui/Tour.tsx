@@ -15,7 +15,7 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
 
 export const STEPS: Step[] = [
   { target: '.new-note, .rail-btn.new, .fab', title: 'Your first note', text: 'Start a note here, or press N anywhere. Notes save as you type, and you can file them later.' },
-  { target: '.search', title: 'Find anything', text: `Search every note, notebook and tag. ${isMac ? '⌘K' : 'Ctrl+K'} jumps here from anywhere.` },
+  { target: '.search', title: 'Find anything', text: `Search every note, notebook and tag. ${isMac ? '⌘K' : 'Ctrl+K'} finds anything from anywhere.` },
   { target: '.layout-menu .icon-btn', title: 'Arrange your desk', text: 'Fold away the sidebar or note list, or open two notes side by side. Select text to format it.' },
   { target: '.account', title: 'Make it yours', text: 'Themes, fonts, your name, and connecting Google Drive so your notes follow you.' },
   { target: '.guide-btn', title: 'Help', text: 'The guide to everything Crumpet can do, with pictures and step-by-step workflows, and what’s new. It’s here whenever you want it.' },

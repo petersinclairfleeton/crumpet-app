@@ -5,8 +5,6 @@ import { HelpMenu } from './help';
 import { LayoutMenu } from './layout';
 import { ShowButton } from './fold';
 
-const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-
 export function TopBar({ onMenu, onNewNote }: { onMenu(): void; onNewNote(): void }) {
   const state = useAppState();
   const store = useAppStore();
@@ -51,7 +49,6 @@ export function TopBar({ onMenu, onNewNote }: { onMenu(): void; onNewNote(): voi
             }
           }}
         />
-        <kbd>{isMac ? '⌘K' : 'Ctrl K'}</kbd>
       </label>
       <LayoutMenu />
       <HelpMenu />

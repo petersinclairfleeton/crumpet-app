@@ -146,7 +146,7 @@ function useCommands(actions: Actions): Item[] {
     cmd('Search notes', () => {
       const search = document.getElementById('search') as HTMLInputElement | null;
       search?.focus();
-    }, `${mod}K`),
+    }),
     cmd(layout.sidebar === 'hidden' ? 'Show the sidebar' : 'Hide the sidebar', () => set({ sidebar: layout.sidebar === 'hidden' ? 'full' : 'hidden' }), `${mod}\\`),
     cmd(layout.list === false ? 'Show the note list' : 'Hide the note list', () => set({ list: layout.list === false }), `${isMac ? '⌘⇧' : 'Ctrl+Shift+'}\\`),
     cmd(layout.right ? 'Hide the right sidebar' : 'Show the right sidebar', () => set({ right: !layout.right }), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}\\`),
@@ -338,9 +338,13 @@ export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch'
       // Grouped: notes, then what's in your books, then headings.
       found.sort((a, b) => GROUPS.indexOf(a.item.group ?? '') - GROUPS.indexOf(b.item.group ?? ''));
     }
+    // Every match, with filters: the note list's search.
+    if (!commanding && !comparing && query.trim()) {
+      found.push({ item: { key: 'search', label: `Search everything for “${query.trim()}”`, glyph: '⌕', group: 'Commands', run: () => store.setQuery(query.trim()) }, match: { score: 0, hits: [] } });
+    }
     // Nothing to open: offer to make a note with that title.
     if (!commanding && !comparing && query.trim() && !found.some((r) => r.item.label.toLowerCase() === query.trim().toLowerCase())) {
-      found.push({ item: { key: 'create', label: `Create note “${query.trim()}”`, glyph: '+', run: (how) => {
+      found.push({ item: { key: 'create', label: `Create note “${query.trim()}”`, glyph: '+', group: 'Commands', run: (how) => {
         const n = store.createNote({ title: query.trim() });
         opener.note(n.id, how);
       } }, match: { score: 0, hits: [] } });
