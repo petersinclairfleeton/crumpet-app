@@ -1256,6 +1256,7 @@ export class Editor {
     else if (action === 'last-col') next = setTableLook(now, { lastCol: !now.tbl?.lastCol });
     else if (action === 'total-row') next = setTableLook(now, { totalRow: !now.tbl?.totalRow });
     else if (action === 'banded-cols') next = setTableLook(now, { bandedCols: !now.tbl?.bandedCols });
+    else if (action === 'sheet') next = setTableLook(now, { sheet: !now.tbl?.sheet });
     else if (action === 'repeat') next = setTableLook(now, { noRepeat: !now.tbl?.noRepeat });
     else if (action === 'pad') next = setTableLook(now, { pad: value ? Number(value) : undefined });
     else if (action === 'cell-h') next = setCellLooks(now, [[r, c]], { h: (value || null) as CellLook['h'] | null });
@@ -1444,6 +1445,12 @@ export class Editor {
   }
 
   /** Inserts maths or a diagram, with its source box ready to type in. */
+  /** Word's Excel spreadsheet: a table shown as a spreadsheet (letters and numbers round it), with sums ready. */
+  insertSpreadsheet(): void {
+    const rows = [['Item', 'Number', 'Price', 'Total'], ['', '', '', '=B2*C2'], ['', '', '', '=B3*C3'], ['', '', '', '=B4*C4'], ['Total', '=SUM(B2:B4)', '', '=SUM(D2:D4)']];
+    this.insertTableOf(rows, { sheet: true, totalRow: true });
+  }
+
   /** A chart (Word's Insert Chart): a column chart of some numbers to change. */
   insertChart(text = SAMPLE_CHART): void {
     this.insertCode('chart', text);
@@ -2748,6 +2755,19 @@ export class Editor {
     if (el) this.onFootnoteClick?.(at, '', el);
   }
 
+  /** Clicks on a drop-down list, date picker or fill-in box (the app opens its card). */
+  onFormClick: ((at: Pos, name: string, el: HTMLElement) => void) | null = null;
+
+  /** Only form controls can be changed (Restrict editing → Filling in forms): set by the app with read only. */
+  formsOnly = false;
+
+  /** Changes a form control (a choice made, a date picked, words typed), even while only forms may be filled in. */
+  setForm(at: Pos, name: string): void {
+    if (this.isReadOnly && !this.formsOnly) return;
+    const t = setFieldAt(this.state, at, name);
+    if (t) this.dispatch(t, 'command');
+  }
+
   /** Clicks on an equation within the line (the app opens its editor). */
   onMathClick: ((at: Pos, tex: string, el: HTMLElement) => void) | null = null;
 
@@ -2954,6 +2974,18 @@ export class Editor {
       if (at) {
         e.preventDefault();
         this.onFootnoteClick({ block: at.block, offset: at.offset }, at.text, fn);
+        return;
+      }
+    }
+    // Form controls: a tick box ticks; the others open their card (also while only filling in forms is allowed).
+    const form = (e.target as Element).closest?.<HTMLElement>('span.fld[data-field^="chk:"], span.fld[data-field^="drop:"], span.fld[data-field^="pick:"], span.fld[data-field^="fill:"]');
+    if (form && (!this.isReadOnly || this.formsOnly)) {
+      const at = this.view.domToPos(form, 0);
+      const name = form.dataset.field!;
+      if (at) {
+        e.preventDefault();
+        if (name.startsWith('chk:')) this.setForm(at, `chk:${name === 'chk:1' ? 0 : 1}`);
+        else this.onFormClick?.(at, name, form);
         return;
       }
     }

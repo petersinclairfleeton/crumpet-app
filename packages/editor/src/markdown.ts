@@ -984,7 +984,7 @@ function tokenize(src: string): Node[] {
     }
     // A field: {{date}}.
     if (c === '{' && src[i + 1] === '{') {
-      const f = /^\{\{([a-z][a-z-]*(?::[^{}\n]{1,100})?)\}\}/.exec(src.slice(i));
+      const f = /^\{\{([a-z][a-z-]*(?::[^{}\n]{0,310})?)\}\}/.exec(src.slice(i));
       if (f && isField(f[1])) {
         flush();
         nodes.push({ kind: 'text', text: FIELD, marks: [], field: f[1] });

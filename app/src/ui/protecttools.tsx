@@ -20,7 +20,7 @@ const ICON_PROTECT = svg('M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z');
 const ICON_SIGN = svg('M3 17c3-4 5 2 8-2s4-6 6-2M3 21h18');
 
 function ProtectMenu({ ed, close }: { ed: Editor; close(): void }) {
-  const [mode, setMode] = useState<'read' | 'comments'>('read');
+  const [mode, setMode] = useState<'read' | 'comments' | 'forms'>('read');
   const [pw, setPw] = useState('');
   return (
     <div className="menu-list protect-menu">
@@ -35,6 +35,9 @@ function ProtectMenu({ ed, close }: { ed: Editor; close(): void }) {
         </button>
         <button type="button" aria-pressed={mode === 'comments'} onClick={() => setMode('comments')}>
           Comments only
+        </button>
+        <button type="button" aria-pressed={mode === 'forms'} onClick={() => setMode('forms')}>
+          Filling in forms
         </button>
       </div>
       <label className="field">
@@ -115,7 +118,7 @@ export function protectItems(ed: Editor | null, off: boolean): ToolItem[] {
 }
 
 /** The strip on a protected document: what's allowed, and lifting it (with its password, when it has one). */
-export function ProtectBanner({ editor, kind, lock }: { editor: Editor; kind: 'final' | 'read' | 'comments'; lock?: string }) {
+export function ProtectBanner({ editor, kind, lock }: { editor: Editor; kind: 'final' | 'read' | 'comments' | 'forms'; lock?: string }) {
   const [asking, setAsking] = useState(false);
   const [pw, setPw] = useState('');
   const [error, setError] = useState('');
@@ -125,7 +128,7 @@ export function ProtectBanner({ editor, kind, lock }: { editor: Editor; kind: 'f
   };
   return (
     <div className="protect-bar" role="region" aria-label="Protected document">
-      <span>{kind === 'final' ? 'Marked as final: an author has finished it, so it opens read only.' : kind === 'comments' ? 'Editing is restricted: you can add comments, but not change the text.' : 'Editing is restricted: this document is read only.'}</span>
+      <span>{kind === 'final' ? 'Marked as final: an author has finished it, so it opens read only.' : kind === 'comments' ? 'Editing is restricted: you can add comments, but not change the text.' : kind === 'forms' ? 'Editing is restricted: you can fill in the form’s boxes, lists and dates, but not change the text.' : 'Editing is restricted: this document is read only.'}</span>
       <span className="grow" />
       {kind === 'final' ? (
         <button type="button" className="btn small" onClick={() => editor.setProtection({ final: undefined })}>

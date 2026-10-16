@@ -465,7 +465,7 @@ export interface ParaLook {
    * nothing or only comments (Word's Restrict Editing; its password's lock, like `lock`, is `plock`).
    */
   final?: boolean;
-  restrict?: 'read' | 'comments';
+  restrict?: 'read' | 'comments' | 'forms';
   plock?: string;
   /** A signature line: the document's fingerprint when it was signed (see the editor's docPrint), to tell if it's changed since. */
   sig?: string;
@@ -571,7 +571,7 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
     delete out.wmflat;
   }
   if (hex(p.pgc)) out.pgc = hex(p.pgc);
-  if (p.restrict === 'read' || p.restrict === 'comments') out.restrict = p.restrict;
+  if (p.restrict === 'read' || p.restrict === 'comments' || p.restrict === 'forms') out.restrict = p.restrict;
   if (typeof p.plock === 'string' && /^(open|[0-9a-f]{16,128})$/.test(p.plock)) out.plock = p.plock;
   if (typeof p.sig === 'string' && /^[0-9a-f]{16}$/.test(p.sig)) out.sig = p.sig;
   for (const k of ['thc', 'thf', 'thx', 'psp'] as const) if (typeof p[k] === 'string' && /^[a-z][a-z0-9-]{0,23}$/.test(p[k]!)) out[k] = p[k];

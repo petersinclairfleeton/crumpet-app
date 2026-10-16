@@ -116,6 +116,14 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     whose `src` is a YouTube/Vimeo link (`editor/src/video.ts`, `{.video}` in
     Markdown) plays in an iframe; attached video and sound play too.
     `ui/mediatools.tsx`: Chart, Online video and Screenshot (getDisplayMedia).
+    Form controls are fields too (`chk:0|1`, `drop:N:A|B`, `pick:YYYY-MM-DD`,
+    `fill:Prompt|value`; `readForm`/`formName`/`formShown` in `fields.ts`):
+    a tick box ticks on click, the others open `ui/formtools.tsx`'s `FormCard`
+    (`editor.onFormClick`, `setForm`); `restrict=forms` (Filling in forms)
+    leaves only them usable (`editor.formsOnly`). Word gets content controls
+    (`w:sdt`, `w14:checkbox`). A table's look `sheet` shows it as a spreadsheet
+    (column letters and row numbers from `data-col`/`data-row` on its cells;
+    Table → Spreadsheet, `editor.insertSpreadsheet`).
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines, and the gallery's styles,
     `TABLE_STYLES`, which go to Word as table styles "Crumpet Blue" and so on) and keeping it in step as rows and
@@ -327,7 +335,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     note's text becomes one ```` ```locked ```` block; `ui/locked.tsx` keeps
     opened notes in memory for the session and re-locks as they change);
     `ui/protecttools.tsx` is Protect document (first paragraph's `final`,
-    `restrict` read/comments, its password's lock `plock`; EditorHost makes
+    `restrict` read/comments/forms, its password's lock `plock`; EditorHost makes
     the editor read only and shows `ProtectBanner`; Word's
     documentProtection and `_MarkAsFinal`) and Signature line (a paragraph
     with `sig`, the document's fingerprint `docPrint`; `data-sig-ok` says

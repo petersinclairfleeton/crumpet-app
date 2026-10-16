@@ -5190,3 +5190,77 @@ test('charts (from the bar or a table), online video and a screenshot', async ({
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as Word document' }).click()]);
   expect(download.suggestedFilename()).toBe('Report.docx');
 });
+
+test('form controls (tick box, drop-down, date, fill-in), filling in forms only, and a spreadsheet', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Order form', 'Agree ');
+  const editor = page.locator('.note-editor');
+  const put = async (name: string) => {
+    await (await toolButton(page, 'Form control')).click();
+    await page.getByRole('button', { name: new RegExp(`${name}$`) }).click();
+  };
+  await put('Tick box');
+  await page.keyboard.type(' Colour ');
+  await put('Drop-down list');
+  await page.keyboard.type(' Date ');
+  await put('Date picker');
+  await page.keyboard.type(' Name ');
+  await put('Fill-in box');
+  const box = editor.locator('span.fld[data-form="chk"]');
+  await expect(box).toHaveAttribute('data-v', '☐');
+  await box.click();
+  await expect(box).toHaveAttribute('data-v', '☑');
+  // The drop-down's choices changed, then one chosen.
+  await editor.locator('span.fld[data-form="drop"]').click();
+  const card = page.locator('.form-card');
+  await card.getByText('Change the choices').click();
+  await card.getByLabel('Choices, one a line').fill('Red\nGreen\nBlue');
+  await card.getByRole('button', { name: 'Save choices' }).click();
+  await editor.locator('span.fld[data-form="drop"]').click();
+  await card.getByRole('option', { name: 'Green' }).click();
+  await expect(editor.locator('span.fld[data-form="drop"]')).toHaveAttribute('data-v', 'Green');
+  await editor.locator('span.fld[data-form="pick"]').click();
+  await card.getByLabel('Date').fill('2026-10-13');
+  await card.getByRole('button', { name: 'Done' }).click();
+  await expect(editor.locator('span.fld[data-form="pick"]')).toHaveAttribute('data-field', 'pick:2026-10-13');
+  await editor.locator('span.fld[data-form="fill"]').click();
+  await card.getByLabel('Prompt').fill('Your name');
+  await card.getByRole('button', { name: 'Done' }).click();
+  await expect(editor.locator('span.fld[data-form="fill"]')).toHaveAttribute('data-v', 'Your name');
+  await expect(editor.locator('span.fld[data-form="fill"]')).toHaveClass(/form-prompt/);
+  // Only filling in forms: the text is read only, the controls still work.
+  await editor.getByText('Agree').click();
+  await (await toolButton(page, 'Protect document')).click();
+  await page.getByRole('button', { name: 'Filling in forms' }).click();
+  await page.getByRole('button', { name: 'Start protection' }).click();
+  await expect(page.getByRole('region', { name: 'Protected document' })).toContainText('fill in the form');
+  await expect(editor).toHaveAttribute('contenteditable', 'false');
+  await editor.locator('span.fld[data-form="fill"]').click();
+  await card.getByLabel('Fill in').fill('Jo Bloggs');
+  await expect(card.getByLabel('Prompt')).toHaveCount(0);
+  await card.getByRole('button', { name: 'Done' }).click();
+  await expect(editor.locator('span.fld[data-form="fill"]')).toHaveAttribute('data-v', 'Jo Bloggs');
+  await box.click();
+  await expect(box).toHaveAttribute('data-v', '☐');
+  await page.getByRole('region', { name: 'Protected document' }).getByRole('button', { name: 'Stop protection' }).click();
+  // A spreadsheet: letters and numbers round it, and its sums.
+  await editor.locator('p').last().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await (await toolButton(page, 'Table')).click();
+  await page.getByRole('button', { name: /^Spreadsheet/ }).click();
+  const sheet = editor.locator('table.sheet');
+  await expect(sheet).toHaveCount(1);
+  await expect(sheet.locator('[data-col="D"]')).toHaveCount(1);
+  await expect(sheet.locator('[data-row="5"]')).toHaveCount(1);
+  const cell = (r: number, c: number) => sheet.locator(`.cell[data-r="${r}"][data-c="${c}"]`);
+  await cell(1, 1).click();
+  await page.keyboard.type('2');
+  await cell(1, 2).click();
+  await page.keyboard.type('3.5');
+  await cell(2, 0).click();
+  await expect(sheet.locator('tr').nth(1).locator('td').nth(3)).toHaveAttribute('data-value', '7');
+  await expect(sheet.locator('tr').nth(4).locator('td').nth(3)).toHaveAttribute('data-value', '7');
+});
