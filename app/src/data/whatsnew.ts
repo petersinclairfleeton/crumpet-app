@@ -10,6 +10,15 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-closer',
+    date: '16 October 2026',
+    title: 'Even quieter',
+    points: [
+      'More opens on a few everyday tools (font, colour and highlight, clear formatting, footnotes, tables, pictures, comments, track changes); All writing tools… shows the rest.',
+      'A note’s corner keeps to the star and the ··· menu: Focus mode, Page view, Reading view and Add a reminder are in that menu, and Track changes is under More until it’s on.',
+    ],
+  },
+  {
     id: '2026-10-16-calm-bar',
     date: '16 October 2026',
     title: 'Five buttons, and the rest in groups',

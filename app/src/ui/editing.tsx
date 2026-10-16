@@ -290,6 +290,22 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       tool('undo', 1, 'Undo', `Undo (${mod}Z)`, '↶', () => ed?.undo(), { disabled: !ed?.history.canUndo, sep: true }),
       tool('redo', 1, 'Redo', `Redo (${mod}⇧Z)`, '↷', () => ed?.redo(), { disabled: !ed?.history.canRedo }),
     );
+  // The calm bar keeps Track changes in More (the bar shows it only while it's on).
+  if (!settings.toolbarAll && !compact)
+    items.push(
+      tool(
+        'track',
+        1,
+        settings.trackChanges ? 'Stop tracking changes' : 'Track changes',
+        'Track changes: mark what’s added and deleted',
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4 20h4L19 9l-4-4L4 16v4z" />
+          <path d="M13 7l4 4" />
+        </svg>,
+        () => store.updateSettings({ trackChanges: !settings.trackChanges }),
+        { active: !!settings.trackChanges },
+      ),
+    );
   items.push(tool('customise', 0, 'Customise the bar…', 'Customise the formatting bar: choose its buttons', '⚙', openCustomise));
   return (
     <>

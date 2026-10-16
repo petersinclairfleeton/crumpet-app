@@ -22,12 +22,18 @@ function localInput(t: number): string {
   return d.toISOString().slice(0, 16);
 }
 
-export function ReminderButton({ note }: { note: Note }) {
+/** `quiet`: the bell shows only while there's a reminder (the note's menu offers one); `ask` opens it when it changes. */
+export function ReminderButton({ note, quiet = false, ask = 0 }: { note: Note; quiet?: boolean; ask?: number }) {
   const store = useAppStore();
   const [open, setOpen] = useState(false);
   const r = note.reminder;
   const now = Date.now();
   const [when, setWhen] = useState('');
+  useEffect(() => {
+    if (!ask) return;
+    setWhen(localInput(note.reminder?.at ?? quickTimes(Date.now())[0].at));
+    setOpen(true);
+  }, [ask]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (at: number) => {
     askToNotify();
     store.setReminder(note.id, { at });
@@ -36,6 +42,7 @@ export function ReminderButton({ note }: { note: Note }) {
   const label = r ? `Reminder: ${reminderText(r.at, now)}${r.done ? ' (done)' : ''}` : 'Add a reminder';
   return (
     <>
+      {!(quiet && !r) && (
       <button
         type="button"
         className={`icon-btn${r && !r.done ? ' on' : ''}${r && !r.done && r.at <= now ? ' due' : ''}`}
@@ -49,6 +56,7 @@ export function ReminderButton({ note }: { note: Note }) {
       >
         <IconBell size={16} />
       </button>
+      )}
       {open && (
         <Popover onClose={() => setOpen(false)} label="Reminder">
           {r && (

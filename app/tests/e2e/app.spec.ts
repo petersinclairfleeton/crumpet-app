@@ -5480,8 +5480,22 @@ test('the calm bar: five buttons, the rest under More in groups, and page view�
   await expect(bar.getByRole('button', { name: 'Underline' })).toHaveCount(0);
   await bar.getByRole('button', { name: 'More formatting' }).click();
   const more = page.getByRole('dialog', { name: 'More formatting' });
+  // More opens on a few everyday tools; All writing tools… shows the rest, in groups.
+  await expect(more.getByRole('button', { name: /Highlight/ })).toBeVisible();
+  await expect(more.getByRole('button', { name: /Track changes/ })).toBeVisible();
+  await expect(more.getByRole('button', { name: /Underline/ })).toHaveCount(0);
+  await more.getByRole('button', { name: 'All writing tools…' }).click();
   for (const g of ['Text', 'Paragraph', 'Insert', 'Layout']) await expect(more.getByRole('group', { name: g })).toBeVisible();
   await expect(more.getByRole('group', { name: 'Text' }).getByRole('button', { name: /Underline/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  // The note's corner keeps to the star and its menu; the views are in the menu.
+  await expect(page.getByRole('button', { name: 'Focus mode' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Track changes' })).toHaveCount(0);
+  await page.locator('.note-actions').getByRole('button', { name: 'More', exact: true }).click();
+  const opts = page.getByRole('dialog', { name: 'Note options' });
+  await expect(opts.getByRole('button', { name: 'Focus mode' })).toBeVisible();
+  await opts.getByRole('button', { name: /Add a reminder/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Reminder' })).toBeVisible();
   await page.keyboard.press('Escape');
   // Settings → Look → Show every formatting tool puts them all back on the bar.
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
@@ -5492,7 +5506,8 @@ test('the calm bar: five buttons, the rest under More in groups, and page view�
     c.updateSettings({ toolbarAll: false });
     c.updateLayout({ list: false });
   });
-  await page.getByRole('button', { name: 'Page view' }).click();
+  await page.locator('.note-actions').getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Note options' }).getByRole('button', { name: 'Page view' }).click();
   for (const m of ['Format ▾', 'Insert ▾', 'References ▾', 'Review ▾']) await expect(bar.getByRole('button', { name: m })).toBeVisible();
   await bar.getByRole('button', { name: 'Layout ▾' }).click();
   await expect(page.getByRole('dialog', { name: 'Layout tools' })).toBeVisible();
