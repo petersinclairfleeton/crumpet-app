@@ -11,7 +11,7 @@ import { stepsOf } from '@crumpet/editor/sync/transform';
 import type { Doc, Mark } from '@crumpet/editor/model';
 import type { StyleSheet } from '../data/styles';
 import { AlignTools, StylePicker } from './styles-ui';
-import { OverflowRow, PHONE_TOOLS, SELECTION_TOOLS, type ToolItem } from './toolbar';
+import { OverflowRow, PHONE_TOOLS, SELECTION_TOOLS, TABLET_TOOLS, type ToolItem } from './toolbar';
 import { useFontItems } from './fonttools';
 import { openFontDialog } from './fontdialog';
 import { useParaItems } from './paratools';
@@ -204,7 +204,7 @@ export function chooseFiles(ed: Editor): void {
 }
 
 /** The formatting buttons, acting on whichever editor is given. */
-export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true, fit = false, menus = false, keyboard = false, page, onPage, chapters }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean; fit?: boolean; /** In page view: the groups as menus of their own, like Word's tabs. */ menus?: boolean; /** Above a phone's keyboard: its own few buttons. */ keyboard?: boolean; page?: PageSetup | null; onPage?(p: PageSetup): void; chapters?: boolean }) {
+export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles, compact = false, attach = true, fit = false, menus = false, keyboard = false, tablet = false, page, onPage, chapters }: { editor: Editor | null; readOnly: boolean; onLink(): void; sheet: StyleSheet; onEditStyles?(): void; compact?: boolean; attach?: boolean; fit?: boolean; /** In page view: the groups as menus of their own, like Word's tabs. */ menus?: boolean; /** Above a phone's keyboard: its own few buttons. */ keyboard?: boolean; /** At the foot of an iPad's page. */ tablet?: boolean; page?: PageSetup | null; onPage?(p: PageSetup): void; chapters?: boolean }) {
   const type = ed?.currentBlock().type;
   const off = readOnly || !ed;
   const fontItems = useFontItems(ed, off, sheet);
@@ -315,7 +315,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
         fit={fit}
         calm={!settings.toolbarAll && (!compact || !attach || keyboard)}
         menus={menus}
-        core={keyboard ? PHONE_TOOLS : compact && !attach ? SELECTION_TOOLS : undefined}
+        core={tablet ? TABLET_TOOLS : keyboard ? PHONE_TOOLS : compact && !attach ? SELECTION_TOOLS : undefined}
         quickMenu={keyboard ? undefined : (showAll) => <QuickMenu ed={ed} off={off} items={items} onAll={showAll} />}
       />
       {fit && <CustomiseHost items={items} />}

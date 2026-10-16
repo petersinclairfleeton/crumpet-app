@@ -23,7 +23,7 @@ import { useDocFontsLoaded, useFontKeys } from './fonttools';
 import { useParaKeys } from './paratools';
 import { StatusBar } from './statusbar';
 import { useAppState, useAppStore, useMedia, useNav } from './hooks';
-import { IconBack, IconBox, IconChevron, IconRightPanel, IconFocus, IconMore, IconPeople, IconPlus, IconSearch } from './icons';
+import { IconBack, IconBox, IconChevron, IconRightPanel, IconSidebar, IconFocus, IconMore, IconPeople, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
 import { EndnoteList, FootnoteCard, FootnoteList } from './footnotes';
@@ -679,6 +679,11 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const calm = !state.settings.toolbarAll && !narrow;
   const paged = state.settings.pageView?.projects ?? !calm;
   const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords'>(null);
+  // An iPad held upright (design 15): the outline button and where you are, the chapters a menu away.
+  const midWidth = useMedia('(max-width: 1099px)');
+  const compact = calm && midWidth && !state.query.trim();
+  const outlineOut = state.settings.layout?.list === true;
+  const [jump, setJump] = useState(false);
   const list = projectChapters(project, state.chapters);
   const at = list.findIndex((x) => x.chapter.id === chapter.id);
   const prev = list[at - 1]?.chapter;
@@ -732,6 +737,30 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
       <IconBack size={18} />
       <span className="back-label">Outline</span>
     </button>
+  ) : compact ? (
+    <>
+      <button type="button" className={`icon-btn${outlineOut ? ' on' : ''}`} aria-label={outlineOut ? 'Hide the outline' : 'Show the outline'} aria-pressed={outlineOut} onClick={() => store.updateLayout({ list: outlineOut ? undefined : true })}>
+        <IconSidebar size={18} />
+      </button>
+      <p className="room-crumbs book-crumbs">
+        <span>{project.name}</span>
+        <span aria-hidden="true">/</span>
+        <span className="crumb-jump">
+          <button type="button" className="here" aria-haspopup="menu" aria-expanded={jump} onClick={() => setJump(!jump)}>
+            {at + 1}. {chapter.title || 'Untitled chapter'} <IconChevron size={14} className="rot90" />
+          </button>
+          {jump && (
+            <Popover onClose={() => setJump(false)} label="Chapters">
+              {list.map(({ chapter: c, number }) => (
+                <button key={c.id} type="button" className={`menu-item${c.id === chapter.id ? ' on' : ''}`} onClick={() => (setJump(false), store.selectChapter(c.id))}>
+                  <span className={`status-dot ${c.status}`} aria-hidden="true" /> {number}. {c.title || 'Untitled chapter'}
+                </button>
+              ))}
+            </Popover>
+          )}
+        </span>
+      </p>
+    </>
   ) : calm ? (
     <p className="chapter-line">
       {statusPick}
@@ -748,10 +777,10 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
       <button type="button" className="icon-btn" aria-label="Next chapter" data-tip="Next chapter" disabled={!next} onClick={() => next && store.selectChapter(next.id)}>
         <IconChevron size={18} />
       </button>
-      <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
-      <button type="button" className={`icon-btn${state.settings.layout?.right ? ' on' : ''}`} aria-label={state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'} aria-pressed={!!state.settings.layout?.right} data-tip="Inspector: who’s in this chapter, notes and comments" onClick={() => store.updateLayout({ right: !state.settings.layout?.right })}>
+      {!compact && <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />}
+      {!compact && <button type="button" className={`icon-btn${state.settings.layout?.right ? ' on' : ''}`} aria-label={state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'} aria-pressed={!!state.settings.layout?.right} data-tip="Inspector: who’s in this chapter, notes and comments" onClick={() => store.updateLayout({ right: !state.settings.layout?.right })}>
         <IconRightPanel size={18} />
-      </button>
+      </button>}
       <button type="button" className="icon-btn" aria-label="Chapter options" aria-expanded={!!chapterMenu} onClick={() => setChapterMenu(chapterMenu ? null : 'menu')}>
         <IconMore size={16} />
       </button>
@@ -759,6 +788,21 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         <Popover onClose={() => setChapterMenu(null)} label="Chapter options">
           {chapterMenu === 'menu' && (
             <>
+              {compact && (
+                <>
+                  <div className="menu-line">
+                    {statusPick}
+                    <span>{chapter.goal ? `${n.toLocaleString()} of ${chapter.goal.toLocaleString()} words` : words(n)}</span>
+                  </div>
+                  <button type="button" className="menu-item" aria-pressed={!!state.settings.layout?.right} onClick={() => (setChapterMenu(null), store.updateLayout({ right: !state.settings.layout?.right }))}>
+                    <IconPeople size={14} /> {state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'}
+                  </button>
+                  <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setChapterMenu(null), store.updateSettings({ pageView: { ...state.settings.pageView, projects: !paged } }))}>
+                    {paged ? 'Page view: on' : 'Page view'}
+                  </button>
+                  <hr className="menu-sep" />
+                </>
+              )}
               <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), setFinding(true))}>
                 <IconSearch size={14} /> Find and replace <small className="menu-hint">{isMac ? '⌘F' : 'Ctrl+F'}</small>
               </button>

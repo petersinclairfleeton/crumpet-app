@@ -34,6 +34,8 @@ const QUICK_GROUPS: [string, string[]][] = [
 ];
 /** Above a phone's keyboard: style, checklist, bullets and a picture; the rest under More. */
 export const PHONE_TOOLS = new Set(['style', 'todo', 'bullet', 'attach']);
+/** At the foot of an iPad's page: the phone's few, and Draw for the pencil. */
+export const TABLET_TOOLS = new Set(['style', 'todo', 'bullet', 'draw', 'attach']);
 export type ToolGroup = 'Text' | 'Paragraph' | 'Insert' | 'Layout' | 'References' | 'Review' | 'Tools';
 export const TOOL_GROUPS: ToolGroup[] = ['Text', 'Paragraph', 'Insert', 'Layout', 'References', 'Review', 'Tools'];
 const GROUP_KEYS: Record<ToolGroup, string[]> = {

@@ -404,6 +404,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   have a back arrow, big title and search (`NoteList`'s `phone`), a note has Share
   (its star, notebook and tags in ···), and a book's outline has Chapters/Cast/Research
   (`ProjectOutline`'s `phone`); the round + (`.fab`) makes a note or a chapter.
+  An iPad in the calm look (`pointer: coarse`, wider than a phone): EditorHost's
+  `tablet` floats `TABLET_TOOLS` in `.float-tools` at the page's foot, the list has
+  the search box and New note sits at the sidebar's foot. A book at 1099px wide or
+  less is `.compact-book` (App): no outline unless `layout.list === true`, a breadcrumb
+  with a chapter menu (ChapterPane's `compact`), the inspector a drawer.
   Note: the Home Screen app keeps its own notes, apart from Safari's.
 - `desktop/`: Crumpet for Mac (Electron). `main.cjs` serves the built web app
   (`app/dist`, packed inside as `resources/web`) from `app://crumpet/`, with a

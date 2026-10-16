@@ -73,7 +73,11 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
   // The formatting bar floats above selected text, unless pinned (phones keep it in place).
   // The calm look keeps them on show at the top unless asked to float them; the full bar floats unless pinned.
   const calm = !state.settings.toolbarAll;
-  const floating = !narrow && !readOnly && !reading && (state.focusMode || floatTools || (calm ? state.settings.toolbar === 'selection' : state.settings.toolbar !== 'always'));
+  // A touch screen big enough for the computer layout (an iPad, design 14): the tools float in a
+  // small bar at the foot of the page, the same few as above a phone's keyboard.
+  const touch = useMedia('(pointer: coarse)');
+  const tablet = calm && touch && !narrow && !readOnly && !reading;
+  const floating = !tablet && !narrow && !readOnly && !reading && (state.focusMode || floatTools || (calm ? state.settings.toolbar === 'selection' : state.settings.toolbar !== 'always'));
   const styles = useSheetClass(sheet);
   const paged = !!page && !reading;
   const { host, editor: ed } = useDocEditor({
@@ -153,7 +157,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
     <div ref={paneRef} className={`note-pane ${styles}${reading ? ' reading' : ''}${floatTools ? ' room' : ''}`}>
       <div className="note-toolbar" role="toolbar" aria-label="Formatting">
         {lead}
-        {!floating && !narrow && <FormatTools fit menus={paged} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}
+        {!floating && !narrow && !tablet && <FormatTools fit menus={paged} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />}
         <span className="grow" />
         {!readOnly && !reading && <RevisionChip />}
         {!readOnly && !reading && <TrackToggle editor={ed} />}
@@ -171,6 +175,11 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
         )}
         {trail}
       </div>
+      {tablet && ed && (
+        <div className="float-tools" role="toolbar" aria-label="Formatting" onMouseDown={(e) => e.preventDefault()}>
+          <FormatTools compact keyboard tablet editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />
+        </div>
+      )}
       {narrow && ed && !readOnly && !reading && (
         <KeyboardBar host={host}>
           <FormatTools compact keyboard editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />
