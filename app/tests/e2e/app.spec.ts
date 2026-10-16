@@ -4214,6 +4214,11 @@ test('graph view: notes and their links, all of them or just near the open note'
   await graph.getByLabel('Which notes').selectOption('0');
   await graph.getByLabel('Notes without links').check();
   await expect(graph.locator('.graph-count')).toHaveText('5 notes · 2 links');
+  // Zoom buttons in the corner.
+  const zoom = graph.getByRole('group', { name: 'Zoom' });
+  await zoom.getByRole('button', { name: 'Zoom in' }).click();
+  await zoom.getByRole('button', { name: 'Zoom out' }).click();
+  await zoom.getByRole('button', { name: 'Fit' }).click();
 });
 
 test('boards: cards and arrows, saved as JSON Canvas in the note', async ({ page }) => {

@@ -52,6 +52,8 @@ function Reader({ ed, onClose }: { ed: Editor; onClose(): void }) {
   const [panel, setPanel] = useState<'text' | 'grammar' | 'reading' | null>(null);
   const [picked, setPicked] = useState<{ word: string; x: number; y: number } | null>(null);
   const [speaking, setSpeaking] = useState(false);
+  // Where reading aloud has got to: the paragraph, of how many, and the words still to come.
+  const [heard, setHeard] = useState<{ k: number; n: number; left: number } | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const body = useRef<HTMLDivElement>(null);
   // Line focus: the lit lines a third of the way down the text area (the text starts there).
@@ -92,12 +94,15 @@ function Reader({ ed, onClose }: { ed: Editor; onClose(): void }) {
     if (speaking) {
       synth.cancel();
       setSpeaking(false);
+      setHeard(null);
       return;
     }
     const paras = Array.from(scroller.current?.querySelectorAll<HTMLElement>('[data-read]') ?? []);
     setSpeaking(true);
     const speak = (k: number) => {
       const el = paras[k];
+      const count = (e: HTMLElement) => (e.dataset.read ?? '').split(/\s+/).filter(Boolean).length;
+      setHeard(el ? { k, n: paras.length, left: paras.slice(k).reduce((w, e) => w + count(e), 0) } : null);
       if (!el) {
         setSpeaking(false);
         scroller.current?.querySelectorAll('.rw.speaking').forEach((w) => w.classList.remove('speaking'));
@@ -252,6 +257,20 @@ function Reader({ ed, onClose }: { ed: Editor; onClose(): void }) {
         </div>
       ) : null}
       </div>
+      {speaking && heard && (
+        <div className="reader-playing" role="status">
+          <button type="button" className="reader-stop" aria-label="Stop reading aloud" onClick={readAloud}>
+            ■
+          </button>
+          <span>
+            Paragraph {heard.k + 1} of {heard.n}
+          </span>
+          <span className="reader-track" aria-hidden="true">
+            <span style={{ width: `${Math.round((heard.k / Math.max(1, heard.n)) * 100)}%` }} />
+          </span>
+          <span>{Math.max(1, Math.round(heard.left / 160))} min left</span>
+        </div>
+      )}
       {picked && <PictureCard word={picked.word} x={picked.x} y={picked.y} onClose={() => setPicked(null)} />}
     </div>,
     document.body,
