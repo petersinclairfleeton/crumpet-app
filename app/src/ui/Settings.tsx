@@ -80,7 +80,7 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
                 <div className="theme-grid">
                   {THEMES.map((t) => (
                     <button key={t.id} type="button" className="theme-card" aria-pressed={s.theme === t.id} aria-label={t.name} title={t.hint} onClick={() => store.updateSettings({ theme: t.id })}>
-                      <span className={`theme-preview${t.id === 'glass' ? ' glassy' : ''}`} aria-hidden="true">
+                      <span className={`theme-preview${t.id === 'glass' ? ' glassy' : ''}${['system', 'light', 'dark'].includes(t.id) ? ' quiet' : ''}${t.id === 'dark' ? ' dark' : ''}`} aria-hidden="true">
                         <i style={{ background: t.preview[0] }} />
                         <i style={{ background: t.preview[1] }} />
                         <i style={{ background: t.preview[2] }}>
