@@ -51,7 +51,7 @@ function CardText({ text }: { text: string }) {
     el.textContent = '';
     for (const line of text.split('\n')) {
       const p = document.createElement('div');
-      p.className = line.startsWith('# ') ? 'card-line card-h' : 'card-line';
+      p.className = /^#{1,6}\s/.test(line) ? 'card-line card-h' : 'card-line';
       fillCell(p, line.replace(/^#+\s+/, ''));
       if (!line) p.innerHTML = '&nbsp;';
       el.appendChild(p);
@@ -352,7 +352,7 @@ export function BoardView({ note }: { note: Note }) {
               <div
                 key={c.id}
                 data-card={c.id}
-                className={`board-card ${c.type}${on ? ' on' : ''}${editing === c.id ? ' editing' : ''}`}
+                className={`board-card ${c.type}${c.color ? ' tinted' : ''}${on ? ' on' : ''}${editing === c.id ? ' editing' : ''}`}
                 style={{ left: c.x, top: c.y, width: c.width, height: c.height, ...(c.color ? { '--card': CARD_COLORS[c.color] } : {}) } as React.CSSProperties}
                 onPointerDown={(e) => startMove(e, c)}
                 onDoubleClick={(e) => {

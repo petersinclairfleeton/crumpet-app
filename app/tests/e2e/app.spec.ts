@@ -647,7 +647,7 @@ test('projects: chapters and parts, status, synopsis, goals, reordering and the 
   await expect(page.getByRole('button', { name: 'Move up' })).toBeDisabled();
   await page.keyboard.press('Escape');
   await outline.locator('.outline-open', { hasText: 'The Keeper' }).click();
-  await expect(page.locator('.chapter-kicker')).toHaveText('Part One · Chapter 1');
+  await expect(page.locator('.chapter-kicker')).toHaveText('Part One · Chapter One');
 
   // The whole manuscript: both chapters, editable in place.
   await outline.getByRole('button', { name: 'Manuscript' }).click();

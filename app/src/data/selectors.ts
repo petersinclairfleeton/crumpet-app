@@ -348,3 +348,12 @@ export function matchingChapters(state: Pick<AppState, 'query' | 'projects' | 'c
   }
   return out;
 }
+
+const NUMBER_WORDS = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen', 'Twenty'];
+const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+/** A chapter's number as a book writes it: One, Twelve, Forty-Two (figures from 100). */
+export function numberInWords(n: number): string {
+  if (n >= 0 && n <= 20) return NUMBER_WORDS[n];
+  if (n > 20 && n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? `-${NUMBER_WORDS[n % 10].toLowerCase()}` : '');
+  return String(n);
+}
