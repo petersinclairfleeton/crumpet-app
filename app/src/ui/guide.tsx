@@ -104,7 +104,7 @@ const CHAPTERS: Chapter[] = [
       { title: 'A card for everyone', text: 'Add characters and places to a project. Crumpet spots their names in your chapters; hover over one to see their card.' },
       { title: 'Research beside you', text: 'Keep notes, pictures and PDFs in a project’s Research (drag a note onto the project to add it), and open them next to the chapter you’re writing.' },
       { title: 'Clip the web', text: 'The web clipper (Settings → Clipper & app) saves a web page, or the part you select, as a note in one click.' },
-      { title: 'See the connections', text: 'The Graph draws your notes and the links between them, so related ideas find each other.' },
+      { title: 'See the connections', text: 'The Graph draws your notes and the links between them, so related ideas find each other. Rest the mouse on a dot to see its links and notebook; zoom with − Fit + in the corner.' },
     ],
     pictures: [
       pic('cast', 'A character’s card beside the chapter, listing where they appear', 'A character’s card: who they are, and every chapter they appear in.'),

@@ -22,11 +22,11 @@ items are in the app; the PR that built each is in brackets.
 - [x] 11 Find anything: results grouped with a line of text, words inside found too (#149)
 - [ ] 12 Cards: Show synopsis / status / keywords
 - [x] 13 Settings → Look: theme pictures (#145), Calm switches (#148)
-- [ ] 19 Graph: filter chips, zoom and Fit, hover card
-- [ ] 20 Board: tools floating at the bottom
+- [x] 19 Graph: zoom and Fit, hover card (#151; the filter stays a drop-down)
+- [x] 20 Board: tools floating at the bottom (#151)
 - [x] 21 Export window with a preview of page 1 (#150; title page and comments options left out: the Word file has no such choices yet)
 - [x] 22 Page view: Word's tools as menus (#148)
-- [ ] 23 Reader: a playback pill while reading aloud
+- [x] 23 Reader: a playback pill while reading aloud (#151)
 
 ## iPhone and iPad
 - [x] 4 iPhone list as paper cards (#147)

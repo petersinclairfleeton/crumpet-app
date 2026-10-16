@@ -25,6 +25,27 @@ export function GraphView() {
   const drag = useRef<{ node: number | null; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
   const heat = useRef(1);
   const [title, setTitle] = useState<string | null>(null);
+  // The card beside the dot under the mouse: which dot, and where.
+  const [card, setCard] = useState<{ i: number; x: number; y: number } | null>(null);
+
+  /** Zooms so the whole graph fits the canvas. */
+  const fitView = (w: number, h: number) => {
+    if (!graph.nodes.length) return;
+    const xs = graph.nodes.map((p) => p.x);
+    const ys = graph.nodes.map((p) => p.y);
+    const bw = Math.max(...xs) - Math.min(...xs) + 120;
+    const bh = Math.max(...ys) - Math.min(...ys) + 160;
+    const k = Math.min(2.2, Math.max(0.3, Math.min(w / bw, h / bh)));
+    view.current = { k, x: -((Math.max(...xs) + Math.min(...xs)) / 2) * k, y: -((Math.max(...ys) + Math.min(...ys)) / 2) * k + 20 };
+  };
+  /** Zooms in or out about the middle. */
+  const zoomBy = (f: number) => {
+    const v = view.current;
+    const k = Math.min(4, Math.max(0.2, v.k * f));
+    v.x = (v.x * k) / v.k;
+    v.y = (v.y * k) / v.k;
+    v.k = k;
+  };
 
   useEffect(() => {
     const el = canvas.current;
@@ -50,12 +71,7 @@ export function GraphView() {
         // Once it has mostly settled, zoom so the whole graph fits.
         if (!fitted && heat.current < 0.35 && graph.nodes.length) {
           fitted = true;
-          const xs = graph.nodes.map((p) => p.x);
-          const ys = graph.nodes.map((p) => p.y);
-          const bw = Math.max(...xs) - Math.min(...xs) + 120;
-          const bh = Math.max(...ys) - Math.min(...ys) + 160;
-          const k = Math.min(2.2, Math.max(0.3, Math.min(w / bw, h / bh)));
-          view.current = { k, x: -((Math.max(...xs) + Math.min(...xs)) / 2) * k, y: -((Math.max(...ys) + Math.min(...ys)) / 2) * k + 20 };
+          fitView(w, h);
         }
       }
       const v = view.current;
@@ -185,6 +201,7 @@ export function GraphView() {
             hover.current = h;
             setTitle(h === null ? null : graph.nodes[h].title);
           }
+          setCard(h === null ? null : { i: h, x, y });
         }}
         onPointerUp={(e) => {
           const d = drag.current;
@@ -197,6 +214,7 @@ export function GraphView() {
         onPointerLeave={() => {
           hover.current = null;
           setTitle(null);
+          setCard(null);
         }}
         onWheel={(e) => {
           const [x, y] = point(e);
@@ -212,6 +230,27 @@ export function GraphView() {
         }}
         style={{ cursor: title ? 'pointer' : 'grab' }}
       />
+      {card && graph.nodes[card.i] && (
+        <div className="graph-card" style={{ left: card.x + 16, top: card.y + 16 }} aria-hidden="true">
+          <b>{graph.nodes[card.i].title}</b>
+          <span>
+            {graph.nodes[card.i].degree} link{graph.nodes[card.i].degree === 1 ? '' : 's'}
+            {graph.nodes[card.i].group ? ` · ${state.notebooks.find((n) => n.id === graph.nodes[card.i].group)?.name ?? ''}` : ''}
+          </span>
+          <small>Click to open in a new tab · Shift-click to open here</small>
+        </div>
+      )}
+      <div className="graph-zoom" role="group" aria-label="Zoom">
+        <button type="button" className="icon-btn" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.25)}>
+          −
+        </button>
+        <button type="button" className="btn quiet small" onClick={() => canvas.current && fitView(canvas.current.clientWidth, canvas.current.clientHeight)}>
+          Fit
+        </button>
+        <button type="button" className="icon-btn" aria-label="Zoom in" onClick={() => zoomBy(1.25)}>
+          +
+        </button>
+      </div>
       {graph.nodes.length === 0 && <p className="graph-empty">{local ? 'Open a note to see the notes linked to it.' : 'No notes yet.'} Link notes by typing [[ and a title.</p>}
     </section>
   );

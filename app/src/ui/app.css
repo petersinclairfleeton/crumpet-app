@@ -818,7 +818,11 @@ input, select { font: inherit; color: inherit; }
 [data-look='crumpet'] .cork-card footer > :last-child { margin-left: auto; }
 [data-look='crumpet'] .cork-part { font-size: 22px; margin-top: 16px; }
 /* Boards: rounder cards on a warm, dotted desk. */
-[data-look='crumpet'] .board-tools { border-bottom: none; padding: 8px 16px; }
+[data-look='crumpet'] .board-tools { position: absolute; left: 50%; bottom: 20px; z-index: 5; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); border-bottom: none; padding: 6px 8px; border-radius: 12px; background: var(--page); box-shadow: var(--shadow); }
+[data-look='crumpet'] .board-tools > .grow { flex: 0 0 12px; }
+[data-look='crumpet'] .board-tools .popover { top: auto; bottom: calc(100% + 8px); }
+/* The chosen card's own bar sits above the tools. */
+[data-look='crumpet'] .board-sel { bottom: 80px; }
 [data-look='crumpet'] .board-surface { background-color: color-mix(in srgb, var(--page) 55%, var(--field)); background-size: 24px 24px; }
 [data-look='crumpet'] .board-card { border-width: 1px; border-radius: 12px; box-shadow: 0 1px 2px rgba(31, 35, 40, 0.06), 0 6px 16px rgba(31, 35, 40, 0.06); }
 [data-look='crumpet'] .board-group { border-radius: 16px; }
@@ -1920,12 +1924,19 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .graph-tools input[type='search'] { width: 180px; }
 .graph-count { margin-left: auto; }
 .graph-canvas { flex: 1; width: 100%; min-height: 0; touch-action: none; }
+/* The card beside the dot under the mouse, and the zoom buttons in the corner. */
+.graph-card { position: absolute; z-index: 2; max-width: 260px; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; background: var(--page); box-shadow: var(--shadow); pointer-events: none; }
+.graph-card b { font-family: var(--title-font, inherit); font-size: 15px; font-weight: 500; color: var(--text); }
+.graph-card span { font-size: 12px; color: var(--muted); }
+.graph-card small { margin-top: 4px; font-size: 11.5px; font-weight: 500; color: var(--accent-ink); }
+.graph-zoom { position: absolute; right: 16px; bottom: 16px; z-index: 1; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 12px; background: var(--page); box-shadow: var(--lift); }
 .graph-empty { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: var(--muted); font-size: 14px; pointer-events: none; }
 
 /* Boards (cards and arrows). */
 .board-pane { display: flex; flex-direction: column; }
 .board-header { flex: none; padding: 4px 24px 0; }
 .board-header .note-title { font-size: 26px; }
+.board-header .note-kicker { margin: 4px 0 2px; }
 .board { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .board-tools { flex: none; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--line); }
 .board-zoom { min-width: 42px; text-align: center; font-size: 12px; color: var(--muted); }
@@ -2469,3 +2480,10 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .export-page-title { margin: 36px 0 14px; text-align: center; font-size: 9px; line-height: 1.6; }
 .export-page p { margin: 0; text-indent: 12px; font-size: 6.5px; line-height: 2.1; }
 @media (max-width: 759px) { .export-preview { display: none; } }
+
+/* The Immersive reader's pill while reading aloud: stop, how far, how long left. */
+.reader-playing { position: absolute; left: 50%; bottom: 28px; z-index: 3; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; padding: 8px 18px 8px 8px; border-radius: 999px; background: #fff; color: #3a3f47; box-shadow: 0 2px 6px rgba(31, 35, 40, 0.08), 0 12px 32px rgba(31, 35, 40, 0.14); font: 13px var(--ui-font); }
+.reader.paper-dark .reader-playing { background: #2a2926; color: #ece8e1; }
+.reader-stop { width: 36px; height: 36px; border: none; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 12px; cursor: pointer; }
+.reader-track { width: 140px; height: 4px; border-radius: 999px; background: color-mix(in srgb, currentColor 15%, transparent); overflow: hidden; }
+.reader-track > span { display: block; height: 100%; background: var(--accent); transition: width 0.3s ease; }
