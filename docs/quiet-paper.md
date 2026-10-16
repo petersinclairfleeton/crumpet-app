@@ -7,7 +7,7 @@ items are in the app; the PR that built each is in brackets.
 - [x] Warm paper, honey once per screen, three corner sizes, serif titles (#141)
 - [x] The chosen thing lifted, not ringed (#141)
 - [x] Five tools, then More, in groups; page view's menus (#148)
-- [x] Drawers open when asked: right sidebar closed until asked (Settings → Look → Calm)
+- [x] Drawers open when asked: right sidebar closed until asked (Settings → Appearance → Calm)
 - [x] Notes and books feel different: project mode (#144)
 - [x] Empty means helpful: the first visit (#145)
 
@@ -21,7 +21,7 @@ items are in the app; the PR that built each is in brackets.
 - [x] 8–9 Dark mode (#141)
 - [x] 11 Find anything: results grouped with a line of text, words inside found too (#149)
 - [x] 12 Cards: Show synopsis / status / keywords (#152)
-- [x] 13 Settings → Look: theme pictures (#145), Calm switches (#148)
+- [x] 13 Settings → Appearance: theme pictures (#145), Calm switches (#148)
 - [x] 19 Graph: zoom and Fit, hover card (#151; the filter stays a drop-down)
 - [x] 20 Board: tools floating at the bottom (#151)
 - [x] 21 Export window with a preview of page 1 (#150; title page and comments options left out: the Word file has no such choices yet)

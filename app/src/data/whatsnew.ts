@@ -18,6 +18,7 @@ export const WHATS_NEW: WhatsNew[] = [
       'A note’s corner keeps to the star and the ··· menu: Focus mode, Page view, Reading view and Add a reminder are in that menu, and Track changes is under More until it’s on.',
       'Ctrl/⌘+K opens Find anything, the window that finds notes, chapters and headings as you type; Search everything at the bottom lists every match, with filters.',
       'The right sidebar shows three tabs (Outline, Review and Links; or In this chapter, Outline and Review in a book), with the rest under More ▾.',
+      'Settings has its sections down the left; Appearance shows four themes (More themes has the rest), and its Calm settings are on/off switches.',
     ],
   },
   {

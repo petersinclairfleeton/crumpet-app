@@ -469,7 +469,7 @@ input, select { font: inherit; color: inherit; }
 .note-toolbar { transition: opacity 0.3s ease; }
 .note-pane.typing > .note-toolbar:not(:focus-within) { opacity: 0; }
 @media (prefers-reduced-motion: reduce) { .note-toolbar { transition: none; } }
-/* Settings → Look → Reduce motion. */
+/* Settings → Appearance → Reduce motion. */
 [data-motion='reduce'] *, [data-motion='reduce'] ::before, [data-motion='reduce'] ::after { animation: none !important; transition: none !important; }
 /* The More menu's groups (Text, Paragraph, Insert…) and page view's menus. */
 .more-group + .more-group { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
@@ -2032,7 +2032,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .home-guide-text span { color: var(--text2); }
 .home-guide-text svg { vertical-align: -2px; color: var(--accent-ink); }
 
-/* ---- Paper colour (Settings → Look, or Page colour in the formatting bar) ---- */
+/* ---- Paper colour (Settings → Appearance, or Page colour in the formatting bar) ---- */
 :root[data-paper] .note-scroll { --paper-muted: color-mix(in srgb, var(--paper-ink) 55%, var(--paper)); --paper-line: color-mix(in srgb, var(--paper-ink) 16%, var(--paper)); }
 :root[data-paper] .note-scroll:not(:has(.paged)) { --page: var(--paper); --text: var(--paper-ink); --muted: var(--paper-muted); --line: var(--paper-line); --line2: var(--paper-line); background: var(--paper); color: var(--paper-ink); }
 :root[data-paper] .sheet { background: var(--paper); }
@@ -2523,3 +2523,25 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   [data-look='crumpet'] .right-side .right-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   [data-look='crumpet'] .right-side .chapter-cast { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 }
+
+/* Settings: the sections down the left, the chosen one beside them; on/off switches. */
+@media (min-width: 720px) {
+  .dialog.settings-dialog { width: min(820px, 100%); height: min(86vh, 660px); display: grid; grid-template-columns: 196px 1fr; grid-template-rows: auto 1fr; overflow: hidden; }
+  .settings-dialog .dialog-head { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+  .settings-dialog .settings-tabs { position: static; flex-direction: column; gap: 2px; padding: 12px 10px; border-bottom: none; border-right: 1px solid var(--line); overflow-y: auto; background: color-mix(in srgb, var(--text) 2.5%, transparent); }
+  .settings-dialog .settings-tabs button { text-align: left; font-weight: 500; }
+  .settings-dialog .settings-tabs button[aria-selected='true'] { background: var(--page); color: var(--text); box-shadow: 0 0 0 1px var(--line); }
+  .dialog.settings-dialog .settings-tabs + .settings { overflow-y: auto; min-height: 0; padding: 18px 26px 26px; }
+}
+.more-themes { align-self: flex-start; margin-top: 6px; font-size: 13px; }
+.switch-row { display: flex; align-items: center; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.switch-row:first-of-type { border-top: none; }
+.switch-row > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.switch-row b { font-weight: 600; font-size: 13.5px; color: var(--text); }
+.switch-row small { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+input.switch { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 38px; height: 22px; margin: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 18%, transparent); cursor: pointer; transition: background 0.15s; }
+input.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.25); transition: transform 0.15s; }
+input.switch:checked { background: var(--accent); }
+input.switch:checked::after { transform: translateX(16px); }
+input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[data-motion='reduce'] input.switch, [data-motion='reduce'] input.switch::after { transition: none; }
