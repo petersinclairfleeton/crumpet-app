@@ -7,7 +7,7 @@ import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useNav } from './hooks';
-import { allTags, displayTitle, docWords, longTime, notebookTree, wordCount } from '../data/selectors';
+import { allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
 import { chooseFiles, isMac } from './editing';
@@ -274,6 +274,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           </button>
         </div>
       )}
+      <p className="note-kicker">{editedText(note.updatedAt, Date.now())}</p>
       <textarea
         ref={titleRef}
         className="note-title"

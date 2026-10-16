@@ -17,6 +17,8 @@ export const WHATS_NEW: WhatsNew[] = [
       'The formatting bar shows five everyday buttons: style, bold, italic, bullets and link. Everything else is under More, sorted into Text, Paragraph, Insert, Layout, References and Review.',
       'In page view those groups become menus of their own, like Word’s: Format, Insert, Layout, References and Review.',
       'Settings → Look → Calm: show every formatting tool, keep the right sidebar open, or reduce motion.',
+      'The quick switcher (Ctrl/⌘+O) finds words inside notes and chapters too, groups what it finds (notes, your books, headings) and shows a line of each.',
+      'Each note says when it was last edited, above its title.',
     ],
   },
   {
