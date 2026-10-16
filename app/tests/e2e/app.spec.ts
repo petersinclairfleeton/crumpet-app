@@ -5405,3 +5405,15 @@ test('objects: a PDF shown inside the page or as an icon, and a 3D model to turn
   await expect.poll(() => page.evaluate(() => !!customElements.get('model-viewer')), { timeout: 15000 }).toBe(true);
   await expect(editor.locator('.media-model')).toContainText('teapot.glb');
 });
+
+test('the bar above a note fades while typing and comes back when the mouse moves', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Quiet', 'One');
+  const pane = page.locator('.note-pane').first();
+  await page.keyboard.type(' two');
+  await expect(pane).toHaveClass(/\btyping\b/);
+  await expect(pane.locator('> .note-toolbar')).toHaveCSS('opacity', '0');
+  await page.mouse.move(400, 300);
+  await expect(pane).not.toHaveClass(/\btyping\b/);
+  await expect(pane.locator('> .note-toolbar')).toHaveCSS('opacity', '1');
+});

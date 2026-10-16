@@ -461,6 +461,10 @@ input, select { font: inherit; color: inherit; }
 .tools button:disabled { opacity: 0.35; cursor: default; }
 .tools .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
 .note-actions { position: relative; display: flex; gap: 2px; }
+/* While typing, the bar above the note fades away (EditorHost); moving the pointer brings it back. */
+.note-toolbar { transition: opacity 0.3s ease; }
+.note-pane.typing > .note-toolbar:not(:focus-within) { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .note-toolbar { transition: none; } }
 .linkbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--list-bg); }
 .linkbar label { font-size: 12px; font-weight: 700; color: var(--text2); }
 .linkbar input { flex: 1 1 220px; min-width: 0; height: 32px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); font-size: 14px; }
@@ -521,6 +525,8 @@ input, select { font: inherit; color: inherit; }
 .outline-open .progress { margin-left: 15px; }
 .chapter-meta .progress { width: 90px; }
 .chapter-kicker { margin: 0 0 -6px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+/* A short honey line under a chapter's title, as a book's chapter opening has. */
+.chapter-rule { display: block; flex: none; height: 2px; margin: -4px 0 4px; background: linear-gradient(var(--accent), var(--accent)) 0 0 / 40px 2px no-repeat content-box; }
 .status-pick { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 8px; border-radius: 4px; background: var(--chip); font-size: 12px; }
 .status-pick select { border: none; background: transparent; font-weight: 600; color: var(--text2); cursor: pointer; }
 .chapter-words { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -740,7 +746,10 @@ input, select { font: inherit; color: inherit; }
 [data-look='crumpet'] .pane-tab.on { height: 30px; margin-bottom: 0; background: var(--page); box-shadow: var(--lift); }
 [data-look='crumpet'] .pane-group.active .pane-tab.on { box-shadow: var(--lift), inset 0 -2px 0 var(--accent); }
 [data-look='crumpet'] .note-toolbar { border-bottom: none; padding: 12px 16px 6px; }
-[data-look='crumpet'] .note-toolbar .tools { padding: 3px; border-radius: 12px; background: var(--field); }
+[data-look='crumpet'] .note-toolbar .tools { padding: 0; background: transparent; }
+/* The note's own buttons stay soft until the pointer comes to the bar. */
+[data-look='crumpet'] .note-toolbar .note-actions .icon-btn:not(.on) { color: var(--muted); opacity: 0.7; transition: opacity 0.2s ease; }
+[data-look='crumpet'] .note-toolbar:is(:hover, :focus-within) .note-actions .icon-btn { opacity: 1; }
 [data-look='crumpet'] .tools button { border-radius: 8px; }
 [data-look='crumpet'] .tools button:hover:not(:disabled) { background: var(--page); }
 [data-look='crumpet'] .tools button.active { background: var(--page); box-shadow: var(--lift); }
@@ -759,6 +768,7 @@ input, select { font: inherit; color: inherit; }
 [data-look='crumpet'] .outline-items li { border-radius: 12px; }
 [data-look='crumpet'] .outline-title { font-weight: 600; }
 [data-look='crumpet'] .synopsis { border-radius: 12px; }
+[data-look='crumpet'] .chapter-kicker { margin: 0 0 -4px; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent-ink); }
 [data-look='crumpet'] .manuscript-title { font-family: var(--title-font); font-weight: 500; letter-spacing: -0.01em; }
 [data-look='crumpet'] .welcome h2 { font-family: var(--title-font); font-weight: 400; letter-spacing: -0.01em; }
 [data-look='crumpet'] .welcome .lede { font-family: var(--ui-font); font-style: normal; font-size: 18px; }
