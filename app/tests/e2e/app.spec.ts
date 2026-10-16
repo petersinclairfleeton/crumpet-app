@@ -1071,6 +1071,7 @@ test('the guide: opens by itself on a first visit, chapter by chapter with pictu
   await page.reload();
   await expect(list(page)).toBeVisible();
   await expect(guide).toHaveCount(0);
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
   await page.getByRole('button', { name: 'Guide to Crumpet' }).click();
   await expect(guide.getByRole('heading', { name: 'Welcome to Crumpet' })).toBeVisible();
   await guide.getByRole('button', { name: 'Close the guide' }).click();
@@ -5316,4 +5317,58 @@ test('draw: pen, ink to shape, eraser, lasso and recolour, replay, and the drawi
   await expect(win).toBeVisible();
   await expect(area.locator('path')).toHaveCount(2);
   await win.getByRole('button', { name: 'Cancel' }).click();
+});
+
+test('macros (record, play back, a shortcut), customising the formatting bar, and what’s new', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Letters', 'Dear Sam,');
+  const editor = page.locator('.note-editor');
+  // Record: a new line, a bold sign-off.
+  await (await toolButton(page, 'Macros')).click();
+  await page.getByLabel('Macro name').fill('Sign off');
+  await page.getByRole('button', { name: '● Record' }).click();
+  const bar = page.getByRole('status', { name: 'Recording a macro' });
+  await expect(bar).toContainText('Recording “Sign off”');
+  await editor.getByText('Dear Sam,').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Control+b');
+  await page.keyboard.type('Best wishes');
+  await page.keyboard.press('Control+b');
+  await bar.getByRole('button', { name: 'Stop recording' }).click();
+  await expect(bar).toHaveCount(0);
+  await expect(editor.locator('strong', { hasText: 'Best wishes' })).toHaveCount(1);
+  // Played back at the end of the text: the same again.
+  await page.keyboard.press('Control+End');
+  await (await toolButton(page, 'Macros')).click();
+  await page.getByRole('button', { name: /▶ Sign off/ }).click();
+  await expect(editor.locator('strong', { hasText: 'Best wishes' })).toHaveCount(2);
+  // A shortcut: Alt+Shift+1.
+  await (await toolButton(page, 'Macros')).click();
+  await page.getByLabel('Shortcut for Sign off').selectOption('1');
+  await page.keyboard.press('Escape');
+  await editor.locator('p').last().click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Alt+Shift+Digit1');
+  await expect(editor.locator('strong', { hasText: 'Best wishes' })).toHaveCount(3);
+  // Customise the bar: hide Bold, keep Draw on the bar.
+  await expect(page.locator('.note-toolbar .tools.fit').getByRole('button', { name: 'Bold', exact: true })).toHaveCount(1);
+  await (await toolButton(page, 'Customise the bar…')).click();
+  const dialog = page.getByRole('dialog', { name: 'Customise the formatting bar' });
+  await dialog.getByLabel('Show Bold', { exact: true }).uncheck();
+  await dialog.getByLabel('Keep Draw on the bar').check();
+  await dialog.getByRole('button', { name: 'Done' }).first().click();
+  await expect(page.locator('.note-toolbar .tools.fit').getByRole('button', { name: 'Bold', exact: true })).toHaveCount(0);
+  await expect(page.locator('.note-toolbar .tools.fit > .tool').getByRole('button', { name: 'Draw', exact: true })).toHaveCount(1);
+  // What's new, from Help: the dot goes once it's been seen.
+  const help = page.getByRole('button', { name: 'Help', exact: true });
+  await expect(help.locator('.news-dot')).toHaveCount(1);
+  await help.click();
+  await page.getByRole('button', { name: /What’s new/ }).click();
+  const news = page.getByRole('dialog', { name: 'What’s new' });
+  await expect(news).toContainText('Macros');
+  await news.getByRole('button', { name: 'Close' }).click();
+  await expect(help.locator('.news-dot')).toHaveCount(0);
 });

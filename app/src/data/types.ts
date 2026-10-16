@@ -206,6 +206,12 @@ export interface Settings {
   ruler?: boolean;
   /** The welcome guide has been seen (or closed) on this device, so it doesn't open by itself again. */
   guideSeen?: boolean;
+  /** The newest What's new entry seen on this device. */
+  whatsNewSeen?: string;
+  /** Macros (Word's Record Macro): their steps, played back in the editor, and an Alt+Shift number to run each. */
+  macros?: { id: string; name: string; steps: import('@crumpet/editor/editor').MacroStep[]; key?: number }[];
+  /** The formatting bar as you like it: buttons hidden, and buttons kept on the bar (never moved under More). */
+  toolbarCustom?: { hide?: string[]; pin?: string[] };
   /** The colour of the paper notes and chapters are written on (#rrggbb); unset: the theme's own. */
   paper?: string;
   /** Spelling: the browser's check on (unless `off`), its language, and words of your own it passes over. */

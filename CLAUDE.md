@@ -129,6 +129,14 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     clicking it (`editor.onInkEdit`) or Draw (`insertDrawing`) opens
     `ui/inktools.tsx`'s drawing window (pointer events, pressure, undo,
     replay); Word gets a PNG of it (`inkPng` in `docx.ts`, browser only).
+    Macros: the editor records steps (`startMacro`/`stopMacro`/`playMacro`,
+    `MacroStep`: typing, Enter, Backspace, caret moves, and calls to
+    `MACRO_COMMANDS`, wrapped while recording); `ui/macros.tsx` (Macros ▾,
+    the recording strip, Alt+Shift+number) keeps them in `settings.macros`.
+    `ui/customise.tsx`: Customise the bar (`settings.toolbarCustom` hide/pin;
+    pinned items get priority 9). `ui/help.tsx`: the top bar's Help menu (guide,
+    What's new from `data/whatsnew.ts` with `settings.whatsNewSeen`, feedback and
+    support only when `VITE_FEEDBACK_EMAIL` / `VITE_SUPPORT_URL` are set).
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines, and the gallery's styles,
     `TABLE_STYLES`, which go to Word as table styles "Crumpet Blue" and so on) and keeping it in step as rows and

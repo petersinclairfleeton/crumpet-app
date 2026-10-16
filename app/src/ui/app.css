@@ -2317,3 +2317,28 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .ink-foot .grow { flex: 1; }
 .ink-size { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .ink-size select { height: 26px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); }
+
+/* ---- Help menu, What's new, macros and customising the bar ---- */
+.help-menu { position: relative; display: inline-flex; }
+.news-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: #e0532f; }
+.news-dot.inline { position: static; display: inline-block; margin-left: 6px; vertical-align: middle; }
+.whats-new { width: min(560px, 100%); }
+.news-item h3 { margin: 6px 0 4px; font-size: 14px; }
+.news-item h3 small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+.news-item ul { margin: 0 0 6px; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+.small-dialog textarea { width: 100%; padding: 8px; border: 1px solid var(--line2); border-radius: 6px; background: var(--page); color: var(--text); font: inherit; font-size: 13px; }
+.macro-menu { min-width: 300px; }
+.macro-new { display: flex; gap: 6px; padding: 0 8px; }
+.macro-new input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); }
+.macro-row { display: flex; align-items: center; gap: 4px; }
+.macro-row .menu-item { flex: 1; }
+.macro-row select { height: 26px; font-size: 11px; border: 1px solid var(--line2); border-radius: 5px; background: var(--page); color: var(--text); }
+.macro-bar { position: fixed; z-index: 60; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px; background: var(--page); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 13px; }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #d0312d; animation: rec-blink 1.2s ease-in-out infinite; }
+@keyframes rec-blink { 50% { opacity: 0.3; } }
+.customise { width: min(560px, 100%); }
+.customise-list { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+.customise-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 10px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.customise-list li:last-child { border-bottom: none; }
+.customise-list label { display: inline-flex; align-items: center; gap: 8px; }
+.customise-pin { color: var(--muted); font-size: 12px; }
