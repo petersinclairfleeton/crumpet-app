@@ -37,6 +37,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const store = useAppStore();
   const [collapsed, setCollapsed] = useState<string[]>(() => remember('collapsedStacks', []));
   const [tagsOpen, setTagsOpen] = useState<boolean>(() => remember('tagsOpen', false));
+  // Recent notes, Writing stats and the Graph fold away under Explore.
+  const [moreOpen, setMoreOpen] = useState<boolean>(() => remember('sideMore', false));
   const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack' | 'project'>(null);
   // A link ending in #connect opens straight to connecting Google Drive.
   const [settingsOpen, setSettingsOpen] = useState(() => typeof location !== 'undefined' && location.hash === '#connect');
@@ -132,28 +134,14 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
       <Bookmarks />
 
-      {recent.length > 0 && (
-        <section className="side-section" aria-label="Recent notes">
-          <h2 className="side-label">Recent Notes</h2>
-          {recent.map((n) => (
-            <button key={n.id} type="button" className="side-row recent" onClick={() => onOpenNote(n.id)} onContextMenu={(e) => setMenuAt(noteMenuAt(e, [n.id]))} {...tabDrag({ kind: 'note', id: n.id })}>
-              <IconNote size={12} />
-              <span className="ellipsis">{displayTitle(n)}</span>
-            </button>
-          ))}
-        </section>
-      )}
-
-      <section className="side-section">
+      <section className="side-section" aria-label="Library">
+        <h2 className="side-label">Library</h2>
         <SideRow icon={<IconNote size={13} />} label="All Notes" count={state.notes.filter((n) => n.trashedAt === null && !n.projectId).length} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong files={upload({ notebookId: null })} />
-        <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
-        <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
-        <SideRow icon={<IconGraph size={13} />} label="Graph" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
         <SideRow icon={<IconStar size={13} />} label="Favorites" count={state.notes.filter((n) => n.favorite && n.trashedAt === null).length || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong drop={toFavorites} />
+        <SideRow icon={<IconSun size={13} />} label="Today" active={todayOpen} onClick={onToday} strong />
         {state.notes.some((n) => n.reminder && n.trashedAt === null) && (
           <SideRow icon={<IconBell size={13} />} label="Reminders" count={openReminders(state.notes) || undefined} active={active({ kind: 'reminders' })} onClick={() => onOpenView({ kind: 'reminders' })} strong />
         )}
-
         {(state.settings.savedSearches ?? []).length > 0 && (
           <>
             <div className="side-heading">
@@ -180,7 +168,9 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             ))}
           </>
         )}
+      </section>
 
+      <section className="side-section">
         <div className={`side-heading${projectsHead.over ? ' drop-over' : ''}`} {...projectsHead.props}>
           <span>Projects</span>
           <button type="button" className="icon-btn" aria-label="New project" title="New project" onClick={() => setCreating(creating === 'project' ? null : 'project')}>
@@ -304,6 +294,39 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           </div>
         )}
         <SideRow icon={<IconTrash size={13} />} label="Trash" count={trashCount || undefined} active={active({ kind: 'trash' })} onClick={() => onOpenView({ kind: 'trash' })} strong drop={toTrash} />
+      </section>
+
+      <section className="side-section side-more">
+        <button
+          type="button"
+          className="side-row strong"
+          aria-expanded={moreOpen}
+          onClick={() => {
+            setMoreOpen(!moreOpen);
+            keep('sideMore', !moreOpen);
+          }}
+        >
+          <IconMore size={13} />
+          <span className="grow">Explore</span>
+          <IconChevron size={10} className={moreOpen ? 'rot90' : ''} />
+        </button>
+        {moreOpen && (
+          <>
+            <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
+            <SideRow icon={<IconGraph size={13} />} label="Graph" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
+        {recent.length > 0 && (
+          <section className="side-section" aria-label="Recent notes">
+            <h2 className="side-label">Recent Notes</h2>
+            {recent.map((n) => (
+              <button key={n.id} type="button" className="side-row recent" onClick={() => onOpenNote(n.id)} onContextMenu={(e) => setMenuAt(noteMenuAt(e, [n.id]))} {...tabDrag({ kind: 'note', id: n.id })}>
+                <IconNote size={12} />
+                <span className="ellipsis">{displayTitle(n)}</span>
+              </button>
+            ))}
+          </section>
+        )}
+          </>
+        )}
       </section>
 
       <div className="side-foot">

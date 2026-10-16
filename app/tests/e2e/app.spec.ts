@@ -3,6 +3,11 @@ import { type Locator, type Page, expect, test } from '@playwright/test';
 // Every test starts in a fresh browser profile, so Crumpet starts empty: everything is created here.
 
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Notebooks' });
+/** Unfolds the sidebar's Explore (recent notes, writing stats, the graph). */
+async function sideMore(page: Page) {
+  const more = sidebar(page).getByRole('button', { name: 'Explore', exact: true });
+  if ((await more.getAttribute('aria-expanded')) !== 'true') await more.click();
+}
 const list = (page: Page) => page.getByRole('region', { name: 'Notes', exact: true });
 
 async function open(page: Page) {
@@ -343,6 +348,7 @@ test('right click on a note: rename, favourite, move, tag, duplicate, trash, and
   await card('Big twist').click({ button: 'right' });
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
+  await sideMore(page);
   await sidebar(page).getByRole('region', { name: 'Recent notes' }).getByRole('button', { name: 'Big twist' }).click({ button: 'right' });
   await expect(menu.getByRole('button', { name: 'Open to the side' })).toBeVisible();
   await page.keyboard.press('Escape');
@@ -1783,6 +1789,7 @@ test('writing stats: words today, a daily goal, streaks and a calendar', async (
     (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ stats: { day: day(1), base: {}, now: {}, history } });
   });
   await newNote(page, 'Draft', 'One two three four five six seven eight nine ten.');
+  await sideMore(page);
   const row = sidebar(page).getByRole('button', { name: /Writing stats/ });
   await expect(row).toContainText('10');
   await row.click();

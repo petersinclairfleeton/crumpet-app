@@ -17,6 +17,7 @@ export const WHATS_NEW: WhatsNew[] = [
       'Notes now sit on warm paper, with titles in a book serif.',
       'The note you’re on is lifted onto paper with a small honey dot, instead of a ring round it.',
       'New note is the one honey button, so it’s easy to find.',
+      'A tidier sidebar: Library, Projects and Notebooks; Recent notes, Writing stats and the Graph fold away under Explore.',
       'Corners, colours and shadows match all through the app, in light and dark.',
     ],
   },

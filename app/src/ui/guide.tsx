@@ -87,7 +87,7 @@ const CHAPTERS: Chapter[] = [
       { title: 'Chapters and parts', text: 'Start a project from Projects in the sidebar. Each chapter has a status (to do, draft, revised, done), a synopsis and a word goal.' },
       { title: 'Three ways to see it', text: 'Chapter to write one at a time, Manuscript to read the whole book, Cards to plan on an index-card board and drag chapters into order.' },
       { title: 'Looks like a manuscript', text: 'Chapters use manuscript format (or Book, or your own styles), with page numbers that run through the whole book.' },
-      { title: 'Goals and deadlines', text: 'Set a word goal and a deadline for the book; Writing stats keeps your daily words and streaks.' },
+      { title: 'Goals and deadlines', text: 'Set a word goal and a deadline for the book; Writing stats (under Explore in the sidebar) keeps your daily words and streaks.' },
     ],
     pictures: [
       pic('book', 'A book’s outline with parts and chapters beside a chapter shown as a page', 'The outline on the left; the chapter on the page, in manuscript format.'),
@@ -173,7 +173,7 @@ const WORKFLOWS: Workflow[] = [
     steps: [
       'Click Today in the sidebar: it opens today’s note, dated, in a Daily notes notebook.',
       'Want the same prompts each day? Write them in a note in a notebook called Templates, named “Daily note”.',
-      'Set a daily word goal in Writing stats and watch the calendar fill in.',
+      'Set a daily word goal in Writing stats (under Explore in the sidebar) and watch the calendar fill in.',
       'Ring the bell at the top of a note to be reminded about it on a given day.',
     ],
   },
@@ -186,7 +186,7 @@ const WORKFLOWS: Workflow[] = [
       'Drag the web clipper to your bookmarks bar (Settings → Clipper & app) and clip pages as you read.',
       'Tag what you gather, for example research/lighthouses, and add PDFs and pictures: Crumpet reads the words in them too.',
       'Write your own notes and link them with [[ to the sources they came from.',
-      'Open the Graph to see what connects, and search to find any line again in seconds.',
+      `Open the Graph (under Explore in the sidebar, or ${mod}G) to see what connects, and search to find any line again in seconds.`,
     ],
   },
   {
