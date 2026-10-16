@@ -312,7 +312,9 @@ export function App() {
   // A note in page view has the room to itself in the calm look, as Word's pages do: the sidebar
   // steps back to its strip and the list folds away (the edge still peeks it out).
   const pagedNote = !narrow && !state.settings.toolbarAll && !!state.settings.pageView?.notes && state.view.kind !== 'project' && !!state.selectedId;
-  const sidebarMode = chosenSidebar === 'full' && !narrow && ((state.view.kind === 'project' && layout.bookSidebar !== 'full') || pagedNote) ? 'icons' : chosenSidebar;
+  // The calm look in a book: the book's outline is the sidebar (its strip only while the outline is folded away).
+  const calmBook = !narrow && !state.settings.toolbarAll && state.view.kind === 'project' && !state.query.trim();
+  const sidebarMode = calmBook ? (layout.list === false ? 'icons' : 'none') : chosenSidebar === 'full' && !narrow && ((state.view.kind === 'project' && layout.bookSidebar !== 'full') || pagedNote) ? 'icons' : chosenSidebar;
   // Before the first note there's nothing to list: the welcome has the room.
   const noNotesYet = !narrow && !state.settings.toolbarAll && state.notes.length === 0 && state.view.kind === 'all' && !state.query;
   const showList = layout.list !== false && !pagedNote && !noNotesYet;

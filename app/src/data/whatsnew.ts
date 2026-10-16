@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-quiet-paper-books',
+    date: '16 October 2026',
+    title: 'Quiet Paper: books',
+    points: [
+      'In a book the outline is the sidebar: the back arrow to your notes, Write, Cards and Read, the words against your goal, one line a chapter, and Characters & places and Research at its foot.',
+      'A chapter opens as plain writing in your writing font, its status and words at the top, its tools over the words you select. Page view (in manuscript format) is the page button beside it.',
+      'The inspector (the panel button) shows the characters and places the chapter names, the book’s notes and the comments.',
+      'Cards has a heading, + Chapter and a New chapter card; what the cards show is chosen beside them.',
+      'A chapter’s word goal and keywords are in its ··· menu, with Find and replace and Focus mode.',
+    ],
+  },
+  {
     id: '2026-10-16-quiet-paper-writing',
     date: '16 October 2026',
     title: 'Quiet Paper: room to write',

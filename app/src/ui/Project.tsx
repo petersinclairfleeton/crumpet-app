@@ -22,8 +22,8 @@ import { useTypewriter } from './typewriter';
 import { useDocFontsLoaded, useFontKeys } from './fonttools';
 import { useParaKeys } from './paratools';
 import { StatusBar } from './statusbar';
-import { useAppState, useAppStore, useNav } from './hooks';
-import { IconBack, IconFocus, IconMore, IconPlus, IconSearch } from './icons';
+import { useAppState, useAppStore, useMedia, useNav } from './hooks';
+import { IconBack, IconBox, IconChevron, IconRightPanel, IconFocus, IconMore, IconPeople, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
 import { EndnoteList, FootnoteCard, FootnoteList } from './footnotes';
@@ -104,6 +104,13 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
   const goal = projectGoal(project, state.chapters);
   const mode = state.projectMode;
   const shownItems = shownOutline(project, state.chapters, state.keywordFilter);
+  // The calm look (design 3): the outline is the book's sidebar, one line a chapter; cards, synopses
+  // and keywords are for Cards, and the characters and research fold under two rows at its foot.
+  const narrowScreen = useMedia('(max-width: 759px)');
+  const calm = !state.settings.toolbarAll && !narrowScreen;
+  const [footOpen, setFootOpen] = useState<null | 'cast' | 'research'>(null);
+  const researchCount = state.notes.filter((n) => n.projectId === project.id && n.trashedAt === null).length;
+  const show = { synopsis: true, status: true, keywords: true, ...state.settings.cardShow };
 
   const drop = () => {
     if (dragging && dropAt !== null) store.moveOutlineItem(project.id, dragging, dropAt);
@@ -112,7 +119,7 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
   };
 
   return (
-    <section className="list outline" aria-label="Outline">
+    <section className={`list outline${calm ? ' book-side' : ''}`} aria-label="Outline">
       {exporting && (
         <ExportBook
           project={project}
@@ -124,8 +131,13 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
         />
       )}
       {printing && <PrintJob title={project.name} parts={printParts} page={project.page ?? manuscriptPage()} sheet={fullSheet(project.styles, 'manuscript')} chapters onDone={() => setPrinting(false)} />}
-      <header className="list-head">
+      <header className={`list-head${calm ? ' book-head' : ''}`}>
         <div className="list-title">
+          {calm && (
+            <button type="button" className="icon-btn" aria-label="Back to notes" title="Back to notes" onClick={() => store.setView({ kind: 'all' })}>
+              <IconBack size={18} />
+            </button>
+          )}
           {menu === 'rename' ? (
             <InlineInput
               label="Project name"
@@ -135,6 +147,13 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                 if (name) store.renameProject(project.id, name);
               }}
             />
+          ) : calm ? (
+            <div className="book-name">
+              <h1>{project.name}</h1>
+              <p>
+                {chapters.size} chapter{chapters.size === 1 ? '' : 's'}
+              </p>
+            </div>
           ) : (
             <h1>{project.name}</h1>
           )}
@@ -150,6 +169,11 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                     <button type="button" className="menu-item" onClick={() => setMenu('rename')}>
                       Rename project
                     </button>
+                    {calm && (
+                      <button type="button" className="menu-item" aria-label="Add part" onClick={() => (setMenu(null), setRenaming(store.addPart(project.id) ?? null))}>
+                        Add a part
+                      </button>
+                    )}
                     <button type="button" className="menu-item" onClick={() => setMenu('goal')}>
                       Word goal…
                     </button>
@@ -204,9 +228,37 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
               </Popover>
             )}
           </div>
-          <FoldButton what="list" />
+          {!calm && <FoldButton what="list" />}
         </div>
-        <div className="list-sub">
+        {calm && (
+          <>
+            <div className="segmented book-modes" role="group" aria-label="Writing view">
+              {(
+                [
+                  ['chapter', 'Write'],
+                  ['corkboard', 'Cards'],
+                  ['manuscript', 'Read'],
+                ] as const
+              ).map(([m, label]) => (
+                <button key={m} type="button" aria-pressed={mode === m} onClick={() => store.setProjectMode(m)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {mode !== 'corkboard' && <div className="book-progress">
+              <div className="book-progress-words">
+                <span>{words(total)}</span>
+                {goal ? <span>of {goal.toLocaleString()}</span> : null}
+              </div>
+              {goal ? (
+                <div className="book-bar" role="progressbar" aria-label="Project progress" aria-valuenow={total} aria-valuemin={0} aria-valuemax={goal}>
+                  <i style={{ width: `${Math.min(100, (total / goal) * 100)}%` }} />
+                </div>
+              ) : null}
+            </div>}
+          </>
+        )}
+        {!calm && <div className="list-sub">
           <span>
             {words(total)}
             {goal ? ` of ${goal.toLocaleString()}` : ''}
@@ -223,12 +275,31 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
               Cards
             </button>
           </div>
-        </div>
-        <Progress value={total} goal={goal} label="Project progress" />
+        </div>}
+        {!calm && <Progress value={total} goal={goal} label="Project progress" />}
         <KeywordFilter project={project} />
         {project.deadline && goal ? <DeadlineLine project={project} goal={goal} total={total} onEdit={() => setMenu('deadline')} /> : null}
       </header>
 
+      {calm && mode === 'corkboard' ? (
+        <div className="book-show" role="group" aria-label="Show on the cards">
+          <p className="book-label">Show</p>
+          {(
+            [
+              ['synopsis', 'Synopsis'],
+              ['status', 'Status'],
+              ['keywords', 'Keywords'],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="check-row">
+              <input type="checkbox" checked={show[key]} onChange={(e) => store.updateSettings({ cardShow: { ...state.settings.cardShow, [key]: e.target.checked } })} />
+              {label}
+            </label>
+          ))}
+          <p className="book-hint">Drag cards to reorder chapters. Undo with {isMac ? '⌘Z' : 'Ctrl+Z'}.</p>
+        </div>
+      ) : (
+      <>
       {state.keywordFilter && shownItems.size === 0 && <p className="outline-filter-empty">No chapters have “{state.keywordFilter}” yet.</p>}
       <ol className="outline-items" onDragOver={(e) => dragging && e.preventDefault()} onDrop={drop}>
         {project.outline.map((item, index) => {
@@ -332,9 +403,9 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
                   <span className="grow ellipsis outline-title">{c.title || 'Untitled chapter'}</span>
                   <span className="outline-words">{c.goal ? `${n.toLocaleString()} / ${c.goal.toLocaleString()}` : n.toLocaleString()}</span>
                 </span>
-                {c.synopsis && <span className="outline-synopsis">{c.synopsis}</span>}
-                <KeywordChips chapter={c} />
-                {c.goal ? <Progress value={n} goal={c.goal} label={`Progress of ${c.title || 'chapter'}`} /> : null}
+                {!calm && c.synopsis && <span className="outline-synopsis">{c.synopsis}</span>}
+                {!calm && <KeywordChips chapter={c} />}
+                {!calm && c.goal ? <Progress value={n} goal={c.goal} label={`Progress of ${c.title || 'chapter'}`} /> : null}
               </button>
               <div className="note-actions">
                 <button type="button" className="icon-btn" aria-label={`Options for ${c.title || 'chapter'}`} aria-expanded={itemMenu === item.id} onClick={() => setItemMenu(itemMenu === item.id ? null : item.id)}>
@@ -358,6 +429,11 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
         })}
       </ol>
 
+      {calm ? (
+        <button type="button" className="book-new" aria-label="Add chapter" onClick={() => store.addChapter(project.id)}>
+          <IconPlus size={16} /> New chapter
+        </button>
+      ) : (
       <div className="outline-add">
         <button type="button" className="btn" aria-label="Add chapter" onClick={() => store.addChapter(project.id)}>
           <IconPlus size={13} /> Chapter
@@ -366,6 +442,33 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
           <IconPlus size={13} /> Part
         </button>
       </div>
+      )}
+      </>
+      )}
+      {calm ? (
+        mode !== 'corkboard' && <div className="book-foot">
+          {footOpen === 'cast' && <CastList project={project} />}
+          {footOpen === 'research' && <ResearchList project={project} />}
+          <button type="button" className="book-row" aria-expanded={footOpen === 'cast'} onClick={() => setFootOpen(footOpen === 'cast' ? null : 'cast')}>
+            <IconPeople size={18} />
+            <span className="grow">Characters &amp; places</span>
+            <span className="count">{project.cast?.length ?? 0}</span>
+          </button>
+          <button type="button" className="book-row" aria-expanded={footOpen === 'research'} onClick={() => setFootOpen(footOpen === 'research' ? null : 'research')}>
+            <IconBox size={18} />
+            <span className="grow">Research</span>
+            <span className="count">{researchCount}</span>
+          </button>
+          <ul className="status-key" aria-label="What the dots mean">
+            {STATUSES.map((s) => (
+              <li key={s.id}>
+                <span className={`status-dot ${s.id}`} aria-hidden="true" /> {s.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+      <>
       {chapters.size > 1 && (
         <ul className="status-key" aria-label="What the dots mean">
           {STATUSES.map((s) => (
@@ -377,6 +480,8 @@ export function ProjectOutline({ project, onOpenChapter }: { project: Project; o
       )}
       <CastList project={project} />
       <ResearchList project={project} />
+      </>
+      )}
     </section>
   );
 }
@@ -528,7 +633,10 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const sheet = useMemo(() => fullSheet(project.styles, 'manuscript'), [project.styles]);
   const styleSources = useStyleSources(project.id);
   const pageSetup = project.page ?? manuscriptPage();
-  const paged = state.settings.pageView?.projects ?? true;
+  // The calm look writes in the plain view, its tools over selected words; page view is a click away.
+  const calm = !state.settings.toolbarAll && !narrow;
+  const paged = state.settings.pageView?.projects ?? !calm;
+  const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords'>(null);
   const list = projectChapters(project, state.chapters);
   const at = list.findIndex((x) => x.chapter.id === chapter.id);
   const prev = list[at - 1]?.chapter;
@@ -564,14 +672,87 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   );
   const after = list.slice(at + 1).reduce((sum, x) => sum + count(x.chapter), 0);
 
+  const statusPick = (
+    <label className={`status-pick ${chapter.status}`}>
+      <span className={`status-dot ${chapter.status}`} aria-hidden="true" />
+      <span className="visually-hidden">Status</span>
+      <select value={chapter.status} onChange={(e) => store.setChapterStatus(chapter.id, e.target.value as ChapterStatus)}>
+        {STATUSES.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
   const lead = narrow ? (
     <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
       <IconBack size={18} />
       <span className="back-label">Outline</span>
     </button>
+  ) : calm ? (
+    <p className="chapter-line">
+      {statusPick}
+      <span aria-hidden="true">·</span>
+      <span className="chapter-words">{chapter.goal ? `${n.toLocaleString()} of ${chapter.goal.toLocaleString()} words` : words(n)}</span>
+    </p>
   ) : null;
 
-  const trail = (
+  const calmTrail = (
+    <div className="note-actions">
+      <button type="button" className="icon-btn" aria-label="Previous chapter" data-tip="Previous chapter" disabled={!prev} onClick={() => prev && store.selectChapter(prev.id)}>
+        <IconBack size={18} />
+      </button>
+      <button type="button" className="icon-btn" aria-label="Next chapter" data-tip="Next chapter" disabled={!next} onClick={() => next && store.selectChapter(next.id)}>
+        <IconChevron size={18} />
+      </button>
+      <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
+      <button type="button" className={`icon-btn${state.settings.layout?.right ? ' on' : ''}`} aria-label={state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'} aria-pressed={!!state.settings.layout?.right} data-tip="Inspector: who’s in this chapter, notes and comments" onClick={() => store.updateLayout({ right: !state.settings.layout?.right })}>
+        <IconRightPanel size={18} />
+      </button>
+      <button type="button" className="icon-btn" aria-label="Chapter options" aria-expanded={!!chapterMenu} onClick={() => setChapterMenu(chapterMenu ? null : 'menu')}>
+        <IconMore size={16} />
+      </button>
+      {chapterMenu && (
+        <Popover onClose={() => setChapterMenu(null)} label="Chapter options">
+          {chapterMenu === 'menu' && (
+            <>
+              <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), setFinding(true))}>
+                <IconSearch size={14} /> Find and replace <small className="menu-hint">{isMac ? '⌘F' : 'Ctrl+F'}</small>
+              </button>
+              <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), store.setFocusMode(true))}>
+                <IconFocus size={14} /> Focus mode
+              </button>
+              <hr className="menu-sep" />
+              <button type="button" className="menu-item" onClick={() => setChapterMenu('goal')}>
+                {chapter.goal ? 'Change word goal…' : 'Set word goal…'}
+              </button>
+              <button type="button" className="menu-item" onClick={() => setChapterMenu('keywords')}>
+                Keywords…
+              </button>
+            </>
+          )}
+          {chapterMenu === 'goal' && (
+            <GoalInput
+              label="Word goal for this chapter"
+              value={chapter.goal}
+              onDone={(g) => {
+                setChapterMenu(null);
+                if (g !== undefined) store.setChapterGoal(chapter.id, g);
+              }}
+            />
+          )}
+          {chapterMenu === 'keywords' && (
+            <div className="note-meta chapter-keywords">
+              <KeywordEditor chapter={chapter} />
+            </div>
+          )}
+        </Popover>
+      )}
+    </div>
+  );
+
+  const trail = calm ? calmTrail : (
     <div className="note-actions">
       <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" data-tip={`Focus mode · ${isMac ? '⌘⇧F' : 'Ctrl+Shift+F'}`} onClick={() => store.setFocusMode(true)}>
         <IconFocus size={16} />
@@ -592,7 +773,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const header = (
     <>
       <div className="chapter-opening">
-      <p className="chapter-kicker">{[part?.title, `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ')}</p>
+      <p className="chapter-kicker">{[!calm && part?.title, `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ')}</p>
       <AutoTextarea
         className="note-title"
         aria-label="Chapter title"
@@ -608,6 +789,8 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
       />
       <span className="chapter-rule" aria-hidden="true" />
       </div>
+      {!calm && (
+      <>
       <div className="note-meta chapter-meta">
         <label className={`status-pick ${chapter.status}`}>
           <span className={`status-dot ${chapter.status}`} aria-hidden="true" />
@@ -646,10 +829,12 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         <KeywordEditor chapter={chapter} />
       </div>
       <AutoTextarea className="synopsis" aria-label="Synopsis" placeholder="Synopsis: what happens in this chapter" value={chapter.synopsis} onChange={(e) => store.setChapterSynopsis(chapter.id, e.target.value)} />
+      </>
+      )}
     </>
   );
 
-  const footer = (
+  const footer = calm ? null : (
     <p className="note-foot">
       {words(n)} · {project.name}: {words(projectWords(project, state.chapters))}
     </p>
@@ -705,6 +890,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         label="Chapter text"
         lead={lead}
         trail={trail}
+        floatTools={calm}
         header={header}
         footer={footer}
         onEditor={(ed) => {

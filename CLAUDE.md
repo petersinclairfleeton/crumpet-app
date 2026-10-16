@@ -383,7 +383,15 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     Writing, and a ⚙ menu at its foot for Settings, templates, uploads, stats, the
     Graph, Trash and help), the list and the page as separate sheets on the wash; the
     five tools stay on the page (`settings.toolbar === 'selection'` floats them); the
-    tab strip shows only with two or more tabs. Browser tests' `open()` turns the full bar on.
+    tab strip shows only with two or more tabs. Folding the calm sidebar makes the writing
+    room (`settings.layout` sidebar `icons` + list off: `SidebarRail`'s calm strip, the
+    note's crumbs and words, tools floating via EditorHost's `floatTools`). In a book the
+    outline is the sidebar (`ProjectOutline`'s calm branch: Write/Cards/Read, progress,
+    one-line chapters, Characters & places / Research at its foot; App's `calmBook`), chapters
+    open in the plain view in the writing font with tools floating, and the right sidebar
+    beside a chapter has In this chapter, Notes (research, tab `notes`) and Comments.
+    Styles that reach outside `.app` (the wash, the selection bar) key off
+    `html[data-calm='1']`, not `:has()` (slow with many shapes). Browser tests' `open()` turns the full bar on.
 - iPhone and iPad: the app added to the Home Screen from Safari (no App Store
   app). `index.html` has the launch screens (`public/splash/`, made per iPhone
   size, light and dark) and a status bar in the app's own colour
