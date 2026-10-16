@@ -1,5 +1,5 @@
 // Choosing the paper colour: swatches for the ready-made papers, the theme's
-// own, and a colour picker for any other. In Settings → Look, and under
+// own, and a colour picker for any other. In Settings → Appearance, and under
 // Page colour in the formatting bar.
 
 import { PAPERS, isHex, paperName } from '../data/paper';

@@ -380,7 +380,7 @@ test('Favorites: starring a note keeps it there', async ({ page }) => {
 test('settings: dark appearance and a different accent', async ({ page }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
-  await page.getByRole('tab', { name: 'Look' }).click();
+  await page.getByRole('tab', { name: 'Appearance' }).click();
   await page.getByRole('button', { name: 'Crumpet dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Blueberry' }).click();
@@ -410,7 +410,7 @@ test('paper colour: picked from the formatting bar or Settings, with ink to matc
 
   // Dark paper gets light ink; in page view it's the sheets that change.
   await sidebar(page).locator('.account').click();
-  await page.getByRole('tab', { name: 'Look' }).click();
+  await page.getByRole('tab', { name: 'Appearance' }).click();
   await page.getByRole('group', { name: 'Paper', exact: true }).getByRole('button', { name: 'Night paper' }).click();
   await page.keyboard.press('Escape');
   await expect.poll(() => page.locator('.note-editor').evaluate((el) => getComputedStyle(el).color)).toBe('rgb(232, 230, 225)');
@@ -552,8 +552,11 @@ test('a synced change to the open note arrives without moving the caret', async 
 test('themes: pick one, and accents follow themes that have none of their own', async ({ page }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
-  await page.getByRole('tab', { name: 'Look' }).click();
+  await page.getByRole('tab', { name: 'Appearance' }).click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
+  // Four themes up front, the rest under More themes.
+  await expect(settings.getByRole('button', { name: 'Vapor', exact: true })).toHaveCount(0);
+  await settings.getByRole('button', { name: /More themes/ }).click();
   await settings.getByRole('button', { name: 'Vapor', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'vapor');
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#66c0f4');
@@ -5501,7 +5504,7 @@ test('the calm bar: five buttons, the rest under More in groups, and page view�
   await opts.getByRole('button', { name: /Add a reminder/ }).click();
   await expect(page.getByRole('dialog', { name: 'Reminder' })).toBeVisible();
   await page.keyboard.press('Escape');
-  // Settings → Look → Show every formatting tool puts them all back on the bar.
+  // Settings → Appearance → Show every formatting tool puts them all back on the bar.
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
   await expect(bar.getByRole('button', { name: 'Underline' })).toBeVisible();
   // In page view, the groups are menus of their own, as Word's tabs are.

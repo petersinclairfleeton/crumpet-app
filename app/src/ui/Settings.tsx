@@ -15,7 +15,7 @@ import { SpellingSettings } from './spelling';
 
 const SECTIONS = [
   { id: 'account', label: 'Account & sync' },
-  { id: 'look', label: 'Look' },
+  { id: 'look', label: 'Appearance' },
   { id: 'writing', label: 'Writing' },
   { id: 'app', label: 'Clipper & app' },
 ] as const;
@@ -28,6 +28,9 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
   const s = state.settings;
   const panel = useRef<HTMLDivElement>(null);
   const [section, setSection] = useState<SettingsSection>(first);
+  // Four themes up front; the rest wait under More themes (open while one of them is chosen).
+  const [allThemes, setAllThemes] = useState(false);
+  const shownThemes = allThemes || !MAIN_THEMES.includes(s.theme) ? THEMES : THEMES.filter((t) => MAIN_THEMES.includes(t.id));
   const size = s.noteSize ?? DEFAULT_NOTE_SIZE;
 
   // The window takes the focus once, when it opens: the app redraws on every
@@ -47,14 +50,14 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
   // Drawn at the top of the page, so no panel's effects (like Glass's blur) can clip it.
   return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog" role="dialog" aria-modal="true" aria-label="Settings" tabIndex={-1} ref={panel}>
+      <div className="dialog settings-dialog" role="dialog" aria-modal="true" aria-label="Settings" tabIndex={-1} ref={panel}>
         <header className="dialog-head">
           <h2>Settings</h2>
           <button type="button" className="icon-btn" aria-label="Close settings" onClick={onClose}>
             <IconClose size={16} />
           </button>
         </header>
-        <div className="settings-tabs" role="tablist" aria-label="Sections">
+        <div className="settings-tabs" role="tablist" aria-label="Sections" aria-orientation="vertical">
           {SECTIONS.map((x) => (
             <button key={x.id} type="button" role="tab" id={`settings-${x.id}`} aria-selected={section === x.id} aria-controls="settings-panel" onClick={() => setSection(x.id)}>
               {x.label}
@@ -78,7 +81,7 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
               <div className="field" role="group" aria-label="Theme">
                 <span>Theme</span>
                 <div className="theme-grid">
-                  {THEMES.map((t) => (
+                  {shownThemes.map((t) => (
                     <button key={t.id} type="button" className="theme-card" aria-pressed={s.theme === t.id} aria-label={t.name} title={t.hint} onClick={() => store.updateSettings({ theme: t.id })}>
                       <span className={`theme-preview${t.id === 'glass' ? ' glassy' : ''}${['system', 'light', 'dark'].includes(t.id) ? ' quiet' : ''}${t.id === 'dark' ? ' dark' : ''}`} aria-hidden="true">
                         <i style={{ background: t.preview[0] }} />
@@ -92,6 +95,11 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
                     </button>
                   ))}
                 </div>
+                {shownThemes.length < THEMES.length && (
+                  <button type="button" className="link-btn more-themes" onClick={() => setAllThemes(true)}>
+                    More themes ({THEMES.length - shownThemes.length})
+                  </button>
+                )}
               </div>
 
               <div className="field" role="group" aria-label="Accent colour">
@@ -115,18 +123,9 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
 
               <div className="field" role="group" aria-label="Calm">
                 <span>Calm</span>
-                <label className="check-row">
-                  <input type="checkbox" checked={!!s.toolbarAll} onChange={(e) => store.updateSettings({ toolbarAll: e.target.checked })} />
-                  Show every formatting tool (off: five on the bar, the rest under More)
-                </label>
-                <label className="check-row">
-                  <input type="checkbox" checked={!!s.layout?.right} onChange={(e) => store.updateLayout({ right: e.target.checked })} />
-                  Keep the right sidebar open (outline, styles, review and more)
-                </label>
-                <label className="check-row">
-                  <input type="checkbox" checked={!!s.reduceMotion} onChange={(e) => store.updateSettings({ reduceMotion: e.target.checked })} />
-                  Reduce motion (no sliding or fading)
-                </label>
+                <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
+                <Switch label="Keep the right sidebar open" hint="Outline, review, styles and more beside the writing. Off means it opens when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
+                <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
               </div>
             </>
           )}
@@ -168,6 +167,21 @@ export function SettingsDialog({ onClose, section: first = 'account' }: { onClos
       </div>
     </div>,
     document.body,
+  );
+}
+
+const MAIN_THEMES = ['system', 'light', 'dark', 'paper'];
+
+/** An on/off setting: its name and a line about it, with a switch at the end. */
+function Switch({ label, hint, on, onChange }: { label: string; hint: string; on: boolean; onChange(v: boolean): void }) {
+  return (
+    <label className="switch-row">
+      <span>
+        <b>{label}</b>
+        <small>{hint}</small>
+      </span>
+      <input type="checkbox" role="switch" className="switch" checked={on} onChange={(e) => onChange(e.target.checked)} />
+    </label>
   );
 }
 
