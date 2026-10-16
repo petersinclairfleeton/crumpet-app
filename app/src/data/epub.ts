@@ -4,6 +4,7 @@
 // tracked changes are shown as if accepted.
 
 import { chartSvg, parseChart } from '@crumpet/editor/chart';
+import { inkSvg, parseInk } from '@crumpet/editor/ink';
 import { fieldValue } from '@crumpet/editor/fields';
 import { MASK_CLIPS, picFilter } from '@crumpet/editor/picture';
 import { type Block, type Doc, type Run, BULLETS, isList, tidyRows } from '@crumpet/editor/model';
@@ -212,6 +213,7 @@ class Book {
             const k = await import('katex');
             out += `<div class="math">${k.default.renderToString(c.text, { displayMode: true, output: 'mathml', throwOnError: false })}</div>`;
           } else if (c.lang === 'chart') out += `<div class="chart">${chartSvg(parseChart(c.text), '#222')}</div>`;
+          else if (c.lang === 'ink') out += `<div class="drawing">${inkSvg(parseInk(c.text)).replace(/ width="\d+" height="\d+"/, '')}</div>`;
           else out += `<pre class="diagram">${esc(c.text)}</pre>`;
           break;
         }

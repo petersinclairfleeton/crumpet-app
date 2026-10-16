@@ -505,3 +505,8 @@ span.fld[data-field='wrapbreak']::after { content: none; }
 .table-wrap table.sheet :is(th, td)[data-col]::before, .table-wrap table.sheet :is(th, td)[data-row]::after { position: absolute; color: var(--muted, #888); font: 600 11px/1 var(--ui-font, system-ui, sans-serif); pointer-events: none; }
 .table-wrap table.sheet :is(th, td)[data-col]::before { content: attr(data-col); left: 0; right: 0; top: -17px; text-align: center; }
 .table-wrap table.sheet :is(th, td)[data-row]::after { content: attr(data-row); right: calc(100% + 8px); top: 50%; transform: translateY(-50%); text-align: right; }
+
+/* A drawing: no source box; its strokes at the column's width, on a faint page while it's empty. */
+.code-wrap[data-lang='ink'] .code-head, .code-wrap[data-lang='ink'] .code-src { display: none !important; }
+.code-wrap[data-lang='ink'] .code-preview { cursor: crosshair; padding: 0; background: none; }
+.code-wrap[data-lang='ink'] .ink-svg { background: #fff; display: block; width: 100%; max-width: 100%; height: auto; border-radius: 6px; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 12%, transparent); }

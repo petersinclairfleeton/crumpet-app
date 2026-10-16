@@ -13,6 +13,30 @@ import { M_NS, latexToOmml, ommlToLatex } from './omml';
 import { C_NS, chartSpaceXml, readChartXml } from './chartxml';
 import { type Chart, chartText, parseChart } from '@crumpet/editor/chart';
 import { videoEmbed } from '@crumpet/editor/video';
+import { type Ink, inkSvg, parseInk } from '@crumpet/editor/ink';
+
+/** A drawing as a PNG picture, at twice its size (null where there's no canvas to draw it on, as in tests). */
+export async function inkPng(ink: Ink): Promise<Uint8Array | null> {
+  if (typeof document === 'undefined' || /jsdom/i.test(navigator.userAgent)) return null;
+  const svg = inkSvg(ink).replace('<svg ', '<svg style="background:#fff" ');
+  const img = new Image();
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  try {
+    await img.decode();
+  } catch {
+    return null;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = ink.w * 2;
+  canvas.height = ink.h * 2;
+  const g = canvas.getContext('2d');
+  if (!g) return null;
+  g.fillStyle = '#fff';
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/png'));
+  return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
+}
 import { figureEntries, indexEntries } from '@crumpet/editor/lists';
 import { type PicLook, tidyPic } from '@crumpet/editor/picture';
 import { type HFBand, type HFRun, type HFSet, type HeadersFooters, bandEmpty, tidyRuns } from './headers';
@@ -400,8 +424,8 @@ class Writer {
     return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${body}</w:p>`;
   }
 
-  async picture(b: Block): Promise<string | null> {
-    const got = b.src ? await this.opts.media?.(b.src) : null;
+  async picture(b: Block, given?: { bytes: Uint8Array; type: string }): Promise<string | null> {
+    const got = given ?? (b.src ? await this.opts.media?.(b.src) : null);
     if (!got) return null;
     const ext = imageExt(got.type, got.bytes);
     if (!ext) return null;
@@ -732,6 +756,14 @@ class Writer {
           out += await this.shape(b, lead);
           continue;
         case 'code': {
+          // A drawing: a picture of it (where pictures can be made: in the browser).
+          if (b.code?.lang === 'ink') {
+            const ink = parseInk(b.code.text);
+            const png = await inkPng(ink);
+            const pic = png && (await this.picture({ ...b, type: 'image', src: undefined, pic: { w: Math.min(6.5, ink.w / 96), alt: 'Drawing' } }, { bytes: png, type: 'image/png' }));
+            out += pic ?? this.paragraph(null, '<w:r><w:t>[Drawing]</w:t></w:r>', lead);
+            continue;
+          }
           // A chart: Word's own chart, holding its numbers.
           if (b.code?.lang === 'chart') {
             out += this.paragraph(null, this.chart(parseChart(b.code.text)), lead + (b.align ? `<w:jc w:val="${b.align === 'center' ? 'center' : b.align}"/>` : ''));

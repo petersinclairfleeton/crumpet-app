@@ -175,10 +175,10 @@ At the end there's a suggested order for building what's missing.
 
 | Feature | | Crumpet today |
 |---|---|---|
-| Pens, pencil, highlighter, eraser, lasso select | ❌ | No drawing with a finger, mouse or Apple Pencil. |
-| Ink to Shape, Ink to Math, Ink Replay | ❌ | |
-| Ink editor (strike out or insert text with gestures) | ❌ | |
-| Drawing canvas | 🟡 | Boards (cards and arrows, like Obsidian's Canvas) are notes of their own, not drawings inside a document. |
+| Pens, pencil, highlighter, eraser, lasso select | ✅ | Formatting bar → Draw: a drawing window with pen, pencil and highlighter (eight colours, four thicknesses), an eraser, and a lasso to pick strokes, drag them and recolour them; a finger, mouse or pen (Apple Pencil's pressure thickens the line). Undo and redo. |
+| Ink to Shape, Ink to Math, Ink Replay | 🟡 | Ink to shape (rough lines, boxes, ovals and triangles made neat as you draw, or picked ones afterwards) and Replay. No Ink to Math: reading handwriting needs a recogniser. |
+| Ink editor (strike out or insert text with gestures) | ❌ | Drawing is in its own canvas, not over the text, and needs a handwriting recogniser. |
+| Drawing canvas | ✅ | A drawing sits in the text where you put it (click it to draw more); its height can be changed. Word gets it as a picture; boards (cards and arrows) are still notes of their own. |
 | Ruler | ✅ | In page view, with draggable indents. |
 
 ## Design
@@ -272,7 +272,7 @@ At the end there's a suggested order for building what's missing.
 | Compare two versions | ✅ | Word by word, or as a copy with the differences as tracked changes. |
 | Combine (several reviewers' copies into one) | ✅ | From the command palette: choose the copies and who each is from; a new note with each reviewer's changes tracked in their name. Text only (formatting isn't compared). |
 | Block Authors, Restrict Editing | ❌ | |
-| Hide Ink | ➖ | There's no ink. |
+| Hide Ink | ➖ | Drawings are blocks of their own, not ink over the text. |
 | Resume Assistant | ➖ | Retired. |
 
 ## View
@@ -405,7 +405,7 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Text box | ✅ | See Shape Format. |
 | Linking text boxes (text flows from one to the next) | ❌ | |
-| Drawing canvas | ❌ | |
+| Drawing canvas | ✅ | See Draw. |
 
 ---
 
@@ -616,10 +616,10 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [x] Form controls (drop-downs, date pickers, fill-in boxes)
 - [x] Spreadsheet in a document (a table shown as a spreadsheet, with formulas)
 - [ ] 3D models
-- [ ] Draw tab: pen, pencil, highlighter, eraser, lasso (finger, mouse, Apple Pencil)
-- [ ] Ink to shape and maths, ink replay
+- [x] Draw tab: pen, pencil, highlighter, eraser, lasso (finger, mouse, Apple Pencil)
+- [x] Ink to shape and ink replay (ink to maths not built: needs a handwriting recogniser)
 - [ ] Ink editing gestures
-- [ ] Drawing canvas in a document
+- [x] Drawing canvas in a document
 - [ ] Macros (record and play back)
 - [ ] Customise the formatting bar
 - [ ] Add-ins

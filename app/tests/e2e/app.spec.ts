@@ -5264,3 +5264,56 @@ test('form controls (tick box, drop-down, date, fill-in), filling in forms only,
   await expect(sheet.locator('tr').nth(1).locator('td').nth(3)).toHaveAttribute('data-value', '7');
   await expect(sheet.locator('tr').nth(4).locator('td').nth(3)).toHaveAttribute('data-value', '7');
 });
+
+test('draw: pen, ink to shape, eraser, lasso and recolour, replay, and the drawing in the text', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Sketch', 'A sketch:');
+  await page.keyboard.press('Enter');
+  await (await toolButton(page, 'Draw')).click();
+  const win = page.getByRole('dialog', { name: 'Drawing' });
+  await expect(win).toBeVisible();
+  const area = win.getByRole('img', { name: 'Drawing area' });
+  const box = (await area.boundingBox())!;
+  const stroke = async (pts: [number, number][]) => {
+    await page.mouse.move(box.x + pts[0][0], box.y + pts[0][1]);
+    await page.mouse.down();
+    for (const [x, y] of pts.slice(1)) await page.mouse.move(box.x + x, box.y + y, { steps: 4 });
+    await page.mouse.up();
+  };
+  // A pen stroke (a wavy line).
+  await stroke([[40, 40], [80, 70], [120, 40], [160, 70], [200, 40]]);
+  await expect(area.locator('path')).toHaveCount(1);
+  // Ink to shape: a rough box becomes a neat one.
+  await win.getByLabel('Ink to shape').check();
+  await stroke([[300, 40], [450, 44], [452, 150], [302, 148], [301, 45]]);
+  await expect(area.locator('path')).toHaveCount(2);
+  await expect(area.locator('path').nth(1)).toHaveAttribute('d', /Z$/);
+  // The eraser takes the wavy line away; Undo brings it back.
+  await win.getByRole('button', { name: 'Eraser' }).click();
+  await stroke([[78, 68], [82, 72]]);
+  await expect(area.locator('path')).toHaveCount(1);
+  await win.getByRole('button', { name: 'Undo' }).click();
+  await expect(area.locator('path')).toHaveCount(2);
+  // The lasso picks the box; it's recoloured red.
+  await win.getByRole('button', { name: 'Lasso select' }).click();
+  await stroke([[280, 20], [480, 20], [480, 170], [280, 170], [280, 22]]);
+  await expect(area.locator('.ink-picked')).toHaveCount(1);
+  await win.getByRole('button', { name: 'Colour #d0312d' }).click();
+  await win.getByRole('button', { name: 'Recolour' }).click();
+  await expect(area.locator('path[stroke="#d0312d"]')).toHaveCount(1);
+  // Replay draws them again, one by one.
+  await win.getByRole('button', { name: '▶ Replay' }).click();
+  await expect(area.locator('path')).toHaveCount(0);
+  await expect(area.locator('path')).toHaveCount(2, { timeout: 5000 });
+  await win.getByRole('button', { name: 'Done' }).click();
+  await expect(win).toHaveCount(0);
+  const drawing = page.locator('.note-editor .code-wrap[data-lang="ink"] svg.ink-svg');
+  await expect(drawing.locator('path')).toHaveCount(2);
+  // Clicking it opens it again.
+  await drawing.click();
+  await expect(win).toBeVisible();
+  await expect(area.locator('path')).toHaveCount(2);
+  await win.getByRole('button', { name: 'Cancel' }).click();
+});
