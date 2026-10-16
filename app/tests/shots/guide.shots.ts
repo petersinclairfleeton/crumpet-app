@@ -136,6 +136,8 @@ test('the guide’s pictures', async ({ page }) => {
   await page.getByRole('button', { name: 'Graph of links' }).click();
   await page.waitForTimeout(2500);
   await shot(page, 'graph');
+  // The graph has the window beside the strip; the strip's All notes leaves it.
+  await page.locator('nav.rail').getByRole('button', { name: 'All notes' }).click();
 
   // Keeping notes on every device.
   await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();

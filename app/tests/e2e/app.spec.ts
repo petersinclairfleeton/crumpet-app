@@ -5626,7 +5626,9 @@ test('calm room: no list before the first note, and a note in page view has the 
   await page.getByRole('dialog', { name: 'Note options' }).getByRole('button', { name: 'Page view' }).click();
   await expect(page.locator('.pg').first()).toBeVisible();
   await expect(list(page)).toHaveCount(0);
-  await expect(page.locator('nav.rail')).toBeVisible();
+  // The page has the whole window (design 22): no sidebar or strip, the note's name in the bar.
+  await expect(page.locator('nav.rail, nav.sidebar')).toHaveCount(0);
+  await expect(page.locator('.paged-title')).toHaveText('Pages');
   await page.getByRole('button', { name: 'Back to writing view' }).click();
   await expect(list(page)).toBeVisible();
   await expect(page.locator('nav.sidebar')).toBeVisible();
@@ -5781,4 +5783,44 @@ test('calm Settings, Find and a first visit, as designed', async ({ page }) => {
   await expect(finder.locator('.finder-keys')).toContainText('for commands');
   await finder.getByRole('option', { name: /New note called/ }).click();
   await expect(page.getByLabel('Title')).toHaveValue('harbour');
+});
+
+test('the whole window: the graph beside the strip, a board on its own, and Export over everything', async ({ page }) => {
+  await open(page);
+  await newNote(page, 'Story ideas', 'See [[Storms]].');
+  await newNote(page, 'Storms', 'Notes for the storm chapter.');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: false }));
+  // The graph: the slim strip with the graph as where you are, no list, no tabs.
+  await page.keyboard.press('Control+g');
+  const graph = page.getByRole('region', { name: 'Graph' });
+  await expect(graph.getByRole('heading', { name: 'Graph' })).toBeVisible();
+  await expect(page.locator('nav.rail').getByRole('button', { name: 'Graph' })).toHaveAttribute('aria-current', 'page');
+  await expect(list(page)).toHaveCount(0);
+  await expect(page.getByRole('tablist', { name: 'Tabs' })).toHaveCount(0);
+  await graph.getByRole('button', { name: 'Near the open note' }).click();
+  await expect(graph.getByRole('button', { name: 'Near the open note' })).toHaveAttribute('aria-pressed', 'true');
+  // Leaving from the strip closes it.
+  await page.locator('nav.rail').getByRole('button', { name: 'All notes' }).click();
+  await expect(graph).toHaveCount(0);
+  // A board has the window to itself, its name on a floating card; back returns to the notes.
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const c = (window as unknown as { crumpet: { createNote(n: object): { id: string }; select(id: string): void } }).crumpet;
+    const n = c.createNote({ title: 'Plot board', doc: md.fromMarkdown('```canvas\n{"nodes":[{"id":"a","type":"text","text":"Arrival","x":0,"y":0,"width":200,"height":80}],"edges":[]}\n```\n') });
+    c.select(n.id);
+  });
+  const board = page.getByRole('region', { name: 'Board' });
+  await expect(board.locator('.board-count')).toHaveText('Board · 1 card');
+  await expect(page.locator('nav.rail, nav.sidebar')).toHaveCount(0);
+  await board.getByRole('button', { name: 'Back to your notes' }).click();
+  await expect(page.locator('nav.sidebar')).toBeVisible();
+  // Export from a book opens over the whole window, not inside the outline.
+  await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: { createProject(n: string): { id: string }; setView(v: object): void } }).crumpet;
+    c.setView({ kind: 'project', id: c.createProject('The Lighthouse').id });
+  });
+  await page.getByRole('region', { name: 'Outline' }).getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: /^Export/ }).click();
+  const box = await page.getByRole('dialog', { name: /^Export/ }).boundingBox();
+  expect(box!.width).toBeGreaterThan(500);
 });

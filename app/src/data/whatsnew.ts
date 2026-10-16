@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-quiet-paper-whole-window',
+    date: '16 October 2026',
+    title: 'Quiet Paper: the whole window',
+    points: [
+      'The Graph has the window beside the slim strip: All notes, Near the open note or Two links away as chips, the open note a honey dot with its links in honey. Anything on the strip leaves it.',
+      'A board has the window to itself, its name and card count on a small floating card with a way back to your notes.',
+      'A note in page view has the whole window, its name in the bar; the foot has One page and Two pages, and the zoom as − % +.',
+      'The Immersive reader shows the chapter’s number and title above the text.',
+      'Export, from a book, opens over the whole window again.',
+    ],
+  },
+  {
     id: '2026-10-16-quiet-paper-settings',
     date: '16 October 2026',
     title: 'Quiet Paper: Settings, Find and a first visit',

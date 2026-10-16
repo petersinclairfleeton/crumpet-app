@@ -10,6 +10,8 @@ import type { Editor } from '@crumpet/editor/editor';
 import { type Pos, readBlocks, syllables, tagWords, tokens, wordPicture } from '../data/reading';
 import { lookUp } from '../data/thesaurus';
 import { useAppState, useAppStore } from './hooks';
+import { currentHelped } from './helpers';
+import { numberInWords, projectChapters } from '../data/selectors';
 import { IconClose } from './icons';
 
 export interface ReaderPrefs {
@@ -48,6 +50,20 @@ function Reader({ ed, onClose }: { ed: Editor; onClose(): void }) {
   const { settings } = useAppState();
   const store = useAppStore();
   const p: ReaderPrefs = settings.reader ?? {};
+  // What's being read, at its head (design 23): a chapter's number and title, or a note's title.
+  const heading = useMemo(() => {
+    const h = currentHelped();
+    const id = h?.editor === ed ? h.docId : null;
+    const s = store.getState();
+    const chapter = s.chapters.find((c) => c.id === id);
+    if (chapter) {
+      const project = s.projects.find((x) => x.id === chapter.projectId);
+      const n = project ? projectChapters(project, s.chapters).findIndex((x) => x.chapter.id === chapter.id) + 1 : 0;
+      return { kicker: n ? `Chapter ${numberInWords(n)}` : '', title: chapter.title };
+    }
+    const note = s.notes.find((x) => x.id === id);
+    return { kicker: '', title: note?.title ?? '' };
+  }, [ed]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = (patch: Partial<ReaderPrefs>) => store.updateSettings({ reader: { ...p, ...patch } });
   const [panel, setPanel] = useState<'text' | 'grammar' | 'reading' | null>(null);
   const [picked, setPicked] = useState<{ word: string; x: number; y: number } | null>(null);
@@ -222,6 +238,12 @@ function Reader({ ed, onClose }: { ed: Editor; onClose(): void }) {
       <div className="reader-body" ref={body}>
       <div className="reader-scroll" ref={scroller} style={p.focus ? { paddingTop: bandTop, paddingBottom: bodyH } : undefined}>
         <article className="reader-text" style={style}>
+          {heading.title && (
+            <header className="reader-heading">
+              {heading.kicker && <p>{heading.kicker}</p>}
+              <h1>{heading.title}</h1>
+            </header>
+          )}
           {blocks.length === 0 && <p>There’s no text to read yet.</p>}
           {blocks.map((b, i) => {
             const toks = tokens(b.text);

@@ -4,6 +4,7 @@
 // the versions kept automatically while writing (version history), by day.
 
 import { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
 import { type Doc, runsText } from '@crumpet/editor/model';
 import { fromMarkdown } from '@crumpet/editor/markdown';
@@ -130,7 +131,8 @@ export function CompareDialog({ label, title, before, after, onClose, actions }:
   const parts = useMemo(() => compareTexts(before, after), [before, after]);
   const added = parts.filter((p) => p.kind === 'add').reduce((n, p) => n + p.text.split(/\s+/).filter(Boolean).length, 0);
   const removed = parts.filter((p) => p.kind === 'del').reduce((n, p) => n + p.text.split(/\s+/).filter(Boolean).length, 0);
-  return (
+  // At the top of the page, so the frosted sidebar it's opened from can't hold it inside.
+  return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <div className="dialog compare-dialog" role="dialog" aria-modal="true" aria-label={label}>
         <header className="dialog-head">
@@ -148,6 +150,7 @@ export function CompareDialog({ label, title, before, after, onClose, actions }:
           {parts.map((p, i) => (p.kind === 'add' ? <ins key={i}>{p.text}</ins> : p.kind === 'del' ? <del key={i}>{p.text}</del> : <span key={i}>{p.text}</span>))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
