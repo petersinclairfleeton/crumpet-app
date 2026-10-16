@@ -106,6 +106,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const lead = narrow ? (
     <button type="button" className="icon-btn back" aria-label="Back to notes" onClick={onBack}>
       <IconBack size={18} />
+      <span className="back-label">Notes</span>
     </button>
   ) : null;
 

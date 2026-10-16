@@ -33,6 +33,7 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
         {narrow && (
           <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
             <IconBack size={18} />
+            <span className="back-label">Outline</span>
           </button>
         )}
         <span className="corkboard-hint">Drag the cards to reorder. Click a title to write.</span>

@@ -784,6 +784,15 @@ input, select { font: inherit; color: inherit; }
 [data-look='crumpet'] .welcome li > :is(a, button):hover b { text-decoration: none; }
 [data-look='crumpet'] .welcome li > :is(a, button)::before { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; background: var(--accent-soft); font-size: 20px; }
 [data-look='crumpet'] .welcome b { font-weight: 500; }
+/* The back button's word (Notes, Outline) shows only on phones, beside the arrow. */
+.icon-btn.back .back-label { display: none; }
+@media (max-width: 759px) {
+  [data-look='crumpet'] .icon-btn.back { width: auto; gap: 2px; padding: 0 8px 0 2px; color: var(--accent-ink); font-size: 16px; font-weight: 500; }
+  [data-look='crumpet'] .icon-btn.back .back-label { display: inline; }
+  /* The list's notes as paper cards with room between them, and a bigger title. */
+  [data-look='crumpet'] .cards .card { background: color-mix(in srgb, var(--page) 78%, transparent); margin-bottom: 8px; }
+  [data-look='crumpet'] .list-title h1 { font-size: 34px; }
+}
 /* Ticks, radio buttons and sliders take the honey. */
 [data-look='crumpet'] input:is([type='checkbox'], [type='radio'], [type='range']) { accent-color: var(--accent); }
 /* Cards (a book's chapters on a board): clean paper cards with a status dot, on a warm desk. */
@@ -1409,6 +1418,8 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 /* On a phone the list is its own screen, so no card looks open. */
 .app.narrow[data-pane='list'] .card.selected { background: transparent; box-shadow: none; }
 [data-look='paper'] .app.narrow[data-pane='list'] .card.selected { border-bottom-color: var(--line); }
+[data-look='crumpet'] .app.narrow[data-pane='list'] .card.selected { background: color-mix(in srgb, var(--page) 78%, transparent); }
+[data-look='crumpet'] .app.narrow[data-pane='list'] .card.selected .card-title::before { display: none; }
 .card-preview mark, .card-title mark { background: var(--accent-soft); color: var(--text); border-radius: 2px; padding: 0 1px; }
 .chapter-hits { margin-top: -12px; }
 /* Menus: groups split by a hairline, a small hint at the end of a row. */

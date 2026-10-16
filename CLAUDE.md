@@ -326,7 +326,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     the first paragraph (`thc`, `thf`, `thx`, `psp`); the view marks the
     editor with `data-thc` and so on, and `themeCss()` (injected by
     `applyThemeLook`) draws them; Word gets them as its styles' fonts and
-    colours plus a `CrumpetDesign` docVar to come back. `rightside.tsx` is the right sidebar: tabs for the
+    colours plus a `CrumpetDesign` docVar to come back. `rightside.tsx` is the right sidebar: tabs for In this chapter (a chapter's
+    characters and places, from `appearances` in `data/cast.ts`; chapters only), the
     headings outline, Word's Styles pane (`stylespane.tsx`), comments and
     links, working on the editor last clicked in (`helpers.ts`: editors offer
     themselves with `useOfferHelped`). `booktoc.ts`: in a project, a table of contents

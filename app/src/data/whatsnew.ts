@@ -23,6 +23,7 @@ export const WHATS_NEW: WhatsNew[] = [
       'In a book, the notes sidebar steps back to a strip of icons so the outline is your side panel, and the right sidebar’s new In this chapter tab shows who and where the chapter names.',
       'A friendlier first visit, warmer theme pictures in Settings → Look, and a roomier quick switcher (Ctrl/⌘+O).',
       'A book’s Cards are clean paper cards with a status dot; boards and the Immersive reader match the new look, and tick boxes and sliders are honey.',
+      'On iPhone, notes in the list are paper cards with room between them, the title is bigger, and the back button says where it goes (‹ Notes, ‹ Outline).',
       'Corners, colours and shadows match all through the app, in light and dark.',
     ],
   },
