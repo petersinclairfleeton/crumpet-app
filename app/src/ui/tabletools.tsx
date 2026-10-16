@@ -101,6 +101,18 @@ function TableTool({ ed, off }: { ed: Editor | null; off: boolean }) {
           <button type="button" className="menu-item" onClick={() => (setOpen(false), openWindow('convert'))}>
             Convert text to table…
           </button>
+          <button
+            type="button"
+            className="menu-item"
+            onClick={() => {
+              setOpen(false);
+              closeMore();
+              ed?.focus();
+              ed?.insertSpreadsheet();
+            }}
+          >
+            Spreadsheet <small className="menu-key">A, B, C with sums</small>
+          </button>
           <div className="menu-head">Quick tables</div>
           {quickTables().map((q) => (
             <button

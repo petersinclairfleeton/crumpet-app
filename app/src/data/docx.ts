@@ -8,7 +8,7 @@ import { type CellLook, TABLE_STYLES, type TableLook, type TableStyleKey, mergeA
 import { evaluateCell, formatValue, isFormula } from '@crumpet/editor/formula';
 import { cellPlain, cellRuns, cellText } from '@crumpet/editor/cells';
 import { type LineEnd, type ShapeKind, type ShapeLook, WORD_SHAPES, isLineKind, tidyShape } from '@crumpet/editor/shape';
-import { FIELDS, fieldFromWord, fieldValue, wordInstr } from '@crumpet/editor/fields';
+import { FIELDS, type FormControl, fieldFromWord, fieldValue, formName, formShown, readForm, wordInstr } from '@crumpet/editor/fields';
 import { M_NS, latexToOmml, ommlToLatex } from './omml';
 import { C_NS, chartSpaceXml, readChartXml } from './chartxml';
 import { type Chart, chartText, parseChart } from '@crumpet/editor/chart';
@@ -352,6 +352,9 @@ class Writer {
         const omml = this.maths.get(r.field.slice(5));
         return omml ? `<m:oMath>${omml}</m:oMath>` : `<w:r>${props}<w:t xml:space="preserve">${esc(r.field.slice(5))}</w:t></w:r>`;
       }
+      // A form control: Word's content control of the same kind.
+      const form = readForm(r.field);
+      if (form) return contentControl(form, props);
       // A citation: its text, as written in the citation style.
       if (r.field.startsWith('cite:')) return `<w:r>${props}<w:t xml:space="preserve">${esc(this.fieldShown(r.field))}</w:t></w:r>`;
       const instr = wordInstr(r.field);
@@ -836,7 +839,21 @@ function pictureWatermark(wPt: number, hPt: number): string {
   return `<w:r><w:rPr><w:noProof/></w:rPr><w:pict><v:shapetype id="_x0000_t75" coordsize="21600,21600" o:spt="75" o:preferrelative="t" path="m@4@5l@4@11@9@11@9@5xe" filled="f" stroked="f"><v:stroke joinstyle="miter"/><v:path o:extrusionok="f" gradientshapeok="t" o:connecttype="rect"/><o:lock v:ext="edit" aspectratio="t"/></v:shapetype><v:shape id="WordPictureWatermark1" o:spid="_x0000_s2050" type="#_x0000_t75" style="position:absolute;margin-left:0;margin-top:0;width:${Math.round(wPt)}pt;height:${Math.round(hPt)}pt;z-index:-251656192;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin" o:allowincell="f"><v:imagedata r:id="rIdWm" o:title="" gain="19661f" blacklevel="22938f"/></v:shape></w:pict></w:r>`;
 }
 
-const DOC_NS = `${NS} xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="wps"`;
+const DOC_NS = `${NS} xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:w14="${W14_NS}" mc:Ignorable="wps w14"`;
+
+/** A form control as Word's content control: a tick box, drop-down list, date picker or plain text box (its prompt kept as its title). */
+function contentControl(f: FormControl, props: string): string {
+  const shown = formShown(f);
+  const run = (text: string, pr = props) => `<w:r>${pr}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>`;
+  const prompt = shown.prompt ? '<w:showingPlcHdr/>' : '';
+  if (f.kind === 'chk') {
+    const gothic = '<w:rPr><w:rFonts w:ascii="MS Gothic" w:eastAsia="MS Gothic" w:hAnsi="MS Gothic" w:hint="eastAsia"/></w:rPr>';
+    return `<w:sdt><w:sdtPr><w14:checkbox><w14:checked w14:val="${f.checked ? 1 : 0}"/><w14:checkedState w14:val="2612" w14:font="MS Gothic"/><w14:uncheckedState w14:val="2610" w14:font="MS Gothic"/></w14:checkbox></w:sdtPr><w:sdtContent>${run(f.checked ? '☒' : '☐', gothic)}</w:sdtContent></w:sdt>`;
+  }
+  if (f.kind === 'drop') return `<w:sdt><w:sdtPr>${prompt}<w:dropDownList>${f.choices.map((c) => `<w:listItem w:displayText="${esc(c)}" w:value="${esc(c)}"/>`).join('')}</w:dropDownList></w:sdtPr><w:sdtContent>${run(shown.text)}</w:sdtContent></w:sdt>`;
+  if (f.kind === 'pick') return `<w:sdt><w:sdtPr>${prompt}<w:date${f.date ? ` w:fullDate="${f.date}T00:00:00Z"` : ''}><w:dateFormat w:val="d MMMM yyyy"/><w:lid w:val="en-GB"/><w:storeMappedDataAs w:val="dateTime"/><w:calendar w:val="gregorian"/></w:date></w:sdtPr><w:sdtContent>${run(shown.text)}</w:sdtContent></w:sdt>`;
+  return `<w:sdt><w:sdtPr><w:alias w:val="${esc(f.prompt)}"/>${prompt}<w:text/></w:sdtPr><w:sdtContent>${run(shown.text)}</w:sdtContent></w:sdt>`;
+}
 
 /** The document's design (theme colours, fonts, effects, spacing), by name, kept in Word's settings to come back. */
 function designVar(p: ParaLook | undefined): string {
@@ -1174,11 +1191,11 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     files.push({ name: 'word/commentsExtended.xml', data: utf8(commentsExtendedXml(w.comments)) });
   }
   const docRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${w.rels.map((r) => `<Relationship Id="${r.id}" Type="${r.type}" Target="${r.target}"${r.external ? ' TargetMode="External"' : ''}/>`).join('')}</Relationships>`;
-  const hasToc = parts.some((part) => part.doc.blocks.some((b) => b.type === 'toc' || b.runs.some((r) => r.field !== undefined && !(r.field in FIELDS))));
+  const hasToc = parts.some((part) => part.doc.blocks.some((b) => b.type === 'toc' || b.runs.some((r) => r.field !== undefined && !(r.field in FIELDS) && !/^(math|chk|drop|pick|fill):/.test(r.field))));
   // Tracking everyone's changes, and locked (without a password: Word can't check ours).
   const firstPara = parts[0]?.doc.blocks[0]?.para;
   // Restricted editing (read only or comments only) wins over locked tracking: Word keeps one protection.
-  const protect = firstPara?.restrict ? `<w:documentProtection w:edit="${firstPara.restrict === 'read' ? 'readOnly' : 'comments'}" w:enforcement="1"/>` : firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
+  const protect = firstPara?.restrict ? `<w:documentProtection w:edit="${firstPara.restrict === 'read' ? 'readOnly' : firstPara.restrict}" w:enforcement="1"/>` : firstPara?.lock ? '<w:documentProtection w:edit="trackedChanges" w:enforcement="1"/>' : '';
   // Marked as final: Word's own custom property, which opens it read only with its bar.
   const final = !!firstPara?.final;
   const custom = `${XML}<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="_MarkAsFinal"><vt:bool>true</vt:bool></property></Properties>`;
@@ -1821,9 +1838,30 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
         case 'sdtContent':
           await readRuns(el, out, pics, marks, link);
           break;
-        case 'sdt':
-          await readRuns(child(el, 'sdtContent') ?? el, out, pics, marks, link);
+        case 'sdt': {
+          // Word's content controls that are form controls become ours; others keep their text.
+          const pr = child(el, 'sdtPr');
+          const content = child(el, 'sdtContent') ?? el;
+          const text = Array.from(content.getElementsByTagNameNS(W_NS, 't')).map((t) => t.textContent ?? '').join('');
+          const placeholder = !!child(pr, 'showingPlcHdr');
+          const box = pr && kids(pr).find((x) => x.localName === 'checkbox');
+          const list = child(pr, 'dropDownList') ?? child(pr, 'comboBox');
+          const date = child(pr, 'date');
+          let form: FormControl | null = null;
+          if (box) form = { kind: 'chk', checked: /^(1|true)$/.test(kids(box).find((x) => x.localName === 'checked')?.getAttributeNS(W14_NS, 'val') ?? '') };
+          else if (list) {
+            const choices = kids(list).filter((x) => x.localName === 'listItem').map((x) => attr(x, 'displayText') ?? attr(x, 'value') ?? '').filter(Boolean);
+            form = { kind: 'drop', choices, chosen: placeholder ? -1 : choices.indexOf(text.trim()) };
+          } else if (date) form = { kind: 'pick', date: placeholder ? '' : (attr(date, 'fullDate') ?? '').slice(0, 10) };
+          else if (child(pr, 'text')) form = { kind: 'fill', prompt: attr(child(pr, 'alias'), 'val') ?? (placeholder ? text : ''), value: placeholder ? '' : text };
+          if (form) {
+            const at = out.length;
+            await readRuns(content, out, pics, marks, link);
+            const shown = out.splice(at);
+            out.push({ ...(shown.find((x) => x.text.trim()) ?? { marks: [] }), text: FIELD, field: formName(form) });
+          } else await readRuns(content, out, pics, marks, link);
           break;
+        }
         case 'commentRangeStart':
           openComments.push(attr(el, 'id') ?? '');
           break;
@@ -2385,7 +2423,7 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
   const enforced = !!protection && /^(1|true|on)$/.test(attr(protection, 'enforcement') ?? '');
   const locked = enforced && attr(protection, 'edit') === 'trackedChanges';
   // Restricted editing and Mark as Final (a custom property), kept on the first paragraph.
-  const restrict = enforced ? ({ readOnly: 'read', comments: 'comments' } as const)[attr(protection, 'edit') as 'readOnly' | 'comments'] : undefined;
+  const restrict = enforced ? ({ readOnly: 'read', comments: 'comments', forms: 'forms' } as const)[attr(protection, 'edit') as 'readOnly' | 'comments' | 'forms'] : undefined;
   const customProps = parseXml(files.get('docProps/custom.xml'));
   const finalProp = Array.from(customProps?.getElementsByTagName('property') ?? []).find((p) => p.getAttribute('name') === '_MarkAsFinal');
   const isFinal = !!finalProp && /^(true|1)$/i.test(finalProp.textContent?.trim() ?? '');

@@ -24,7 +24,7 @@ At the end there's a suggested order for building what's missing.
 | Save As / change file type | ✅ | Word (.docx), e-book (.epub), PDF (by printing), OpenDocument (.odt), Rich Text (.rtf), web page (.html, pictures inside), plain text (.txt), and Markdown (the files themselves). |
 | Word files saved back to themselves | ✅ | An uploaded .docx is written back to its own file as it's edited. |
 | Protect: password | ✅ | A note's ⋯ menu → Protect with a password: its text is scrambled (AES) here and in the folder or Drive, opened with the password for the session; Lock now, Remove the password. Notes only, not chapters; downloads of an opened note are the plain text, without the password. |
-| Protect: restrict editing / read-only | ✅ | Formatting bar → Protect document: no changes, or comments only, with a password to stop it if you like; goes to Word as its own document protection. |
+| Protect: restrict editing / read-only | ✅ | Formatting bar → Protect document: no changes, comments only, or filling in forms only, with a password to stop it if you like; goes to Word as its own document protection. |
 | Protect: mark as final | ✅ | Protect document → Mark as final: opens read only with a bar and Edit anyway; goes to Word as its Mark as Final. |
 | Protect: digital signature | 🟡 | Formatting bar → Signature line: the name, title and date on a signature line that remembers the document and says if it changes afterwards. Not a certificate-based digital signature (that needs a certificate service); goes to Word as text. |
 | Inspect Document (remove hidden data, comments, authors) | ✅ | The right sidebar's Check tab → Inspect: comments, tracked changes, people's names, hidden text and hidden objects, with Remove all comments, Accept all changes and Remove hidden text. |
@@ -141,7 +141,7 @@ At the end there's a suggested order for building what's missing.
 | Insert a table | ✅ | The Table button's size grid, or /table. |
 | Draw a table | ✅ | Table → Draw table…: drag lines across or down a box (click one to rub it out); their places become the rows' heights and columns' widths. Lines that stop partway (merged cells as you draw) aren't drawn. |
 | Convert text to table | ✅ | Table → Convert text to table…: the selected lines cut at tabs, commas, spaces or a character of your own; formatting kept. |
-| Excel spreadsheet in the document | ❌ | |
+| Excel spreadsheet in the document | 🟡 | Table → Spreadsheet, or a table's menu → Spreadsheet: a table with column letters and row numbers round it and formulas (=B2*C2, =SUM(B2:B4), AVERAGE, MIN, MAX, COUNT…) worked out as you type. Not a real Excel sheet (no number formats, sheets or charts inside); goes to Word as a table with its formulas as fields. |
 | Quick Tables (ready-made calendars, tables) | ✅ | This month's calendar, a list, a matrix, and a table with subheadings and totals (formulas). |
 | Pictures from the device | ✅ | Also pasted or dropped in. |
 | Stock images, online pictures | ❌ | |
@@ -168,7 +168,7 @@ At the end there's a suggested order for building what's missing.
 | Text from file (put a whole document into this one) | ✅ | Snippets → Text from file…: a Word document, Markdown or plain text, poured in at the caret with its formatting. |
 | Equation | ✅ | Formatting bar → Equation (or Alt+= for one within the line): written in LaTeX or UnicodeMath, with structures and symbols to pick, drawn at once; Word gets real Word equations, and Word's equations come in as Crumpet's. No handwritten (ink) equations. |
 | Symbol | ✅ | Symbols and special characters (non-breaking space and hyphen, dashes, quotes…). |
-| Forms (content controls: tick boxes, drop-downs, date pickers) | 🟡 | Checklists only. |
+| Forms (content controls: tick boxes, drop-downs, date pickers) | ✅ | Formatting bar → Form control: tick boxes, drop-down lists (choices of your own), date pickers and fill-in boxes with a prompt, in the text; Protect document → Filling in forms lets others only fill them in. To and from Word as its content controls. |
 | Loop components | ➖ | Microsoft 365 only. |
 
 ## Draw
@@ -613,8 +613,8 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [x] Online video (YouTube links play in the text)
 - [ ] Online pictures (needs a picture service's key: ask Peter first)
 - [ ] Embedded objects
-- [ ] Form controls (drop-downs, date pickers, fill-in boxes)
-- [ ] Spreadsheet in a document
+- [x] Form controls (drop-downs, date pickers, fill-in boxes)
+- [x] Spreadsheet in a document (a table shown as a spreadsheet, with formulas)
 - [ ] 3D models
 - [ ] Draw tab: pen, pencil, highlighter, eraser, lasso (finger, mouse, Apple Pencil)
 - [ ] Ink to shape and maths, ink replay

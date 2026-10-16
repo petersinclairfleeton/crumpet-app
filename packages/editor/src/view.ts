@@ -4,7 +4,7 @@
 
 import type { Block, CodeLang, CodeLook, Doc, Mark, Pos, Run, Selection, TabStop, TocLook } from './model';
 import { DEFAULT_TAB } from './model';
-import { fieldKind, fieldLabel, fieldValue } from './fields';
+import { fieldKind, fieldLabel, fieldValue, formShown, readForm } from './fields';
 import { CHART_TYPES, chartSvg, parseChart } from './chart';
 import { playable, videoEmbed } from './video';
 import { type TocEntry, figureEntries, indexEntries, tocEntries } from './lists';
@@ -323,6 +323,13 @@ export class View {
         el.dataset.target = target;
       } else if (kind === 'cite') v = this.citeText?.(name.slice(5)) ?? `(${name.slice(5)})`;
       else if (kind === 'math') v = this.drawMath(el, name.slice(5));
+      else if (kind === 'form') {
+        const f = readForm(name);
+        const shown = f ? formShown(f) : { text: '', prompt: false };
+        v = shown.text;
+        el.classList.toggle('form-prompt', shown.prompt);
+        el.dataset.form = f?.kind ?? '';
+      }
       if (el.dataset.v !== v) el.dataset.v = v;
       el.title = fieldLabel(name);
     }
@@ -1602,7 +1609,7 @@ function buildTable(block: Block): HTMLElement {
     gallery.appendChild(b);
   }
   group('Table style', [gallery]);
-  group('Style options', [toggle('header', 'Heading row'), toggle('banded', 'Banded rows'), toggle('first-col', 'First column'), toggle('last-col', 'Last column'), toggle('total-row', 'Total row'), toggle('banded-cols', 'Banded columns'), toggle('repeat', 'Repeat heading row on each page')]);
+  group('Style options', [toggle('header', 'Heading row'), toggle('banded', 'Banded rows'), toggle('first-col', 'First column'), toggle('last-col', 'Last column'), toggle('total-row', 'Total row'), toggle('banded-cols', 'Banded columns'), toggle('repeat', 'Repeat heading row on each page'), toggle('sheet', 'Spreadsheet (A, B, C and 1, 2, 3)')]);
   group('Lines', [button('borders', 'All lines', 'All lines', ''), button('borders', 'Outside only', 'Outside only', 'outside'), button('borders', 'Between rows', 'Lines between rows', 'rows'), button('borders', 'No lines', 'No lines', 'none')]);
   const swatches = document.createElement('div');
   swatches.className = 'table-swatches';
@@ -1672,6 +1679,13 @@ function tableKey(block: Block): string {
   return JSON.stringify([rows.length, rows[0]?.length ?? 0, block.tbl ?? null]);
 }
 
+/** A spreadsheet column's letters: A … Z, AA … */
+function colLetters(c: number): string {
+  let s = '';
+  for (let n = c + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+  return s;
+}
+
 function fillTable(table: HTMLTableElement, block: Block): void {
   const rows = block.rows ?? [['']];
   const t = block.tbl;
@@ -1680,6 +1694,7 @@ function fillTable(table: HTMLTableElement, block: Block): void {
   if (t?.borders) table.dataset.borders = t.borders;
   else delete table.dataset.borders;
   table.classList.toggle('banded', !!t?.banded);
+  table.classList.toggle('sheet', !!t?.sheet);
   table.classList.toggle('no-header', !!t?.noHeader);
   // Word's style options: first and last column, total row, banded columns.
   table.classList.toggle('first-col', !!t?.firstCol);
@@ -1721,6 +1736,7 @@ function fillTable(table: HTMLTableElement, block: Block): void {
   check('[data-table-action="last-col"]', !!t?.lastCol);
   check('[data-table-action="total-row"]', !!t?.totalRow);
   check('[data-table-action="banded-cols"]', !!t?.bandedCols);
+  check('[data-table-action="sheet"]', !!t?.sheet);
   check('[data-table-action="repeat"]', !t?.noRepeat && !t?.noHeader);
   wrap?.querySelectorAll<HTMLElement>('[data-table-action="pad"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (t?.pad !== undefined ? String(t.pad) : '')));
   wrap?.querySelectorAll<HTMLElement>('[data-table-action="borders"]').forEach((b) => b.classList.toggle('on', b.dataset.value === (t?.borders ?? '')));
@@ -1745,6 +1761,11 @@ function fillTable(table: HTMLTableElement, block: Block): void {
       if (align) cell.style.textAlign = align;
       const own = t?.cells?.[`${r},${c}`];
       if (own) cellLook(cell, own);
+      // A spreadsheet's column letters over its first row, and row numbers beside its first column.
+      if (t?.sheet) {
+        if (r === 0) cell.dataset.col = colLetters(c);
+        if (c === 0) cell.dataset.row = String(r + 1);
+      }
       // A formula shows what it comes to (its own text while it's being edited).
       if (plain && isFormula(text)) cell.dataset.value = formatValue(evaluateCell(plain, r, c));
       const box = document.createElement('div');

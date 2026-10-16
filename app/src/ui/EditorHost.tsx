@@ -1,5 +1,6 @@
 import { useOfferHelped } from './helpers';
 import { MathBlockBar, MathCard } from './mathtools';
+import { FormCard } from './formtools';
 import { ProtectBanner } from './protecttools';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { noteLinkTitle } from '@crumpet/editor/markdown';
@@ -62,6 +63,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
   const prot = readOnlyProp ? undefined : p0?.final ? 'final' : p0?.restrict;
   const readOnly = !!readOnlyProp || !!prot;
   const commenting = prot === 'comments';
+  const formsOnly = prot === 'forms';
   const narrow = useMedia('(max-width: 759px)');
   const nav = useNav();
   const [linkOpen, setLinkOpen] = useState(false);
@@ -96,6 +98,10 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
   useTracking(readOnly || reading ? null : ed);
   // Fields the app fills in: the title, author and dates.
   const author = state.settings.name;
+  // Restrict editing → Filling in forms: the form controls stay usable.
+  useEffect(() => {
+    if (ed) ed.formsOnly = formsOnly;
+  }, [ed, formsOnly]);
   useEffect(() => {
     if (!ed) return;
     const day = (t?: number) => (t ? new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : '');
@@ -149,6 +155,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
       )}
       {!readOnly && !reading && <SlashMenu editor={ed} host={host} notes={state.notes} />}
       {!readOnly && !reading && <MathCard editor={ed} />}
+      {(!readOnly || prot === 'forms') && !reading && <FormCard editor={ed} design={!readOnly} />}
       {!readOnly && !reading && <MathBlockBar host={host} />}
       {floating && ed && (
         <SelectionBar host={host}>

@@ -175,6 +175,13 @@ span.fld[data-v='']::after { padding: 0; background: none; }
 span.fld[data-target] { cursor: pointer; }
 /* An equation within the line: its picture (or its source in a typewriter font until the picture is ready). */
 span.fld[data-field^='math:'] { cursor: pointer; }
+/* Form controls: a box round what each shows; prompts faint; drop-downs with their arrow. */
+span.fld[data-form] { cursor: pointer; }
+span.fld[data-form]::after { background: color-mix(in srgb, var(--accent, #4a7) 9%, transparent); border: 1px solid color-mix(in srgb, var(--accent, #4a7) 35%, transparent); border-radius: 3px; padding: 0 3px; }
+span.fld[data-form='chk']::after { border: none; background: none; padding: 0; font-size: 1.15em; }
+span.fld[data-form='drop']::after { content: attr(data-v) ' ▾'; }
+span.fld[data-form='pick']::after { content: attr(data-v) ' 📅'; }
+span.fld.form-prompt::after { color: var(--muted, #888); font-style: italic; }
 span.fld[data-field^='math:']::after { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.9em; }
 span.fld.math-ready::after { content: var(--m); background: none; padding: 0 1px; vertical-align: var(--md, 0); font: inherit; }
 span.fld.math-ready:hover::after { outline: 1px dotted var(--accent, #4a7); outline-offset: 1px; }
@@ -490,3 +497,11 @@ span.fld[data-field='wrapbreak']::after { content: none; }
 .code-wrap[data-lang='chart'] .code-preview { color: inherit; }
 .code-wrap[data-lang='chart'] .chart-svg { display: block; width: 100%; max-width: 640px; height: auto; margin: 0 auto; }
 .code-head select[data-chart-type] { margin-left: 6px; }
+
+/* A table shown as a spreadsheet: column letters above, row numbers to the left, a grid. */
+.table-wrap table.sheet { border-collapse: collapse; overflow: visible !important; }
+.table-scroll:has(> table.sheet) { padding: 20px 2px 2px 30px; }
+.table-wrap table.sheet td, .table-wrap table.sheet th { position: relative; border: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+.table-wrap table.sheet :is(th, td)[data-col]::before, .table-wrap table.sheet :is(th, td)[data-row]::after { position: absolute; color: var(--muted, #888); font: 600 11px/1 var(--ui-font, system-ui, sans-serif); pointer-events: none; }
+.table-wrap table.sheet :is(th, td)[data-col]::before { content: attr(data-col); left: 0; right: 0; top: -17px; text-align: center; }
+.table-wrap table.sheet :is(th, td)[data-row]::after { content: attr(data-row); right: calc(100% + 8px); top: 50%; transform: translateY(-50%); text-align: right; }

@@ -11,6 +11,8 @@ export interface TableLook {
   noHeader?: boolean;
   /** Every other row shaded. */
   banded?: boolean;
+  /** Shown as a spreadsheet: column letters and row numbers round it, for formulas like =B2*C2 (Word's Excel spreadsheet). */
+  sheet?: boolean;
   borders?: TableBorders;
   /** Merged cells: [row, column, rows, columns] of each, from its top-left cell. */
   merges?: [number, number, number, number][];
@@ -111,6 +113,7 @@ export function tidyTable(t: TableLook | undefined, rows: number, cols: number):
   const out: TableLook = {};
   if (t.noHeader) out.noHeader = true;
   if (t.banded) out.banded = true;
+  if (t.sheet) out.sheet = true;
   if (isTableStyle(t.style)) out.style = t.style;
   if (t.borders && BORDERS.includes(t.borders)) out.borders = t.borders;
   const merges: [number, number, number, number][] = [];
@@ -327,7 +330,7 @@ export function setWidths({ rows, tbl }: TableShape, widths: number[] | undefine
 }
 
 /** Sets the heading row, banded rows, lines, style, style options, repeating, cell margins. */
-export function setTableLook({ rows, tbl }: TableShape, patch: Pick<TableLook, 'noHeader' | 'banded' | 'borders' | 'style' | 'firstCol' | 'lastCol' | 'totalRow' | 'bandedCols' | 'noRepeat' | 'pad'>): TableShape {
+export function setTableLook({ rows, tbl }: TableShape, patch: Pick<TableLook, 'noHeader' | 'banded' | 'sheet' | 'borders' | 'style' | 'firstCol' | 'lastCol' | 'totalRow' | 'bandedCols' | 'noRepeat' | 'pad'>): TableShape {
   return { rows, tbl: tidyTable({ ...tbl, ...patch }, rows.length, rows[0].length) };
 }
 
@@ -419,6 +422,7 @@ export function tableAttrs(t: TableLook | undefined): string {
   const parts = [
     t.noHeader ? '.noheader' : '',
     t.banded ? '.banded' : '',
+    t.sheet ? '.sheet' : '',
     t.style ? `style=${t.style}` : '',
     t.borders ? `borders=${t.borders}` : '',
     ...(t.merges ?? []).map((m) => `merge=${m.join('-')}`),
@@ -436,7 +440,7 @@ export function tableAttrs(t: TableLook | undefined): string {
   return parts.length ? `{table ${parts.join(' ')}}` : '';
 }
 
-export const TABLE_ATTRS = /^[ \t]*\{table((?:[ \t]+(?:\.noheader|\.banded|style=[a-z]+|borders=[a-z]+|merge=\d+-\d+-\d+-\d+|shade=\d+-\d+-#[0-9a-fA-F]{6}|widths=[\d.]+(?:-[\d.]+)*|\.firstcol|\.lastcol|\.totalrow|\.bandedcols|\.norepeat|pad=[\d.]+|heights=[\d.x]+(?:-[\d.x]+)*|cell=\d+-\d+:[a-z]+=[#\w]+(?:,[a-z]+=[#\w]+)*))*)[ \t]*\}[ \t]*$/;
+export const TABLE_ATTRS = /^[ \t]*\{table((?:[ \t]+(?:\.noheader|\.banded|\.sheet|style=[a-z]+|borders=[a-z]+|merge=\d+-\d+-\d+-\d+|shade=\d+-\d+-#[0-9a-fA-F]{6}|widths=[\d.]+(?:-[\d.]+)*|\.firstcol|\.lastcol|\.totalrow|\.bandedcols|\.norepeat|pad=[\d.]+|heights=[\d.x]+(?:-[\d.x]+)*|cell=\d+-\d+:[a-z]+=[#\w]+(?:,[a-z]+=[#\w]+)*))*)[ \t]*\}[ \t]*$/;
 
 /** Reads the line written by tableAttrs (aligns come from the rule row). */
 export function readTableAttrs(line: string): TableLook | null {
@@ -446,6 +450,7 @@ export function readTableAttrs(line: string): TableLook | null {
   for (const tok of m[1].trim().split(/\s+/).filter(Boolean)) {
     if (tok === '.noheader') t.noHeader = true;
     else if (tok === '.banded') t.banded = true;
+    else if (tok === '.sheet') t.sheet = true;
     else if (tok.startsWith('style=')) {
       const v = tok.slice(6);
       if (isTableStyle(v)) t.style = v;

@@ -30,9 +30,12 @@ export const DOC_FIELDS: Record<string, string> = {
  * `bm:Name` (a bookmark: shows nothing), `ref:Name` or `ref:Name:text|page|dir`
  * (a cross-reference to a bookmark), `xe:Term` (an index entry: shows
  * nothing), `cite:key` (a citation of a source), `math:LaTeX` (an equation
- * within the line, drawn by the app's maths; `$`…`$` in Markdown).
+ * within the line, drawn by the app's maths; `$`…`$` in Markdown), and form
+ * controls (Word's content controls): `chk:0|1` a tick box, `drop:N:A|B|C` a
+ * drop-down list (N the choice, -1 none), `pick:YYYY-MM-DD` a date picker
+ * (empty: none yet), `fill:Prompt|What's typed` a fill-in box.
  */
-const PARAM = /^(?:seq:[A-Za-z][\w ]{0,30}|bm:[A-Za-z_][\w-]{0,39}|ref:[A-Za-z_][\w-]{0,39}(?::(?:num|text|page|dir))?|xe:[^{}\n:][^{}\n]{0,99}|cite:[\w.:-]{1,60}|math:[^\n]{1,1000})$/;
+const PARAM = /^(?:seq:[A-Za-z][\w ]{0,30}|bm:[A-Za-z_][\w-]{0,39}|ref:[A-Za-z_][\w-]{0,39}(?::(?:num|text|page|dir))?|xe:[^{}\n:][^{}\n]{0,99}|cite:[\w.:-]{1,60}|math:[^\n]{1,1000}|chk:[01]|drop:-?\d{1,3}:[^{}\n]{1,300}|pick:(?:\d{4}-\d\d-\d\d)?|fill:[^{}\n]{0,300})$/;
 
 /** Breaks kept as fields: Word's Text Wrapping break (the text after it starts below any picture or shape it's wrapping round). */
 export const BREAK_FIELDS: Record<string, string> = { wrapbreak: 'Text wrapping break' };
@@ -42,10 +45,11 @@ export function isField(name: string): boolean {
 }
 
 /** What kind a field is. */
-export function fieldKind(name: string): 'date' | 'doc' | 'break' | 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | 'math' | null {
+export function fieldKind(name: string): 'date' | 'doc' | 'break' | 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | 'math' | 'form' | null {
   if (name in FIELDS) return 'date';
   if (name in BREAK_FIELDS) return 'break';
   if (name in DOC_FIELDS) return 'doc';
+  if (/^(chk|drop|pick|fill):/.test(name)) return 'form';
   const k = /^(seq|bm|ref|xe|cite|math):/.exec(name)?.[1];
   return (k as 'seq' | 'bm' | 'ref' | 'xe' | 'cite' | 'math' | undefined) ?? null;
 }
@@ -62,7 +66,55 @@ export function fieldLabel(name: string): string {
   if (kind === 'xe') return `Index entry: ${rest}`;
   if (kind === 'cite') return `Citation: ${rest}`;
   if (kind === 'math') return `Equation: ${rest} (click to edit)`;
+  if (kind === 'form') return { chk: 'Tick box (click to tick)', drop: 'Drop-down list (click to choose)', pick: 'Date picker (click to pick a date)', fill: 'Fill-in box (click to type)' }[name.slice(0, name.indexOf(':'))] ?? 'Form control';
   return 'Field';
+}
+
+/** A form control's parts (see PARAM). */
+export type FormControl =
+  | { kind: 'chk'; checked: boolean }
+  | { kind: 'drop'; chosen: number; choices: string[] }
+  | { kind: 'pick'; date: string }
+  | { kind: 'fill'; prompt: string; value: string };
+
+export function readForm(name: string): FormControl | null {
+  const [kind] = name.split(':', 1);
+  const rest = name.slice(kind.length + 1);
+  if (kind === 'chk') return { kind, checked: rest === '1' };
+  if (kind === 'drop') {
+    const at = rest.indexOf(':');
+    return { kind, chosen: Number(rest.slice(0, at)), choices: rest.slice(at + 1).split('|') };
+  }
+  if (kind === 'pick') return { kind, date: rest };
+  if (kind === 'fill') {
+    const at = rest.indexOf('|');
+    return { kind, prompt: at < 0 ? rest : rest.slice(0, at), value: at < 0 ? '' : rest.slice(at + 1) };
+  }
+  return null;
+}
+
+/** A form control's field name (choices and words tidied so they fit: no braces, bars or new lines). */
+export function formName(f: FormControl): string {
+  const clean = (s: string) => s.replace(/[{}|\n]/g, ' ').trim();
+  if (f.kind === 'chk') return `chk:${f.checked ? 1 : 0}`;
+  if (f.kind === 'drop') {
+    const choices = f.choices.map(clean).filter(Boolean);
+    return `drop:${f.chosen >= 0 && f.chosen < choices.length ? f.chosen : -1}:${(choices.length ? choices : ['Choice 1']).join('|')}`.slice(0, 310);
+  }
+  if (f.kind === 'pick') return `pick:${/^\d{4}-\d\d-\d\d$/.test(f.date) ? f.date : ''}`;
+  return `fill:${clean(f.prompt) || 'Click to type'}|${f.value.replace(/[{}\n]/g, ' ')}`.slice(0, 305);
+}
+
+/** What a form control shows, and whether that's its prompt (shown faintly). */
+export function formShown(f: FormControl): { text: string; prompt: boolean } {
+  if (f.kind === 'chk') return { text: f.checked ? '☑' : '☐', prompt: false };
+  if (f.kind === 'drop') return f.choices[f.chosen] !== undefined ? { text: f.choices[f.chosen], prompt: false } : { text: 'Choose an item', prompt: true };
+  if (f.kind === 'pick') {
+    if (!f.date) return { text: 'Pick a date', prompt: true };
+    const d = new Date(`${f.date}T12:00:00`);
+    return { text: Number.isNaN(d.getTime()) ? f.date : d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }), prompt: false };
+  }
+  return f.value ? { text: f.value, prompt: false } : { text: f.prompt || 'Click to type', prompt: true };
 }
 
 /** What a field shows now. */
