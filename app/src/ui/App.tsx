@@ -3,7 +3,7 @@ import { HomeScreenGuide, useSwipeBack } from './iphone';
 import { desktop } from '../data/desktop';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Doc } from '@crumpet/editor/model';
-import { type Nav, NavContext, useAppState, useAppStore } from './hooks';
+import { type Nav, NavContext, useAppState, useAppStore, useMedia } from './hooks';
 import { findByTitle } from '../data/links';
 import { ClipDialog } from './clipper';
 import { Sidebar } from './Sidebar';
@@ -57,6 +57,7 @@ export function App() {
   // Phones in the calm look start on the library (design 16), like Apple's Notes.
   const [pane, setPane] = useState<Pane>(() => (window.matchMedia(NARROW).matches && !state.settings.toolbarAll ? 'sidebar' : 'list'));
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
+  const midWidth = useMedia(MEDIUM);
   const panes = usePanesState();
   const panesRef = useRef(panes);
   panesRef.current = panes;
@@ -327,6 +328,9 @@ export function App() {
   const pagedNote = !narrow && !state.settings.toolbarAll && !!state.settings.pageView?.notes && state.view.kind !== 'project' && !!state.selectedId;
   // The calm look in a book: the book's outline is the sidebar (its strip only while the outline is folded away).
   const calmBook = !narrow && !state.settings.toolbarAll && state.view.kind === 'project' && !state.query.trim();
+  // An iPad held upright, or any window this narrow (design 15): the chapter has the window; the
+  // outline comes out beside it from the chapter's sidebar button, and the inspector is a drawer.
+  const compactBook = calmBook && midWidth;
   // The calm look gives some things the whole window (designs 19, 20 and 22): the graph keeps only the
   // slim strip; a board and a note in page view have it all (their own back buttons return).
   const single = groups(panes.ws).length === 1;
@@ -334,10 +338,10 @@ export function App() {
   const noteNow = tabNow?.kind === 'note' ? state.notes.find((n) => n.id === tabNow.id) : undefined;
   const calmWide = !narrow && !state.settings.toolbarAll && single && !state.focusMode;
   const whole = !calmWide ? null : tabNow?.kind === 'graph' ? 'graph' : noteNow && isBoard(noteNow) ? 'board' : pagedNote ? 'page' : null;
-  const sidebarMode = whole === 'graph' ? 'icons' : whole ? 'none' : calmBook ? (layout.list === false ? 'icons' : 'none') : chosenSidebar === 'full' && !narrow && ((state.view.kind === 'project' && layout.bookSidebar !== 'full') || pagedNote) ? 'icons' : chosenSidebar;
+  const sidebarMode = whole === 'graph' ? 'icons' : whole ? 'none' : compactBook ? 'none' : calmBook ? (layout.list === false ? 'icons' : 'none') : chosenSidebar === 'full' && !narrow && ((state.view.kind === 'project' && layout.bookSidebar !== 'full') || pagedNote) ? 'icons' : chosenSidebar;
   // Before the first note there's nothing to list: the welcome has the room.
   const noNotesYet = !narrow && !state.settings.toolbarAll && state.notes.length === 0 && state.view.kind === 'all' && !state.query;
-  const showList = layout.list !== false && !pagedNote && !noNotesYet && !whole;
+  const showList = (compactBook ? layout.list === true : layout.list !== false) && !pagedNote && !noNotesYet && !whole;
   const showRight = !!layout.right && !state.focusMode;
   const rightW = layout.rightWidth ?? RIGHT.normal;
   const sideW = layout.sidebarWidth ?? SIDEBAR.normal;
@@ -353,7 +357,7 @@ export function App() {
   return (
     <NavContext.Provider value={nav}>
     <PanesContext.Provider value={panes}>
-    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${calm ? ' calm' : ''}${narrow && !state.settings.toolbarAll ? ' phone' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
+    <div ref={appRef} className={`app${narrow ? ' narrow' : ''}${calm ? ' calm' : ''}${narrow && !state.settings.toolbarAll ? ' phone' : ''}${compactBook ? ' compact-book' : ''}${compactBook && showRight ? ' drawer-open' : ''}${state.focusMode ? ' focus-mode' : ''}`} data-pane={narrow ? (state.focusMode ? 'note' : pane) : undefined} style={sizes}>
       {state.focusMode && (
         <div className="focus-bar">
           <button

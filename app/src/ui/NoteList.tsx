@@ -87,6 +87,9 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
   // The calm phone (designs 4 and 18): back to the library and the list's menu above a big title, then its search box.
   const narrowScreen = useMedia('(max-width: 759px)');
   const phone = calm && narrowScreen;
+  // An iPad (design 14): the search box under the list's title.
+  const touch = useMedia('(pointer: coarse)');
+  const tablet = calm && touch && !narrowScreen;
 
   return (
     <section className={`list${fileDrop.over ? ' files-over' : ''}${phone ? ' phone' : ''}`} aria-label="Notes" {...fileDrop.props}>
@@ -120,6 +123,18 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
           <span className="grow" />
           {phone ? null : calm ? !trash && !reminders && <ListMenu sort={sort} sortName={sortName} /> : <FoldButton what="list" />}
         </div>
+        {tablet && (
+          <label className="phone-search tablet-search">
+            <IconSearch size={18} />
+            <span className="visually-hidden">Search notes</span>
+            <input id="search" type="search" autoComplete="off" placeholder="Search" value={state.query} onChange={(e) => store.setQuery(e.target.value)} />
+            {searching && (
+              <button type="button" className="icon-btn" aria-label="Clear the search" onClick={() => store.setQuery('')}>
+                ×
+              </button>
+            )}
+          </label>
+        )}
         <div className={`list-sub${calm ? ' calm' : ''}`}>
           <span className="list-count">
             {notes.length} note{notes.length === 1 ? '' : 's'}

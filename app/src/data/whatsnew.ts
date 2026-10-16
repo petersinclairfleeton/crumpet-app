@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-quiet-paper-ipad',
+    date: '16 October 2026',
+    title: 'Quiet Paper on an iPad',
+    points: [
+      'On an iPad the formatting tools float in a small bar at the foot of the page: Aa for styles, a checklist, bullets, Draw for the pencil, a picture, and ··· for the rest.',
+      'The list has its own search box under the title, and New note sits at the foot of the sidebar.',
+      'Held upright (or in any narrower window), a chapter has the whole window: the top shows the book and the chapter, and the chapter’s name opens a list of every chapter to jump to. The sidebar button brings the outline out beside it.',
+      'The chapter’s status, words, page view and the inspector are in its ··· menu; the inspector (who’s in the chapter, notes, comments) comes up as a drawer at the foot.',
+    ],
+  },
+  {
     id: '2026-10-16-quiet-paper-iphone',
     date: '16 October 2026',
     title: 'Quiet Paper on an iPhone',

@@ -121,6 +121,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   // uploads, templates, the Trash and Explore wait in the menu at its foot.
   // (Phones keep the full sidebar as their Notebooks screen.)
   const narrow = useMedia('(max-width: 759px)');
+  // On an iPad (design 14) the list has the search box, and New note sits at the sidebar's foot.
+  const touch = useMedia('(pointer: coarse)');
   const calm = !state.settings.toolbarAll && !narrow;
   const projectRows = projects.map((p) => (
     <SideRow
@@ -278,12 +280,12 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         {statsOpen && <StatsDialog onClose={() => setStatsOpen(false)} />}
         {menuAt && <NoteMenu at={menuAt} onClose={() => setMenuAt(null)} />}
 
-        <div className="side-start">
+        <div className={`side-start${touch ? ' touch' : ''}`}>
           <button type="button" className="new-note" onClick={onNewNote} onContextMenu={(e) => (e.preventDefault(), setFootMenu('templates'))}>
             <IconPlus size={18} />
             New note
           </button>
-          {!fresh && <label className="side-search">
+          {!fresh && !touch && <label className="side-search">
             <IconSearch size={18} />
             <span className="visually-hidden">Search notes</span>
             <input

@@ -5883,3 +5883,57 @@ test.describe('on a phone, in the calm look', () => {
     await expect(library).toBeVisible();
   });
 });
+
+test.describe('on an iPad, in the calm look', () => {
+  test.use({ viewport: { width: 1180, height: 820 }, isMobile: true, hasTouch: true });
+
+  test('the tools float at the page’s foot; upright, a book’s chapter has the window with a breadcrumb and a drawer', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.app')).toBeVisible();
+    const ids = await page.evaluate(() => {
+      const c = (window as unknown as { crumpet: Record<string, (...a: unknown[]) => { id: string }> & { getState(): { chapters: { id: string; projectId: string }[] } } }).crumpet;
+      c.createNote({ title: 'Harbour' });
+      const p = c.createProject('The Lighthouse');
+      const second = c.addChapter(p.id);
+      c.setChapterTitle(second.id, 'The Keeper');
+      c.setView({ kind: 'all' });
+      return { p: p.id, first: c.getState().chapters.find((x) => x.projectId === p.id)!.id };
+    });
+    // Landscape: the list has the search box, and a note's tools float at its foot.
+    await page.getByRole('navigation', { name: 'Notebooks' }).getByRole('button', { name: /^All notes/ }).click();
+    const notes = page.getByRole('region', { name: 'Notes', exact: true });
+    await expect(notes.locator('#search')).toBeVisible();
+    await notes.locator('.card', { hasText: 'Harbour' }).click();
+    const tools = page.locator('.float-tools');
+    await expect(tools).toBeVisible();
+    await expect(tools.getByRole('button', { name: 'Bulleted list' })).toBeVisible();
+    await expect(page.locator('.note-toolbar .tools')).toHaveCount(0);
+
+    // Upright: the chapter has the window.
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await page.evaluate((x) => {
+      const c = (window as unknown as { crumpet: Record<string, (...a: unknown[]) => unknown> }).crumpet;
+      c.setView({ kind: 'project', id: x.p });
+      c.selectChapter(x.first);
+    }, ids);
+    await expect(page.getByRole('region', { name: 'Outline' })).toHaveCount(0);
+    const jump = page.locator('.crumb-jump > button');
+    await expect(jump).toContainText('1.');
+    // The breadcrumb's menu goes to another chapter.
+    await jump.click();
+    await page.getByRole('button', { name: /2\. The Keeper/ }).click();
+    await expect(jump).toContainText('2. The Keeper');
+    // The outline comes out beside it.
+    await page.getByRole('button', { name: 'Show the outline' }).click();
+    await expect(page.getByRole('region', { name: 'Outline' })).toBeVisible();
+    await page.getByRole('button', { name: 'Hide the outline' }).click();
+    await expect(page.getByRole('region', { name: 'Outline' })).toHaveCount(0);
+    // The inspector is a drawer at the foot.
+    await page.getByRole('button', { name: 'Chapter options' }).click();
+    await page.getByRole('button', { name: 'Open the inspector' }).click();
+    const drawer = page.getByRole('complementary', { name: 'Right sidebar' });
+    await expect(drawer).toBeVisible();
+    const box = (await drawer.boundingBox())!;
+    expect(box.y).toBeGreaterThan(700);
+  });
+});

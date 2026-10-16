@@ -135,7 +135,7 @@ const CHAPTERS: Chapter[] = [
       { title: 'Google Drive', text: 'Settings → Sync and storage → Continue with Google, then choose a folder (or a new “Crumpet” one). Do the same on each device.' },
       // Only when this copy of Crumpet offers accounts (docs/accounts-setup.md).
       ...(accountsReady ? [{ title: 'An account, if you like', text: 'Sign in with Google or an email and password (Settings → Account) to have your name on every device. It’s optional, and your notes never go to it.' }] : []),
-      { title: 'Mac, iPhone and iPad', text: 'Crumpet for Mac is a download in Settings → Clipper and Mac app. On iPhone and iPad, open Crumpet in Safari and add it to the Home Screen. On an iPhone it opens on your library (Inbox, notebooks and books); tap a row for its notes, the round + for a new note, and Share or ··· at the top of a note.' },
+      { title: 'Mac, iPhone and iPad', text: 'Crumpet for Mac is a download in Settings → Clipper and Mac app. On iPhone and iPad, open Crumpet in Safari and add it to the Home Screen. On an iPhone it opens on your library (Inbox, notebooks and books); tap a row for its notes, the round + for a new note, and Share or ··· at the top of a note. On an iPad the formatting tools float at the foot of the page; held upright, a chapter has the whole screen, and tapping its name at the top jumps to another.' },
       { title: 'Or a folder', text: 'Prefer Dropbox, OneDrive or iCloud Drive? Choose “Use a folder on this computer” and pick a folder they keep in step.' },
       { title: 'Nothing is ever lost', text: 'Crumpet keeps everything on the device too, and works offline; when two devices change the same note, it merges them, or keeps both.' },
     ],
