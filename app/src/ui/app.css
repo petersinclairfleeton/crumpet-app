@@ -358,6 +358,10 @@ input, select { font: inherit; color: inherit; }
 .theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
 .theme-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 6px 8px; border: 1px solid var(--line2); border-radius: 8px; background: transparent; text-align: left; cursor: pointer; }
 .theme-card:hover { border-color: var(--muted); }
+/* (Settings' cards; the document themes' gallery further down has white cards of its own.) */
+.theme-grid .theme-card { display: flex; justify-items: initial; background: transparent; color: var(--text); }
+.theme-grid .theme-name { font-weight: 600; font-size: 13px; color: var(--text); }
+.theme-grid .theme-hint { font-size: 12px; }
 .theme-card[aria-pressed='true'] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .theme-preview { display: flex; width: 100%; height: 46px; border-radius: 8px; overflow: hidden; margin-bottom: 4px; border: 1px solid rgba(0, 0, 0, 0.08); }
 .theme-preview i { display: block; }
@@ -771,7 +775,29 @@ input, select { font: inherit; color: inherit; }
 [data-look='crumpet'] .chapter-kicker { margin: 0 0 -4px; font-size: 12px; font-weight: 600; letter-spacing: 0.14em; color: var(--accent-ink); }
 [data-look='crumpet'] .manuscript-title { font-family: var(--title-font); font-weight: 500; letter-spacing: -0.01em; }
 [data-look='crumpet'] .welcome h2 { font-family: var(--title-font); font-weight: 400; letter-spacing: -0.01em; }
-[data-look='crumpet'] .welcome .lede { font-family: var(--ui-font); font-style: normal; font-size: 18px; }
+[data-look='crumpet'] .welcome .lede { font-family: var(--title-font); font-style: normal; font-size: 20px; color: var(--text2); }
+/* The three ways to start, as cards with a honey number. */
+[data-look='crumpet'] .welcome ol { display: flex; flex-direction: column; gap: 12px; }
+[data-look='crumpet'] .welcome li, [data-look='crumpet'] .welcome li:last-child { border: none; }
+[data-look='crumpet'] .welcome li > :is(a, button) { padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--page); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04); transition: border-color 0.15s ease; }
+[data-look='crumpet'] .welcome li > :is(a, button):hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+[data-look='crumpet'] .welcome li > :is(a, button):hover b { text-decoration: none; }
+[data-look='crumpet'] .welcome li > :is(a, button)::before { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; background: var(--accent-soft); font-size: 20px; }
+[data-look='crumpet'] .welcome b { font-weight: 500; }
+/* Settings' theme cards: a small picture of each look. */
+[data-look='crumpet'] .theme-card { padding: 8px 8px 12px; border-radius: 12px; gap: 4px; }
+[data-look='crumpet'] .theme-card[aria-pressed='true'] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+[data-look='crumpet'] .theme-preview { height: 56px; }
+.theme-preview.quiet { background: linear-gradient(135deg, #f3e2c3, #efede8 55%, #dce3ee); padding: 6px; gap: 4px; }
+.theme-preview.quiet.dark { background: linear-gradient(135deg, #3a2e1c, #16181c 55%, #1b2330); }
+.theme-preview.quiet i { border-radius: 4px; }
+.theme-preview.quiet i:nth-child(1) { opacity: 0.7; }
+/* The quick switcher and command palette. */
+[data-look='crumpet'] .finder-input { padding: 18px 20px; font-size: 18px; }
+[data-look='crumpet'] .finder-list { padding: 8px; }
+[data-look='crumpet'] .finder-list li { padding: 10px 12px; }
+[data-look='crumpet'] .finder-list mark { color: inherit; background: var(--accent-soft); border-radius: 2px; font-weight: inherit; box-shadow: 0 0 0 1px var(--accent-soft); }
+[data-look='crumpet'] .finder-foot { padding: 12px 20px; font-size: 12px; }
 
 /* A first visit: a welcome with three ways to start. */
 .welcome { max-width: 560px; margin: auto; padding: 48px 32px; display: flex; flex-direction: column; gap: 28px; text-align: left; color: var(--text); }
