@@ -6,7 +6,8 @@ import { useState } from 'react';
 import type { LayoutPrefs, View } from '../data/types';
 import { sameView } from '../data/selectors';
 import { useAppState, useAppStore } from './hooks';
-import { IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash } from './icons';
+import { openFinder } from './finder';
+import { IconCrumpet, IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash } from './icons';
 import { SettingsDialog } from './Settings';
 import { Popover, initials } from './Sidebar';
 import { useActiveTab, usePanes } from './panes';
@@ -91,6 +92,33 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
       {icon}
     </button>
   );
+  // The calm look's strip: the mark, a new note, search, where you are, and the sidebar back at the foot.
+  if (!state.settings.toolbarAll)
+    return (
+      <nav className="rail calm" aria-label="Notebooks">
+        <span className="rail-mark" aria-hidden="true">
+          <IconCrumpet size={18} />
+        </span>
+        <button type="button" className="rail-btn" aria-label="New note" title="New note" onClick={onNewNote}>
+          <IconPlus size={18} />
+        </button>
+        <button type="button" className="rail-btn" aria-label="Search" title="Find anything" onClick={openFinder}>
+          <IconSearch size={18} />
+        </button>
+        {item({ kind: 'all' }, 'All notes', <IconNote size={18} />)}
+        {state.projects.map((p) => item({ kind: 'project', id: p.id }, p.name, <IconBook size={18} />))}
+        <span className="grow" />
+        <button
+          type="button"
+          className="rail-btn"
+          aria-label="Open the sidebar"
+          title="Open the sidebar"
+          onClick={() => store.updateLayout(state.view.kind === 'project' && (state.settings.layout?.sidebar ?? 'full') === 'full' ? { bookSidebar: 'full' } : { sidebar: 'full', list: true })}
+        >
+          <IconSidebar size={18} />
+        </button>
+      </nav>
+    );
   return (
     <nav className="rail" aria-label="Notebooks">
       <button type="button" className="rail-btn" aria-label="Show the sidebar" title="Show the sidebar" onClick={() => store.updateLayout(state.view.kind === 'project' && (state.settings.layout?.sidebar ?? 'full') === 'full' ? { bookSidebar: 'full' } : { sidebar: 'full' })}>

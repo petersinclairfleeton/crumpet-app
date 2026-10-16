@@ -24,6 +24,14 @@ export interface ToolItem {
 export const CORE_TOOLS = new Set(['style', 'bold', 'italic', 'bullet', 'link']);
 /** The calm More menu opens on these few; "All writing tools…" shows the rest, in groups. */
 export const QUICK_TOOLS = ['fontdlg', 'color', 'highlight', 'clear', 'references', 'table', 'attach', 'comment', 'track'];
+/** Over selected text in the calm look: style, bold, italic, highlight, link and comment; the rest under More. */
+export const SELECTION_TOOLS = new Set(['style', 'bold', 'italic', 'highlight', 'link', 'comment']);
+/** The calm More menu's few tools, in its three groups. */
+const QUICK_GROUPS: [string, string[]][] = [
+  ['Text', ['fontdlg', 'color', 'highlight', 'clear']],
+  ['Insert', ['references', 'table', 'attach']],
+  ['Write', ['comment', 'track']],
+];
 /** Above a phone's keyboard: style, checklist, bullets and a picture; the rest under More. */
 export const PHONE_TOOLS = new Set(['style', 'todo', 'bullet', 'attach']);
 export type ToolGroup = 'Text' | 'Paragraph' | 'Insert' | 'Layout' | 'References' | 'Review' | 'Tools';
@@ -42,6 +50,7 @@ export function toolGroup(key: string): ToolGroup {
   return TOOL_GROUPS.find((g) => GROUP_KEYS[g].includes(key)) ?? 'Tools';
 }
 
+const isMacKey = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const CLOSE_MORE = 'crumpet:close-more';
 /** Closes the bar's More menu (a tool in it has done what it was asked). */
 export function closeMore(): void {
@@ -53,7 +62,7 @@ export function closeMore(): void {
  * are under More, in groups. `menus`: those groups are menus of their own on the
  * bar (Text ▾, Insert ▾, Layout ▾…), as Word's tabs are, for page view.
  */
-export function OverflowRow({ items: all, fit = true, calm = false, menus = false, core = CORE_TOOLS }: { items: ToolItem[]; fit?: boolean; calm?: boolean; menus?: boolean; core?: Set<string> }) {
+export function OverflowRow({ items: all, fit = true, calm = false, menus = false, core = CORE_TOOLS, quickMenu }: { items: ToolItem[]; fit?: boolean; calm?: boolean; menus?: boolean; core?: Set<string>; quickMenu?: (showAll: () => void) => ReactNode }) {
   const items = calm ? all.filter((i) => core.has(i.key) || i.pri >= 9) : all;
   const waiting = calm ? all.filter((i) => !items.includes(i)) : [];
   const row = useRef<HTMLDivElement>(null);
@@ -132,7 +141,7 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
   // Floating over the text, the bar keeps to the most-used controls.
   const shownRaw = fit ? items.filter((i) => !hidden.includes(i.key)) : calm ? items : items.filter((i) => i.pri >= 2);
   // The calm bar reads like the design: style | bold, italic, list, link, then More.
-  const order = [...CORE_TOOLS];
+  const order = [...core];
   const shown = calm ? [...shownRaw].sort((a, b) => (order.indexOf(a.key) + 1 || 99) - (order.indexOf(b.key) + 1 || 99)) : shownRaw;
   const extra = [...(fit ? items.filter((i) => hidden.includes(i.key)) : []), ...waiting];
   // In page view the groups are fewer and broader, like Word's tabs: Format, Insert, Layout, References, Review.
@@ -182,11 +191,20 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
               {open === 'more' && (
                 <Popover label="More formatting" onClose={() => setOpen(false)}>
                   <div className={`more-menu${quick.length ? ' quick' : ''}`} onClick={closeOnPick}>
-                    {quick.length > 0 && (
+                    {quick.length > 0 && quickMenu && quickMenu(() => setEverything(true))}
+                    {quick.length > 0 && !quickMenu && (
                       <>
-                        {quick.map(moreRow)}
+                        {QUICK_GROUPS.map(([g, keys]) => {
+                          const list = keys.map((k) => quick.find((i) => i.key === k && !shown.includes(i))).filter((i): i is ToolItem => !!i);
+                          return list.length ? (
+                            <div key={g} className="more-group quick-group" role="group" aria-label={g}>
+                              <p className="menu-label">{g}</p>
+                              {list.map(moreRow)}
+                            </div>
+                          ) : null;
+                        })}
                         <button type="button" className="menu-item keep-open all-tools" onClick={() => setEverything(true)}>
-                          All writing tools…
+                          All writing tools… <small className="menu-hint">{isMacKey ? '⌘P' : 'Ctrl+P'}</small>
                         </button>
                       </>
                     )}
