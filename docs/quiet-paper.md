@@ -17,10 +17,10 @@ items are in the app; the PR that built each is in brackets.
 - [x] 2 Writing a note: selection bar with grouped More (#148), fading bar (#143)
 - [x] 3 Project mode with the inspector (#144), chapter openings (#143)
 - [x] 6 First visit (#145)
-- [ ] 6 First visit's wording: "A clean page.", Bring in your writing, ⌘K hint
+- [x] 6 First visit's wording: "A clean page.", Bring in your writing, the Ctrl/⌘ K hint (#152)
 - [x] 8–9 Dark mode (#141)
 - [x] 11 Find anything: results grouped with a line of text, words inside found too (#149)
-- [ ] 12 Cards: Show synopsis / status / keywords
+- [x] 12 Cards: Show synopsis / status / keywords (#152)
 - [x] 13 Settings → Look: theme pictures (#145), Calm switches (#148)
 - [x] 19 Graph: zoom and Fit, hover card (#151; the filter stays a drop-down)
 - [x] 20 Board: tools floating at the bottom (#151)

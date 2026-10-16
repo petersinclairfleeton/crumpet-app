@@ -214,6 +214,8 @@ export interface Settings {
   toolbarCustom?: { hide?: string[]; pin?: string[] };
   /** Every formatting button on the bar (true), or the calm bar: five buttons and the rest under More, in groups. */
   toolbarAll?: boolean;
+  /** What a book's Cards show (all shown unless false). */
+  cardShow?: { synopsis?: boolean; status?: boolean; keywords?: boolean };
   /** Turn off sliding and fading in the app. */
   reduceMotion?: boolean;
   /** The colour of the paper notes and chapters are written on (#rrggbb); unset: the theme's own. */

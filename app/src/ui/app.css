@@ -1118,6 +1118,10 @@ body.pane-resizing iframe { pointer-events: none; }
 
 /* ---- The tour ---- */
 .welcome-tour { margin: -8px 0 0; font-size: 14px; color: var(--muted); }
+.welcome-keys { margin: -12px 0 0; font-size: 13px; color: var(--muted); }
+.welcome-keys kbd { padding: 2px 6px; border-radius: 6px; background: var(--field); color: var(--text2); font: 500 12px var(--ui-font); }
+[data-look='crumpet'] .cork-card footer.no-status::before { display: none; }
+.cork-card:not(:has(.cork-synopsis)) { min-height: 0; }
 .tour-ring { position: fixed; z-index: 60; border-radius: 8px; box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent); pointer-events: none; transition: all 0.25s ease; }
 .tour { position: fixed; z-index: 61; width: 280px; padding: 16px 18px; border-radius: 12px; background: var(--text); color: var(--page); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; animation: bar-in 0.18s ease-out; }
 .tour strong { font-size: 13px; }

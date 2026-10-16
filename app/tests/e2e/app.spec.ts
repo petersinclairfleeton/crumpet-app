@@ -59,8 +59,9 @@ test('starts empty, with no notebooks, stacks or notes', async ({ page }) => {
   await expect(sidebar(page)).toContainText('Notebooks group your notes; stacks group notebooks.');
   // A first visit: a welcome with ways to start.
   const welcome = page.getByRole('region', { name: 'Welcome' });
-  await expect(welcome.getByRole('heading', { name: 'Welcome to Crumpet' })).toBeVisible();
-  await welcome.getByRole('button', { name: /Write your first note/ }).click();
+  await expect(welcome.getByRole('heading', { name: 'A clean page.' })).toBeVisible();
+  await expect(welcome.getByRole('button', { name: /Bring in your writing/ })).toBeVisible();
+  await welcome.getByRole('button', { name: /Write a note/ }).click();
   await expect(page.getByLabel('Title')).toBeFocused();
 });
 
@@ -5549,4 +5550,24 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
   await dialog.getByRole('radio', { name: /E-book/ }).click();
   const [epub] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download as e-book (ePub)' }).click()]);
   expect(epub.suggestedFilename()).toBe('The Lighthouse.epub');
+});
+
+test('a book’s cards: Show picks what each card shows', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await outline.getByRole('button', { name: 'Cards' }).click();
+  const board = page.getByRole('region', { name: 'Corkboard' });
+  await expect(board.getByLabel('Synopsis of chapter 1')).toBeVisible();
+  await expect(board.getByLabel('Status of chapter 1')).toBeVisible();
+  await board.getByRole('button', { name: 'Show ▾' }).click();
+  const menu = page.getByRole('dialog', { name: 'Show on the cards' });
+  await menu.getByLabel('Synopsis').uncheck();
+  await menu.getByLabel('Status').uncheck();
+  await expect(board.getByLabel('Synopsis of chapter 1')).toHaveCount(0);
+  await expect(board.getByLabel('Status of chapter 1')).toHaveCount(0);
+  await menu.getByLabel('Synopsis').check();
+  await expect(board.getByLabel('Synopsis of chapter 1')).toBeVisible();
 });

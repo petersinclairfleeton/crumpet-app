@@ -21,6 +21,8 @@ export const WHATS_NEW: WhatsNew[] = [
       'Each note says when it was last edited, above its title.',
       'Export a book from its ••• menu: a manuscript for Word, an e-book, a PDF or another format, with or without chapters still To do, and a picture of page 1.',
       'The Graph shows a card for the note under the mouse, with zoom buttons in the corner; a board’s tools float at the bottom; the Immersive reader shows how far reading aloud has got and how long is left.',
+      'A book’s Cards have Show ▾: choose whether each card shows its synopsis, status and keywords.',
+      'The first visit is a clean page with four ways to start, including Bring in your writing (Word, Markdown, text, PDFs and pictures).',
     ],
   },
   {
