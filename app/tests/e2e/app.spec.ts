@@ -4353,13 +4353,15 @@ test('on an iPhone: the Home Screen guide, no zooming into boxes, and swiping in
   const context = await browser.newContext(iphone);
   const page = await context.newPage();
   await page.goto('/');
-  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  // The calm look starts on the library.
+  await expect(page.getByRole('navigation', { name: 'Notebooks' }).getByRole('heading', { name: 'Crumpet' })).toBeVisible();
   await expect(page.locator('meta[name="viewport"]')).toHaveAttribute('content', /maximum-scale=1/);
   const guide = page.getByRole('dialog', { name: 'Add Crumpet to your Home Screen' });
   await expect(guide).toContainText('Add to Home Screen');
   await guide.getByRole('button', { name: 'Got it' }).click();
   await expect(guide).toHaveCount(0);
   await page.evaluate(() => (window as unknown as { crumpet: { createNote(n: object): unknown } }).crumpet.createNote({ title: 'Harbour' }));
+  await page.getByRole('button', { name: /^All notes/ }).click();
   await page.locator('.card', { hasText: 'Harbour' }).click();
   await expect(page.locator('.app')).toHaveAttribute('data-pane', 'note');
   const cdp = await context.newCDPSession(page);
@@ -4370,7 +4372,7 @@ test('on an iPhone: the Home Screen guide, no zooming into boxes, and swiping in
   await expect(page.locator('.app')).toHaveAttribute('data-pane', 'list');
   // Put away, it stays away.
   await page.reload();
-  await expect(page.getByRole('region', { name: 'Notes', exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   await expect(guide).toHaveCount(0);
   await context.close();
 });
@@ -5823,4 +5825,61 @@ test('the whole window: the graph beside the strip, a board on its own, and Expo
   await page.getByRole('button', { name: /^Export/ }).click();
   const box = await page.getByRole('dialog', { name: /^Export/ }).boundingBox();
   expect(box!.width).toBeGreaterThan(500);
+});
+
+test.describe('on a phone, in the calm look', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('the library first, then a list, a note and a book, with no bar of tabs', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.app')).toBeVisible();
+    await page.evaluate(() => {
+      const c = (window as unknown as { crumpet: Record<string, (...a: unknown[]) => { id: string }> }).crumpet;
+      const nb = c.createNotebook('Journal');
+      c.createNote({ title: 'Monday', notebookId: nb.id });
+      c.createNote({ title: 'Loose thought' });
+      const p = c.createProject('The Lighthouse');
+      c.addChapter(p.id);
+    });
+    // The library: grouped rows, and no tabs along the bottom.
+    const library = page.getByRole('navigation', { name: 'Notebooks' });
+    await expect(library.getByRole('heading', { name: 'Crumpet' })).toBeVisible();
+    await expect(page.locator('.tab-bar')).toHaveCount(0);
+    await expect(library.getByRole('button', { name: /^Inbox/ })).toContainText('1');
+    // A notebook's list: back, a big title, search and the round +.
+    await library.getByRole('button', { name: /^Journal/ }).click();
+    const notes = page.getByRole('region', { name: 'Notes', exact: true });
+    await expect(notes.getByRole('heading', { name: 'Journal' })).toBeVisible();
+    await expect(notes.locator('.card')).toHaveCount(1);
+    // Searching shows Cancel, which leaves the search.
+    await page.locator('#search').fill('thought');
+    await expect(notes.locator('.card')).toContainText('Loose thought');
+    await notes.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.locator('#search')).toHaveValue('');
+    // A note: Share beside the menu; the star is in the menu.
+    await notes.locator('.card', { hasText: 'Monday' }).click();
+    await expect(page.getByRole('button', { name: 'Share' })).toBeVisible();
+    await expect(page.locator('.note-kicker')).toContainText('Journal · Edited');
+    await page.locator('.note-pane').getByRole('button', { name: 'More', exact: true }).click();
+    await page.getByRole('button', { name: 'Add to Favourites' }).click();
+    await page.getByRole('button', { name: 'Back to notes' }).click();
+    // The + makes a note in the list.
+    await page.locator('.fab').click();
+    await expect(page.getByLabel('Title')).toBeFocused();
+    await page.getByRole('button', { name: 'Back to notes' }).click();
+    await page.getByRole('button', { name: 'Back to the library' }).click();
+    await expect(library.getByRole('button', { name: /^Favourites/ })).toContainText('1');
+    // A book: chapters, cast and research side by side; the + adds a chapter.
+    await library.getByRole('button', { name: /^The Lighthouse/ }).click();
+    const outline = page.getByRole('region', { name: 'Outline' });
+    await expect(outline.getByRole('heading', { name: 'The Lighthouse' })).toBeVisible();
+    await expect(outline.locator('.outline-chapter')).toHaveCount(2);
+    await page.getByRole('button', { name: 'New chapter' }).click();
+    await expect(outline.locator('.outline-chapter')).toHaveCount(3);
+    await outline.getByRole('button', { name: 'Cast', exact: true }).click();
+    await expect(outline.locator('.outline-chapter')).toHaveCount(0);
+    await outline.getByRole('button', { name: 'Chapters', exact: true }).click();
+    await outline.getByRole('button', { name: 'Back to the library' }).click();
+    await expect(library).toBeVisible();
+  });
 });

@@ -153,3 +153,4 @@ export const IconHelp = icon(
     <path d="M9.5 9.5a2.5 2.5 0 0 1 4.9.7c0 1.7-2.4 2.2-2.4 3.8M12 17h.01" />
   </>,
 );
+export const IconShare = icon(<path d="M12 15V4M8 8l4-4 4 4M6 11H5v9h14v-9h-1" />);

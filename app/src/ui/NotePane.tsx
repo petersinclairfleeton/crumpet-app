@@ -18,7 +18,7 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
-import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { BoardView } from './board';
 import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
@@ -26,6 +26,7 @@ import { boardOf, isBoard } from '../data/board';
 import { InlineInput, Popover } from './Sidebar';
 import { ShowButton } from './fold';
 import { tagColour } from '../data/selectors';
+import { toMarkdown } from '@crumpet/editor/markdown';
 
 interface PaneProps {
   onBack(): void;
@@ -46,6 +47,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const [menu, setMenu] = useState(false);
   const [remind, setRemind] = useState(0);
   const [addingTag, setAddingTag] = useState(false);
+  // On the calm phone the notebook and tags wait in the menu (design 5).
+  const [showMeta, setShowMeta] = useState(false);
   const [reading, setReading] = useState(false);
   const [stylesOpen, setStylesOpen] = useState<string | boolean>(false);
   const [printing, setPrinting] = useState(false);
@@ -132,6 +135,13 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   // The calm look keeps the corner to the star and the menu: the views wait in the menu.
   const calm = !state.settings.toolbarAll;
   const viewsInMenu = narrow || calm;
+  // The calm phone (designs 5 and 10): Share beside the menu; the star, notebook and tags inside it.
+  const phone = calm && narrow;
+  const share = async () => {
+    const text = toMarkdown(note.doc);
+    if (navigator.share) await navigator.share({ title: displayTitle(note), text }).catch(() => {});
+    else await navigator.clipboard?.writeText(text).catch(() => {});
+  };
   // The calm look keeps its five tools on show at the top of the page, unless asked to float them over selected text.
   const toolsAtRest = state.settings.toolbar !== 'selection';
   const trail = trashed ? null : (
@@ -168,15 +178,32 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         </>
       )}
       {!note.projectId && <ReminderButton note={note} quiet={calm} ask={remind} />}
+      {phone ? (
+        <button type="button" className="icon-btn" aria-label="Share" onClick={share}>
+          <IconShare size={18} />
+        </button>
+      ) : (
       <button type="button" className={`icon-btn${note.favorite ? ' on' : ''}`} aria-pressed={note.favorite} aria-label={note.favorite ? 'Remove from Favourites' : 'Add to Favourites'} data-tip={note.favorite ? 'Remove from Favourites' : 'Add to Favourites'} onClick={() => store.toggleFavorite(note.id)}>
         {note.favorite ? <IconStarFilled size={16} /> : <IconStar size={16} />}
       </button>
+      )}
       {calm && !narrow && !state.settings.layout?.right && <ShowButton what="right" />}
       <button type="button" className="icon-btn" aria-label="More" data-tip="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>
         <IconMore size={16} />
       </button>
       {menu && (
         <Popover onClose={() => setMenu(false)} label="Note options">
+          {phone && (
+            <>
+              <button type="button" className="menu-item" aria-pressed={note.favorite} onClick={() => (setMenu(false), store.toggleFavorite(note.id))}>
+                {note.favorite ? <IconStarFilled size={14} /> : <IconStar size={14} />} {note.favorite ? 'Remove from Favourites' : 'Add to Favourites'}
+              </button>
+              <button type="button" className="menu-item" aria-pressed={showMeta} onClick={() => (setMenu(false), setShowMeta(!showMeta))}>
+                <IconTag size={14} /> {showMeta ? 'Hide notebook and tags' : 'Notebook and tags…'}
+              </button>
+              <hr className="menu-sep" />
+            </>
+          )}
           {viewsInMenu && (
             <>
               <p className="menu-label">View</p>
@@ -351,7 +378,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
             <span>{editedText(note.updatedAt, Date.now())}</span>
           </p>
         ) : (
-          <p className="note-kicker">{editedText(note.updatedAt, Date.now())}</p>
+          <p className="note-kicker">{phone ? `${nb?.name ?? 'Inbox'} · ${editedText(note.updatedAt, Date.now())}` : editedText(note.updatedAt, Date.now())}</p>
         )}
     </>
   );
@@ -390,7 +417,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
       <p className="reading-meta">
         {[nb?.name, longTime(note.updatedAt), `${wordCount(note)} words`].filter(Boolean).join(' · ')}
       </p>
-      <div className={`note-meta${calm && !narrow ? ' calm' : ''}`}>
+      {!(phone && !showMeta) && <div className={`note-meta${calm && !narrow ? ' calm' : ''}`}>
         {!(calm && !narrow) && (
           <label className="nb-picker" title="Notebook">
             {nb ? <NotebookIcon color={nb.color} size={11} cut="var(--chip)" /> : <IconNotebook size={12} />}
@@ -425,14 +452,14 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               {calm && !narrow ? <IconPlus size={12} /> : <><IconTag size={12} /> Add tag</>}
             </button>
           ))}
-      </div>
+      </div>}
       {note.file && fileKind(note.file) === 'word' && <WordBanner path={note.file} />}
     </>
   );
 
   const words = docWords(note.doc);
   const linkedFrom = backlinks(note, state.notes);
-  const footer = calm && !narrow ? null : (
+  const footer = calm ? null : (
     <>
       {linkedFrom.length > 0 && (
         <section className="backlinks" aria-label="Linked from">

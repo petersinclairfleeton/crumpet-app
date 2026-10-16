@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-quiet-paper-iphone',
+    date: '16 October 2026',
+    title: 'Quiet Paper on an iPhone',
+    points: [
+      'Crumpet on an iPhone opens on your library, like Apple’s Notes: Capture (Inbox, All notes, Favourites), your notebooks and your books as grouped rows, with tags, the graph and the Trash under More. The bar of tabs along the bottom has gone.',
+      'Each list has a back arrow, a big title and its search box; searching moves the box to the top with Cancel beside it, and the round + makes a new note.',
+      'A note has Share and ··· at the top; its notebook and tags, and adding it to Favourites, are in the ··· menu.',
+      'A book shows its words against the goal, then Chapters, Cast and Research side by side, each chapter a card with its synopsis; the + adds a chapter.',
+      'Prefer the old phone layout? Settings → Formatting bar → Show every formatting tool brings back the tabs.',
+    ],
+  },
+  {
     id: '2026-10-16-quiet-paper-whole-window',
     date: '16 October 2026',
     title: 'Quiet Paper: the whole window',
