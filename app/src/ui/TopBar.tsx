@@ -1,7 +1,7 @@
 import { useAppState, useAppStore } from './hooks';
 import { viewTitle } from '../data/selectors';
-import { IconHelp, IconMenu, IconPlus, IconSearch } from './icons';
-import { openGuide } from './guide';
+import { IconMenu, IconPlus, IconSearch } from './icons';
+import { HelpMenu } from './help';
 import { LayoutMenu } from './layout';
 import { ShowButton } from './fold';
 
@@ -54,9 +54,7 @@ export function TopBar({ onMenu, onNewNote }: { onMenu(): void; onNewNote(): voi
         <kbd>{isMac ? '⌘K' : 'Ctrl K'}</kbd>
       </label>
       <LayoutMenu />
-      <button type="button" className="icon-btn guide-btn" aria-label="Guide to Crumpet" data-tip="Guide to Crumpet" onClick={openGuide}>
-        <IconHelp size={17} />
-      </button>
+      <HelpMenu />
       {!state.settings.layout?.right && <ShowButton what="right" />}
       <button type="button" className="icon-btn new-btn" aria-label="New note" onClick={onNewNote}>
         <IconPlus size={18} />

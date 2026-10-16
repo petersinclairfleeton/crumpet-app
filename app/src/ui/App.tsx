@@ -32,6 +32,8 @@ import { ReminderAlerts } from './reminders';
 import { GoToHost, openGoTo } from './goto';
 import { PictureAltHost } from './picture';
 import { ReaderHost } from './reader';
+import { MacroHost } from './macros';
+import { HelpHost } from './help';
 import { SyncScroll } from './viewtools';
 import { CombineHost } from './comparedocs';
 import { FontDialogHost } from './fontdialog';
@@ -375,6 +377,8 @@ export function App() {
       <GoToHost />
       <PictureAltHost />
       <ReaderHost />
+      <MacroHost />
+      <HelpHost />
       <SyncScroll />
       <CombineHost />
       <FontDialogHost />

@@ -28,6 +28,8 @@ import { mathItems } from './mathtools';
 import { mediaItems } from './mediatools';
 import { formItems } from './formtools';
 import { inkItems } from './inktools';
+import { macroItems } from './macros';
+import { CustomiseHost, customised, openCustomise } from './customise';
 import { addFile } from '../data/files';
 import { BrushGlyph, MicGlyph, SpeakerGlyph } from './speechglyphs';
 import { painterClick, usePainter } from './painter';
@@ -267,7 +269,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     tool('dictate', 1, speech.kind === 'dictating' ? 'Stop dictating' : 'Dictate', `Dictate: type by speaking (${mod}${isMac ? '⌥' : 'Alt+'}D)`, <MicGlyph />, () => ed && toggleDictation(ed), { active: speech.kind === 'dictating', disabled: !canDictate }),
     tool('stylespane', 1, 'Styles pane', 'Styles pane: every style, with how often it’s used', <span className="glyph-styles">A¶</span>, () => store.updateLayout(stylesPane ? { right: false } : { right: true, rightTab: 'styles' }), { active: stylesPane }),
   ];
-  items.push(...tableItems(ed, off), ...insertItems(ed, off), ...mathItems(ed, off), ...mediaItems(ed, off), ...formItems(ed, off), ...inkItems(ed, off), ...designItems(ed, off), ...viewItems(ed, off), ...protectItems(ed, off), ...referenceItems(ed, off), ...snippetItems(ed, off));
+  items.push(...tableItems(ed, off), ...insertItems(ed, off), ...mathItems(ed, off), ...mediaItems(ed, off), ...formItems(ed, off), ...inkItems(ed, off), ...macroItems(ed, off), ...designItems(ed, off), ...viewItems(ed, off), ...protectItems(ed, off), ...referenceItems(ed, off), ...snippetItems(ed, off));
   if (attach)
     items.push(
       tool(
@@ -288,9 +290,11 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       tool('undo', 1, 'Undo', `Undo (${mod}Z)`, '↶', () => ed?.undo(), { disabled: !ed?.history.canUndo, sep: true }),
       tool('redo', 1, 'Redo', `Redo (${mod}⇧Z)`, '↷', () => ed?.redo(), { disabled: !ed?.history.canRedo }),
     );
+  items.push(tool('customise', 0, 'Customise the bar…', 'Customise the formatting bar: choose its buttons', '⚙', openCustomise));
   return (
     <>
-      <OverflowRow items={items} fit={fit} />
+      <OverflowRow items={customised(items, settings.toolbarCustom)} fit={fit} />
+      {fit && <CustomiseHost items={items} />}
       {para.dialog}
       <DefineListHost ed={ed} />
       <TableHost ed={ed} />

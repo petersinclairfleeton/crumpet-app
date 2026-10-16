@@ -40,11 +40,11 @@ At the end there's a suggested order for building what's missing.
 | Transform to Sway | ➖ | Being retired. |
 | Close | ✅ | Close tab. |
 | Account | ✅ | Optional sign-in with email or Google. |
-| Feedback | ❌ | No way to send feedback from the app. |
+| Feedback | 🟡 | Help → Send feedback: writes an email with the feedback in it. Shown once `VITE_FEEDBACK_EMAIL` (where it goes) is set in `app/.env`: ask Peter. |
 | Options: AutoCorrect | ✅ | Curly quotes, em and en dashes, … and © ® ™ → ⇒, a typo list (teh → the) plus your own replacements, capitals at a sentence's start; each can be turned off (Settings → Writing). Plus Markdown shortcuts ("# " makes a heading). |
 | Options: proofing | 🟡 | The browser's spell check (and right-click suggestions in the Mac app); no settings for it. |
 | Options: save settings | 🟡 | Automatic versions can be turned off; that's all there is to set. |
-| Options: customise the ribbon / Quick Access Toolbar | ❌ | The formatting bar can show always or only over selected text; you can't choose its buttons. |
+| Options: customise the ribbon / Quick Access Toolbar | ✅ | More → Customise the bar…: every button shown or hidden, and buttons kept on the bar (never moved under More); Reset. |
 | Options: add-ins | ❌ | |
 | Options: Trust Center | ➖ | Crumpet has a privacy page; nothing to configure. |
 
@@ -299,7 +299,7 @@ At the end there's a suggested order for building what's missing.
 | Arrange All, Split, View Side by Side | ✅ | Panes side by side or one above the other, with tabs in each. |
 | Synchronous Scrolling | ✅ | Scroll together: panes side by side move as one. |
 | Switch Windows | ✅ | Tabs and the quick switcher (Ctrl+O). |
-| Macros: view, record | ❌ | |
+| Macros: view, record | ✅ | Formatting bar → Macros: record typing, Enter, Backspace, arrow keys, Home and End and the formatting commands; play back from the menu, the command palette or Alt+Shift and a number. Not Word's VBA: no programming. |
 | SharePoint: Properties | ➖ | |
 | Dark Mode | ✅ | |
 
@@ -307,9 +307,9 @@ At the end there's a suggested order for building what's missing.
 
 | Feature | | Crumpet today |
 |---|---|---|
-| Help, Show Training | ✅ | The welcome guide (with pictures and workflows) and the first-visit tour, from the ? button. |
-| What's New | ❌ | |
-| Contact Support, Feedback | ❌ | |
+| Help, Show Training | ✅ | The welcome guide (with pictures and workflows) and the first-visit tour, from the Help (?) menu. |
+| What's New | ✅ | Help → What's new: the latest changes, with a dot on the ? button until they've been seen. |
+| Contact Support, Feedback | 🟡 | Help → Send feedback and Contact support, once their address (`VITE_FEEDBACK_EMAIL`, `VITE_SUPPORT_URL`) is set: ask Peter where they should go. |
 
 ## Contextual tabs
 
@@ -620,8 +620,8 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [x] Ink to shape and ink replay (ink to maths not built: needs a handwriting recogniser)
 - [ ] Ink editing gestures
 - [x] Drawing canvas in a document
-- [ ] Macros (record and play back)
-- [ ] Customise the formatting bar
+- [x] Macros (record and play back)
+- [x] Customise the formatting bar
 - [ ] Add-ins
-- [ ] Feedback button; contact support; what's new
+- [x] Feedback button; contact support; what's new (feedback and support need their address from Peter: `VITE_FEEDBACK_EMAIL`, `VITE_SUPPORT_URL`)
 - [ ] OneDrive connection (needs an app key from Microsoft: ask Peter first)

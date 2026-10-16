@@ -30,7 +30,8 @@ export function OverflowRow({ items, fit = true }: { items: ToolItem[]; fit?: bo
   const widths = useRef(new Map<string, number>());
   const [hidden, setHidden] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
-  const keys = items.map((i) => i.key).join();
+  // Measured again when the buttons, or which stay longest (a button kept on the bar), change.
+  const keys = items.map((i) => `${i.key}:${i.pri}`).join();
   const measureRef = useRef<() => void>(() => {});
 
   useLayoutEffect(() => {

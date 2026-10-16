@@ -155,6 +155,17 @@ import { type PageBox, type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
 import { chartFromRows } from './chart';
 
+/** A macro's step: typed words, Enter, a deleted character, a caret move, or one of the editor's commands. */
+export type MacroStep =
+  | { k: 'text'; v: string }
+  | { k: 'enter' }
+  | { k: 'del'; v: -1 | 1 }
+  | { k: 'move'; v: string; word?: boolean; extend?: boolean }
+  | { k: 'call'; m: string; a: unknown[] };
+
+/** The editor's commands a macro keeps (formatting, styles, inserting things). */
+export const MACRO_COMMANDS = ['toggleMark', 'setBlockStyle', 'setAlign', 'setBlockType', 'setLook', 'setPara', 'setListStyle', 'setListStart', 'clearFormatting', 'changeCase', 'insertField', 'insertPageBreak', 'insertColumnBreak', 'insertSectionBreak', 'insertTable', 'insertTableOf', 'insertToc', 'insertChart', 'insertSpreadsheet', 'insertCode', 'insertMath', 'insertFootnote', 'insertCaption', 'insertShape', 'insertList', 'sortParagraphs', 'formatAtCaret', 'typeText'];
+
 /** A new chart's numbers, to change. */
 const SAMPLE_CHART = 'type: column\ntitle: Chart title\n, Series 1, Series 2\nFirst, 4, 2\nSecond, 3, 5\nThird, 5, 3';
 
@@ -2421,6 +2432,7 @@ export class Editor {
       case 'insertText': {
         e.preventDefault();
         if (e.data == null) return;
+        this.recordStep({ k: 'text', v: e.data });
         this.dispatch(insertText(s, e.data));
         if (e.data === ' ') {
           this.dispatch(markdownShortcut(this.state));
@@ -2441,12 +2453,14 @@ export class Editor {
       case 'insertParagraph':
       case 'insertLineBreak': {
         e.preventDefault();
+        this.recordStep({ k: 'enter' });
         this.dispatch(splitBlock(s));
         return;
       }
       case 'deleteContentBackward':
       case 'deleteContentForward': {
         e.preventDefault();
+        this.recordStep({ k: 'del', v: e.inputType === 'deleteContentBackward' ? -1 : 1 });
         this.dispatch(deleteChar(s, e.inputType === 'deleteContentBackward' ? -1 : 1));
         return;
       }
@@ -2879,6 +2893,107 @@ export class Editor {
   /** Clicks on a footnote's number. */
   onFootnoteClick: ((at: Pos, text: string, el: HTMLElement) => void) | null = null;
 
+  // ---------------------------------------------------------------- macros
+
+  /** The steps of the macro being recorded (null: not recording). */
+  private macro: MacroStep[] | null = null;
+  private macroDepth = 0;
+  private macroOriginals = new Map<string, unknown>();
+
+  get recordingMacro(): boolean {
+    return !!this.macro;
+  }
+
+  private recordStep(step: MacroStep): void {
+    if (!this.macro || this.macroDepth > 0) return;
+    const last = this.macro[this.macro.length - 1];
+    // Typing in a row is one step.
+    if (step.k === 'text' && last?.k === 'text') last.v += step.v;
+    else this.macro.push(step);
+  }
+
+  /** Word's Record Macro: from now on, typing, Enter, Backspace, moving the caret and the formatting commands are kept. */
+  startMacro(): void {
+    this.macro = [];
+    const self = this as unknown as Record<string, (...a: unknown[]) => unknown>;
+    for (const name of MACRO_COMMANDS) {
+      const original = self[name];
+      if (typeof original !== 'function' || this.macroOriginals.has(name)) continue;
+      this.macroOriginals.set(name, original);
+      self[name] = (...args: unknown[]) => {
+        // Only what can be kept as it is (words, numbers, plain settings).
+        if (this.macro && this.macroDepth === 0 && args.every((a) => a === undefined || ['string', 'number', 'boolean'].includes(typeof a) || (a && typeof a === 'object' && JSON.stringify(a).length < 2000))) this.macro.push({ k: 'call', m: name, a: JSON.parse(JSON.stringify(args.map((a) => (a === undefined ? null : a)))) });
+        this.macroDepth++;
+        try {
+          return original.apply(this, args);
+        } finally {
+          this.macroDepth--;
+        }
+      };
+    }
+  }
+
+  /** Stops recording: the steps kept. */
+  stopMacro(): MacroStep[] {
+    const self = this as unknown as Record<string, unknown>;
+    for (const [name, original] of this.macroOriginals) self[name] = original;
+    this.macroOriginals.clear();
+    const steps = this.macro ?? [];
+    this.macro = null;
+    return steps;
+  }
+
+  /** Plays a macro's steps at the caret. */
+  playMacro(steps: MacroStep[]): void {
+    if (this.isReadOnly) return;
+    this.syncSelectionFromDom();
+    for (const step of steps) {
+      if (step.k === 'text') this.typeText(step.v);
+      else if (step.k === 'enter') this.dispatch(splitBlock(this.state), 'command');
+      else if (step.k === 'del') this.dispatch(deleteChar(this.state, step.v), 'command');
+      else if (step.k === 'move') this.moveCaret(step.v, !!step.word, !!step.extend);
+      else if (step.k === 'call' && MACRO_COMMANDS.includes(step.m)) {
+        const f = (this as unknown as Record<string, (...a: unknown[]) => unknown>)[step.m];
+        if (typeof f === 'function') f.apply(this, step.a.map((a) => (a === null ? undefined : a)));
+      }
+    }
+    this.view.writeSelection(this.state.selection);
+  }
+
+  /** Moves the caret a character or word left or right, or to the start or end of its paragraph (Shift: selecting). */
+  private moveCaret(key: string, word: boolean, extend: boolean): void {
+    const { doc, selection } = this.state;
+    const f = selection.focus;
+    const blocks = doc.blocks;
+    let i = blocks.findIndex((b) => b.id === f.block);
+    let at = f.offset;
+    const text = (n: number) => runsText(blocks[n].runs);
+    if (key === 'Home') at = 0;
+    else if (key === 'End') at = text(i).length;
+    else {
+      const dir = key === 'ArrowLeft' ? -1 : 1;
+      if (word) {
+        const t = text(i);
+        if (dir < 0) {
+          while (at > 0 && /\s/.test(t[at - 1])) at--;
+          while (at > 0 && !/\s/.test(t[at - 1])) at--;
+        } else {
+          while (at < t.length && !/\s/.test(t[at])) at++;
+          while (at < t.length && /\s/.test(t[at])) at++;
+        }
+      } else if (dir < 0 && at === 0 && i > 0) {
+        i--;
+        at = text(i).length;
+      } else if (dir > 0 && at === text(i).length && i < blocks.length - 1) {
+        i++;
+        at = 0;
+      } else at = Math.max(0, Math.min(text(i).length, at + dir));
+    }
+    const focus = { block: blocks[i].id, offset: at };
+    this.state = { ...this.state, selection: { anchor: extend ? selection.anchor : focus, focus } };
+    this.view.writeSelection(this.state.selection);
+  }
+
   /** Types `text` at the caret, as if typed. */
   typeText(text: string): void {
     this.syncSelectionFromDom();
@@ -2888,6 +3003,8 @@ export class Editor {
 
   private onKeyDown(e: KeyboardEvent): void {
     if (e.isComposing || e.keyCode === 229) return;
+    // Moving the caret while a macro is recorded: kept as a step (the browser moves it).
+    if (this.macro && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) this.recordStep({ k: 'move', v: e.key, word: e.ctrlKey || e.altKey || undefined, extend: e.shiftKey || undefined });
     if (this.onKeyIntercept?.(e)) {
       e.preventDefault();
       return;
