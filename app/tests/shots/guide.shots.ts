@@ -126,6 +126,7 @@ test('the guide’s pictures', async ({ page }) => {
   await page.keyboard.press('Escape');
 
   // Links between notes: the graph.
+  await sidebar(page).getByRole('button', { name: /^All Notes/ }).click();
   await sidebar(page).getByRole('button', { name: 'Explore', exact: true }).click();
   await sidebar(page).getByRole('button', { name: 'Graph' }).click();
   await page.waitForTimeout(2500);

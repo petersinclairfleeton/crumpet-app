@@ -238,6 +238,8 @@ export interface Settings {
 export interface LayoutPrefs {
   /** The sidebar in full, as a strip of icons, or hidden. */
   sidebar?: 'full' | 'icons' | 'hidden';
+  /** In a book, the notes sidebar steps back to its strip of icons so the outline is the side; 'full' keeps it. */
+  bookSidebar?: 'full' | 'icons';
   /** The note list (or a project's outline); shown unless false. */
   list?: boolean;
   /** Widths in px, from dragging the edges. */
@@ -245,7 +247,7 @@ export interface LayoutPrefs {
   listWidth?: number;
   /** The right sidebar (outline, styles, comments, links): shown, which tab, and its width. */
   right?: boolean;
-  rightTab?: 'outline' | 'pages' | 'check' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
+  rightTab?: 'chapter' | 'outline' | 'pages' | 'check' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
   rightWidth?: number;
   /** The writing area's panes and their tabs (a `Workspace` from `panes.ts`, checked when read). */
   panes?: unknown;

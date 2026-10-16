@@ -21,9 +21,11 @@ import { PagesTab } from './thumbs';
 import { CheckTab } from './checks';
 import { ThesaurusTab } from './thesaurus';
 import { sameBookmark, toggleBookmark } from '../data/bookmarks';
+import { appearances } from '../data/cast';
 
-export type RightTab = 'outline' | 'pages' | 'check' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
+export type RightTab = 'chapter' | 'outline' | 'pages' | 'check' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
 const TABS: { key: RightTab; label: string }[] = [
+  { key: 'chapter', label: 'In this chapter' },
   { key: 'outline', label: 'Outline' },
   { key: 'pages', label: 'Pages' },
   { key: 'styles', label: 'Styles' },
@@ -51,13 +53,17 @@ export function RightSidebar() {
   const state = useAppState();
   const store = useAppStore();
   const helped = useHelped();
-  const tab: RightTab = state.settings.layout?.rightTab ?? 'outline';
+  // In a book's chapter, the first tab shows who and where the chapter mentions.
+  const chapter = helped ? state.chapters.find((c) => c.id === helped.docId) : undefined;
+  const tabs = chapter ? TABS : TABS.filter((t) => t.key !== 'chapter');
+  const chosen: RightTab = state.settings.layout?.rightTab ?? (chapter ? 'chapter' : 'outline');
+  const tab: RightTab = chosen === 'chapter' && !chapter ? 'outline' : chosen;
   useEdits(helped?.editor ?? null);
   return (
     <aside className="right-side" aria-label="Right sidebar">
       <header className="right-head">
         <div className="right-tabs" role="tablist" aria-label="Helpers">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} className={tab === t.key ? 'on' : ''} onClick={() => store.updateLayout({ rightTab: t.key })}>
               {t.label}
             </button>
@@ -66,9 +72,41 @@ export function RightSidebar() {
         <FoldButton what="right" />
       </header>
       <div className="right-body" role="tabpanel" aria-label={TABS.find((t) => t.key === tab)!.label}>
-        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'pages' ? <PagesTab editor={helped.editor} /> : tab === 'check' ? <CheckTab editor={helped.editor} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <ReviewPane editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : tab === 'thesaurus' ? <ThesaurusTab editor={helped.editor} /> : tab === 'clipboard' ? <ClipboardPane editor={helped.editor} /> : tab === 'objects' ? <SelectionPane editor={helped.editor} /> : tab === 'search' ? <WebSearchTab editor={helped.editor} docId={helped.docId} /> : <Links docId={helped.docId} />}
+        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'chapter' && chapter ? <InThisChapter chapterId={chapter.id} /> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'pages' ? <PagesTab editor={helped.editor} /> : tab === 'check' ? <CheckTab editor={helped.editor} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <ReviewPane editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : tab === 'thesaurus' ? <ThesaurusTab editor={helped.editor} /> : tab === 'clipboard' ? <ClipboardPane editor={helped.editor} /> : tab === 'objects' ? <SelectionPane editor={helped.editor} /> : tab === 'search' ? <WebSearchTab editor={helped.editor} docId={helped.docId} /> : <Links docId={helped.docId} />}
       </div>
     </aside>
+  );
+}
+
+/** The characters and places a chapter mentions, most mentioned first, as cards to open. */
+function InThisChapter({ chapterId }: { chapterId: string }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const chapter = state.chapters.find((c) => c.id === chapterId);
+  const project = chapter && state.projects.find((p) => p.id === chapter.projectId);
+  if (!chapter || !project) return null;
+  const found = appearances(project.cast, [chapter]);
+  const here = (project.cast ?? [])
+    .map((m) => ({ m, count: found.get(m.id)?.[0]?.count ?? 0 }))
+    .filter((x) => x.count > 0)
+    .sort((a, b) => b.count - a.count);
+  if (!here.length)
+    return <p className="right-empty">{project.cast?.length ? 'None of the book’s characters or places are named in this chapter yet.' : 'Characters and places you add to the book show here when a chapter names them.'}</p>;
+  return (
+    <ul className="chapter-cast">
+      {here.map(({ m, count }) => (
+        <li key={m.id}>
+          <button type="button" className="cast-card" onClick={() => store.openCast(m.id)}>
+            <span className="cast-card-head">
+              <b>{m.name}</b>
+              <small>{m.kind === 'place' ? 'Place' : 'Character'}</small>
+            </span>
+            {m.description && <span className="cast-card-text">{m.description}</span>}
+            <small className="cast-card-count">Named {count === 1 ? 'once' : `${count} times`}</small>
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 
