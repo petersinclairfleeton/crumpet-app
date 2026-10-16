@@ -10,7 +10,7 @@ import { openCombine } from './comparedocs';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppState, useAppStore } from './hooks';
 import { type Match, rank } from '../data/fuzzy';
-import { displayTitle, recentNotes } from '../data/selectors';
+import { type SnippetPart, chapterText, displayTitle, noteText, recentNotes, snippet } from '../data/selectors';
 import type { AppState } from '../data/store';
 import { type Bookmark, bookmarkLabel, toggleBookmark } from '../data/bookmarks';
 import { usePanes } from './panes';
@@ -86,8 +86,12 @@ interface Item {
   /** Where it is (a chapter's project, a heading's note), or a command's shortcut. */
   where?: string;
   glyph: string;
+  /** The switcher's heading it goes under (Notes, In your books, Headings). */
+  group?: string;
   run(how: How): void;
 }
+
+const GROUPS = ['Notes', 'In your books', 'Headings', 'Commands', ''];
 
 export interface Actions {
   newNote(): void;
@@ -253,16 +257,16 @@ function useTargets(): Item[] {
     const recent = recentNotes(state.notes, 50);
     const seen = new Set(recent.map((n) => n.id));
     const notes = [...recent, ...state.notes.filter((n) => !seen.has(n.id))].filter((n) => n.trashedAt === null);
-    for (const n of notes) out.push({ key: `note:${n.id}`, label: displayTitle(n), where: n.projectId ? `Research · ${state.projects.find((p) => p.id === n.projectId)?.name ?? ''}` : undefined, glyph: n.projectId ? '✎' : '¶', run: (how) => opener.note(n.id, how) });
+    for (const n of notes) out.push({ key: `note:${n.id}`, label: displayTitle(n), where: n.projectId ? `Research · ${state.projects.find((p) => p.id === n.projectId)?.name ?? ''}` : undefined, glyph: n.projectId ? '✎' : '¶', group: n.projectId ? 'In your books' : 'Notes', run: (how) => opener.note(n.id, how) });
     for (const p of state.projects) {
-      out.push({ key: `project:${p.id}`, label: p.name || 'Untitled project', where: 'Project', glyph: '▤', run: (how) => opener.project(p.id, how) });
-      for (const c of state.chapters.filter((x) => x.projectId === p.id)) out.push({ key: `chapter:${c.id}`, label: c.title.trim() || 'Untitled chapter', where: p.name, glyph: '§', run: (how) => opener.chapter(c.id, how) });
-      for (const m of p.cast ?? []) out.push({ key: `cast:${m.id}`, label: m.name || 'Unnamed', where: `${m.kind === 'place' ? 'Place' : 'Character'} · ${p.name}`, glyph: m.kind === 'place' ? '⌂' : '☺', run: (how) => opener.cast(p.id, m.id, how) });
+      out.push({ key: `project:${p.id}`, label: p.name || 'Untitled project', where: 'Project', glyph: '▤', group: 'In your books', run: (how) => opener.project(p.id, how) });
+      for (const c of state.chapters.filter((x) => x.projectId === p.id)) out.push({ key: `chapter:${c.id}`, label: c.title.trim() || 'Untitled chapter', where: p.name, glyph: '§', group: 'In your books', run: (how) => opener.chapter(c.id, how) });
+      for (const m of p.cast ?? []) out.push({ key: `cast:${m.id}`, label: m.name || 'Unnamed', where: `${m.kind === 'place' ? 'Place' : 'Character'} · ${p.name}`, glyph: m.kind === 'place' ? '⌂' : '☺', group: 'In your books', run: (how) => opener.cast(p.id, m.id, how) });
     }
     for (const b of state.settings.bookmarks ?? []) {
       if (b.kind !== 'heading') continue;
       const l = bookmarkLabel(state, b);
-      if (l) out.push({ key: `heading:${b.id}:${b.block}`, label: l.title, where: `Heading · ${l.where ?? ''}`, glyph: '#', run: (how) => opener.bookmark(b, how) });
+      if (l) out.push({ key: `heading:${b.id}:${b.block}`, label: l.title, where: `Heading · ${l.where ?? ''}`, glyph: '#', group: 'Headings', run: (how) => opener.bookmark(b, how) });
     }
     return out;
   }, [state.notes, state.projects, state.chapters, state.settings.bookmarks]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -303,7 +307,37 @@ export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch'
       : commanding
         ? commands
         : targets;
-    const found = rank(query, pool, (i) => i.label).slice(0, 60);
+    const found: { item: Item; match: Match; snip?: SnippetPart[] | null }[] = rank(query, pool, (i) => i.label).slice(0, 60);
+    if (!commanding && !comparing && query.trim()) {
+      // Each note and chapter shows a line of its text, with the words found lit;
+      // notes and chapters with the words in their text (not their title) come after.
+      const words = query.trim().toLowerCase().split(/\s+/);
+      const s = store.getState();
+      const textOf = (key: string): string => {
+        const [kind, id] = key.split(':');
+        if (kind === 'note') {
+          const n = s.notes.find((x) => x.id === id);
+          return n ? noteText(n, s.fileText) : '';
+        }
+        if (kind === 'chapter') {
+          const c = s.chapters.find((x) => x.id === id);
+          return c ? chapterText(c, false) || c.synopsis : '';
+        }
+        return '';
+      };
+      for (const r of found) {
+        if (!/^(note|chapter):/.test(r.item.key)) continue;
+        const text = textOf(r.item.key);
+        r.snip = snippet(text, words, 110) ?? (text ? [{ text: text.replace(/\s+/g, ' ').slice(0, 110), hit: false }] : null);
+      }
+      if (query.trim().length >= 3) {
+        const have = new Set(found.map((r) => r.item.key));
+        const extra = pool.filter((t) => /^(note|chapter):/.test(t.key) && !have.has(t.key) && words.every((w) => textOf(t.key).toLowerCase().includes(w))).slice(0, 12);
+        for (const t of extra) found.push({ item: t, match: { score: 0, hits: [] }, snip: snippet(textOf(t.key), words, 110) });
+      }
+      // Grouped: notes, then what's in your books, then headings.
+      found.sort((a, b) => GROUPS.indexOf(a.item.group ?? '') - GROUPS.indexOf(b.item.group ?? ''));
+    }
     // Nothing to open: offer to make a note with that title.
     if (!commanding && !comparing && query.trim() && !found.some((r) => r.item.label.toLowerCase() === query.trim().toLowerCase())) {
       found.push({ item: { key: 'create', label: `Create note “${query.trim()}”`, glyph: '+', run: (how) => {
@@ -362,17 +396,23 @@ export function Finder({ mode, actions, onClose, compareFrom }: { mode: 'switch'
         />
         <ul id="finder-list" ref={listRef} className="finder-list" role="listbox" aria-label="Results">
           {results.length === 0 && <li className="finder-none">Nothing matches.</li>}
-          {results.map((r, i) => (
-            <li key={r.item.key} id={`finder-${i}`} role="option" aria-selected={i === at} className={i === at ? 'on' : ''} onMouseMove={() => i !== at && setAt(i)} onMouseDown={(e) => e.preventDefault()} onClick={(e) => choose(i, e.metaKey || e.ctrlKey ? 'tab' : e.shiftKey ? 'split' : 'here')}>
+          {results.map((r, i) => [
+            !commanding && !comparing && query.trim() && r.item.group && r.item.group !== results[i - 1]?.item.group && (
+              <li key={`g:${r.item.group}`} role="presentation" className="finder-group">
+                {r.item.group}
+              </li>
+            ),
+            <li key={r.item.key} id={`finder-${i}`} role="option" aria-selected={i === at} className={`${i === at ? 'on' : ''}${'snip' in r && r.snip ? ' with-snip' : ''}`} onMouseMove={() => i !== at && setAt(i)} onMouseDown={(e) => e.preventDefault()} onClick={(e) => choose(i, e.metaKey || e.ctrlKey ? 'tab' : e.shiftKey ? 'split' : 'here')}>
               <span className="finder-glyph" aria-hidden="true">
                 {r.item.glyph}
               </span>
               <span className="finder-label">
                 <Highlight text={r.item.label} match={r.match} />
+                {'snip' in r && r.snip && <span className="finder-snip">{r.snip.map((p, k) => (p.hit ? <mark key={k}>{p.text}</mark> : p.text))}</span>}
               </span>
               {r.item.where && <span className={commanding ? 'finder-key' : 'finder-where'}>{r.item.where}</span>}
-            </li>
-          ))}
+            </li>,
+          ])}
         </ul>
         <footer className="finder-foot">
           {comparing ? (

@@ -124,6 +124,18 @@ export function shortTime(t: number, now: number): string {
   return d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+/** When a note was last changed, in words: "Edited today at 11:25", "Edited yesterday at 9:02", "Edited 3 October". */
+export function editedText(t: number, now: number): string {
+  const d = new Date(t);
+  const n = new Date(now);
+  const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === n.toDateString()) return `Edited today at ${time}`;
+  const y = new Date(now);
+  y.setDate(n.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return `Edited yesterday at ${time}`;
+  return `Edited ${d.toLocaleDateString([], { day: 'numeric', month: 'long', ...(d.getFullYear() === n.getFullYear() ? {} : { year: 'numeric' }) })}`;
+}
+
 export function longTime(t: number): string {
   return new Date(t).toLocaleString([], { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
