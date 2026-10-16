@@ -115,7 +115,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     with literal numbers (`data/chartxml.ts`). Online video: a `file` block
     whose `src` is a YouTube/Vimeo link (`editor/src/video.ts`, `{.video}` in
     Markdown) plays in an iframe; attached video and sound play too.
-    `ui/mediatools.tsx`: Chart, Online video and Screenshot (getDisplayMedia).
+    `ui/mediatools.tsx`: Chart, Online video, Screenshot (getDisplayMedia),
+    Object and 3D model. A `file` block styled `embed` (`{.embed}`) shows a
+    PDF or web page inside the page (`embeddable` in `video.ts`); .glb/.gltf
+    files show in Google's `<model-viewer>`, loaded by the app on first use
+    (`setModelLoader`, `coderender.ts`; `@google/model-viewer` + `three`).
     Form controls are fields too (`chk:0|1`, `drop:N:A|B`, `pick:YYYY-MM-DD`,
     `fill:Prompt|value`; `readForm`/`formName`/`formShown` in `fields.ts`):
     a tick box ticks on click, the others open `ui/formtools.tsx`'s `FormCard`

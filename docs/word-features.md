@@ -45,7 +45,7 @@ At the end there's a suggested order for building what's missing.
 | Options: proofing | 🟡 | The browser's spell check (and right-click suggestions in the Mac app); no settings for it. |
 | Options: save settings | 🟡 | Automatic versions can be turned off; that's all there is to set. |
 | Options: customise the ribbon / Quick Access Toolbar | ✅ | More → Customise the bar…: every button shown or hidden, and buttons kept on the bar (never moved under More); Reset. |
-| Options: add-ins | ❌ | |
+| Options: add-ins | ➖ | See Add-ins. |
 | Options: Trust Center | ➖ | Crumpet has a privacy page; nothing to configure. |
 
 ## Home
@@ -128,7 +128,7 @@ At the end there's a suggested order for building what's missing.
 | Clarity, conciseness | ✅ | The Writing tab highlights -ly adverbs, filler words and likely passive voice; the Check tab's Clarity finds wordy phrases with a plainer one to use. |
 | Inclusive language | ✅ | Check tab → Inclusive: words with fairer alternatives, one click to use one. |
 | Similarity checker (plagiarism) | ❌ | |
-| Add-ins | ❌ | |
+| Add-ins | ➖ | Not built: running other people's code inside Crumpet safely needs a plugin system; the built-in tools (Thesaurus, Search, Check, citations) cover the common add-ins. |
 | Copilot | ➖ | No AI in v1 (a decision in the plan); worth revisiting later. |
 
 ## Insert
@@ -147,7 +147,7 @@ At the end there's a suggested order for building what's missing.
 | Stock images, online pictures | ❌ | |
 | Shapes | ✅ | 35 shapes in groups: lines, basic shapes, block arrows, stars and banners, callouts, flowchart. Word has more still. |
 | Icons | ✅ | 30 icons in groups (signs, people, things, nature), put in as shapes to recolour and size. |
-| 3D Models | ❌ | |
+| 3D Models | ✅ | Formatting bar → 3D model: a .glb or .gltf model in the text, turned with a finger or the mouse (Google's model viewer, loaded the first time one is shown). Word gets its name. |
 | SmartArt | 🟡 | Diagrams written as text (Mermaid flowcharts, timelines); no picture-based SmartArt gallery. |
 | Chart | ✅ | Formatting bar → Chart, or a table's menu → Make a chart: column, bar, line, area, pie and doughnut charts of numbers you type (a row a line), with a title and stacking; to Word as real Word charts (their numbers inside, no spreadsheet), and Word's charts come back. |
 | Screenshot / screen clipping | ✅ | Formatting bar → Screenshot: the browser asks which window, tab or screen, and its picture goes in the text (crop it there for a clipping). Chrome, Edge and Firefox on a computer. |
@@ -164,7 +164,7 @@ At the end there's a suggested order for building what's missing.
 | Quick Parts: AutoText, Building Blocks | ✅ | The Snippets button: save the selection as a snippet (with its formatting), drop one in from the menu, or type its name and press F3. Shared across devices. |
 | Quick Parts: Document Property, Field | ✅ | References → Field…: page, number of pages, words, characters, title, author, date created and saved, besides dates and times. To and from Word as field codes. |
 | WordArt | ❌ | |
-| Object (embedded/linked file) | 🟡 | Files can be attached in the text (shown as a chip); not embedded as editable objects. |
+| Object (embedded/linked file) | ✅ | Formatting bar → Object: a PDF (or a web page) shown inside the page, its pages to scroll through; any PDF's chip has Show inside, and Show as an icon goes back. Not editable inside Crumpet (like Word's objects, they open in their own app). |
 | Text from file (put a whole document into this one) | ✅ | Snippets → Text from file…: a Word document, Markdown or plain text, poured in at the caret with its formatting. |
 | Equation | ✅ | Formatting bar → Equation (or Alt+= for one within the line): written in LaTeX or UnicodeMath, with structures and symbols to pick, drawn at once; Word gets real Word equations, and Word's equations come in as Crumpet's. No handwritten (ink) equations. |
 | Symbol | ✅ | Symbols and special characters (non-breaking space and hyphen, dashes, quotes…). |
@@ -612,16 +612,16 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [x] Screenshot
 - [x] Online video (YouTube links play in the text)
 - [ ] Online pictures (needs a picture service's key: ask Peter first)
-- [ ] Embedded objects
+- [x] Embedded objects
 - [x] Form controls (drop-downs, date pickers, fill-in boxes)
 - [x] Spreadsheet in a document (a table shown as a spreadsheet, with formulas)
-- [ ] 3D models
+- [x] 3D models
 - [x] Draw tab: pen, pencil, highlighter, eraser, lasso (finger, mouse, Apple Pencil)
 - [x] Ink to shape and ink replay (ink to maths not built: needs a handwriting recogniser)
 - [ ] Ink editing gestures
 - [x] Drawing canvas in a document
 - [x] Macros (record and play back)
 - [x] Customise the formatting bar
-- [ ] Add-ins
+- [ ] Add-ins (not built: needs a safe plugin system; ask Peter if wanted)
 - [x] Feedback button; contact support; what's new (feedback and support need their address from Peter: `VITE_FEEDBACK_EMAIL`, `VITE_SUPPORT_URL`)
 - [ ] OneDrive connection (needs an app key from Microsoft: ask Peter first)

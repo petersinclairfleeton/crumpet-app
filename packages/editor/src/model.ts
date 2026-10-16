@@ -233,6 +233,8 @@ export const BLOCK_STYLES: Partial<Record<BlockType, readonly string[]>> = {
   paragraph: ['nospacing', 'title', 'subtitle', 'epigraph', 'caption', 'scenebreak', 'toggle'],
   // Callouts (Notion's and Obsidian's): a quote in a coloured box with an icon.
   quote: ['intense', 'note', 'tip', 'warning', 'important'],
+  // An attached file shown inside the page (Word's embedded object): a PDF's pages, a web page.
+  file: ['embed'],
 };
 
 /** A style of the person's own (Word's New Style): `c-` and a name made from letters, figures and dashes. */

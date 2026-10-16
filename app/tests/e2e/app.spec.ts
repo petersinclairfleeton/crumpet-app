@@ -5372,3 +5372,29 @@ test('macros (record, play back, a shortcut), customising the formatting bar, an
   await news.getByRole('button', { name: 'Close' }).click();
   await expect(help.locator('.news-dot')).toHaveCount(0);
 });
+
+test('objects: a PDF shown inside the page or as an icon, and a 3D model to turn', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Papers', 'The report:');
+  await page.keyboard.press('Enter');
+  const editor = page.locator('.note-editor');
+  const Bytes = (globalThis as unknown as { Buffer: { from(s: string | number[]): never } }).Buffer;
+  const pdf = '%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj 3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 144]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF';
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), (await toolButton(page, 'Object')).click()]);
+  await chooser.setFiles({ name: 'report.pdf', mimeType: 'application/pdf', buffer: Bytes.from(pdf) });
+  await expect(editor.locator('iframe.embed-frame')).toHaveCount(1);
+  await editor.getByRole('button', { name: 'Show as an icon' }).click();
+  await expect(editor.locator('iframe.embed-frame')).toHaveCount(0);
+  await expect(editor.locator('.file-chip')).toHaveText('report.pdf');
+  await editor.getByRole('button', { name: 'Show inside' }).click();
+  await expect(editor.locator('iframe.embed-frame')).toHaveCount(1);
+  // A 3D model: the viewer, loaded when first needed.
+  await editor.locator('p').last().click();
+  const [chooser2] = await Promise.all([page.waitForEvent('filechooser'), (await toolButton(page, '3D model')).click()]);
+  await chooser2.setFiles({ name: 'teapot.glb', mimeType: 'model/gltf-binary', buffer: Bytes.from([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 12, 0, 0, 0]) });
+  await expect(editor.locator('model-viewer')).toHaveCount(1);
+  await expect.poll(() => page.evaluate(() => !!customElements.get('model-viewer')), { timeout: 15000 }).toBe(true);
+  await expect(editor.locator('.media-model')).toContainText('teapot.glb');
+});

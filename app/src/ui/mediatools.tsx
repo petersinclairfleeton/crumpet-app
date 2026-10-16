@@ -7,6 +7,7 @@ import { useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import { videoEmbed } from '@crumpet/editor/video';
 import { insertFiles } from './editing';
+import { addFile } from '../data/files';
 import { Popover } from './Sidebar';
 import { type ToolItem, closeMore } from './toolbar';
 
@@ -97,6 +98,28 @@ export async function takeScreenshot(): Promise<File | null> {
   }
 }
 
+/** Chooses a file and puts it in the text: a PDF or web page shown inside the page (Object), or a 3D model. */
+function chooseInto(ed: Editor, accept: string, embed: boolean): void {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = accept;
+  input.addEventListener('change', async () => {
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      const { type, src, caption } = await addFile(file);
+      ed.focus();
+      ed.insertMedia(type, src, caption, embed && type === 'file' ? 'embed' : undefined);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'That file couldn’t be added.');
+    }
+  });
+  input.click();
+}
+
+const ICON_OBJECT = svg('M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6');
+const ICON_MODEL = svg('M12 2l9 5v10l-9 5-9-5V7zM12 22V12M21 7l-9 5-9-5');
+
 export function mediaItems(ed: Editor | null, off: boolean): ToolItem[] {
   const chart = () => {
     closeMore();
@@ -127,6 +150,34 @@ export function mediaItems(ed: Editor | null, off: boolean): ToolItem[] {
       ),
     },
     { key: 'video', label: 'Online video', pri: 1, node: <VideoTool ed={ed} off={off} /> },
+    {
+      key: 'object',
+      pri: 1,
+      node: (
+        <button type="button" aria-label="Object" title="Object: a PDF or web page shown inside the page" disabled={off} onClick={() => (closeMore(), ed && chooseInto(ed, '.pdf,.html,.htm,application/pdf,text/html', true))}>
+          {ICON_OBJECT}
+        </button>
+      ),
+      menu: (
+        <button type="button" className="menu-item" disabled={off} onClick={() => (closeMore(), ed && chooseInto(ed, '.pdf,.html,.htm,application/pdf,text/html', true))}>
+          <span className="menu-glyph">{ICON_OBJECT}</span> Object (a PDF shown inside)
+        </button>
+      ),
+    },
+    {
+      key: 'model3d',
+      pri: 1,
+      node: (
+        <button type="button" aria-label="3D model" title="3D model (.glb or .gltf): turn it with a finger or the mouse" disabled={off} onClick={() => (closeMore(), ed && chooseInto(ed, '.glb,.gltf,model/gltf-binary,model/gltf+json', false))}>
+          {ICON_MODEL}
+        </button>
+      ),
+      menu: (
+        <button type="button" className="menu-item" disabled={off} onClick={() => (closeMore(), ed && chooseInto(ed, '.glb,.gltf,model/gltf-binary,model/gltf+json', false))}>
+          <span className="menu-glyph">{ICON_MODEL}</span> 3D model
+        </button>
+      ),
+    },
     {
       key: 'screenshot',
       pri: 1,

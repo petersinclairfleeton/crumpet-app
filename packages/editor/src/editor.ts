@@ -3159,6 +3159,16 @@ export class Editor {
       window.open(link.href, '_blank', 'noopener');
       return;
     }
+    // An attached file shown inside the page, or as an icon again.
+    const fileAct = (e.target as Element).closest?.<HTMLElement>('[data-file-action]');
+    const fileId = fileAct?.closest<HTMLElement>('[data-block]')?.dataset.block;
+    if (fileAct && fileId && !this.isReadOnly) {
+      e.preventDefault();
+      const blk = getBlock(this.state.doc, fileId);
+      const to = attrsOf({ ...blk, style: fileAct.dataset.fileAction === 'embed' ? 'embed' : undefined });
+      this.dispatch({ ops: [{ type: 'setAttrs', block: fileId, from: attrsOf(blk), to }], selectionBefore: this.state.selection, selectionAfter: this.state.selection }, 'command');
+      return;
+    }
     // Clicking a drawing opens it to draw on (the app's drawing window).
     const inked = (e.target as Element).closest?.<HTMLElement>('.code-wrap[data-lang="ink"] [data-code-preview]');
     const inkId = inked?.closest<HTMLElement>('[data-block]')?.dataset.block;
@@ -3330,9 +3340,9 @@ export class Editor {
   onFiles: ((files: File[]) => void) | null = null;
 
   /** Puts a picture or an attached file at the caret. */
-  insertMedia(type: 'image' | 'file', src: string, caption = ''): void {
+  insertMedia(type: 'image' | 'file', src: string, caption = '', style?: string): void {
     if (this.isReadOnly) return;
-    this.dispatch(insertMedia(this.state, type, src, caption), 'command');
+    this.dispatch(insertMedia(this.state, type, src, caption, style), 'command');
   }
 
   private onDrop(e: DragEvent): void {

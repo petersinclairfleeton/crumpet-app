@@ -22,7 +22,7 @@ const NAMES: Record<string, string> = {
   sup: 'Superscript', sub: 'Subscript', fontdlg: 'Font window', grow: 'Grow font', shrink: 'Shrink font', clear: 'Clear formatting', case: 'Change case', color: 'Font colour',
   blankpage: 'Blank page', screenshot: 'Screenshot', chart: 'Chart', draw: 'Draw', dropcap: 'Drop cap', textbox: 'Text box', toc: 'Table of contents', pagesetup: 'Page setup',
   linenumbers: 'Line numbers', pageborders: 'Page borders', pageslayout: 'Pages on screen', outlineview: 'Outline view', newwindow: 'New window', syncscroll: 'Scroll together',
-  multilevel: 'Multilevel list', numbered: 'Numbering', bullet: 'Bullets', h: 'Headings', marks: 'Show/hide ¶', bright: 'Corrections', strike: 'Strikethrough',
+  multilevel: 'Multilevel list', numbered: 'Numbering', bullet: 'Bullets', h: 'Headings', marks: 'Show/hide ¶', bright: 'Corrections', strike: 'Strikethrough', object: 'Object', model3d: '3D model',
 };
 
 /** A button's name for the list (its own label, or its key in words). */

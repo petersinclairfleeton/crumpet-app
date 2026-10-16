@@ -948,8 +948,8 @@ export function syncBlockText(state: EditorState, id: string, domText: string, s
  * Puts a picture or file after the block with the caret (or in place of an
  * empty paragraph), with a paragraph after it to carry on writing.
  */
-export function insertMedia(state: EditorState, type: 'image' | 'file', src: string, caption = ''): Transaction {
-  return insertWidget(state, attrsOf({ type, src }), caption);
+export function insertMedia(state: EditorState, type: 'image' | 'file', src: string, caption = '', style?: string): Transaction {
+  return insertWidget(state, attrsOf({ type, src, ...(style ? { style } : {}) }), caption);
 }
 
 /** Puts a new table (an empty header row and `rows` rows) after the caret's block. */

@@ -42,3 +42,21 @@ export function playable(src: string): 'video' | 'audio' | null {
   if (ext && ['mp3', 'wav', 'm4a', 'ogg', 'oga', 'aac', 'flac'].includes(ext)) return 'audio';
   return null;
 }
+
+/** How an attached file can be shown inside the page: a PDF's pages, a web page, or a 3D model to turn (null: only as a chip). */
+export function embeddable(src: string): 'pdf' | 'html' | 'model' | null {
+  const ext = /\.([a-z0-9]{2,5})(?:[?#].*)?$/i.exec(src)?.[1]?.toLowerCase();
+  if (ext === 'pdf') return 'pdf';
+  if (ext === 'html' || ext === 'htm') return 'html';
+  if (ext === 'glb' || ext === 'gltf') return 'model';
+  return null;
+}
+
+/** Loads the 3D model viewer (set by the app: it's big, so only when a model is first shown). */
+let modelLoader: (() => Promise<unknown>) | null = null;
+export function setModelLoader(f: (() => Promise<unknown>) | null): void {
+  modelLoader = f;
+}
+export function loadModelViewer(): void {
+  void modelLoader?.();
+}
