@@ -76,7 +76,9 @@ Out of v1: documents, pages, .docx, comments, sharing, AI.
 
 ## Visual design
 
-**October 2026 redesign: "Glass"** (chosen from ten directions on the Claude design canvas "Crumpet redesigns"). The app is a frosted window floating over a soft wash (a honey glow top left, a cool blue bottom right): a see-through, blurred sidebar; rounded white sheets for notes; soft cards with an accent ring for the selected note; pill-shaped search, tabs, chips and formatting bar; Onest for the interface and titles. Light or dark with the device; on phones it fills the screen. The earlier look below lives on as the "Paper and ink" theme.
+**October 2026 redesign: "Glass"** (chosen from ten directions on the Claude design canvas "Crumpet redesigns"). The app is a frosted window floating over a soft wash (a honey glow top left, a cool blue bottom right): a see-through, blurred sidebar; rounded white sheets for notes; soft cards with an accent ring for the selected note; pill-shaped search, tabs, chips and formatting bar; Onest for the interface and titles. Light or dark with the device; on phones it fills the screen. 
+
+**October 2026 refinement: "Quiet Paper"** (from the Claude design canvas "Crumpet Quiet Paper": 23 screens in light, dark, iPhone and iPad, and a sheet of rules). Same frosted window, made calmer: warm paper (`#FFFDF8`) instead of white, Newsreader for titles, one honey accent used once per screen (the filled New note button, the chosen note's dot), the chosen note lifted onto paper rather than ringed, and only three corner sizes (8px controls, 12px cards and sheets, round chips). Dark mode uses a warm charcoal page. The earlier look below lives on as the "Paper and ink" theme.
 
 Mockups (original look): Claude design canvas "Crumpet visual identity" (identity sheet, Mac/web light and dark, iPhone list and note).
 

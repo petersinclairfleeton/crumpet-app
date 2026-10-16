@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-16-quiet-paper',
+    date: '16 October 2026',
+    title: 'A calmer look: Quiet Paper',
+    points: [
+      'Notes now sit on warm paper, with titles in a book serif.',
+      'The note you’re on is lifted onto paper with a small honey dot, instead of a ring round it.',
+      'New note is the one honey button, so it’s easy to find.',
+      'Corners, colours and shadows match all through the app, in light and dark.',
+    ],
+  },
+  {
     id: '2026-10-16-tools',
     date: '16 October 2026',
     title: 'Macros, your own formatting bar, and help',
