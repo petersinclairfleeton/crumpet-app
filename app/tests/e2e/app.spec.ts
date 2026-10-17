@@ -2685,6 +2685,8 @@ test('page view lays out sections: two columns that flow and balance, a landscap
   // A paragraph split between columns: typing at the start of the second part goes in the right place.
   const cont = page.locator('.note-editor [data-cont]').first();
   await expect(cont).toBeAttached();
+  // Laid out (with its words in it) before the caret goes there.
+  await expect(cont).toHaveText(/\S/);
   const id = await cont.getAttribute('data-block');
   const from = Number(await cont.getAttribute('data-from'));
   await cont.evaluate((c) => {
@@ -5394,15 +5396,17 @@ test('macros (record, play back, a shortcut), customising the formatting bar, an
   await dialog.getByRole('button', { name: 'Done' }).first().click();
   await expect(page.locator('.note-toolbar .tools.fit').getByRole('button', { name: 'Bold', exact: true })).toHaveCount(0);
   await expect(page.locator('.note-toolbar .tools.fit > .tool').getByRole('button', { name: 'Draw', exact: true })).toHaveCount(1);
-  // What's new, from Help: the dot goes once it's been seen.
+  // What's new, from Help: marked New until it's been seen.
   const help = page.getByRole('button', { name: 'Help', exact: true });
-  await expect(help.locator('.news-dot')).toHaveCount(1);
   await help.click();
+  await expect(page.getByRole('button', { name: /What’s new/ })).toContainText('New');
   await page.getByRole('button', { name: /What’s new/ }).click();
   const news = page.getByRole('dialog', { name: 'What’s new' });
   await expect(news).toContainText('Macros');
   await news.getByRole('button', { name: 'Close' }).click();
-  await expect(help.locator('.news-dot')).toHaveCount(0);
+  await help.click();
+  await expect(page.getByRole('button', { name: /What’s new/ })).not.toContainText('New');
+  await page.keyboard.press('Escape');
 });
 
 test('objects: a PDF shown inside the page or as an icon, and a 3D model to turn', async ({ page }) => {
@@ -5523,8 +5527,8 @@ test('the calm bar: five buttons, the rest under More in groups, and page view�
   });
   await page.locator('.note-actions').getByRole('button', { name: 'More', exact: true }).click();
   await page.getByRole('dialog', { name: 'Note options' }).getByRole('button', { name: 'Page view' }).click();
-  for (const m of ['Format ▾', 'Insert ▾', 'References ▾', 'Review ▾']) await expect(bar.getByRole('button', { name: m })).toBeVisible();
-  await bar.getByRole('button', { name: 'Layout ▾' }).click();
+  for (const m of ['Format', 'Insert', 'References', 'Review']) await expect(bar.getByRole('button', { name: m, exact: true })).toBeVisible();
+  await bar.getByRole('button', { name: 'Layout', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Layout tools' })).toBeVisible();
 });
 

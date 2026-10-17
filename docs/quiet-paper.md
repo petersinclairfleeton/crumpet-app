@@ -45,5 +45,5 @@ Apple app does: fewer things on screen, one way of doing each thing, the same
 look for the same kind of control everywhere.
 
 - [x] Settings all of a piece: every page built from the same rows (`settingrows.tsx`), switches instead of tick boxes, plain examples, sync as two clear choices, each setting in one place, switches in ink (#170)
-- [ ] One voice: headings in normal case, one drop-down sign, menus without stray icons, no red dot, quieter links
+- [x] One voice: headings in normal case, one drop-down sign (`.caret`), menus without stray icons and lined up, no name over an open menu, no red dot, quieter links (#171)
 - [ ] Books with less on screen: no colour key, one New chapter, no how-to lines, tidy chapter header

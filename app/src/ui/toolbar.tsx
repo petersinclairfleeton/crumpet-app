@@ -174,7 +174,7 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
         ? grouped.map(({ g, list }) => (
             <span key={g} className="tool more-tools group-menu">
               <button type="button" aria-expanded={open === g} onClick={() => setOpen(open === g ? false : g)}>
-                {g} ▾
+                {g} <span aria-hidden="true" className="caret">▾</span>
               </button>
               {open === g && (
                 <Popover label={`${g} tools`} onClose={() => setOpen(false)}>

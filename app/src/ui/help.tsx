@@ -31,7 +31,7 @@ export function HelpItems({ onPick }: { onPick(): void }) {
         Guide to Crumpet
       </button>
       <button type="button" className="menu-item" onClick={pick(openWhatsNew)}>
-        What’s new {news && <span className="news-dot inline" />}
+        What’s new {news && <small className="menu-hint news-new">New</small>}
       </button>
       {FEEDBACK_EMAIL && (
         <button type="button" className="menu-item" onClick={pick(() => window.dispatchEvent(new Event(OPEN_FEEDBACK)))}>
@@ -48,14 +48,11 @@ export function HelpItems({ onPick }: { onPick(): void }) {
 }
 
 export function HelpMenu() {
-  const { settings } = useAppState();
   const [open, setOpen] = useState(false);
-  const news = hasNews(settings.whatsNewSeen);
   return (
     <span className="help-menu">
       <button type="button" className="icon-btn guide-btn" aria-label="Help" aria-expanded={open} data-tip="Help" onClick={() => setOpen(!open)}>
         <IconHelp size={17} />
-        {news && <span className="news-dot" aria-label="Something new" />}
       </button>
       {open && (
         <Popover label="Help" onClose={() => setOpen(false)}>

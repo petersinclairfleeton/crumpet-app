@@ -20,10 +20,9 @@ import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
 import { boardDoc, emptyBoard } from '../data/board';
-import { IconBell, IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconCrumpet, IconSettings, IconCopy, Logo, NotebookIcon } from './icons';
+import { IconBell, IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconCrumpet, IconSettings, Logo, NotebookIcon } from './icons';
 import { openFinder } from './finder';
 import { HelpItems } from './help';
-import { hasNews } from '../data/whatsnew';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -530,7 +529,6 @@ function SideMenu(props: {
 }) {
   const { open, onOpen } = props;
   const button = useRef<HTMLButtonElement>(null);
-  const news = hasNews(useAppState().settings.whatsNewSeen);
   // The menu opens up from the button, over everything (the frosted sidebar would clip it).
   const at = button.current?.getBoundingClientRect();
   const place = at ? { left: Math.max(8, at.left - 8), bottom: window.innerHeight - at.top + 8 } : { left: 16, bottom: 64 };
@@ -542,7 +540,6 @@ function SideMenu(props: {
     <span className="side-menu">
       <button ref={button} type="button" className="icon-btn" aria-label="Settings and more" title="Settings and more" aria-expanded={!!open} onClick={() => onOpen(open ? null : 'menu')}>
         <IconSettings size={18} />
-        {news && <span className="news-dot" aria-label="Something new" />}
       </button>
       {open &&
         createPortal(
@@ -553,24 +550,24 @@ function SideMenu(props: {
           ) : (
             <>
               <button type="button" className="menu-item" onClick={pick(props.onSettings)}>
-                <IconSettings size={14} /> Settings…
+                Settings…
               </button>
               <hr className="menu-sep" />
               <button type="button" className="menu-item" onClick={() => onOpen('templates')}>
-                <IconCopy size={14} /> New from a template…
+                New from a template…
               </button>
               <button type="button" className="menu-item" onClick={pick(props.onUpload)}>
-                <IconUpload size={14} /> Upload files…
+                Upload files…
               </button>
               <hr className="menu-sep" />
               <button type="button" className="menu-item" onClick={pick(props.onStats)}>
-                <IconChart size={14} /> Writing stats {props.todayWords > 0 && <small className="menu-hint">{props.todayWords.toLocaleString()} words today</small>}
+                Writing stats {props.todayWords > 0 && <small className="menu-hint">{props.todayWords.toLocaleString()} words today</small>}
               </button>
               <button type="button" className="menu-item" onClick={pick(props.onGraph)}>
-                <IconGraph size={14} /> Graph of links
+                Graph of links
               </button>
               <button type="button" className="menu-item" onClick={pick(props.onTrash)}>
-                <IconTrash size={14} /> Trash {props.trashCount > 0 && <small className="menu-hint">{props.trashCount}</small>}
+                Trash {props.trashCount > 0 && <small className="menu-hint">{props.trashCount}</small>}
               </button>
               <hr className="menu-sep" />
               <HelpItems onPick={() => onOpen(null)} />
