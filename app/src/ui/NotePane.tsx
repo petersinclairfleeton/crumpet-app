@@ -18,7 +18,7 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
-import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconRightPanel, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconLock, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconRightPanel, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { BoardView } from './board';
 import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
@@ -45,6 +45,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const editorRef = useRef<Editor | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const [menu, setMenu] = useState(false);
+  // On a phone the menu's download formats wait behind one row, like a submenu.
+  const [downloads, setDownloads] = useState(false);
   const [remind, setRemind] = useState(0);
   const [addingTag, setAddingTag] = useState(false);
   // On the calm phone the notebook and tags wait in the menu (design 5).
@@ -142,6 +144,46 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
     if (navigator.share) await navigator.share({ title: displayTitle(note), text }).catch(() => {});
     else await navigator.clipboard?.writeText(text).catch(() => {});
   };
+  // Word, e-book, the other formats and printing: in the menu on a computer, behind Download a copy… on a phone.
+  const downloadItems = () => (
+    <>
+      <button
+        type="button"
+        className="menu-item"
+        aria-label="Download as Word document"
+        onClick={async () => {
+          setMenu(false);
+          // An uploaded Word document: its own file.
+          if (note.file && fileKind(note.file) === 'word') await downloadFile(note.file);
+          else download(await noteDocx(store.getState(), { ...note, doc: shownDoc ?? note.doc }), docxName(note.title), DOCX_TYPE);
+        }}
+      >
+        <IconDownload size={14} /> Word document <small className="menu-hint">.docx</small>
+      </button>
+      <button
+        type="button"
+        className="menu-item"
+        aria-label="Download as e-book (ePub)"
+        onClick={async () => {
+          setMenu(false);
+          download(await noteEpub(store.getState(), { ...note, doc: shownDoc ?? note.doc }), fileName(note.title, 'epub'), EPUB_TYPE);
+        }}
+      >
+        <IconDownload size={14} /> E-book <small className="menu-hint">.epub</small>
+      </button>
+      <ExportItems title={note.title} parts={() => [{ doc: shownDoc ?? note.doc }]} onDone={() => setMenu(false)} />
+      <button
+        type="button"
+        className="menu-item"
+        onClick={() => {
+          setMenu(false);
+          setPrinting(true);
+        }}
+      >
+        <IconPrint size={14} /> Print or save as PDF
+      </button>
+    </>
+  );
   // The calm look keeps its five tools on show at the top of the page, unless asked to float them over selected text.
   const toolsAtRest = state.settings.toolbar !== 'selection';
   const trail = trashed ? null : (
@@ -194,11 +236,21 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           <IconRightPanel size={17} />
         </button>
       )}
-      <button type="button" className="icon-btn" aria-label="More" data-tip="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+      <button type="button" className="icon-btn" aria-label="More" data-tip="More" aria-expanded={menu} onClick={() => (setDownloads(false), setMenu(!menu))}>
         <IconMore size={16} />
       </button>
       {menu && (
         <Popover onClose={() => setMenu(false)} label="Note options">
+          {phone && downloads ? (
+            <>
+              <button type="button" className="menu-item menu-back" onClick={() => setDownloads(false)}>
+                <IconBack size={14} /> Download a copy
+              </button>
+              <hr className="menu-sep" />
+              {downloadItems()}
+            </>
+          ) : (
+          <>
           {phone && (
             <>
               <button type="button" className="menu-item" aria-pressed={note.favorite} onClick={() => (setMenu(false), store.toggleFavorite(note.id))}>
@@ -212,16 +264,21 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           )}
           {viewsInMenu && (
             <>
-              <p className="menu-label">View</p>
+              {!phone && <p className="menu-label">View</p>}
               <button type="button" className="menu-item" onClick={() => (setMenu(false), setReading(!reading))}>
                 <IconBook size={14} /> {reading ? 'Back to editing' : 'Reading view'}
               </button>
-              <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setMenu(false), togglePage())}>
-                <IconPage size={14} /> {paged ? 'Page view: on' : 'Page view'}
-              </button>
-              <button type="button" className="menu-item" onClick={() => (setMenu(false), store.setFocusMode(true))}>
-                <IconFocus size={14} /> Focus mode
-              </button>
+              {/* A phone's screen is already the page, and already quiet. */}
+              {!phone && (
+                <>
+                  <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setMenu(false), togglePage())}>
+                    <IconPage size={14} /> {paged ? 'Page view: on' : 'Page view'}
+                  </button>
+                  <button type="button" className="menu-item" onClick={() => (setMenu(false), store.setFocusMode(true))}>
+                    <IconFocus size={14} /> Focus mode
+                  </button>
+                </>
+              )}
               {calm && !narrow && (
                 <button type="button" className="menu-item" aria-pressed={toolsAtRest} onClick={() => (setMenu(false), store.updateSettings({ toolbar: toolsAtRest ? 'selection' : 'always' }))}>
                   <span className="menu-aa" aria-hidden="true">Aa</span> {toolsAtRest ? 'Formatting only on selected text' : 'Formatting bar always on show'}
@@ -238,7 +295,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               setFinding(true);
             }}
           >
-            <IconSearch size={14} /> Find and replace <small className="menu-hint">{isMac ? '⌘F' : 'Ctrl+F'}</small>
+            <IconSearch size={14} /> Find and replace {!phone && <small className="menu-hint">{isMac ? '⌘F' : 'Ctrl+F'}</small>}
           </button>
           <button
             type="button"
@@ -255,68 +312,44 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               <IconBell size={14} /> Add a reminder…
             </button>
           )}
-          <button
-            type="button"
-            className="menu-item"
-            onClick={() => {
-              setMenu(false);
-              store.saveAsTemplate(note.id);
-            }}
-          >
-            <IconCopy size={14} /> Save as template
-          </button>
+          {!phone && (
+            <button
+              type="button"
+              className="menu-item"
+              onClick={() => {
+                setMenu(false);
+                store.saveAsTemplate(note.id);
+              }}
+            >
+              <IconCopy size={14} /> Save as template
+            </button>
+          )}
           <hr className="menu-sep" />
           {!trashed && !locked && (
             <button type="button" className="menu-item" onClick={() => (setMenu(false), setProtecting(true))}>
-              🔒 Protect with a password…
+              <IconLock size={14} /> Protect with a password…
             </button>
           )}
           {locked && shownDoc && (
             <>
               <button type="button" className="menu-item" onClick={() => (setMenu(false), opened.forget())}>
-                🔒 Lock now
+                <IconLock size={14} /> Lock now
               </button>
               <button type="button" className="menu-item" onClick={() => (setMenu(false), removePassword(note.id, store))}>
                 Remove the password
               </button>
             </>
           )}
-          {(!locked || shownDoc) && <p className="menu-label">Download or print</p>}
-          <button
-            type="button"
-            className="menu-item"
-            aria-label="Download as Word document"
-            onClick={async () => {
-              setMenu(false);
-              // An uploaded Word document: its own file.
-              if (note.file && fileKind(note.file) === 'word') await downloadFile(note.file);
-              else download(await noteDocx(store.getState(), { ...note, doc: shownDoc ?? note.doc }), docxName(note.title), DOCX_TYPE);
-            }}
-          >
-            <IconDownload size={14} /> Word document <small className="menu-hint">.docx</small>
-          </button>
-          <button
-            type="button"
-            className="menu-item"
-            aria-label="Download as e-book (ePub)"
-            onClick={async () => {
-              setMenu(false);
-              download(await noteEpub(store.getState(), { ...note, doc: shownDoc ?? note.doc }), fileName(note.title, 'epub'), EPUB_TYPE);
-            }}
-          >
-            <IconDownload size={14} /> E-book <small className="menu-hint">.epub</small>
-          </button>
-          <ExportItems title={note.title} parts={() => [{ doc: shownDoc ?? note.doc }]} onDone={() => setMenu(false)} />
-          <button
-            type="button"
-            className="menu-item"
-            onClick={() => {
-              setMenu(false);
-              setPrinting(true);
-            }}
-          >
-            <IconPrint size={14} /> Print or save as PDF
-          </button>
+          {phone ? (
+            <button type="button" className="menu-item keep-open" onClick={() => setDownloads(true)}>
+              <IconDownload size={14} /> Download a copy…
+            </button>
+          ) : (
+            <>
+              {(!locked || shownDoc) && <p className="menu-label">Download or print</p>}
+              {downloadItems()}
+            </>
+          )}
           <hr className="menu-sep" />
           <button
             type="button"
@@ -329,6 +362,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           >
             <IconTrash size={14} /> Move to Trash
           </button>
+          </>
+          )}
         </Popover>
       )}
       {printing && (

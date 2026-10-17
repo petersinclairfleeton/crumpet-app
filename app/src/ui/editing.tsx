@@ -234,7 +234,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
     ),
   });
   const items: ToolItem[] = [
-    { key: 'style', pri: 3, node: <StylePicker editor={ed} sheet={sheet} disabled={off} onEditStyles={onEditStyles} /> },
+    { key: 'style', pri: 3, node: <StylePicker editor={ed} sheet={sheet} disabled={off} onEditStyles={onEditStyles} few={keyboard} /> },
     ...fontItems,
     ...MARKS.map((m, i) => tool(m.mark, m.mark === 'code' ? 1 : m.mark === 'strike' ? 2 : 4, m.label, `${m.label} (${m.key})`, m.glyph, () => ed?.toggleMark(m.mark), { active: !!ed?.isMarkActive(m.mark), sep: i === 0 })),
     tool(
@@ -337,7 +337,7 @@ function QuickMenu({ ed, off, items, onAll }: { ed: Editor | null; off: boolean;
   const row = (label: string, onClick: () => void, hint?: string, on?: boolean) => (
     <button type="button" className={`menu-item${on ? ' on' : ''}`} role="menuitem" disabled={off} onClick={onClick}>
       {label}
-      {hint && <small className="menu-hint">{hint}</small>}
+      {hint && <small className="menu-hint kbd-hint">{hint}</small>}
       {on && <span className="menu-tick">✓</span>}
     </button>
   );
@@ -366,7 +366,7 @@ function QuickMenu({ ed, off, items, onAll }: { ed: Editor | null; off: boolean;
         <p className="menu-label">Write</p>
         {row('Track changes', () => store.updateSettings({ trackChanges: !settings.trackChanges }), undefined, !!settings.trackChanges)}
         <button type="button" className="menu-item keep-open all-tools" onClick={onAll}>
-          All writing tools… <small className="menu-hint">{mod}P</small>
+          All writing tools… <small className="menu-hint kbd-hint">{mod}P</small>
         </button>
       </div>
     </>

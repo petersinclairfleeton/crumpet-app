@@ -13,7 +13,7 @@ import { DEFAULT_NOTE_SIZE } from '../data/types';
 import { type FontChoice, DEFAULT_FONT, googleFonts, loadGoogleFont, systemFonts } from './fonts';
 import { useAppState } from './hooks';
 import { Popover } from './Sidebar';
-import type { ToolItem } from './toolbar';
+import { type ToolItem, menuLabel } from './toolbar';
 
 /** Word's list of sizes. */
 export const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
@@ -350,7 +350,7 @@ export function useFontItems(ed: Editor | null, off: boolean, sheet: StyleSheet)
     ),
     menu: (
       <button type="button" className={`menu-item${active ? ' on' : ''}`} disabled={off} onClick={onClick}>
-        <span className="menu-glyph">{glyph}</span> {label}
+        <span className="menu-glyph">{glyph}</span> {menuLabel(label)}
       </button>
     ),
   });

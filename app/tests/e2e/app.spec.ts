@@ -5908,6 +5908,33 @@ test.describe('on a phone, in the calm look', () => {
     await outline.getByRole('button', { name: 'Back to the library' }).click();
     await expect(library).toBeVisible();
   });
+
+  test('writing: Aa and ··· open where they can be seen, and the note’s menu is short', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.app')).toBeVisible();
+    await page.evaluate(() => (window as unknown as { crumpet: { createNote(n: object): unknown } }).crumpet.createNote({ title: 'Monday' }));
+    await page.getByRole('navigation', { name: 'Notebooks' }).getByRole('button', { name: /^All notes/ }).click();
+    await page.getByRole('region', { name: 'Notes', exact: true }).locator('.card', { hasText: 'Monday' }).click();
+    // The note's menu: the phone's few, the downloads behind one row.
+    await page.locator('.note-pane').getByRole('button', { name: 'More', exact: true }).click();
+    const menu = page.getByRole('dialog', { name: 'Note options' });
+    await expect(menu.getByRole('button', { name: 'Focus mode' })).toHaveCount(0);
+    await expect(menu.getByRole('button', { name: 'Download as Word document' })).toHaveCount(0);
+    await menu.getByRole('button', { name: 'Download a copy…' }).click();
+    await expect(menu.getByRole('button', { name: 'Download as Word document' })).toBeInViewport();
+    await page.keyboard.press('Escape');
+    // Above the keyboard: Aa's short list of styles, and ···, both in sight.
+    await page.locator('.note-pane [contenteditable]').first().click();
+    const bar = page.locator('.keyboard-bar');
+    await bar.getByRole('button', { name: 'Style', exact: true }).tap();
+    const styles = page.getByRole('dialog', { name: 'Styles' });
+    await expect(styles.getByRole('menuitemradio', { name: 'Heading 1' })).toBeInViewport();
+    await expect(styles.getByRole('menuitemradio', { name: 'Intense Quote' })).toHaveCount(0);
+    await styles.getByRole('menuitemradio', { name: 'Heading 1' }).click();
+    await page.locator('.note-pane [contenteditable]').first().click();
+    await bar.getByRole('button', { name: 'More formatting' }).tap();
+    await expect(page.getByRole('dialog', { name: 'More formatting' }).getByRole('button', { name: /Clear formatting/ })).toBeInViewport();
+  });
 });
 
 test.describe('on an iPad, in the calm look', () => {

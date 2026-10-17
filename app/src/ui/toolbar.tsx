@@ -36,6 +36,17 @@ const QUICK_GROUPS: [string, string[]][] = [
 export const PHONE_TOOLS = new Set(['style', 'todo', 'bullet', 'attach']);
 /** At the foot of an iPad's page: the phone's few, and Draw for the pencil. */
 export const TABLET_TOOLS = new Set(['style', 'todo', 'bullet', 'draw', 'attach']);
+/** A tool's name in a menu, its keyboard shortcut ("Clear formatting (Ctrl+Space)") apart as a quiet hint (not shown on touch screens). */
+export function menuLabel(label: string): ReactNode {
+  const m = /^(.*?) \(((?:Ctrl|⌘|Alt|Shift|F\d)[^)]*)\)$/.exec(label);
+  return m ? (
+    <>
+      {m[1]} <small className="menu-hint kbd-hint">{m[2]}</small>
+    </>
+  ) : (
+    label
+  );
+}
 export type ToolGroup = 'Text' | 'Paragraph' | 'Insert' | 'Layout' | 'References' | 'Review' | 'Tools';
 export const TOOL_GROUPS: ToolGroup[] = ['Text', 'Paragraph', 'Insert', 'Layout', 'References', 'Review', 'Tools'];
 const GROUP_KEYS: Record<ToolGroup, string[]> = {
@@ -206,7 +217,7 @@ export function OverflowRow({ items: all, fit = true, calm = false, menus = fals
                           ) : null;
                         })}
                         <button type="button" className="menu-item keep-open all-tools" onClick={() => setEverything(true)}>
-                          All writing tools… <small className="menu-hint">{isMacKey ? '⌘P' : 'Ctrl+P'}</small>
+                          All writing tools… <small className="menu-hint kbd-hint">{isMacKey ? '⌘P' : 'Ctrl+P'}</small>
                         </button>
                       </>
                     )}

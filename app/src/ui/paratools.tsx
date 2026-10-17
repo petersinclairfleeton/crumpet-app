@@ -11,7 +11,7 @@ import type { ParaLook } from '@crumpet/editor/model';
 import type { SortBy } from '@crumpet/editor/commands';
 import { IconClose } from './icons';
 import { Popover } from './Sidebar';
-import type { ToolItem } from './toolbar';
+import { type ToolItem, menuLabel } from './toolbar';
 import { useAppState, useAppStore } from './hooks';
 import { TabsDialog } from './tabstops';
 
@@ -87,7 +87,7 @@ export function useParaItems(ed: Editor | null, off: boolean, sheet?: StyleSheet
     ),
     menu: (
       <button type="button" className="menu-item" disabled={off} onClick={onClick}>
-        <span className="menu-glyph">{glyph}</span> {label}
+        <span className="menu-glyph">{glyph}</span> {menuLabel(label)}
       </button>
     ),
   });
