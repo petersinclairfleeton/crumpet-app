@@ -47,3 +47,11 @@ look for the same kind of control everywhere.
 - [x] Settings all of a piece: every page built from the same rows (`settingrows.tsx`), switches instead of tick boxes, plain examples, sync as two clear choices, each setting in one place, switches in ink (#170)
 - [x] One voice: headings in normal case, one drop-down sign (`.caret`), menus without stray icons and lined up, no name over an open menu, no red dot, quieter links (#171)
 - [x] Books with less on screen: no colour key, one New chapter, no how-to line, the status as words (no gap), the inspector's tabs on one line with the page's button its only switch, Read's zoom as − 100% + and its pages as one switch, ink tick boxes (#172)
+
+## Calmer still: the phone
+The same pass on an iPhone: what a phone needs, shaped the way an iPhone app is.
+
+- [x] Writing: the keyboard bar's menus open (they were clipped out of sight) as a panel above it, its tools evenly spaced; Aa's short list of styles; the note's and chapter's ··· menus shorter, icons at the end, downloads behind one row, no keyboard shortcuts on touch screens (#173)
+- [ ] The library and lists: the same groups as the computer, tags as chips, back buttons that say where they go, a list menu without desktop choices
+- [ ] Settings like an iPhone's: a list of sections, each a page of its own
+- [ ] A book: characters and research as the same rows as chapters

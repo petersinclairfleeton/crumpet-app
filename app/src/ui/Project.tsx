@@ -806,9 +806,12 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
                     {statusPick}
                     <span>{chapter.goal ? `${n.toLocaleString()} of ${chapter.goal.toLocaleString()} words` : words(n)}</span>
                   </div>
-                  <button type="button" className="menu-item" aria-pressed={!!state.settings.layout?.right} onClick={() => (setChapterMenu(null), store.updateLayout({ right: !state.settings.layout?.right }))}>
-                    <IconPeople size={14} /> {state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'}
-                  </button>
+                  {/* A phone has no inspector (it would have no room); an iPad's slides in as a drawer. */}
+                  {!phone && (
+                    <button type="button" className="menu-item" aria-pressed={!!state.settings.layout?.right} onClick={() => (setChapterMenu(null), store.updateLayout({ right: !state.settings.layout?.right }))}>
+                      <IconPeople size={14} /> {state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'}
+                    </button>
+                  )}
                   <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setChapterMenu(null), store.updateSettings({ pageView: { ...state.settings.pageView, projects: !paged } }))}>
                     {paged ? 'Page view: on' : 'Page view'}
                   </button>
@@ -816,11 +819,13 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
                 </>
               )}
               <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), setFinding(true))}>
-                <IconSearch size={14} /> Find and replace <small className="menu-hint">{isMac ? '⌘F' : 'Ctrl+F'}</small>
+                <IconSearch size={14} /> Find and replace {!phone && <small className="menu-hint">{isMac ? '⌘F' : 'Ctrl+F'}</small>}
               </button>
-              <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), store.setFocusMode(true))}>
-                <IconFocus size={14} /> Focus mode
-              </button>
+              {!phone && (
+                <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), store.setFocusMode(true))}>
+                  <IconFocus size={14} /> Focus mode
+                </button>
+              )}
               <hr className="menu-sep" />
               <button type="button" className="menu-item" onClick={() => setChapterMenu('goal')}>
                 {chapter.goal ? 'Change word goal…' : 'Set word goal…'}

@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-phone-writing',
+    date: '17 October 2026',
+    title: 'Writing on a phone, calmer and fixed',
+    points: [
+      'Above the keyboard, Aa and ··· now open their menus as a panel just above the bar (they were opening out of sight), and the bar’s few tools are spread evenly.',
+      'Aa offers the styles a writer reaches for (Normal, Title, three headings, Quote and Scene Break) instead of Word’s whole gallery.',
+      'A note’s ··· menu on a phone is shorter and reads like an iPhone’s: the words first and the icon at the end. The six download formats wait behind Download a copy…, and Page view, Focus mode and Save as template stay on the computer.',
+      'A chapter’s ··· menu on a phone no longer offers the inspector (a phone has no room for it) or Focus mode, and keyboard shortcuts aren’t shown on touch screens.',
+    ],
+  },
+  {
     id: '2026-10-17-book-calm',
     date: '17 October 2026',
     title: 'Books, with less on screen',

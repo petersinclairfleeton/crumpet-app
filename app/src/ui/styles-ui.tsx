@@ -55,8 +55,11 @@ export function previewCss(d: StyleDef): React.CSSProperties {
   };
 }
 
-/** The style menu: shows the style at the caret; choosing one applies it. */
-export function StylePicker({ editor, sheet, disabled, onEditStyles }: { editor: Editor | null; sheet: StyleSheet; disabled: boolean; onEditStyles?(): void }) {
+/** A phone's Aa: the styles a writer reaches for, not Word's whole gallery. */
+const FEW_STYLES = ['normal', 'title', 'heading1', 'heading2', 'heading3', 'quote', 'scenebreak'];
+
+/** The style menu: shows the style at the caret; choosing one applies it. `few`: a phone's short list. */
+export function StylePicker({ editor, sheet, disabled, onEditStyles, few = false }: { editor: Editor | null; sheet: StyleSheet; disabled: boolean; onEditStyles?(): void; few?: boolean }) {
   const [open, setOpen] = useState(false);
   const key = editor ? blockStyleKey(sheet, editor.currentBlock()) : 'normal';
   return (
@@ -68,7 +71,7 @@ export function StylePicker({ editor, sheet, disabled, onEditStyles }: { editor:
       {open && (
         <Popover onClose={() => setOpen(false)} label="Styles">
           <div role="menu" className="style-menu">
-            {sheetStyles(sheet).filter((s) => s.inMenu).map((s) => (
+            {sheetStyles(sheet).filter((s) => s.inMenu && (!few || FEW_STYLES.includes(s.key) || s.key === key)).map((s) => (
               <button
                 key={s.key}
                 type="button"
@@ -83,7 +86,7 @@ export function StylePicker({ editor, sheet, disabled, onEditStyles }: { editor:
                 <span style={previewCss(s.def)}>{s.name}</span>
               </button>
             ))}
-            {onEditStyles && (
+            {onEditStyles && !few && (
               <button
                 type="button"
                 className="menu-item style-edit"

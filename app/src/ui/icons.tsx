@@ -131,6 +131,7 @@ export const IconUpload = icon(<path d="M12 20V9M7 14l5-5 5 5M5 4h14" />);
 export const IconCopy = icon(<path d="M8 8h12v12H8zM4 16V4h12" />);
 export const IconDownload = icon(<path d="M12 4v11M7 10l5 5 5-5M5 20h14" />);
 export const IconPrint = icon(<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3M7 14h10v7H7z" />);
+export const IconLock = icon(<path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3" />);
 export const IconCards = icon(<path d="M4 4h16v7H4zM4 15h16v5H4z" />);
 
 /** The crumpet logo: a crumpet with a page curling off it. */

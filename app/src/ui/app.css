@@ -3141,6 +3141,24 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 :root .app.phone .note-title { font-size: 30px; line-height: 1.25; }
 .app.phone .note-body > .note-meta { margin: 4px 0 8px; }
 :root[data-calm='phone'] .keyboard-bar { padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--calm-card); border-top: 1px solid var(--calm-hair); box-shadow: none; }
+/* Its few tools spread evenly, without the dividers and small arrows of the desktop bar; it never needs to
+   scroll, so its menus (Aa, ···) open above it instead of being cut off inside it. */
+:root[data-calm='phone'] :is(.keyboard-tools, .keyboard-tools .tools) { overflow: visible; }
+:root[data-calm='phone'] .keyboard-tools .tools { justify-content: space-between; }
+:root[data-calm='phone'] .keyboard-tools :is(.sep, .split-caret) { display: none !important; }
+/* Its menus (Aa, ···) rise as one full-width panel just above it, wherever their button sits. */
+:root[data-calm='phone'] .keyboard-bar :is(.tool, .tool-drop, .more-tools, .style-picker, .split-tool, .note-actions) { position: static; }
+:root[data-calm='phone'] .keyboard-bar .popover { position: absolute; top: auto !important; bottom: calc(100% + 8px) !important; left: 12px !important; right: 12px !important; width: auto !important; min-width: 0; max-height: 60vh; overflow-y: auto; }
+/* Menus on a phone, as on an iPhone: rows a finger tall, the words first and any icon at the end. */
+:root[data-calm='phone'] .popover .menu-item { min-height: 44px; gap: 12px; font-size: 16px; }
+:root[data-calm='phone'] .popover .menu-item:not(.menu-back) > svg:first-child { order: 3; margin-left: auto; }
+:root[data-calm='phone'] .popover .menu-item > .menu-hint { order: 2; }
+:root[data-calm='phone'] .popover .menu-item:has(.menu-hint) > svg:first-child { margin-left: 12px; }
+:root[data-calm='phone'] .popover .menu-label { margin: 10px 12px 4px; font-size: 13px; }
+:root[data-calm='phone'] .keyboard-bar .more-row :is(.menu-item, .more-label) { font-size: 16px; font-weight: 400; }
+:root[data-calm='phone'] .keyboard-bar .style-menu .style-item { min-height: 48px; }
+/* Keyboard shortcuts mean nothing on a touch screen. */
+@media (pointer: coarse) { .kbd-hint { display: none; } }
 :root[data-calm='phone'] .kb-done { background: none; font-size: 16px; font-weight: 600; }
 
 /* A book (design 17). */
