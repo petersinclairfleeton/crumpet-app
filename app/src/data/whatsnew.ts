@@ -16,6 +16,7 @@ export const WHATS_NEW: WhatsNew[] = [
     points: [
       'With the Paper and ink theme, the phone now has the same tidy layout as the other themes: chapters in a book are neat rows again, and the back buttons say where they go (Notes, Crumpet, Outline).',
       'On a phone a chapter opens as plain writing, like a note, instead of a small printed page; its status, word count, goal, synopsis and page view are in its ··· menu.',
+      'In dark mode the phone’s rows and screens now take each theme’s own dark colours, so their words are easy to read in Paper and ink, Classic, Vapor, Console, Desktop, Sepia and Midnight.',
     ],
   },
   {
