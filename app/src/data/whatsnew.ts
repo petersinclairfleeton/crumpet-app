@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-ink-editing',
+    date: '17 October 2026',
+    title: 'Edit with ink',
+    points: [
+      'More → Edit with ink lets you edit by drawing over the text, with a finger, a pen or the mouse, like Word’s ink editor.',
+      'Strike a line through words, or scribble over them, to delete them (tracked when Track changes is on). Circle words to select them. Draw a line down to start a new paragraph there, or a ^ under the gap between two words to put the cursor there and type.',
+      'Undo on the bar takes the last one back; Done (or Esc) puts the pen away. Handwriting isn’t read, so you type what you add.',
+    ],
+  },
+  {
     id: '2026-10-17-export-included',
     date: '17 October 2026',
     title: 'Exporting a book: a title page, parts, and a clean copy',

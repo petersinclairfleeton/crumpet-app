@@ -286,6 +286,10 @@ export function inkItems(ed: Editor | null, off: boolean): ToolItem[] {
     ed?.focus();
     ed?.insertDrawing();
   };
+  const inkEdit = () => {
+    closeMore();
+    if (ed) openInkEditing(ed);
+  };
   return [
     {
       key: 'draw',
@@ -301,5 +305,109 @@ export function inkItems(ed: Editor | null, off: boolean): ToolItem[] {
         </button>
       ),
     },
+    {
+      key: 'inkedit',
+      pri: 0,
+      node: (
+        <button type="button" aria-label="Edit with ink" title="Edit with ink: strike out, scribble, circle, a line down, or ^ over the text" disabled={off} onClick={inkEdit}>
+          {ICON_INK_EDIT}
+        </button>
+      ),
+      menu: (
+        <button type="button" className="menu-item" disabled={off} onClick={inkEdit}>
+          <span className="menu-glyph">{ICON_INK_EDIT}</span> Edit with ink
+        </button>
+      ),
+    },
   ];
+}
+
+const ICON_INK_EDIT = (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 12h16M7 18l3-4 3 4M17 4l3 3-6 6h-3v-3z" />
+  </svg>
+);
+
+// Word's ink editor: a clear layer over the page; each stroke is read as an edit when the pen lifts.
+let inkEditListener: ((ed: Editor) => void) | null = null;
+/** Starts editing `ed`'s text with ink (shown by InkEditHost, which the app keeps). */
+export function openInkEditing(ed: Editor): void {
+  inkEditListener?.(ed);
+}
+
+const GESTURE_DONE: Record<string, string> = { strike: 'Struck out', scribble: 'Scribbled out', circle: 'Selected', split: 'New paragraph', insert: 'Caret placed: type to add' };
+
+export function InkEditHost() {
+  const [ed, setEd] = useState<Editor | null>(null);
+  useEffect(() => {
+    inkEditListener = setEd;
+    return () => {
+      inkEditListener = null;
+    };
+  }, []);
+  return ed ? <InkEditLayer editor={ed} onDone={() => setEd(null)} /> : null;
+}
+
+function InkEditLayer({ editor, onDone }: { editor: Editor; onDone(): void }) {
+  const layer = useRef<HTMLDivElement>(null);
+  const [points, setPoints] = useState<{ x: number; y: number }[] | null>(null);
+  const [said, setSaid] = useState('Draw over the text: a line through or a scribble deletes, a circle selects, a line down starts a new paragraph, a ^ puts the caret there.');
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && onDone();
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [onDone]);
+  const finish = (pts: { x: number; y: number }[]) => {
+    setPoints(null);
+    // Looking through the layer at the text underneath.
+    const el = layer.current;
+    if (el) el.style.pointerEvents = 'none';
+    const did = editor.inkGesture(pts);
+    if (el) el.style.pointerEvents = '';
+    setSaid(did ? GESTURE_DONE[did] : 'That wasn’t one of the gestures. Try a line through, a scribble, a circle, a line down or a ^.');
+    // A ^ is for typing: the layer steps aside.
+    if (did === 'insert' || did === 'circle') onDone();
+  };
+  // Scrolling still moves the page underneath.
+  const wheel = (e: React.WheelEvent) => {
+    const el = layer.current;
+    if (!el) return;
+    el.style.pointerEvents = 'none';
+    let under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+    el.style.pointerEvents = '';
+    while (under && !(under.scrollHeight > under.clientHeight && /auto|scroll/.test(getComputedStyle(under).overflowY))) under = under.parentElement;
+    under?.scrollBy(0, e.deltaY);
+  };
+  const d = points && points.length > 1 ? `M${points.map((p) => `${p.x} ${p.y}`).join('L')}` : '';
+  return (
+    <div
+      ref={layer}
+      className="ink-edit-layer"
+      role="application"
+      aria-label="Editing with ink"
+      onWheel={wheel}
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest('.ink-edit-bar')) return;
+        e.preventDefault();
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        setPoints([{ x: e.clientX, y: e.clientY }]);
+      }}
+      onPointerMove={(e) => points && setPoints([...points, { x: e.clientX, y: e.clientY }])}
+      onPointerUp={() => points && finish(points)}
+      onPointerCancel={() => setPoints(null)}
+    >
+      <svg className="ink-edit-stroke" aria-hidden="true">
+        {d && <path d={d} />}
+      </svg>
+      <div className="ink-edit-bar" role="status">
+        <span>{said}</span>
+        <button type="button" className="btn small" onClick={() => editor.undo()}>
+          Undo
+        </button>
+        <button type="button" className="btn small primary" onClick={onDone}>
+          Done
+        </button>
+      </div>
+    </div>
+  );
 }

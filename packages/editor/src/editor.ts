@@ -4,6 +4,7 @@
 // autocorrect paths), we let the DOM change and then read it back into the
 // model as ordinary ops.
 
+import { type InkGestureKind, type InkPoint, classifyGesture, nearestGap, toWords } from './inkedit';
 import {
   type Align,
   makeBlock,
@@ -1464,6 +1465,65 @@ export class Editor {
 
   /** Clicks on a drawing (the app opens it to draw on). */
   onInkEdit: ((id: string, text: string) => void) | null = null;
+
+  /** The text position under a point on the screen (null when it isn't over this editor's text). */
+  posAtPoint(x: number, y: number): Pos | null {
+    const doc = this.view.root.ownerDocument as Document & { caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null };
+    const at = doc.caretPositionFromPoint?.(x, y);
+    const range = at ? null : doc.caretRangeFromPoint?.(x, y);
+    const node = at?.offsetNode ?? range?.startContainer;
+    if (!node || !this.view.root.contains(node)) return null;
+    return this.view.domToPos(node, at?.offset ?? range?.startOffset ?? 0);
+  }
+
+  /**
+   * Word's ink editor: a stroke drawn over the text (screen pixels) as an edit. A line through
+   * or a scribble deletes the words under it (tracked when tracking), a circle selects them, a
+   * line down starts a new paragraph, and a ^ puts the caret between words. Returns what it did.
+   */
+  inkGesture(points: InkPoint[]): InkGestureKind | null {
+    if (this.isReadOnly) return null;
+    const g = classifyGesture(points);
+    if (!g) return null;
+    const { box } = g;
+    const h = box.bottom - box.top;
+    if (g.kind === 'split' || g.kind === 'insert') {
+      const y = g.kind === 'split' ? g.at.y + 6 : g.at.y;
+      const pos = this.posAtPoint(g.at.x, y);
+      if (!pos) return null;
+      const text = getBlock(this.state.doc, pos.block).runs.map((r) => r.text).join('');
+      const where = caret({ block: pos.block, offset: nearestGap(text, pos.offset) });
+      const s = { ...this.state, selection: where };
+      if (g.kind === 'split') this.dispatch(this.tracking ? trackedSplit(s, this.tracking.author) : splitBlock(s), 'command');
+      else this.select(where);
+      this.focus();
+      return g.kind;
+    }
+    // From the stroke's start to its end, on its middle line (or inside its corners when it covers several lines).
+    const tall = g.kind !== 'strike' && h > 40;
+    const a = this.posAtPoint(box.left + 2, tall ? box.top + h * 0.2 : (box.top + box.bottom) / 2);
+    const z = this.posAtPoint(box.right - 2, tall ? box.bottom - h * 0.2 : (box.top + box.bottom) / 2);
+    if (!a || !z) return null;
+    let anchor = a;
+    let focus = z;
+    // Out to whole words when it starts and ends in one paragraph.
+    if (a.block === z.block) {
+      const text = getBlock(this.state.doc, a.block).runs.map((r) => r.text).join('');
+      const [from, to] = toWords(text, a.offset, z.offset, g.kind !== 'circle');
+      if (from === to) return null;
+      anchor = { block: a.block, offset: from };
+      focus = { block: a.block, offset: to };
+    }
+    const sel = { anchor, focus };
+    if (g.kind === 'circle') {
+      this.select(sel);
+      this.focus();
+      return 'circle';
+    }
+    const s = { ...this.state, selection: sel };
+    this.dispatch(this.tracking ? trackedDelete(s, 1, this.tracking.author) : deleteSelection(s), 'command');
+    return g.kind;
+  }
 
   /** Word's Draw → Drawing canvas: an empty drawing at the caret, opened to draw on. */
   insertDrawing(): void {

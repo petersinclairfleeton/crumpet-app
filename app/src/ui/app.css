@@ -3182,3 +3182,10 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .export-more-note { margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
 .export-page-cover { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 38%; text-align: center; }
 .export-page-cover b { font-size: 13px; font-weight: 400; }
+
+/* Editing with ink (Word's ink editor): a clear layer over everything, the stroke in honey, a bar to finish. */
+.ink-edit-layer { position: fixed; inset: 0; z-index: 70; cursor: crosshair; touch-action: none; }
+.ink-edit-stroke { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ink-edit-stroke path { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+.ink-edit-bar { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: min(640px, calc(100vw - 32px)); padding: 8px 8px 8px 16px; border-radius: 12px; background: var(--calm-card, var(--page)); box-shadow: var(--shadow); font-size: 13px; color: var(--text2); cursor: default; }
+.ink-edit-bar span { flex: 1; }

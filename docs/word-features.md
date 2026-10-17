@@ -177,7 +177,7 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Pens, pencil, highlighter, eraser, lasso select | ✅ | Formatting bar → Draw: a drawing window with pen, pencil and highlighter (eight colours, four thicknesses), an eraser, and a lasso to pick strokes, drag them and recolour them; a finger, mouse or pen (Apple Pencil's pressure thickens the line). Undo and redo. |
 | Ink to Shape, Ink to Math, Ink Replay | 🟡 | Ink to shape (rough lines, boxes, ovals and triangles made neat as you draw, or picked ones afterwards) and Replay. No Ink to Math: reading handwriting needs a recogniser. |
-| Ink editor (strike out or insert text with gestures) | ❌ | Drawing is in its own canvas, not over the text, and needs a handwriting recogniser. |
+| Ink editor (strike out or insert text with gestures) | ✅ | More → Edit with ink: draw over the text with a finger, pen or mouse. A line through or a scribble deletes the words (tracked when Track changes is on), a circle selects them, a line down starts a new paragraph, and a ^ puts the caret between words to type. Handwriting isn't turned into text (that needs a recogniser): type what you insert. |
 | Drawing canvas | ✅ | A drawing sits in the text where you put it (click it to draw more); its height can be changed. Word gets it as a picture; boards (cards and arrows) are still notes of their own. |
 | Ruler | ✅ | In page view, with draggable indents. |
 
@@ -618,7 +618,7 @@ Where: `app/src/data/docx.ts`, `textstats.ts`, `ui/writingtab.tsx`, `ui/print.ts
 - [x] 3D models
 - [x] Draw tab: pen, pencil, highlighter, eraser, lasso (finger, mouse, Apple Pencil)
 - [x] Ink to shape and ink replay (ink to maths not built: needs a handwriting recogniser)
-- [ ] Ink editing gestures
+- [x] Ink editing gestures (no handwriting into text: it needs a recogniser)
 - [x] Drawing canvas in a document
 - [x] Macros (record and play back)
 - [x] Customise the formatting bar

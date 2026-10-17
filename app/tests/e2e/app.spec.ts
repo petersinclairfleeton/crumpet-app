@@ -5959,3 +5959,70 @@ test.describe('on an iPad, in the calm look', () => {
     expect(box.y).toBeGreaterThan(700);
   });
 });
+
+test('editing with ink: strike out, scribble, a line down, a circle and a ^ over the text', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await newNote(page, 'Inked', 'Take the old boat home now.');
+  const editor = page.locator('.note-editor');
+  /** Where a word sits on the screen. */
+  const word = (w: string) =>
+    page.evaluate((w) => {
+      const root = document.querySelector('.note-editor')!;
+      const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+        const i = n.textContent!.indexOf(w);
+        if (i < 0) continue;
+        const r = document.createRange();
+        r.setStart(n, i);
+        r.setEnd(n, i + w.length);
+        const b = r.getBoundingClientRect();
+        return { left: b.left, right: b.right, top: b.top, bottom: b.bottom, mid: (b.top + b.bottom) / 2 };
+      }
+      throw new Error('no ' + w);
+    }, w);
+  const stroke = async (pts: [number, number][]) => {
+    await page.mouse.move(pts[0][0], pts[0][1]);
+    await page.mouse.down();
+    for (const [x, y] of pts.slice(1)) await page.mouse.move(x, y, { steps: 4 });
+    await page.mouse.up();
+  };
+  await (await toolButton(page, 'Edit with ink')).click();
+  const layer = page.getByRole('application', { name: 'Editing with ink' });
+  await expect(layer).toBeVisible();
+  // A line through "old" deletes it (and one space).
+  let b = await word('old');
+  await stroke([[b.left + 2, b.mid], [b.right - 2, b.mid + 1]]);
+  await expect(editor).toContainText('Take the boat home now.');
+  await expect(layer.getByRole('status')).toContainText('Struck out');
+  // A scribble over "now" deletes it.
+  b = await word('now');
+  const xs = [b.left, b.right, b.left, b.right, b.left, b.right];
+  await stroke(xs.map((x, i) => [x + (i % 2 ? -1 : 1), b.mid - 4 + i * 1.5] as [number, number]));
+  await expect(editor).toContainText('Take the boat home.');
+  // Undo brings it back.
+  await layer.getByRole('button', { name: 'Undo' }).click();
+  await expect(editor).toContainText('Take the boat home now.');
+  // A line down before "home" starts a new paragraph there.
+  b = await word('home');
+  await stroke([[b.left - 1, b.top - 4], [b.left, b.bottom + 24]]);
+  await expect(editor.locator('p')).toHaveCount(2);
+  await expect(editor.locator('p').nth(1)).toHaveText('home now.');
+  // A ^ under the gap before "boat" puts the caret there, ready to type.
+  b = await word('boat');
+  await stroke([[b.left - 14, b.bottom + 14], [b.left - 1, b.mid], [b.left + 12, b.bottom + 14]]);
+  await expect(layer).toHaveCount(0);
+  await page.keyboard.type('blue ');
+  await expect(editor.locator('p').first()).toHaveText('Take the blue boat');
+  // A circle round "Take" selects it: typing replaces it.
+  await (await toolButton(page, 'Edit with ink')).click();
+  b = await word('Take');
+  const cx = (b.left + b.right) / 2;
+  const rx = (b.right - b.left) / 2 + 2;
+  const ry = (b.bottom - b.top) / 2 + 3;
+  await stroke(Array.from({ length: 25 }, (_, i) => [cx + rx * Math.cos((i / 24) * 2 * Math.PI), b.mid + ry * Math.sin((i / 24) * 2 * Math.PI)] as [number, number]));
+  await expect(layer).toHaveCount(0);
+  await page.keyboard.type('Row');
+  await expect(editor.locator('p').first()).toHaveText('Row the blue boat');
+});

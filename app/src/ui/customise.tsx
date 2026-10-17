@@ -20,7 +20,7 @@ export function customised(items: ToolItem[], custom: { hide?: string[]; pin?: s
 /** Names for buttons without a label of their own. */
 const NAMES: Record<string, string> = {
   sup: 'Superscript', sub: 'Subscript', fontdlg: 'Font window', grow: 'Grow font', shrink: 'Shrink font', clear: 'Clear formatting', case: 'Change case', color: 'Font colour',
-  blankpage: 'Blank page', screenshot: 'Screenshot', chart: 'Chart', draw: 'Draw', dropcap: 'Drop cap', textbox: 'Text box', toc: 'Table of contents', pagesetup: 'Page setup',
+  blankpage: 'Blank page', screenshot: 'Screenshot', chart: 'Chart', draw: 'Draw', inkedit: 'Edit with ink', dropcap: 'Drop cap', textbox: 'Text box', toc: 'Table of contents', pagesetup: 'Page setup',
   linenumbers: 'Line numbers', pageborders: 'Page borders', pageslayout: 'Pages on screen', outlineview: 'Outline view', newwindow: 'New window', syncscroll: 'Scroll together',
   multilevel: 'Multilevel list', numbered: 'Numbering', bullet: 'Bullets', h: 'Headings', marks: 'Show/hide ¶', bright: 'Corrections', strike: 'Strikethrough', object: 'Object', model3d: '3D model',
 };

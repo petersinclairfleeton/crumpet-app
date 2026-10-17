@@ -8,6 +8,7 @@ import { findByTitle } from '../data/links';
 import { ClipDialog } from './clipper';
 import { Sidebar } from './Sidebar';
 import { PhoneLibrary } from './phone';
+import { InkEditHost } from './inktools';
 import { IconPlus } from './icons';
 import { NoteList } from './NoteList';
 import { NotePane } from './NotePane';
@@ -472,6 +473,7 @@ export function App() {
         )}
       </div>
       </PeekContext.Provider>
+      <InkEditHost />
       {narrow && (pane === 'list' || (phoneCalm && pane === 'sidebar')) && !state.focusMode && <HomeScreenGuide />}
       {narrow && pane === 'list' && !state.focusMode && !phoneCalm && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
       {/* The calm phone: no bar of tabs, just the round + on a list (or a book's chapters). */}
