@@ -46,4 +46,4 @@ look for the same kind of control everywhere.
 
 - [x] Settings all of a piece: every page built from the same rows (`settingrows.tsx`), switches instead of tick boxes, plain examples, sync as two clear choices, each setting in one place, switches in ink (#170)
 - [x] One voice: headings in normal case, one drop-down sign (`.caret`), menus without stray icons and lined up, no name over an open menu, no red dot, quieter links (#171)
-- [ ] Books with less on screen: no colour key, one New chapter, no how-to lines, tidy chapter header
+- [x] Books with less on screen: no colour key, one New chapter, no how-to line, the status as words (no gap), the inspector's tabs on one line with the page's button its only switch, Read's zoom as − 100% + and its pages as one switch, ink tick boxes (#172)

@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-book-calm',
+    date: '17 October 2026',
+    title: 'Books, with less on screen',
+    points: [
+      'The outline no longer has a colour key at its foot: rest the mouse on a chapter’s dot to see its status, or look at the top of the chapter.',
+      'The top of a chapter reads “Draft · 157 words”, without the gap after the status.',
+      'Cards has one way to add a chapter, the card at the end, and no how-to line under the Show choices.',
+      'The inspector’s tabs fit on one line: the panel button at the top of a note or chapter opens and closes it, so it no longer has a second close button of its own (it keeps one as a drawer on smaller screens).',
+      'Read’s zoom reads − 100% +, and One page and Two pages are one switch. Tick boxes are ink, like switches.',
+    ],
+  },
+  {
     id: '2026-10-17-one-voice',
     date: '17 October 2026',
     title: 'One voice, everywhere',

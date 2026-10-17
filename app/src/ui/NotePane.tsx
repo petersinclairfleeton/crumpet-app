@@ -18,7 +18,7 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
-import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconRightPanel, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { BoardView } from './board';
 import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
@@ -187,7 +187,13 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         {note.favorite ? <IconStarFilled size={16} /> : <IconStar size={16} />}
       </button>
       )}
+      {/* The inspector's one switch, on the page: open, it stays here to close it (as beside a chapter). */}
       {calm && !narrow && !state.settings.layout?.right && <ShowButton what="right" />}
+      {calm && !narrow && state.settings.layout?.right && (
+        <button type="button" className="icon-btn on" aria-pressed="true" aria-label="Close the inspector" data-tip="Close the inspector" onClick={() => store.updateLayout({ right: false })}>
+          <IconRightPanel size={17} />
+        </button>
+      )}
       <button type="button" className="icon-btn" aria-label="More" data-tip="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>
         <IconMore size={16} />
       </button>

@@ -349,7 +349,6 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
               {label}
             </label>
           ))}
-          <p className="book-hint">Drag cards to reorder chapters. Undo with {isMac ? '⌘Z' : 'Ctrl+Z'}.</p>
         </div>
       ) : (
       <>
@@ -512,13 +511,6 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
             <span className="grow">Research</span>
             <span className="count">{researchCount}</span>
           </button>
-          <ul className="status-key" aria-label="What the dots mean">
-            {STATUSES.map((s) => (
-              <li key={s.id}>
-                <span className={`status-dot ${s.id}`} aria-hidden="true" /> {s.label}
-              </li>
-            ))}
-          </ul>
         </div>
       ) : (
       <>
@@ -734,9 +726,14 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   );
   const after = list.slice(at + 1).reduce((sum, x) => sum + count(x.chapter), 0);
 
+  // The status's name as plain words, the menu laid invisibly over it (a menu
+  // on its own is as wide as its longest choice, leaving a gap after "Draft").
   const statusPick = (
-    <label className={`status-pick ${chapter.status}`}>
+    <label className={`status-pick overlay ${chapter.status}`}>
       <span className={`status-dot ${chapter.status}`} aria-hidden="true" />
+      <span className="status-name" aria-hidden="true">
+        {STATUSES.find((x) => x.id === chapter.status)?.label}
+      </span>
       <span className="visually-hidden">Status</span>
       <select value={chapter.status} onChange={(e) => store.setChapterStatus(chapter.id, e.target.value as ChapterStatus)}>
         {STATUSES.map((s) => (

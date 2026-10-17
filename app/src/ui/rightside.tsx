@@ -87,7 +87,7 @@ export function RightSidebar() {
           {moreTabs.length > 0 && (
             <span className="right-more">
               <button type="button" aria-expanded={more} aria-label="More helpers" onClick={() => setMore(!more)}>
-                {calmBook ? '···' : 'More ▾'}
+                {calm ? '···' : 'More ▾'}
               </button>
               {more && (
                 <Popover label="More helpers" onClose={() => setMore(false)}>

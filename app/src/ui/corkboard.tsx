@@ -31,7 +31,7 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
     store.setProjectMode('chapter');
   };
 
-  // The calm look (design 12): a heading with the count, + Chapter; what the cards show is chosen in the outline.
+  // The calm look (design 12): a heading with the count, and a card at the end for a new chapter; what the cards show is chosen in the outline.
   const calm = !state.settings.toolbarAll && !narrow;
   const total = [...chapters.values()].reduce((sum, x) => sum + chapterWords(x.chapter), 0);
   return (
@@ -42,10 +42,6 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
           <span className="cards-count">
             {chapters.size} chapter{chapters.size === 1 ? '' : 's'} · {total.toLocaleString()} words
           </span>
-          <span className="grow" />
-          <button type="button" className="btn" onClick={() => store.addChapter(project.id)}>
-            <IconPlus size={14} /> Chapter
-          </button>
         </header>
       ) : (
       <div className="note-toolbar" role="toolbar" aria-label="Corkboard">
