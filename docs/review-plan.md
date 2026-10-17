@@ -207,9 +207,11 @@ Where: `app/tests/e2e/app.spec.ts` (`open()`), every file with `calm` checks
 
 **6. Checks before merging**
 Where: `.github/workflows/`.
-- [ ] A pull-request workflow: app and editor types and unit tests, a build, and
-      the browser tests (split across four runners); merging waits for it.
-- [ ] The Pages workflow runs the editor's tests too.
+- [x] A pull-request workflow: app and editor types and unit tests, a build, and
+      the browser tests (split across four runners); merging waits for it
+      (by habit: `CLAUDE.md` says merge only when it's green; GitHub's branch
+      protection, which would enforce it, is a repository setting for Peter).
+- [x] The Pages workflow runs the editor's tests too.
 
 **7. Real devices** (Peter, with a checklist; Claude can't do these)
 Where: a new `docs/device-checklist.md`.
