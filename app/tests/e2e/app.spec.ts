@@ -5863,20 +5863,27 @@ test.describe('on a phone, in the calm look', () => {
       const c = (window as unknown as { crumpet: Record<string, (...a: unknown[]) => { id: string }> }).crumpet;
       const nb = c.createNotebook('Journal');
       c.createNote({ title: 'Monday', notebookId: nb.id });
-      c.createNote({ title: 'Loose thought' });
+      c.createNote({ title: 'Loose thought', tags: ['idea'] });
       const p = c.createProject('The Lighthouse');
       c.addChapter(p.id);
     });
-    // The library: grouped rows, and no tabs along the bottom.
+    // The library: the computer's groups as rows, tags as chips, and no tabs along the bottom.
     const library = page.getByRole('navigation', { name: 'Notebooks' });
     await expect(library.getByRole('heading', { name: 'Crumpet' })).toBeVisible();
     await expect(page.locator('.tab-bar')).toHaveCount(0);
     await expect(library.getByRole('button', { name: /^Inbox/ })).toContainText('1');
+    await expect(library.getByRole('region', { name: 'Capture' }).getByRole('button', { name: /^Today/ })).toBeVisible();
+    await expect(library.getByRole('region', { name: 'Tags' }).getByRole('button', { name: '#idea' })).toBeVisible();
     // A notebook's list: back, a big title, search and the round +.
     await library.getByRole('button', { name: /^Journal/ }).click();
     const notes = page.getByRole('region', { name: 'Notes', exact: true });
     await expect(notes.getByRole('heading', { name: 'Journal' })).toBeVisible();
     await expect(notes.locator('.card')).toHaveCount(1);
+    await expect(notes.getByRole('button', { name: 'Back to the library' })).toHaveText('Crumpet');
+    // Its menu only sorts: a phone's list is the screen, as cards.
+    await notes.getByRole('button', { name: /^Sort and show/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Sort and show' }).getByRole('button', { name: 'Hide the list' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
     // Searching shows Cancel, which leaves the search.
     await page.locator('#search').fill('thought');
     await expect(notes.locator('.card')).toContainText('Loose thought');

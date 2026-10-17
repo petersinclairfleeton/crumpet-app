@@ -98,11 +98,12 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
           <>
             {!searching && (
               <div className="phone-bar">
-                <button type="button" className="icon-btn" aria-label="Back to the library" onClick={onBack}>
-                  <IconBack size={22} />
+                <button type="button" className="icon-btn back" aria-label="Back to the library" onClick={onBack}>
+                  <IconBack size={18} />
+                  <span className="back-label">Crumpet</span>
                 </button>
                 <span className="grow" />
-                {!trash && !reminders && <ListMenu sort={sort} sortName={sortName} icon />}
+                {!trash && !reminders && <ListMenu sort={sort} sortName={sortName} phone />}
               </div>
             )}
             <label className={`phone-search${searching ? ' on' : ''}`}>
@@ -110,7 +111,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
               <span className="visually-hidden">Search notes</span>
               <input id="search" type="search" autoComplete="off" placeholder="Search" value={state.query} onChange={(e) => store.setQuery(e.target.value)} />
               {searching && (
-                <button type="button" className="link-btn phone-cancel" onClick={() => store.setQuery('')}>
+                <button type="button" className="phone-cancel" onClick={() => store.setQuery('')}>
                   Cancel
                 </button>
               )}
@@ -243,7 +244,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
 
       {notes.length === 0 ? (
         chapters.length === 0 && <Empty view={state.view} searching={searching} query={state.query} onNewNote={onNewNote} />
-      ) : style === 'table' ? (
+      ) : style === 'table' && !phone ? (
         <div className="list-table">
           <table className="note-table">
             <thead>
@@ -385,15 +386,16 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu,
 }
 
 /** The calm list's one menu: how the notes are sorted and shown, and folding the list away. */
-function ListMenu({ sort, sortName, icon = false }: { sort: SortBy; sortName: string; icon?: boolean }) {
+/** Sort and show. A phone's has only Sort by: a phone's list is the screen, shown as cards. */
+function ListMenu({ sort, sortName, phone = false }: { sort: SortBy; sortName: string; phone?: boolean }) {
   const state = useAppState();
   const store = useAppStore();
   const [open, setOpen] = useState(false);
   const style = state.settings.listStyle ?? 'cards';
   return (
     <span className="list-menu">
-      <button type="button" className={icon ? 'icon-btn' : 'list-menu-btn'} aria-label={`Sort and show: ${sortName}`} aria-expanded={open} onClick={() => setOpen(!open)}>
-        {icon ? <IconMore size={22} /> : <>{sortName}<IconChevronDown size={14} /></>}
+      <button type="button" className={phone ? 'icon-btn' : 'list-menu-btn'} aria-label={`Sort and show: ${sortName}`} aria-expanded={open} onClick={() => setOpen(!open)}>
+        {phone ? <IconMore size={22} /> : <>{sortName}<IconChevronDown size={14} /></>}
       </button>
       {open && (
         <Popover label="Sort and show" onClose={() => setOpen(false)}>
@@ -409,22 +411,26 @@ function ListMenu({ sort, sortName, icon = false }: { sort: SortBy; sortName: st
               {label} {sort === k && <span className="menu-tick">✓</span>}
             </button>
           ))}
-          <hr className="menu-sep" />
-          <p className="menu-label">Show as</p>
-          {(
-            [
-              ['cards', 'Cards'],
-              ['table', 'Table'],
-            ] as const
-          ).map(([k, label]) => (
-            <button key={k} type="button" className="menu-item" role="menuitemradio" aria-checked={style === k} onClick={() => (store.updateSettings({ listStyle: k }), setOpen(false))}>
-              {label} {style === k && <span className="menu-tick">✓</span>}
-            </button>
-          ))}
-          <hr className="menu-sep" />
-          <button type="button" className="menu-item" onClick={() => (store.updateLayout({ list: false }), setOpen(false))}>
-            Hide the list
-          </button>
+          {!phone && (
+            <>
+              <hr className="menu-sep" />
+              <p className="menu-label">Show as</p>
+              {(
+                [
+                  ['cards', 'Cards'],
+                  ['table', 'Table'],
+                ] as const
+              ).map(([k, label]) => (
+                <button key={k} type="button" className="menu-item" role="menuitemradio" aria-checked={style === k} onClick={() => (store.updateSettings({ listStyle: k }), setOpen(false))}>
+                  {label} {style === k && <span className="menu-tick">✓</span>}
+                </button>
+              ))}
+              <hr className="menu-sep" />
+              <button type="button" className="menu-item" onClick={() => (store.updateLayout({ list: false }), setOpen(false))}>
+                Hide the list
+              </button>
+            </>
+          )}
         </Popover>
       )}
     </span>

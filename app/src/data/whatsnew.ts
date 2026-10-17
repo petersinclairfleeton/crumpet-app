@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-phone-library',
+    date: '17 October 2026',
+    title: 'The library on a phone, like the computer’s',
+    points: [
+      'On a phone the library has the same groups as the computer’s sidebar, in the same order: Capture (Inbox and Today), Library (All notes and Favourites), Notebooks and Writing, with + beside Writing for a new book.',
+      'Tags are a row of chips, as in Apple’s Notes, and Graph of links and Trash are at the foot; nothing waits behind More any more.',
+      'A list’s back button says where it goes (‹ Crumpet), its ··· menu is just Sort by (a phone shows notes as cards), Cancel is plain words, and the round + steps aside while you search.',
+    ],
+  },
+  {
     id: '2026-10-17-phone-writing',
     date: '17 October 2026',
     title: 'Writing on a phone, calmer and fixed',

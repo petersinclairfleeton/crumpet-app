@@ -477,7 +477,8 @@ export function App() {
       {narrow && (pane === 'list' || (phoneCalm && pane === 'sidebar')) && !state.focusMode && <HomeScreenGuide />}
       {narrow && pane === 'list' && !state.focusMode && !phoneCalm && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
       {/* The calm phone: no bar of tabs, just the round + on a list (or a book's chapters). */}
-      {phoneCalm && pane === 'list' && !state.focusMode && (
+      {/* Out of the way of the results while searching. */}
+      {phoneCalm && pane === 'list' && !state.focusMode && !state.query && (
         <button type="button" className="fab" aria-label={project ? 'New chapter' : 'New note'} onClick={() => (project ? store.addChapter(project.id) : newNote())}>
           <IconPlus size={26} />
         </button>
