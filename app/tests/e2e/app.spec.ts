@@ -5552,8 +5552,12 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
   await page.getByRole('button', { name: /^Export/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Export The Lighthouse' });
   await expect(dialog).toContainText('2 chapters');
+  // Page 1 is the title page (on by default); without it, the first chapter.
+  await expect(dialog.getByLabel('Preview of page 1')).toContainText('About 100 words');
+  await dialog.getByLabel('Title page').uncheck();
   await expect(dialog.getByLabel('Preview of page 1')).toContainText('Chapter One');
   await expect(dialog.getByLabel('Preview of page 1')).toContainText('The boat left her');
+  await dialog.getByLabel('Title page').check();
   // Word, the first choice.
   const [docx] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download as Word document' }).click()]);
   expect(docx.suggestedFilename()).toBe('The Lighthouse.docx');
@@ -5574,6 +5578,24 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
   });
   expect(body).toContain('The boat left her');
   expect(body).not.toContain('placeholder');
+  // A title page comes first (on by default); the book has no parts, so no part pages.
+  expect(body).toContain('About 100 words');
+  expect(body.indexOf('About 100 words')).toBeLessThan(body.indexOf('The boat left her'));
+  await outline.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: /^Export/ }).click();
+  await expect(dialog.getByLabel(/Part headings/)).toBeDisabled();
+  await expect(dialog.getByLabel('Comments and tracked changes')).not.toBeChecked();
+  await dialog.getByLabel('Title page').uncheck();
+  await dialog.getByLabel('Another format').selectOption('txt');
+  const [txt2] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download as Plain text' }).click()]);
+  const body2 = await new Promise<string>((done) => {
+    void txt2.createReadStream().then((st) => {
+      let out = '';
+      st.on('data', (d: { toString(): string }) => (out += d.toString()));
+      st.on('end', () => done(out));
+    });
+  });
+  expect(body2).not.toContain('About 100 words');
   // The e-book.
   await outline.getByRole('button', { name: 'Project options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();

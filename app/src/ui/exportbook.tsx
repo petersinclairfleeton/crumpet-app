@@ -8,7 +8,7 @@ import type { Project } from '../data/types';
 import type { AppState } from '../data/store';
 import { useAppStore } from './hooks';
 import { blockText, chapterWords, numberInWords, projectChapters } from '../data/selectors';
-import { DOCX_TYPE, EPUB_TYPE, docxName, download, exportAs, fileName, projectDocx, projectEpub, projectParts } from '../data/wordfiles';
+import { type BookOptions, DOCX_TYPE, EPUB_TYPE, docxName, download, exportAs, fileName, projectDocx, projectEpub, projectParts } from '../data/wordfiles';
 import { IconClose } from './icons';
 
 type Way = 'docx' | 'epub' | 'pdf' | 'odt' | 'rtf' | 'html' | 'txt';
@@ -31,10 +31,14 @@ function exportState(state: AppState, skipTodo: boolean): AppState {
   return skipTodo ? { ...state, chapters: state.chapters.filter((c) => c.status !== 'todo') } : state;
 }
 
-export function ExportBook({ project, onClose, onPrint }: { project: Project; onClose(): void; onPrint(skipTodo: boolean): void }) {
+export function ExportBook({ project, onClose, onPrint }: { project: Project; onClose(): void; onPrint(skipTodo: boolean, opts: BookOptions): void }) {
   const store = useAppStore();
   const [way, setWay] = useState<Way>('docx');
   const [skipTodo, setSkipTodo] = useState(false);
+  // The design's Included: a title page and part pages on, comments and tracked changes left out.
+  const [opts, setOpts] = useState<BookOptions>({ titlePage: true, partHeadings: true, notes: false });
+  const [more, setMore] = useState(false);
+  const hasParts = project.outline.some((x) => x.type === 'part');
   const [busy, setBusy] = useState(false);
   const state = exportState(store.getState(), skipTodo);
   const list = projectChapters(project, state.chapters);
@@ -53,14 +57,14 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
   const go = async () => {
     if (way === 'pdf') {
       onClose();
-      onPrint(skipTodo);
+      onPrint(skipTodo, opts);
       return;
     }
     setBusy(true);
     try {
-      if (way === 'docx') download(await projectDocx(state, project), docxName(project.name), DOCX_TYPE);
-      else if (way === 'epub') download(await projectEpub(state, project), fileName(project.name, 'epub'), EPUB_TYPE);
-      else await exportAs(way, project.name, projectParts(state, project));
+      if (way === 'docx') download(await projectDocx(state, project, opts), docxName(project.name), DOCX_TYPE);
+      else if (way === 'epub') download(await projectEpub(state, project, opts), fileName(project.name, 'epub'), EPUB_TYPE);
+      else await exportAs(way, project.name, projectParts(state, project, opts));
     } finally {
       setBusy(false);
     }
@@ -107,9 +111,29 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
           </div>
           <p className="menu-label">Included</p>
           <label className="check-row">
+            <input type="checkbox" checked={way !== 'epub' && !!opts.titlePage} disabled={way === 'epub'} onChange={(e) => setOpts({ ...opts, titlePage: e.target.checked })} />
+            Title page{way === 'epub' ? ' (an e-book always has one)' : ''}
+          </label>
+          <label className="check-row">
+            <input type="checkbox" checked={hasParts && !!opts.partHeadings} disabled={!hasParts} onChange={(e) => setOpts({ ...opts, partHeadings: e.target.checked })} />
+            Part headings{hasParts ? '' : ' (no parts)'}
+          </label>
+          <label className="check-row">
             <input type="checkbox" checked={!skipTodo} disabled={!todo} onChange={(e) => setSkipTodo(!e.target.checked)} />
             Chapters marked To do{todo ? ` (${todo})` : ' (none)'}
           </label>
+          <label className="check-row">
+            <input type="checkbox" checked={!!opts.notes} onChange={(e) => setOpts({ ...opts, notes: e.target.checked })} />
+            Comments and tracked changes
+          </label>
+          <button type="button" className="link-btn export-more" aria-expanded={more} onClick={() => setMore(!more)}>
+            More options: fonts, paper size, scene breaks
+          </button>
+          {more && (
+            <p className="export-more-note">
+              The manuscript follows the book’s own format. To change it, open a chapter and use Page setup (paper size, margins, headers and page numbers) and the paragraph styles (fonts, and the Scene break style) from the formatting bar’s More.
+            </p>
+          )}
           <footer className="export-actions">
             <button type="button" className="btn" onClick={onClose}>
               Cancel
@@ -122,7 +146,13 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
         <aside className="export-preview" aria-label="Preview of page 1">
           <div className="export-page" aria-hidden="true">
             <div className="export-page-head">{[author.split(/\s+/).pop(), (project.name || 'Untitled').toUpperCase(), '1'].filter(Boolean).join(' / ')}</div>
-            {first ? (
+            {opts.titlePage && way !== 'epub' && first ? (
+              <div className="export-page-cover">
+                <b>{project.name || 'Untitled'}</b>
+                {author && <span>by {author}</span>}
+                <span>About {(words >= 1000 ? Math.round(words / 1000) * 1000 : Math.max(100, Math.round(words / 100) * 100)).toLocaleString('en-GB')} words</span>
+              </div>
+            ) : first ? (
               <>
                 <div className="export-page-title">
                   Chapter {numberInWords(first.number)}
