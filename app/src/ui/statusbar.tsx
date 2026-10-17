@@ -72,6 +72,12 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
     if (el && box) box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 40 });
   };
 
+  // How big the pages are, or Fit; between − and + in the calm look (− 90% +).
+  const level = (
+    <button type="button" className="status-btn zoom-level" aria-pressed={!zoom} title={zoom ? 'Fit the page to the window' : 'Fitting the page to the window'} onClick={() => setZoom(zoom ? undefined : 100)}>
+      {zoom ? `${zoom}%` : 'Fit'}
+    </button>
+  );
   return (
     <div className="status-bar" role="group" aria-label="Page details">
       {total > 0 && (
@@ -104,26 +110,25 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
         Ruler
       </button>
       {calm && (
-        <>
+        <span className="status-pair" role="group" aria-label="Pages on screen">
           <button type="button" className="status-btn" aria-pressed={(settings.pageLayout ?? 'one') === 'one'} onClick={() => store.updateSettings({ pageLayout: 'one' })}>
             One page
           </button>
           <button type="button" className="status-btn" aria-pressed={settings.pageLayout === 'multi' && (settings.pagesPerRow ?? 2) === 2} onClick={() => store.updateSettings({ pageLayout: 'multi', pagesPerRow: 2 })}>
             Two pages
           </button>
-        </>
+        </span>
       )}
       <span className="zoom" role="group" aria-label="Zoom">
         <button type="button" className="status-btn" aria-label="Zoom out" onClick={() => step(-1)}>
           −
         </button>
+        {calm && level}
         <input type="range" aria-label="Zoom level" min={25} max={300} step={5} value={zoom ?? 100} onChange={(e) => setZoom(Number(e.target.value))} />
         <button type="button" className="status-btn" aria-label="Zoom in" onClick={() => step(1)}>
           +
         </button>
-        <button type="button" className="status-btn zoom-level" aria-pressed={!zoom} title={zoom ? 'Fit the page to the window' : 'Fitting the page to the window'} onClick={() => setZoom(zoom ? undefined : 100)}>
-          {zoom ? `${zoom}%` : 'Fit'}
-        </button>
+        {!calm && level}
       </span>
     </div>
   );
