@@ -3085,11 +3085,15 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 :root .app.phone .phone-top .icon-btn { width: 44px; height: 44px; margin-right: -10px; color: var(--calm-icon); }
 .phone-big { margin: 0 4px; font: 400 34px/1.2 var(--title-font); letter-spacing: -0.01em; color: var(--text); }
 .phone-sub { margin: 4px 4px 0; font-size: 13px; color: var(--calm-muted); }
-.phone-library section { margin-top: 16px; }
+.phone-library section { margin-top: 24px; }
+.phone-sub + section { margin-top: 28px; }
 .phone-label { margin: 0 0 8px; padding: 0 16px; font: 600 15px var(--ui-font); color: var(--calm-muted); }
-.phone-more { display: flex; align-items: center; justify-content: space-between; }
-.phone-more h2 { margin: 0; font: inherit; }
-.phone-more .link-btn { font: 500 12px var(--ui-font); letter-spacing: 0; text-transform: none; color: var(--accent-ink); text-decoration: none; }
+.phone-head { display: flex; align-items: center; justify-content: space-between; min-height: 24px; padding-right: 4px; }
+.phone-head h2 { margin: 0; font: inherit; }
+:root .app.phone .phone-head .icon-btn { width: 36px; height: 36px; margin: -6px 0; color: var(--accent-ink); }
+.phone-tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 4px; }
+.phone-tag { height: 36px; padding: 0 14px; border: none; border-radius: 999px; background: color-mix(in srgb, var(--calm-card) 78%, transparent); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04); font: 400 15px var(--ui-font); color: var(--text); cursor: pointer; }
+.phone-tag:active, .phone-tag.on { background: var(--calm-card); }
 .phone-group { list-style: none; margin: 0; padding: 0; border-radius: 12px; background: color-mix(in srgb, var(--calm-card) 78%, transparent); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04); overflow: hidden; }
 .phone-group li + li .phone-row { border-top: 1px solid var(--calm-hair); }
 .phone-row { width: 100%; min-height: 49px; display: flex; align-items: center; gap: 16px; padding: 0 16px; border: none; background: none; font: 400 16px var(--ui-font); color: var(--text); text-align: left; cursor: pointer; }
@@ -3120,7 +3124,7 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .phone-search.on { margin: 12px -88px 0 0; width: auto; }
 .app.phone .list-head:has(.phone-search.on) .list-title { display: none; }
 .app.phone .phone-search.on { order: 0; margin: 12px 0 0; position: relative; }
-.phone-cancel { position: absolute; right: -72px; font: 500 16px var(--ui-font); color: var(--accent-ink); text-decoration: none; }
+.phone-cancel { position: absolute; right: -72px; padding: 0; border: none; background: none; font: 500 16px var(--ui-font); color: var(--accent-ink); cursor: pointer; }
 .app.phone .list-head:has(.phone-search.on) { padding-right: 80px; }
 :root .app.phone .group-label { margin: 16px 0 8px; padding: 0 4px; font-size: 15px; font-weight: 600; color: var(--calm-muted); }
 :root .app.phone .cards { padding: 0; display: flex; flex-direction: column; gap: 8px; }

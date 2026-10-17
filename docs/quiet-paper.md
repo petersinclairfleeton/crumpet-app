@@ -52,6 +52,6 @@ look for the same kind of control everywhere.
 The same pass on an iPhone: what a phone needs, shaped the way an iPhone app is.
 
 - [x] Writing: the keyboard bar's menus open (they were clipped out of sight) as a panel above it, its tools evenly spaced; Aa's short list of styles; the note's and chapter's ··· menus shorter, icons at the end, downloads behind one row, no keyboard shortcuts on touch screens (#173)
-- [ ] The library and lists: the same groups as the computer, tags as chips, back buttons that say where they go, a list menu without desktop choices
+- [x] The library and lists: the same groups as the computer, tags as chips, no More, back buttons that say where they go, a list menu without desktop choices (Sort by only, always cards), plain Cancel, the + out of the way while searching (#174)
 - [ ] Settings like an iPhone's: a list of sections, each a page of its own
 - [ ] A book: characters and research as the same rows as chapters
