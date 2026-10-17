@@ -4,13 +4,15 @@ import type { SyncStatus } from '../sync/engine';
 import { canPickFolder } from '../sync/google-picker';
 import { canUseFolder } from '../sync/folder';
 import { desktop } from '../data/desktop';
-import { useSync } from './hooks';
+import { useMedia, useSync } from './hooks';
 import { SettingGroup, SettingRow } from './settingrows';
 
 /** Settings: where notes are kept: Google Drive, or a folder on this computer. */
 export function SyncSettings() {
   const { sync, state } = useSync();
   const [error, setError] = useState<string | null>(null);
+  // A phone can't keep notes in a folder, so it isn't offered one.
+  const narrow = useMedia('(max-width: 759px)');
   if (!sync) return null;
   const config = state.config;
   const run = (fn: () => Promise<void>) => {
@@ -121,13 +123,15 @@ export function SyncSettings() {
           </button>
         </SettingRow>
       )}
-      <SettingRow title="A folder on this computer" hint={canUseFolder ? 'Pick one that iCloud Drive, Dropbox or OneDrive keeps in step to have your notes everywhere.' : 'Needs Chrome or Edge on a computer.'}>
-        {canUseFolder && (
-          <button type="button" className="btn" disabled={state.connecting} onClick={() => run(() => sync.useLocalFolder())}>
-            Choose a folder…
-          </button>
-        )}
-      </SettingRow>
+      {(canUseFolder || !narrow) && (
+        <SettingRow title="A folder on this computer" hint={canUseFolder ? 'Pick one that iCloud Drive, Dropbox or OneDrive keeps in step to have your notes everywhere.' : 'Needs Chrome or Edge on a computer.'}>
+          {canUseFolder && (
+            <button type="button" className="btn" disabled={state.connecting} onClick={() => run(() => sync.useLocalFolder())}>
+              Choose a folder…
+            </button>
+          )}
+        </SettingRow>
+      )}
       {error && <p className="sync-line bad">{error}</p>}
     </SettingGroup>
   );

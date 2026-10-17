@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-phone-settings',
+    date: '17 October 2026',
+    title: 'Settings on a phone, like an iPhone’s',
+    points: [
+      'On a phone, Settings opens on a list of its sections (Appearance shows your theme, Account your name); tap one for a page of its own, with ‹ Settings to go back and Done to close.',
+      'Choices that do nothing on a phone aren’t offered there: the inspector, the computer’s formatting bar, a folder on the computer, and dragging the clipper to a bookmarks bar (the phone’s way to add it comes first instead).',
+      'Rows fit the screen: a menu, a name box or a button sits under its words, and the four themes fit on one row.',
+    ],
+  },
+  {
     id: '2026-10-17-phone-library',
     date: '17 October 2026',
     title: 'The library on a phone, like the computer’s',
