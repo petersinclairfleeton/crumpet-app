@@ -118,7 +118,7 @@ const CHAPTERS: Chapter[] = [
     title: 'Sharing and finishing',
     lede: 'When it’s ready to leave the house.',
     points: [
-      { title: 'Word, PDF and e-book', text: 'Download a note or a whole book as a Word document (or OpenDocument, Rich Text, a web page or plain text), print it (with a preview, page ranges and copies) or save it as a PDF, or make an e-book (ePub). Word files you upload open as Word documents, comments and tracked changes included, and are saved back as .docx.' },
+      { title: 'Word, PDF and e-book', text: 'Download a note or a whole book as a Word document (or OpenDocument, Rich Text, a web page or plain text), print it (with a preview, page ranges and copies) or save it as a PDF, or make an e-book (ePub). A book can start with a title page and give each part a page of its own, and leaves out comments and tracked changes unless you tick them. Word files you upload open as Word documents, comments and tracked changes included, and are saved back as .docx.' },
       { title: 'Check before you share', text: 'The Check tab in the right sidebar goes through accessibility, what Word won’t keep, comments and hidden text to remove, a spelling pass with suggestions, wordy phrases and more inclusive words.' },
       { title: 'Protect it', text: 'A note’s ⋯ menu → Protect with a password scrambles its text so only the password opens it (forget it and it’s gone). Protect document on the formatting bar marks it as final or lets others only read or comment, and Signature line signs it, warning if it changes afterwards.' },
       { title: 'Snapshots and versions', text: 'Take a snapshot before a big edit; Crumpet also keeps earlier versions as you write, and can compare any two.' },
@@ -163,7 +163,7 @@ const WORKFLOWS: Workflow[] = [
       'Add the people and places under Characters & places, so their cards are a hover away while you write.',
       'Set a word goal and a deadline from the project’s ••• menu.',
       'Write a chapter at a time. Change its status as it moves from draft to done; take a snapshot before a big rewrite.',
-      'Read it through in Manuscript, then ••• → Export: a manuscript for Word for agents and editors, or an e-book for readers (leave out chapters still To do if you like).',
+      'Read it through in Manuscript, then ••• → Export: a manuscript for Word for agents and editors, or an e-book for readers (with a title page and part pages; leave out chapters still To do if you like).',
     ],
   },
   {

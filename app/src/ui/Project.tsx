@@ -29,7 +29,8 @@ import { SlashMenu } from './slash';
 import { EndnoteList, FootnoteCard, FootnoteList } from './footnotes';
 import { CommentCard, CommentList } from './comments';
 import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from './changes';
-import { PrintJob } from './print';
+import { type PrintPart, PrintJob } from './print';
+import { type BookOptions, bookParts, finalDoc } from '../data/wordfiles';
 import { ExportBook } from './exportbook';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
@@ -85,17 +86,26 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
   const [exporting, setExporting] = useState(false);
   // Printing from the Export window can leave out the chapters marked To do.
   const [printSkipTodo, setPrintSkipTodo] = useState(false);
-  const printParts = useMemo(
-    () =>
-      printing
-        ? projectChapters(project, printSkipTodo ? state.chapters.filter((c) => c.status !== 'todo') : state.chapters).map(({ chapter, number, part }) => ({
-            id: chapter.id,
-            doc: { blocks: [makeBlock('heading1', chapter.title || `Chapter ${number}`), ...chapter.doc.blocks] },
-            fields: { title: project.name, chapter: number, chapterTitle: chapter.title, part: part?.title, words: chapterWords(chapter) },
-          }))
-        : [],
-    [printing, printSkipTodo, project, state.chapters],
-  );
+  // And add a title page and part pages, or leave out comments and tracked changes (BookOptions).
+  const [printOpts, setPrintOpts] = useState<BookOptions>({});
+  const printParts = useMemo(() => {
+    if (!printing) return [];
+    const chapters = printSkipTodo ? state.chapters.filter((c) => c.status !== 'todo') : state.chapters;
+    const out: PrintPart[] = [];
+    if (printOpts.titlePage) out.push({ id: 'title-page', doc: bookParts({ ...state, chapters }, project, { titlePage: true })[0].doc, fields: { title: project.name, words: 0 } });
+    let partNow: string | null = null;
+    for (const { chapter, number, part } of projectChapters(project, chapters)) {
+      if (printOpts.partHeadings && part && part.id !== partNow) out.push({ id: part.id, doc: { blocks: [makeBlock('heading1', part.title || 'Part')] }, fields: { title: project.name, part: part.title, words: 0 } });
+      partNow = part?.id ?? null;
+      const doc = printOpts.notes === false ? finalDoc(chapter.doc) : chapter.doc;
+      out.push({
+        id: chapter.id,
+        doc: { blocks: [makeBlock('heading1', chapter.title || `Chapter ${number}`), ...doc.blocks] },
+        fields: { title: project.name, chapter: number, chapterTitle: chapter.title, part: part?.title, words: chapterWords(chapter) },
+      });
+    }
+    return out;
+  }, [printing, printSkipTodo, printOpts, project, state.chapters, state.settings.name]);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
@@ -128,8 +138,9 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
         <ExportBook
           project={project}
           onClose={() => setExporting(false)}
-          onPrint={(skip) => {
+          onPrint={(skip, opts) => {
             setPrintSkipTodo(skip);
+            setPrintOpts(opts);
             setPrinting(true);
           }}
         />

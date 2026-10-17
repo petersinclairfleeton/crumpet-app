@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-export-included',
+    date: '17 October 2026',
+    title: 'Exporting a book: a title page, parts, and a clean copy',
+    points: [
+      'Export (in a book’s ··· menu) can start with a title page: the book’s name, your name and about how many words.',
+      'Each part of the book can have a page of its own before its chapters.',
+      'Comments and tracked changes are left out unless you tick them: the export reads as if every change were accepted. Your book itself isn’t changed.',
+    ],
+  },
+  {
     id: '2026-10-16-quiet-paper-ipad',
     date: '16 October 2026',
     title: 'Quiet Paper on an iPad',
