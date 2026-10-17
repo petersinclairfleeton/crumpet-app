@@ -10,6 +10,15 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-paper-phone',
+    date: '17 October 2026',
+    title: 'Paper and ink on a phone, fixed',
+    points: [
+      'With the Paper and ink theme, the phone now has the same tidy layout as the other themes: chapters in a book are neat rows again, and the back buttons say where they go (Notes, Crumpet, Outline).',
+      'On a phone a chapter opens as plain writing, like a note, instead of a small printed page; its status, word count, goal, synopsis and page view are in its ··· menu.',
+    ],
+  },
+  {
     id: '2026-10-17-ink-editing',
     date: '17 October 2026',
     title: 'Edit with ink',

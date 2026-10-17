@@ -6026,3 +6026,36 @@ test('editing with ink: strike out, scribble, a line down, a circle and a ^ over
   await page.keyboard.type('Row');
   await expect(editor.locator('p').first()).toHaveText('Row the blue boat');
 });
+
+test.describe('on a phone, in Paper and ink', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test('the phone layout holds in another theme: back buttons keep their words, chapters are tidy rows and open as plain writing', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.app')).toBeVisible();
+    await page.evaluate(() => {
+      const c = (window as unknown as { crumpet: Record<string, (...a: unknown[]) => { id: string }> }).crumpet;
+      c.updateSettings({ theme: 'paper' });
+      const p = c.createProject('The Lighthouse');
+      c.addChapter(p.id);
+      c.setView({ kind: 'all' });
+    });
+    await expect(page.locator('html')).toHaveAttribute('data-look', 'paper');
+    const library = page.getByRole('navigation', { name: 'Notebooks' });
+    await library.getByRole('button', { name: /^The Lighthouse/ }).click();
+    const outline = page.getByRole('region', { name: 'Outline' });
+    await expect(outline.getByRole('button', { name: 'Back to the library' })).toContainText('Crumpet');
+    // Each chapter's dot, title and words sit on one line.
+    const row = outline.locator('.outline-chapter').first();
+    const [dot, title, count] = await Promise.all(['.status-dot', '.outline-title', '.outline-words'].map((s) => row.locator(s).boundingBox()));
+    expect(Math.abs(dot!.y + dot!.height / 2 - (title!.y + title!.height / 2))).toBeLessThan(12);
+    expect(Math.abs(count!.y + count!.height / 2 - (title!.y + title!.height / 2))).toBeLessThan(16);
+    // A chapter opens as plain writing, not a page, with its status in the ··· menu.
+    await row.locator('.outline-open').click();
+    await expect(page.locator('.note-pane .pg')).toHaveCount(0);
+    await expect(page.locator('.chapter-meta')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Back to outline' })).toContainText('Outline');
+    await page.getByRole('button', { name: 'Chapter options' }).click();
+    await expect(page.getByRole('dialog', { name: 'Chapter options' }).getByLabel('Status')).toBeVisible();
+  });
+});
