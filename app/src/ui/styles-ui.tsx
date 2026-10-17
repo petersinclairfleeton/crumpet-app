@@ -63,7 +63,7 @@ export function StylePicker({ editor, sheet, disabled, onEditStyles }: { editor:
     <span className="style-picker note-actions">
       <button type="button" className="style-current" aria-label="Style" aria-haspopup="menu" aria-expanded={open} disabled={disabled} title="Paragraph style" onClick={() => setOpen(!open)}>
         <span>{styleNameIn(sheet, key)}</span>
-        <span aria-hidden="true">▾</span>
+        <span aria-hidden="true" className="caret">▾</span>
       </button>
       {open && (
         <Popover onClose={() => setOpen(false)} label="Styles">

@@ -1,5 +1,5 @@
 // What's new in Crumpet: the latest first. The newest entry's id marks what
-// a device has seen (settings.whatsNewSeen), so the Help menu can show a dot.
+// a device has seen (settings.whatsNewSeen), so the Help menu can mark it New.
 
 export interface WhatsNew {
   id: string;
@@ -9,6 +9,17 @@ export interface WhatsNew {
 }
 
 export const WHATS_NEW: WhatsNew[] = [
+  {
+    id: '2026-10-17-one-voice',
+    date: '17 October 2026',
+    title: 'One voice, everywhere',
+    points: [
+      'Headings in the sidebar, the list, Find, menus and the side panels are written normally (“Today”, “Library”, “Notes”) instead of in small capitals, as on a Mac or an iPhone. Capitals stay only where a book uses them, above a chapter’s title.',
+      'Every drop-down has the same thin arrow, and the rows of the More menu line up with their headings.',
+      'A button’s name no longer covers the menu it has just opened, and the settings menu is plain words, like every other menu.',
+      'No red dot on the settings button: What’s new is marked New in its menu instead. Links are quiet text, underlined only when you point at them.',
+    ],
+  },
   {
     id: '2026-10-17-settings-calm',
     date: '17 October 2026',
