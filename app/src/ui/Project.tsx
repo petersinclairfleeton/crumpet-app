@@ -688,11 +688,15 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const pageSetup = project.page ?? manuscriptPage();
   // The calm look writes in the plain view, its tools over selected words; page view is a click away.
   const calm = !state.settings.toolbarAll && !narrow;
-  const paged = state.settings.pageView?.projects ?? !calm;
-  const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords'>(null);
+  // The calm look on a phone: a chapter reads like a note, its status and goal in the ··· menu.
+  const phone = !state.settings.toolbarAll && narrow;
+  const paged = state.settings.pageView?.projects ?? !(calm || phone);
+  const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords' | 'synopsis'>(null);
   // An iPad held upright (design 15): the outline button and where you are, the chapters a menu away.
   const midWidth = useMedia('(max-width: 1099px)');
   const compact = calm && midWidth && !state.query.trim();
+  // Status, words, page view and the inspector wait in the ··· menu.
+  const menuHolds = compact || phone;
   const outlineOut = state.settings.layout?.list === true;
   const [jump, setJump] = useState(false);
   const list = projectChapters(project, state.chapters);
@@ -788,8 +792,8 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
       <button type="button" className="icon-btn" aria-label="Next chapter" data-tip="Next chapter" disabled={!next} onClick={() => next && store.selectChapter(next.id)}>
         <IconChevron size={18} />
       </button>
-      {!compact && <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />}
-      {!compact && <button type="button" className={`icon-btn${state.settings.layout?.right ? ' on' : ''}`} aria-label={state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'} aria-pressed={!!state.settings.layout?.right} data-tip="Inspector: who’s in this chapter, notes and comments" onClick={() => store.updateLayout({ right: !state.settings.layout?.right })}>
+      {!menuHolds && <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />}
+      {!menuHolds && <button type="button" className={`icon-btn${state.settings.layout?.right ? ' on' : ''}`} aria-label={state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'} aria-pressed={!!state.settings.layout?.right} data-tip="Inspector: who’s in this chapter, notes and comments" onClick={() => store.updateLayout({ right: !state.settings.layout?.right })}>
         <IconRightPanel size={18} />
       </button>}
       <button type="button" className="icon-btn" aria-label="Chapter options" aria-expanded={!!chapterMenu} onClick={() => setChapterMenu(chapterMenu ? null : 'menu')}>
@@ -799,7 +803,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         <Popover onClose={() => setChapterMenu(null)} label="Chapter options">
           {chapterMenu === 'menu' && (
             <>
-              {compact && (
+              {menuHolds && (
                 <>
                   <div className="menu-line">
                     {statusPick}
@@ -827,6 +831,11 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
               <button type="button" className="menu-item" onClick={() => setChapterMenu('keywords')}>
                 Keywords…
               </button>
+              {phone && (
+                <button type="button" className="menu-item" onClick={() => setChapterMenu('synopsis')}>
+                  Synopsis…
+                </button>
+              )}
             </>
           )}
           {chapterMenu === 'goal' && (
@@ -839,6 +848,9 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
               }}
             />
           )}
+          {chapterMenu === 'synopsis' && (
+            <AutoTextarea className="synopsis" aria-label="Synopsis" placeholder="Synopsis: what happens in this chapter" value={chapter.synopsis} onChange={(e) => store.setChapterSynopsis(chapter.id, e.target.value)} />
+          )}
           {chapterMenu === 'keywords' && (
             <div className="note-meta chapter-keywords">
               <KeywordEditor chapter={chapter} />
@@ -849,7 +861,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
     </div>
   );
 
-  const trail = calm ? calmTrail : (
+  const trail = calm || phone ? calmTrail : (
     <div className="note-actions">
       <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" data-tip={`Focus mode · ${isMac ? '⌘⇧F' : 'Ctrl+Shift+F'}`} onClick={() => store.setFocusMode(true)}>
         <IconFocus size={16} />
@@ -870,7 +882,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const header = (
     <>
       <div className="chapter-opening">
-      <p className="chapter-kicker">{[!calm && part?.title, `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ')}</p>
+      <p className="chapter-kicker">{[!calm && !phone && part?.title, `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ')}</p>
       <AutoTextarea
         className="note-title"
         aria-label="Chapter title"
@@ -886,7 +898,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
       />
       <span className="chapter-rule" aria-hidden="true" />
       </div>
-      {!calm && (
+      {!calm && !phone && (
       <>
       <div className="note-meta chapter-meta">
         <label className={`status-pick ${chapter.status}`}>
@@ -931,7 +943,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
     </>
   );
 
-  const footer = calm ? null : (
+  const footer = calm || phone ? null : (
     <p className="note-foot">
       {words(n)} · {project.name}: {words(projectWords(project, state.chapters))}
     </p>

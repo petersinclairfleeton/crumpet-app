@@ -3024,15 +3024,16 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
    each list has its back arrow and menu above a big title and a search box, and
    the round honey + floats over it. */
 [data-look='crumpet'][data-calm='phone'] body { background: var(--calm-wash); background-attachment: fixed; }
-[data-look='crumpet'] .app.phone { background: transparent; }
-[data-look='crumpet'] .app.phone :is(.workspace, .panes) { background: transparent; }
+:root .app.phone { background: transparent; }
+:root .app.phone :is(.workspace, .panes) { background: transparent; }
 .app.phone .fab { width: 60px; height: 60px; right: 24px; bottom: calc(40px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 2px 4px rgba(31, 35, 40, 0.1), 0 10px 24px rgba(31, 35, 40, 0.18); }
 .app.phone .fab .ic { stroke-width: 1.6; }
 
 /* The library. */
+:root .app.phone .phone-library { gap: 0; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(32px + env(safe-area-inset-bottom, 0px)); background: var(--shell, var(--page)); color: var(--text); }
 [data-look='crumpet'] .app.phone .phone-library { gap: 0; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(32px + env(safe-area-inset-bottom, 0px)); background: var(--calm-wash); color: var(--text); }
 .phone-top { display: flex; justify-content: flex-end; min-height: 44px; align-items: center; margin-top: 12px; }
-.phone-top .icon-btn { color: var(--calm-icon); }
+:root .app.phone .phone-top .icon-btn { width: 44px; height: 44px; margin-right: -10px; color: var(--calm-icon); }
 .phone-big { margin: 0 4px; font: 400 34px/1.2 var(--title-font); letter-spacing: -0.01em; color: var(--text); }
 .phone-sub { margin: 4px 4px 0; font-size: 13px; color: var(--calm-muted); }
 .phone-library section { margin-top: 16px; }
@@ -3050,13 +3051,13 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .phone-nb { flex: none; width: 8px; height: 16px; margin: 0 6px; border-radius: 2px; }
 
 /* A list: back and menu, big title, search. */
-[data-look='crumpet'] .app.phone .list { padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 120px; background: transparent; }
-[data-look='crumpet'] .app.phone .list-head { padding: 0; gap: 0; }
+:root .app.phone .list { padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 120px; background: transparent; }
+:root .app.phone .list-head { padding: 0; gap: 0; }
 .phone-bar { display: flex; align-items: center; min-height: 44px; margin: 12px -8px 0; }
 .phone-bar .icon-btn { width: 44px; height: 44px; color: var(--calm-icon); }
 .phone-bar .list-menu-btn { height: 44px; padding: 0 12px; color: var(--calm-icon); }
-[data-look='crumpet'] .app.phone .list-title { order: 1; margin: 0 4px; }
-[data-look='crumpet'] .app.phone .list-title h1 { font: 400 34px/1.2 var(--title-font); letter-spacing: -0.01em; }
+:root .app.phone .list-title { order: 1; margin: 0 4px; }
+:root .app.phone .list-title h1 { font: 400 34px/1.2 var(--title-font); letter-spacing: -0.01em; }
 .app.phone .list-title > svg { display: none; }
 .app.phone .phone-search { order: 2; margin-top: 16px; }
 .app.phone .list-sub { order: 3; }
@@ -3072,26 +3073,26 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .app.phone .phone-search.on { order: 0; margin: 12px 0 0; position: relative; }
 .phone-cancel { position: absolute; right: -72px; font: 500 16px var(--ui-font); color: var(--accent-ink); text-decoration: none; }
 .app.phone .list-head:has(.phone-search.on) { padding-right: 80px; }
-[data-look='crumpet'] .app.phone .group-label { margin: 16px 0 8px; padding: 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted); }
-[data-look='crumpet'] .app.phone .cards { padding: 0; display: flex; flex-direction: column; gap: 8px; }
+:root .app.phone .group-label { margin: 16px 0 8px; padding: 0 4px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted); }
+:root .app.phone .cards { padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .app.phone .cards .group { display: flex; flex-direction: column; gap: 8px; }
-[data-look='crumpet'] .app.phone .card, [data-look='crumpet'] .app.phone .card.selected { padding: 16px; gap: 0; margin: 0; border-radius: 12px; background: color-mix(in srgb, var(--calm-card) 78%, transparent); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04); }
-[data-look='crumpet'] .app.phone .card-top { margin-bottom: 4px; }
-[data-look='crumpet'] .app.phone .card-title { font-size: 16px; font-weight: 500; line-height: 1.35; }
-[data-look='crumpet'] .app.phone .card-preview { margin-bottom: 8px; font-size: 14px; line-height: 1.5; color: var(--muted); -webkit-line-clamp: 2; }
-[data-look='crumpet'] .app.phone .card-meta { font-size: 12px; color: var(--calm-muted); }
+:root .app.phone .card, :root .app.phone .card.selected { padding: 16px; gap: 0; margin: 0; border-radius: 12px; background: color-mix(in srgb, var(--calm-card) 78%, transparent); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04); }
+:root .app.phone .card-top { margin-bottom: 4px; }
+:root .app.phone .card-title { font-size: 16px; font-weight: 500; line-height: 1.35; }
+:root .app.phone .card-preview { margin-bottom: 8px; font-size: 14px; line-height: 1.5; color: var(--muted); -webkit-line-clamp: 2; }
+:root .app.phone .card-meta { font-size: 12px; color: var(--calm-muted); }
 
 /* A note: back to Notes, Share and the menu; where it is and when, above the title. */
-[data-look='crumpet'] .app.phone .pane { background: var(--calm-card); }
-[data-look='crumpet'] .app.phone .note-toolbar { height: auto; min-height: 44px; padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 0; border: none; background: transparent; }
+:root .app.phone .pane { background: var(--calm-card); }
+:root .app.phone .note-toolbar { height: auto; min-height: 44px; padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 0; border: none; background: transparent; }
 .app.phone .note-toolbar .note-actions .icon-btn { width: 44px; height: 44px; color: var(--calm-icon); }
 .app.phone .note-toolbar .icon-btn.back { color: var(--accent-ink); }
-[data-look='crumpet'] .app.phone .note-body { padding: 16px 24px 64px; gap: 4px; }
-[data-look='crumpet'] .app.phone .note-kicker { margin: 0; font-size: 13px; color: var(--calm-muted); }
-[data-look='crumpet'] .app.phone .note-title { font-size: 30px; line-height: 1.25; }
+:root .app.phone .note-body { padding: 16px 24px 64px; gap: 4px; }
+:root .app.phone .note-kicker { margin: 0; font-size: 13px; color: var(--calm-muted); }
+:root .app.phone .note-title { font-size: 30px; line-height: 1.25; }
 .app.phone .note-body > .note-meta { margin: 4px 0 8px; }
-[data-look='crumpet'][data-calm='phone'] .keyboard-bar { padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--calm-card); border-top: 1px solid var(--calm-hair); box-shadow: none; }
-[data-look='crumpet'][data-calm='phone'] .kb-done { background: none; font-size: 16px; font-weight: 600; }
+:root[data-calm='phone'] .keyboard-bar { padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--calm-card); border-top: 1px solid var(--calm-hair); box-shadow: none; }
+:root[data-calm='phone'] .kb-done { background: none; font-size: 16px; font-weight: 600; }
 
 /* A book (design 17). */
 .phone-book .phone-bar { margin: 12px -4px 0; }
@@ -3107,10 +3108,10 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .segmented.phone-tabs button[aria-pressed='true'] { background: var(--calm-card); color: var(--text); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.08); }
 .app.phone .phone-book :is(.list-sub, .keyword-filter) { order: 4; }
 .app.phone .phone-book .outline-items { display: flex; flex-direction: column; gap: 8px; padding: 0; margin: 8px 0 0; }
-[data-look='crumpet'] .app.phone .phone-book .outline-part { margin: 8px 0 0; padding: 0 4px; min-height: 0; border: none; background: none; font: 600 12px var(--ui-font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted); }
+:root .app.phone .phone-book .outline-part { margin: 8px 0 0; padding: 0 4px; min-height: 0; border: none; background: none; font: 600 12px var(--ui-font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted); }
 .app.phone .phone-book .outline-part .note-actions { display: none; }
-[data-look='crumpet'] .app.phone .phone-book .outline-chapter { position: relative; border-radius: 12px; background: color-mix(in srgb, var(--calm-card) 78%, transparent); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04); }
-[data-look='crumpet'] .app.phone .phone-book .outline-open { display: grid; grid-template-columns: auto 1fr auto; column-gap: 12px; padding: 14px 44px 14px 16px; border-radius: 12px; }
+:root .app.phone .phone-book .outline-chapter { position: relative; border-radius: 12px; background: color-mix(in srgb, var(--calm-card) 78%, transparent); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.04); }
+:root .app.phone .phone-book .outline-open { display: grid; grid-template-columns: auto 1fr auto; column-gap: 12px; padding: 14px 44px 14px 16px; border-radius: 12px; }
 .app.phone .phone-book .outline-row { display: contents; }
 .app.phone .phone-book .outline-row .status-dot { grid-row: 1 / span 2; align-self: center; }
 .app.phone .phone-book .outline-row .outline-title { grid-column: 2; grid-row: 1; font-size: 16px; font-weight: 500; }
@@ -3118,7 +3119,7 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .app.phone .phone-book .outline-synopsis { grid-column: 2; grid-row: 2; margin-top: 2px; font-size: 14px; line-height: 1.4; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .app.phone .phone-book .outline-chapter > .note-actions { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
 .app.phone .phone-book .outline-chapter > .note-actions .icon-btn { width: 36px; height: 36px; color: var(--calm-muted); opacity: 0.6; }
-.phone-top .icon-btn .ic { width: 22px; height: 22px; }
+:root .app.phone .phone-top .icon-btn .ic { width: 22px; height: 22px; }
 .phone-library section + section { margin-top: 24px; }
 .app.phone .phone-book .outline-synopsis { padding: 0; }
 .app.phone .phone-book .outline-words { letter-spacing: 0; font-variant-numeric: normal; }
@@ -3127,7 +3128,7 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .app.phone .search-tools { order: 4; overflow-x: auto; scrollbar-width: none; margin: 12px -16px 0; padding: 0 16px; }
 .app.phone .search-tools > *, .app.phone .search-tools .quick-chips > * { flex: none; }
 .app.phone .search-tools .filter-chip { height: 36px; padding: 0 16px; border-radius: 999px; font-size: 14px; }
-[data-look='crumpet'] .app.phone .note-title { margin-bottom: 12px; }
+:root .app.phone .note-title { margin-bottom: 12px; }
 /* The Home Screen tip sits over the library too, near the bottom (no tabs beneath it). */
 .app.phone ~ .home-guide, .app.phone .home-guide { z-index: 35; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
 .app.phone[data-pane='list'] ~ .home-guide, .app.phone[data-pane='list'] .home-guide { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
@@ -3144,6 +3145,12 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
   .theme-row { gap: 12px; }
 }
 @media (max-width: 759px) { .theme-pic { width: 76px; height: 56px; } .settings-row { gap: 12px; flex-wrap: wrap; } }
+
+/* Every look on the phone: the back button keeps its word (Notes, Crumpet), as in the Quiet Paper look. */
+:root .app.phone .icon-btn.back { width: auto; gap: 2px; padding: 0 8px 0 2px; color: var(--accent-ink); font-size: 16px; font-weight: 500; }
+:root .app.phone .icon-btn.back .back-label { display: inline; }
+/* Looks other than Quiet Paper keep their own paper behind the page. */
+:root:not([data-look='crumpet']) .app.phone .pane { background: var(--page); }
 
 /* ---- Quiet Paper on an iPad (designs 14 and 15) ---- */
 /* The list has the search box; New note waits at the sidebar's foot. */
@@ -3189,3 +3196,5 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .ink-edit-stroke path { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
 .ink-edit-bar { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: min(640px, calc(100vw - 32px)); padding: 8px 8px 8px 16px; border-radius: 12px; background: var(--calm-card, var(--page)); box-shadow: var(--shadow); font-size: 13px; color: var(--text2); cursor: default; }
 .ink-edit-bar span { flex: 1; }
+/* The calm layout in the other looks: the list's and the outline's titles keep clear of the window's top. */
+:root:not([data-look='crumpet']) .app.calm:not(.phone) :is(.list, .outline) { padding-top: 16px; }
