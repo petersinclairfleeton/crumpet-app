@@ -1,0 +1,76 @@
+# Checks every pull request before it's merged: the app's and the editor's
+# types and unit tests, a build, and the browser tests (split across four
+# machines so they take a few minutes). Merge only once all of them are green.
+
+name: Checks
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit:
+    name: Types, unit tests and a build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            packages/editor/package-lock.json
+
+      - name: The editor
+        working-directory: packages/editor
+        run: |
+          npm ci
+          npx tsc --noEmit -p .
+          npx vitest run
+
+      - name: The app
+        working-directory: app
+        run: |
+          npm ci
+          npx tsc --noEmit -p .
+          npx vitest run
+          npx vite build
+
+  browser:
+    name: Browser tests (${{ matrix.shard }} of 4)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --shard=${{ matrix.shard }}/4 --reporter=line
+      - name: Show what the page looked like when a test failed
+        if: failure()
+        run: find test-results -name error-context.md -exec sh -c 'echo "== $1"; cat "$1"' _ {} \;
+      - name: Keep what failed, to look at
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-tests-${{ matrix.shard }}
+          path: app/test-results
+          retention-days: 7

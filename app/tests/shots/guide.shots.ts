@@ -1,5 +1,8 @@
 import { type Page, expect, test } from '@playwright/test';
 
+/** The app's Markdown reader and writer (`window.crumpetMarkdown`, set in main.tsx), for building notes in the page. */
+type Md = { fromMarkdown(md: string): any; toMarkdown(doc: any): string };
+
 // The pictures in the guide (ui/guide.tsx), taken from the real app with a
 // small sample library: a book, some notes, characters and research. Run
 // again whenever the app's look changes (see playwright.shots.config.ts).
@@ -17,7 +20,7 @@ async function library(page: Page) {
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const c = (window as unknown as { crumpet: Crumpet }).crumpet;
     const doc = (s: string) => md.fromMarkdown(s);
     c.updateSettings({ name: 'Alex Rowan', toolbar: 'always', guideSeen: true });

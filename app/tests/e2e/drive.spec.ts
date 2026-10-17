@@ -137,7 +137,7 @@ const FAKE_FOLDER_PICKER = `window.showDirectoryPicker = async () => (await navi
 test('keep notes in a folder on this computer: files written there, changes made outside come in, and it’s remembered', async ({ browser }) => {
   const context = await browser.newContext();
   await context.addInitScript(FAKE_FOLDER_PICKER);
-  const page = await context.newPage();
+  let page = await context.newPage();
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
@@ -171,8 +171,11 @@ test('keep notes in a folder on this computer: files written there, changes made
   await where(page).getByRole('button', { name: 'Sync now' }).click();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('region', { name: 'Notes', exact: true }).locator('.card', { hasText: 'Lighthouse' })).toBeVisible();
-  // After a reload the folder is still the place.
-  await page.reload();
+  // Closed and opened again, the folder is still the place. (A new tab rather than a reload: Chrome 153's
+  // test browser drops the page when a reload brings back this stand-in folder, which a real folder isn't.)
+  await page.close();
+  page = await context.newPage();
+  await page.goto('/');
   await expect(page.locator('.side-foot')).toContainText('Folder · synced');
   // When the browser wants to ask again before Crumpet uses the folder, one click allows it.
   await page.evaluate(() => {

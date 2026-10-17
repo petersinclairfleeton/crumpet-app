@@ -32,8 +32,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: app/package-lock.json
+          cache-dependency-path: |
+            app/package-lock.json
+            packages/editor/package-lock.json
       - run: npm ci
+      - name: The editor's types and tests
+        working-directory: packages/editor
+        run: npm ci && npx tsc --noEmit -p . && npx vitest run
       - run: npx vitest run
       - run: npx tsc --noEmit && npx vite build --base=/crumpet-app/
       - uses: actions/upload-pages-artifact@v3

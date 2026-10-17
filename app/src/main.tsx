@@ -13,6 +13,7 @@ import { startPwa } from './data/pwa';
 import './ui/app.css';
 import { desktop } from './data/desktop';
 import { stopFocusZoom } from './ui/iphone';
+import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 
 // In the desktop app: the window fits itself to it (see data/desktop.ts).
 if (desktop) document.documentElement.dataset.shell = desktop.platform === 'darwin' ? 'mac' : 'desktop';
@@ -43,7 +44,8 @@ async function start() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush();
   });
-  Object.assign(window, { crumpet: store, crumpetSync: sync });
+  // For the browser tests (and the console): the store, the sync, and Markdown in and out.
+  Object.assign(window, { crumpet: store, crumpetSync: sync, crumpetMarkdown: { fromMarkdown, toMarkdown } });
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <StoreContext.Provider value={store}>

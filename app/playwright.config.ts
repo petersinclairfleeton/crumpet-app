@@ -3,6 +3,8 @@ import { defineConfig } from '@playwright/test';
 // Its own port and server, so the test build can carry Google settings that point at the fakes in tests/e2e.
 export default defineConfig({
   testDir: 'tests/e2e',
+  // Every test starts in a fresh browser profile, so they can all run side by side (and split evenly between machines).
+  fullyParallel: true,
   use: {
     baseURL: 'http://localhost:5181',
     launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},

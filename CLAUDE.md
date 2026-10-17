@@ -43,12 +43,14 @@ the record of what Crumpet has, but no new Word features unless Peter asks.
    sentence in it is still true. Say in the PR what changed in the guide (or
    that nothing needed to).
 3. Run every check (below), and look at new screens with a screenshot.
-4. Commit, push, open the PR (what's new in plain words, how it was tested),
-   then merge it with a merge commit.
+4. Commit, push, open the PR (what's new in plain words, how it was tested).
+   GitHub runs the Checks workflow on it (`.github/workflows/checks.yml`:
+   types, unit tests, a build, and the browser tests in four parts); merge
+   with a merge commit only once every check is green.
 5. Merging to `main` publishes the web app to GitHub Pages
    (https://petersinclairfleeton.github.io/crumpet-app/) through
-   `.github/workflows/pages.yml`, which also runs the unit tests and a type
-   check. Check the run went green.
+   `.github/workflows/pages.yml`, which also runs both sets of unit tests and
+   a type check. Check the run went green.
 
 ## Checks
 
@@ -58,6 +60,8 @@ cd packages/editor && npx tsc --noEmit -p . && npx vitest run   # editor
 cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx playwright test  # browser tests
 ```
 
+- Browser tests build notes from Markdown with `window.crumpetMarkdown`
+  (set in `main.tsx`), never a path on this machine, so they run on GitHub too.
 - Browser tests start their own dev server on port 5181. If one is left
   running from earlier, stop it first:
   `for pid in $(ps -eo pid,args | grep "vite --port 5181" | grep -v grep | awk '{print $1}'); do kill $pid; done`

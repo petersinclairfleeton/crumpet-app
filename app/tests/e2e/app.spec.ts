@@ -1,5 +1,8 @@
 import { type Locator, type Page, expect, test } from '@playwright/test';
 
+/** The app's Markdown reader and writer (`window.crumpetMarkdown`, set in main.tsx), for building notes in the page. */
+type Md = { fromMarkdown(md: string): any; toMarkdown(doc: any): string };
+
 // Every test starts in a fresh browser profile, so Crumpet starts empty: everything is created here.
 
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Notebooks' });
@@ -35,6 +38,19 @@ async function toolButton(page: Page, name: RegExp | string) {
   if (await inBar.count()) return inBar.first();
   await page.getByRole('button', { name: 'More formatting' }).click();
   return page.locator('.more-menu').getByRole('button', { name }).first();
+}
+
+/**
+ * Opens a picture's or shape's menu and clicks one of its items. The editor may
+ * redraw the picture just after a change, taking an open menu with it, so this
+ * tries again until the click lands.
+ */
+async function fromMenu(hoverOn: Locator, block: Locator, menu: string, item: Locator) {
+  await expect(async () => {
+    await hoverOn.hover();
+    if (!(await item.isVisible())) await block.getByRole('button', { name: menu }).click();
+    await item.click({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
 }
 
 async function newNotebook(page: Page, name: string) {
@@ -1124,7 +1140,7 @@ test('pictures and files: add one from the note menu, with a caption, kept in th
   await page.keyboard.type('The lamp');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -1283,7 +1299,7 @@ test('tables: add one from the / menu, type in cells, Tab along, and it saves as
   await page.keyboard.type('Rope');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -1366,7 +1382,7 @@ test('footnotes: add from the / menu or Ctrl+Alt+F, numbered in order, edited in
   await expect(page.getByRole('region', { name: 'Footnotes' }).locator('li')).toHaveText(['Or so they say.', 'In August, anyway.']);
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -1523,7 +1539,7 @@ test('comments: select text, comment, reply, see them listed, and resolve', asyn
   await expect(listed).toContainText('1 reply');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -1573,7 +1589,7 @@ test('track changes: typing is marked added, deleting strikes through, and chang
   await expect(bar).toContainText('3 tracked changes');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -2362,7 +2378,7 @@ test('multilevel lists from the gallery and of your own, border line styles and 
   await expect(boxed).toHaveAttribute('data-nowidow', '');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -2410,7 +2426,7 @@ test('tables: sort, a formula, lines in a cell, cell settings, style options, qu
   await expect(table.locator('td').filter({ hasText: 'Ann' })).toHaveCSS('vertical-align', 'middle');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -2508,7 +2524,7 @@ test('table layout and design: merge and split cells, shade a cell, align a colu
   await menu('Heading row');
   await expect(table.locator('th')).toHaveCount(0);
   const md = await page.evaluate(async () => {
-    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
     return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
   });
@@ -2613,7 +2629,7 @@ test('formatting inside table cells, from the bar and with Ctrl+B, and dragging 
   await page.mouse.up();
   await expect.poll(() => table.locator('th').first().evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(before + 60);
   const md = await page.evaluate(async () => {
-    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
     return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
   });
@@ -2656,7 +2672,7 @@ test('page view lays out sections: two columns that flow and balance, a landscap
   await open(page);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void; updateSettings(p: object): void; getState(): { settings: { pageView?: object } } } }).crumpet;
     const para = (i: number) => `Paragraph ${i}. The lamp had not been lit for eleven years, and still the boats steered by it. Mara climbed the hundred and twelve steps.`;
     const doc = `Intro.\n\nTwo columns. {sect=cont cols=2}\n\n${Array.from({ length: 16 }, (_, i) => para(i + 1)).join('\n\n')}\n\nOne column again. {sect=cont cols=1}\n\nWide. {sect=page orient=landscape}\n\nPortrait. {sect=page orient=portrait}`;
@@ -2743,7 +2759,7 @@ test('layout: columns, a continuous section break, a column break and a landscap
   expect(size[0]).toBeGreaterThan(size[1]);
   // Saved in the chapter's file.
   const md = await page.evaluate(async () => {
-    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { getState(): { chapters: { doc: unknown }[] } } }).crumpet.getState();
     return toMarkdown(s.chapters[0].doc);
   });
@@ -2990,7 +3006,7 @@ test('references: numbered captions, cross-references, bookmarks, a table of fig
   await expect(figures.locator('.toc-title')).toContainText('Pictures');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -3130,7 +3146,7 @@ test('page layout: an odd page section break, paper of your own for a section, l
   await expect(page.locator('.note-editor span.fld[data-field="wrapbreak"]')).toHaveCount(1);
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -3179,7 +3195,7 @@ test('page design: a watermark, page border and colour, a cover page, and a sect
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -3231,7 +3247,7 @@ test('document themes: a theme, theme colours and fonts, paragraph spacing and e
   await page.keyboard.press('Escape');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -3241,7 +3257,7 @@ test('document themes: a theme, theme colours and fonts, paragraph spacing and e
 test('a book’s table of contents lists every chapter with its page, and the headings in them, and opens one', async ({ page }) => {
   await open(page);
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createProject(n: string): { id: string }; getState(): { chapters: { id: string; projectId: string }[] }; addChapter(id: string): void; setChapterTitle(id: string, t: string): void; setChapterDoc(id: string, d: unknown): void; openProject(id: string): void; selectChapter(id: string): void } }).crumpet;
     const p = s.createProject('The Lighthouse');
     s.addChapter(p.id);
@@ -3279,12 +3295,8 @@ test('a text box: typing in it, its fill and wrapping, resizing, and saving it',
   await page.keyboard.press('Control+b');
   await expect(text.locator('strong')).toHaveText('fact');
   // Fill and wrapping from its menu.
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'Fill light blue' }).click();
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'Square, on the right' }).click();
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'Fill light blue' }));
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'Square, on the right' }));
   await expect(shape).toHaveAttribute('data-wrap', 'right');
   // Drag its corner to make it wider.
   const box = shape.locator('.shape-box');
@@ -3297,7 +3309,7 @@ test('a text box: typing in it, its fill and wrapping, resizing, and saving it',
   await page.mouse.up();
   await expect.poll(async () => (await box.boundingBox())!.width).toBeGreaterThan(before + 60);
   const md = await page.evaluate(async () => {
-    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
     return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
   });
@@ -3318,13 +3330,9 @@ test('shapes: turned with the handle or the menu, and moved anywhere in front of
       return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.find((b) => b.shape)?.shape;
     });
   // The menu turns it a quarter.
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'Right 90°' }).click();
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'Right 90°' }));
   await expect.poll(async () => (await look())?.rot).toBe(90);
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'Straight' }).click();
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'Straight' }));
   await expect.poll(async () => (await look())?.rot).toBeUndefined();
   // The handle above it turns it to any angle (Shift: steps of 15°): dragging to the right of the middle is 90°.
   await shape.hover();
@@ -3339,9 +3347,7 @@ test('shapes: turned with the handle or the menu, and moved anywhere in front of
   await expect.poll(async () => (await look())?.rot).toBe(90);
   await expect(box).toHaveCSS('transform', /matrix/);
   // In front of the text, it takes no room and can be dragged anywhere.
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'In front of text' }).click();
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'In front of text' }));
   await expect(shape).toHaveAttribute('data-wrap', 'free');
   const start = (await box.boundingBox())!;
   await shape.locator('.shape-wrap').hover();
@@ -3361,7 +3367,7 @@ test('arranging shapes: behind the text, tight and top-and-bottom wrapping, plac
   await page.setViewportSize({ width: 1600, height: 900 });
   await newNote(page, 'Arrange', 'Words.');
   await page.evaluate(async () => {
-    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { fromMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void } };
     const md = ['Some text to sit over the shapes. '.repeat(8), '{shape rect w=1 h=1 fill=#cfe2f3 line=#333333 wrap=free x=0.5 y=1.6} A', '{shape ellipse w=1 h=1 fill=#fff2cc line=#333333 wrap=free x=2.5 y=1.8} B', '{shape rounded w=1.5 h=1 fill=#d9ead3 line=#333333} C', 'More words after the shapes. '.repeat(10)].join('\n\n');
     w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown(md));
@@ -3375,9 +3381,7 @@ test('arranging shapes: behind the text, tight and top-and-bottom wrapping, plac
       return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((x) => x.shape).map((x) => x.shape!);
     });
   const menu = async (shape: typeof a, item: string) => {
-    await shape.locator('.shape-box').hover();
-    await shape.getByRole('button', { name: 'Shape ▾' }).click();
-    await shape.getByRole('button', { name: item, exact: true }).click();
+    await fromMenu(shape.locator('.shape-box'), shape, 'Shape ▾', shape.getByRole('button', { name: item, exact: true }));
   };
   // Tight and top-and-bottom wrapping for the shape in the text.
   await menu(c, 'Tight, on the left');
@@ -3459,9 +3463,7 @@ test('more shapes from the gallery, shape styles, gradient fill, line thickness,
       return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
     });
   const menu = async (shape: typeof star, item: string | RegExp) => {
-    await shape.locator('.shape-box').hover();
-    await shape.getByRole('button', { name: 'Shape ▾' }).click();
-    await shape.getByRole('button', { name: item, exact: typeof item === 'string' }).first().click();
+    await fromMenu(shape.locator('.shape-box'), shape, 'Shape ▾', shape.getByRole('button', { name: item, exact: typeof item === 'string' }).first());
   };
   // A style from the gallery: a fill fading to a darker blue, white text.
   await menu(star, 'Style: Blue gradient');
@@ -3480,12 +3482,8 @@ test('more shapes from the gallery, shape styles, gradient fill, line thickness,
   await page.getByRole('group', { name: 'Lines' }).getByRole('button', { name: 'Line' }).click();
   const line = page.locator('.note-editor .blk-shape').filter({ has: page.locator('[data-kind="line"]') });
   await expect(line).toHaveCount(1);
-  await line.locator('.shape-box').hover();
-  await line.getByRole('button', { name: 'Shape ▾' }).click();
-  await line.locator('[data-shape-action="head"][data-value="open"]').click();
-  await line.locator('.shape-box').hover();
-  await line.getByRole('button', { name: 'Shape ▾' }).click();
-  await line.locator('[data-shape-action="tail"][data-value="dot"]').click();
+  await fromMenu(line.locator('.shape-box'), line, 'Shape ▾', line.locator('[data-shape-action="head"][data-value="open"]'));
+  await fromMenu(line.locator('.shape-box'), line, 'Shape ▾', line.locator('[data-shape-action="tail"][data-value="dot"]'));
   await expect.poll(async () => (await look()).find((x) => x.kind === 'line')).toMatchObject({ head: 'open', tail: 'dot' });
   await expect(line.locator('.shape-art marker')).toHaveCount(2);
 });
@@ -3501,9 +3499,7 @@ test('text in shapes (lines, bullets, direction), icons, edit points, linked tex
       return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
     });
   const menu = async (shape: ReturnType<typeof page.locator>, item: string) => {
-    await shape.locator('.shape-box').hover();
-    await shape.getByRole('button', { name: 'Shape ▾' }).click();
-    await shape.getByRole('button', { name: item, exact: true }).first().click();
+    await fromMenu(shape.locator('.shape-box'), shape, 'Shape ▾', shape.getByRole('button', { name: item, exact: true }).first());
   };
   // A text box with two lines, the second a bullet.
   await page.keyboard.press('End');
@@ -3543,7 +3539,7 @@ test('text in shapes (lines, bullets, direction), icons, edit points, linked tex
   await expect.poll(async () => { const f = (await looks()).find((l) => l.kind === 'freeform'); return (f?.pts as number[][] | undefined)?.[1]?.[0] ?? 1; }).toBeLessThan(0.9);
   // Linked text boxes: the first box's text runs on into the second.
   await page.evaluate(async () => {
-    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { fromMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void } };
     const long = 'A story that is far too long for one small box and carries on. '.repeat(6);
     const md = [`{shape rect w=2 h=0.8 fill=#ffffff line=#333333} ${long}`, 'Between.', '{shape rect w=2 h=0.8 fill=#ffffff line=#333333}', '![drawing](data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 10 10"><polygon points="5,0 10,10 0,10" fill="#336699"/></svg>') + ')'].join('\n\n');
@@ -3558,9 +3554,7 @@ test('text in shapes (lines, bullets, direction), icons, edit points, linked tex
   expect(offset).toBeLessThan(-10);
   // An SVG picture made a shape: its outline, in its colour, ready to recolour.
   const pic = page.locator('.note-editor .blk-image');
-  await pic.locator('img').hover();
-  await pic.getByRole('button', { name: 'Picture ▾' }).click();
-  await pic.getByRole('button', { name: 'Convert to shape' }).click();
+  await fromMenu(pic.locator('img'), pic, 'Picture ▾', pic.getByRole('button', { name: 'Convert to shape' }));
   await expect.poll(async () => (await looks()).find((l) => l.kind === 'path')).toMatchObject({ fill: '#336699', vb: [10, 10] });
 });
 
@@ -3570,13 +3564,13 @@ test('outline view (promote, demote, move, show level, drag), pages side by side
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
   await newNote(page, 'Outline', 'Words.');
   await page.evaluate(async () => {
-    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { fromMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void } };
     w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown('# One\n\nAbout one.\n\n## Sub\n\nAbout sub.\n\n# Two\n\nAbout two.\n'));
   });
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -3620,7 +3614,7 @@ test('outline view (promote, demote, move, show level, drag), pages side by side
   await expect(ed).not.toHaveClass(/outline-view/);
   // Page view with several pages: two in a row, one page, like a book.
   await page.evaluate(async () => {
-    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { fromMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void; updateSettings(p: object): void } };
     w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown(Array.from({ length: 90 }, (_, i) => `Paragraph ${i + 1}, long enough to fill some of the page with words and more words.`).join('\n\n')));
     w.crumpet.updateSettings({ pageView: { notes: true } });
@@ -3692,7 +3686,7 @@ test('immersive reader (spacing, syllables, parts of speech, line focus, picture
   await expect(editors.nth(1)).toContainText('The end.');
   // Scrolling together: a long note, scrolled in one pane, scrolls in the other.
   await page.evaluate(async () => {
-    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { fromMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void; updateSettings(p: object): void } };
     w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown(Array.from({ length: 120 }, (_, i) => `Line ${i + 1} of a long note.`).join('\n\n')));
     w.crumpet.updateSettings({ syncScroll: true });
@@ -3708,14 +3702,14 @@ test('the Check tab: accessibility, Word compatibility, inspect, a spelling pass
   await page.setViewportSize({ width: 1600, height: 900 });
   await newNote(page, 'Check', 'Words.');
   await page.evaluate(async () => {
-    const { fromMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { fromMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const w = window as unknown as { crumpet: { getState(): { selectedId: string }; setDoc(id: string, doc: unknown): void; updateLayout(p: object): void } };
     w.crumpet.setDoc(w.crumpet.getState().selectedId, fromMarkdown('# Report\n\n### Details\n\nIn order to begin, the chairman read the {==notes==}{>>Ann (2026-01-01 09:30Z): Check<<} about the lighthuose. See [[Other]].\n'));
     w.crumpet.updateLayout({ right: true, rightTab: 'check' });
   });
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
@@ -3769,7 +3763,7 @@ test('the right sidebar: the outline of headings, styles, and links to and from 
   await open(page);
   await page.setViewportSize({ width: 1500, height: 880 });
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     (window as unknown as { crumpet: { createNote(n: object): void } }).crumpet.createNote({ title: 'Harbour', doc: md.fromMarkdown('See [[Lamp room]] for more.') });
   });
   await newNote(page, 'Lamp room', 'Intro');
@@ -3949,7 +3943,7 @@ test('revision mode: typing in the round’s colour, and taking the colours off'
   await page.keyboard.type(' Now better.');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
     });
@@ -4079,7 +4073,7 @@ test('compare two notes, and make a copy with the differences as tracked changes
   await compare.getByRole('button', { name: 'Make a copy with tracked changes' }).click();
   await expect(page.getByRole('region', { name: 'Pane' }).getByLabel('Title')).toHaveValue('Draft one → Draft two (compared)');
   const md = await page.evaluate(async () => {
-    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { getState(): { notes: { title: string; doc: unknown }[] } } }).crumpet.getState();
     return toMarkdown(s.notes.find((n) => n.title.endsWith('(compared)'))!.doc) as string;
   });
@@ -4140,7 +4134,7 @@ test('maths and diagrams: typed as text, drawn on the page, and saved as fenced 
   await page.keyboard.press('Escape');
   await expect(editor.locator('.code-wrap[data-lang="mermaid"] .code-preview svg')).toBeVisible({ timeout: 15000 });
   const md = await page.evaluate(async () => {
-    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
     return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
   });
@@ -4204,7 +4198,7 @@ test('graph view: notes and their links, all of them or just near the open note'
   await open(page);
   await page.setViewportSize({ width: 1400, height: 860 });
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
     s.createNote({ title: 'Lamp', doc: md.fromMarkdown('See [[Keeper]].') });
     s.createNote({ title: 'Keeper', doc: md.fromMarkdown('Father of [[Mara]].') });
@@ -4435,7 +4429,7 @@ test('drop cap, a blank page, and a date that updates itself', async ({ page }) 
   const editor = page.locator('.note-editor');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
     });
@@ -4512,7 +4506,7 @@ test('tab stops: Tab types a tab, set stops in the Tabs window or on the ruler, 
   await page.mouse.click(geo.zero + geo.ppi * 1.5 + 1, geo.y);
   await expect(ruler.getByRole('button', { name: 'Left tab stop at 1.5 inches' })).toBeVisible();
   const md = await page.evaluate(async () => {
-    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
     return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
   });
@@ -4523,7 +4517,7 @@ test('Go To (F5): pages, headings, footnotes and comments by number or one by on
   await open(page);
   await page.setViewportSize({ width: 1500, height: 900 });
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
     const doc = `# One\n\nFirst^[Note A] words.\n\n# Two\n\nSecond^[Note B] and {==this==}{>>Ann: a comment<<}.\n\n# Three\n\nThird^[Note C]. {.pagebreak}\n\nLast page.`;
     s.select(s.createNote({ title: 'Places', doc: md.fromMarkdown(doc) }).id);
@@ -4606,7 +4600,7 @@ const PICTURE = 'iVBORw0KGgoAAAANSUhEUgAAAZAAAADICAIAAABJdyC1AAACBUlEQVR42u3UMQ0
 async function notePicture(page: Page, md: string) {
   await page.route('https://pics.example/**', (r) => r.fulfill({ contentType: 'image/png', body: (globalThis as unknown as { Buffer: { from(s: string, e: string): Uint8Array } }).Buffer.from(PICTURE, 'base64') as never }));
   await page.evaluate(async (text) => {
-    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const m = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
     s.select(s.createNote({ title: 'Pictures', doc: m.fromMarkdown(text) }).id);
   }, md);
@@ -4614,7 +4608,7 @@ async function notePicture(page: Page, md: string) {
 
 async function noteMarkdown(page: Page): Promise<string> {
   return page.evaluate(async () => {
-    const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
     return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
   });
@@ -4639,27 +4633,19 @@ test('pictures: resize from the corner, wrap text round, move in front, turn, al
   await expect.poll(() => noteMarkdown(page)).toMatch(/\{pic w=2\.67\}/);
   expect(Math.round((await img.boundingBox())!.width)).toBe(Math.round(before - 144));
   // The menu: text wraps round it on the right.
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'Square, on the right' }).click();
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'Square, on the right' }));
   await expect(blk).toHaveAttribute('data-wrap', 'right');
   await expect(blk).toHaveCSS('float', 'right');
   // Turn it, and give it alt text of its own.
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'Right 90°' }).click();
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'Alt text…' }).click();
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'Right 90°' }));
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'Alt text…' }));
   const alt = page.getByRole('dialog', { name: 'Alt text' });
   await alt.getByLabel('Describe the picture').fill('A gull on a post');
   await alt.getByRole('button', { name: 'OK' }).click();
   await expect(img).toHaveAttribute('alt', 'A gull on a post');
   await expect.poll(() => noteMarkdown(page)).toContain('{pic w=2.67 wrap=right rot=90 alt="A gull on a post"}');
   // In front of the text, dragged by ✥.
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'In front of text' }).click();
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'In front of text' }));
   await img.hover();
   const mv = (await blk.locator('.pic-move').boundingBox())!;
   await page.mouse.move(mv.x + 10, mv.y + 10);
@@ -4668,9 +4654,7 @@ test('pictures: resize from the corner, wrap text round, move in front, turn, al
   await page.mouse.up();
   await expect.poll(() => noteMarkdown(page)).toMatch(/wrap=free x=(0.99|1|1.01) y=0.(49|5|51) rot=90/);
   // Reset: back to how it was put in, keeping the alt text.
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'Reset picture' }).click();
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'Reset picture' }));
   await expect.poll(() => noteMarkdown(page)).toContain('![A gull](https://pics.example/gull.png) {pic alt="A gull on a post"}');
 });
 
@@ -4682,9 +4666,7 @@ test('pictures: crop by dragging an edge, to a ratio and a shape; styles; correc
   const img = blk.locator('img');
   await expect(img).toHaveJSProperty('complete', true);
   const menu = async (name: string) => {
-    await img.hover();
-    await blk.getByRole('button', { name: 'Picture ▾' }).click();
-    await blk.getByRole('button', { name, exact: true }).click();
+    await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name, exact: true }));
   };
   // Crop: drag the left edge an inch in. The picture keeps its scale; its window is an inch narrower.
   await menu('Crop');
@@ -4727,7 +4709,7 @@ test('pictures: remove a plain background, compress, and reset back to the origi
   const square = 'iVBORw0KGgoAAAANSUhEUgAAASwAAADICAIAAADdvUsCAAACbElEQVR42u3TMQ0AMAhEUZTgX0rlsLDXQsNCh5d8BZd70V2SFgsTSBBKEEqCUIJQEoQShJIglCCUBKEEoSQIJQglQShBKAlCCUJJEEoQSoJQglAShBKEkiCUIJQEoQShJAglCCVBKEEoCUIJQkkQShBKglCCUBKEEoSSIJQglAShBKEkCCUIJUEoQSgJQglCSRBKEEqCUIJQEoQShJIglCCUBKEEoSQIR51MPeYtEEIIIYQQQigIIYQQQgghFIQQQgghhBAKQgghhBBCCAUhhBBCCCGEghBCCCGEEEJBCCGEEEIIoSCEEEIIIYRQEEIIIYQQQigIIYQQQgghFIQQQgghhBBCaAUIIYQQQgghFIQQQgghhBAKQgghhBBCCAUhhBBCCCGEghBCCCGEEEJBCCGEEEIIoSCEEEIIIYRQEEIIIYQQQigIIYQQQgghFIQQQgghhBAKQgghhBBCCCEUhBBCCCGEEApCCCGEEEIIBSGEEEIIIYSCEEIIIYQQQkEIIYQQQgihIIQQQgghhFAQQgghhBBCKAghhBBCCCEUhBBCCCGEEApCCCGEEEIIIXQYCCGEEEIIIRSEEEIIIYQQCkIIIYQQQggFIYQQQgghhIIQQgghhBBCQQghhBBCCKEghBBCCCGEUBBKEEqCUIJQEoQShJIglCCUILSCBKEEoSQIJQglQShBKAlCCUJJEEoQSoJQglAShBKEkiCUIJQEoQShJAglCCVBKEEoCUIJQkkQShBKglCCUBKEEoSSIJQglAShBKEkCCUIJUEoQSgJQglCSRBKEEqCUIJQEoQShJIglCCUBKEEoSQIpU+7Ol4aDrYiqsYAAAAASUVORK5CYII=';
   await page.route('https://pics.example/**', (r) => r.fulfill({ contentType: 'image/png', body: (globalThis as unknown as { Buffer: { from(s: string, e: string): Uint8Array } }).Buffer.from(square, 'base64') as never }));
   await page.evaluate(async () => {
-    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const m = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
     s.select(s.createNote({ title: 'Square', doc: m.fromMarkdown('![Square](https://pics.example/square.png) {pic w=1}') }).id);
   });
@@ -4735,9 +4717,7 @@ test('pictures: remove a plain background, compress, and reset back to the origi
   const img = blk.locator('img');
   await expect(img).toHaveJSProperty('complete', true);
   const menu = async (name: string) => {
-    await img.hover();
-    await blk.getByRole('button', { name: 'Picture ▾' }).click();
-    await blk.getByRole('button', { name, exact: true }).click();
+    await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name, exact: true }));
   };
   /** The see-through-ness (alpha) of the picture's pixel at x, y, as it's drawn from its file. */
   const alphaAt = (x: number, y: number) =>
@@ -4778,7 +4758,7 @@ test('reviewing pane: every change and comment with who and when, previous and n
   await open(page);
   await page.setViewportSize({ width: 1500, height: 900 });
   await page.evaluate(async () => {
-    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const m = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void; updateLayout(p: object): void } }).crumpet;
     const md = 'The {--big--}{>>Ann (2026-10-01 09:00Z)<<}{++wide++}{>>Ann (2026-10-01 09:01Z)<<} sea.\n\nThe {==lighthouse==}{>>Ben (2026-10-02 10:00Z): Which one?<<} stood.\n\nAnd {++then night came++}{>>Ben (2026-10-02 10:05Z)<<}.';
     s.select(s.createNote({ title: 'Review', doc: m.fromMarkdown(md) }).id);
@@ -4828,7 +4808,7 @@ test('track changes for everyone, locked with a password; show markup by person;
   await page.setViewportSize({ width: 1500, height: 900 });
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ name: 'Robin' }));
   await page.evaluate(async () => {
-    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const m = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
     const md = 'The {++wide++}{>>Ann (2026-10-01 09:00Z)<<} sea and the {++grey++}{>>Ben (2026-10-01 09:00Z)<<} sky.\n\nThe {==lamp==}{>>Ann (2026-10-02 10:00Z): Lit?<<} burned.';
     s.select(s.createNote({ title: 'Locked', doc: m.fromMarkdown(md) }).id);
@@ -4836,7 +4816,7 @@ test('track changes for everyone, locked with a password; show markup by person;
   const editor = page.locator('.note-editor');
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
     });
@@ -4896,7 +4876,7 @@ test('combine reviewers’ copies: each reviewer’s changes tracked in their na
   await open(page);
   await page.setViewportSize({ width: 1500, height: 900 });
   await page.evaluate(async () => {
-    const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const m = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
     s.createNote({ title: 'Draft (Ann)', doc: m.fromMarkdown('The wide sea was grey.') });
     s.createNote({ title: 'Draft (Ben)', doc: m.fromMarkdown('The big sea was grey and cold.') });
@@ -4942,7 +4922,7 @@ test('Font window: small caps, a wavy coloured underline, spacing and hidden tex
   await expect(span).toHaveCSS('letter-spacing', /2\.6|2\.66/);
   const md = () =>
     page.evaluate(async () => {
-      const { toMarkdown } = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+      const { toMarkdown } = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc) as string;
     });
@@ -5453,7 +5433,7 @@ test('in a book the sidebar steps back to its strip, and In this chapter lists w
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     type C = { getState(): { projects: { id: string }[]; chapters: { id: string; projectId: string }[] }; addCastMember(p: string, k: string, n: string): { id: string }; updateCastMember(p: string, id: string, patch: object): void; setChapterDoc(id: string, doc: unknown): void; updateLayout(p: object): void };
     const c = (window as unknown as { crumpet: C }).crumpet;
     const p = c.getState().projects[0];
@@ -5538,7 +5518,7 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     type C = { getState(): { projects: { id: string }[]; chapters: { id: string; projectId: string }[] }; addChapter(p: string): { id: string }; setChapterTitle(id: string, t: string): void; setChapterDoc(id: string, d: unknown): void; setChapterStatus(id: string, s: string): void };
     const c = (window as unknown as { crumpet: C }).crumpet;
     const p = c.getState().projects[0];
@@ -5738,7 +5718,7 @@ test('a book in the calm look: the outline is the sidebar, chapters open as plai
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     type C = { getState(): { projects: { id: string }[]; chapters: { id: string; projectId: string }[] }; addCastMember(p: string, k: string, n: string): { id: string }; setChapterDoc(id: string, doc: unknown): void; setProjectGoal(p: string, g: number): void; addResearchNote(p: string, n: object, open: boolean): void; updateSettings(p: object): void };
     const c = (window as unknown as { crumpet: C }).crumpet;
     const p = c.getState().projects[0];
@@ -5817,7 +5797,7 @@ test('reopening Crumpet, the list lights the note that’s open, and a note name
   await page.goto('/');
   await expect(page.locator('.app')).toBeVisible();
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const c = (window as unknown as { crumpet: Record<string, (...a: unknown[]) => { id: string }> }).crumpet;
     c.createNote({ title: 'Harbour', doc: md.fromMarkdown('Boats in, boats out.\n') });
     c.createNote({ title: 'Storm', doc: md.fromMarkdown('It reached [[Harbour]] at night.\n') });
@@ -5862,7 +5842,7 @@ test('the whole window: the graph beside the strip, a board on its own, and Expo
   await expect(graph).toHaveCount(0);
   // A board has the window to itself, its name on a floating card; back returns to the notes.
   await page.evaluate(async () => {
-    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const md = await Promise.resolve((window as unknown as { crumpetMarkdown: Md }).crumpetMarkdown);
     const c = (window as unknown as { crumpet: { createNote(n: object): { id: string }; select(id: string): void } }).crumpet;
     const n = c.createNote({ title: 'Plot board', doc: md.fromMarkdown('```canvas\n{"nodes":[{"id":"a","type":"text","text":"Arrival","x":0,"y":0,"width":200,"height":80}],"edges":[]}\n```\n') });
     c.select(n.id);
