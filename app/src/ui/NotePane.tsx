@@ -6,7 +6,7 @@ import { LockedNote, PasswordDialog, removePassword, useOpened } from './locked'
 import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
-import { useAppState, useAppStore, useNav } from './hooks';
+import { useAppState, useAppStore, useNav, useSync } from './hooks';
 import { recentNotes, viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
@@ -500,7 +500,21 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
 
   const words = docWords(note.doc);
   const linkedFrom = backlinks(note, state.notes);
-  const footer = calm ? null : (
+  // The calm look: just the notes that link here, as one quiet line (its own "Edited" line is at the top).
+  const footer = calm ? (
+    linkedFrom.length > 0 && (
+      <section className="backlinks quiet" aria-label="Linked from">
+        <h2>Linked from</h2>
+        <div className="backlink-list">
+          {linkedFrom.map((n) => (
+            <button key={n.id} type="button" className="backlink" onClick={() => nav.openNote(n.id)}>
+              {displayTitle(n)}
+            </button>
+          ))}
+        </div>
+      </section>
+    )
+  ) : (
     <>
       {linkedFrom.length > 0 && (
         <section className="backlinks" aria-label="Linked from">
@@ -624,6 +638,8 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
   const [touring, setTouring] = useState(false);
   const store = useAppStore();
   const nav = useNav();
+  // Plain files only once a folder or Google Drive is connected; until then, this browser keeps them.
+  const lede = useSync().state.config ? 'Your notes stay in plain files you own. Start however suits you.' : 'Your notes stay on this device. Connect Google Drive or a folder any time to have them everywhere, as plain files you own.';
   const bringIn = () =>
     chooseUploads(async (files) => {
       const made = await uploadFiles(store, files);
@@ -636,7 +652,7 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
       <div className="welcome calm">
         {touring && <Tour onDone={() => setTouring(false)} />}
         <h2>A clean page.</h2>
-        <p className="lede">Your notes stay on this device as plain files you own. Start however suits you.</p>
+        <p className="lede">{lede}</p>
         <ol>
           <li>
             <button type="button" onClick={onNewNote}>
@@ -684,7 +700,7 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
     <div className="welcome">
       {touring && <Tour onDone={() => setTouring(false)} />}
       <h2>A clean page.</h2>
-      <p className="lede">Your notes stay in plain files you own. Start however suits you.</p>
+      <p className="lede">{lede}</p>
       <ol>
         <li>
           <button type="button" onClick={onNewNote}>

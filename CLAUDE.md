@@ -3,14 +3,15 @@
 Read this first in every session. `PLAN.md` has the product plan and visual
 design; this file is how we work and where things are.
 
-**Current work: Word features.** `docs/word-features.md` compares Crumpet
-with Microsoft Word, feature by feature, with Peter's choices of what to
-build. Its last section, "Wanted: the build list", is the to-do list:
-groups in order, each item a checkbox with where in the code to start.
-"Continue the plan" means take the first group with unticked items, build
-it (one PR per group, or per few items when it's big), tick the items, mark
-them ✅ in that file's tables, and carry on. Items marked "ask Peter first"
-need a service or key from him.
+**Current work: the October review's plan.** `docs/review-plan.md` is a
+review of the whole app for the writer it's for, then "The build list": groups
+in order, each item a checkbox with where in the code to start. "Continue the
+plan" means take the first group with unticked items, build it (one PR per
+group, or per few items when it's big), tick the items, and carry on. Peter's
+decisions are recorded at the top of the build list; follow them.
+
+Word is done (Peter's call, October 2026): `docs/word-features.md` stays as
+the record of what Crumpet has, but no new Word features unless Peter asks.
 
 ## Working with Peter
 
@@ -408,7 +409,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   `ui/phone.tsx`'s `PhoneLibrary` comes first (the pane starts at 'sidebar'), lists
   have a back arrow, big title and search (`NoteList`'s `phone`), a note has Share
   (its star, notebook and tags in ···), and a book's outline has Chapters/Cast/Research
-  (`ProjectOutline`'s `phone`); the round + (`.fab`) makes a note or a chapter.
+  (`ProjectOutline`'s `phone`); the round + (`.fab`) makes a note or a chapter (on the library, a note in Inbox: App's `quickNote`).
   An iPad in the calm look (`pointer: coarse`, wider than a phone): EditorHost's
   `tablet` floats `TABLET_TOOLS` in `.float-tools` at the page's foot, the list has
   the search box and New note sits at the sidebar's foot. A book at 1099px wide or

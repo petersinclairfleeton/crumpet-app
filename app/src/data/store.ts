@@ -22,6 +22,7 @@ import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, t
 import { removeRevisionColors } from './revisions';
 import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, SHARED_SETTINGS, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
 import { inOrder, moveInOrder, notebookTree, projectsInOrder } from './selectors';
+import { activeTab, tidyWorkspace } from './panes';
 
 export interface AppState {
   ready: boolean;
@@ -164,7 +165,12 @@ export class AppStore {
     const projects = [...(data.projects ?? [])].sort((a, b) => a.createdAt - b.createdAt);
     this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, projects, chapters: data.chapters ?? [], settings });
     if (data.settings?.dataVersion !== DATA_VERSION) this.save(this.storage.putSettings(settings));
-    this.set({ selectedId: visibleIn(this.state, this.state.view)[0]?.id ?? null });
+    // The note the panes bring back (the one you had open), so the list lights the same one; else the list's first.
+    const shown = visibleIn(this.state, this.state.view);
+    const panes = tidyWorkspace(settings.layout?.panes);
+    const tab = panes ? activeTab(panes) : undefined;
+    const last = tab?.kind === 'note' ? shown.find((n) => n.id === tab.id) : undefined;
+    this.set({ selectedId: (last ?? shown[0])?.id ?? null });
     this.set({ snapshots: (await this.storage.getSync<Snapshot[]>(SNAPSHOTS_KEY)) ?? [], fileText: (await this.storage.getSync<Record<string, string>>(FILE_TEXT_KEY)) ?? {} });
     this.forgetUnused(expiredDocs, expiredFiles);
   }

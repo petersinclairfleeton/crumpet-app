@@ -171,6 +171,11 @@ export function App() {
     setPane('note');
     // The title field focuses itself when a new, empty note opens.
   }, [store]);
+  /** A note caught from the phone's library: in Inbox, to be filed later. */
+  const quickNote = useCallback(() => {
+    store.setView({ kind: 'inbox' });
+    newNote();
+  }, [store, newNote]);
 
   // A folded-away sidebar or list peeks out while the mouse rests on its edge or its button.
   const [peek, setPeek] = useState<Peek>(null);
@@ -476,11 +481,12 @@ export function App() {
       <InkEditHost />
       {narrow && (pane === 'list' || (phoneCalm && pane === 'sidebar')) && !state.focusMode && <HomeScreenGuide />}
       {narrow && pane === 'list' && !state.focusMode && !phoneCalm && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
-      {/* The calm phone: no bar of tabs, just the round + on a list (or a book's chapters). */}
+      {/* The calm phone: no bar of tabs, just the round + on the library and on a list (or a book's chapters). */}
       {/* Out of the way of the results while searching. */}
       {/* (A book's is the outline's own, which knows which of its tabs is open.) */}
-      {phoneCalm && pane === 'list' && !state.focusMode && !state.query && !project && (
-        <button type="button" className="fab" aria-label="New note" onClick={newNote}>
+      {/* The library's makes a quick note in Inbox, whichever list was open last. */}
+      {phoneCalm && !state.focusMode && (pane === 'sidebar' || (pane === 'list' && !state.query && !project)) && (
+        <button type="button" className={`fab${pane === 'sidebar' ? ' on-library' : ''}`} aria-label="New note" onClick={pane === 'sidebar' ? quickNote : newNote}>
           <IconPlus size={26} />
         </button>
       )}
