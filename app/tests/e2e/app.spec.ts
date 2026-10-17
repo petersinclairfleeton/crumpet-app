@@ -6059,3 +6059,41 @@ test.describe('on a phone, in Paper and ink', () => {
     await expect(page.getByRole('dialog', { name: 'Chapter options' }).getByLabel('Status')).toBeVisible();
   });
 });
+
+test.describe('on a phone, every theme in dark mode', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: 'dark' });
+
+  test('the library’s words stand out from their rows and from the screen behind them', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.app')).toBeVisible();
+    for (const theme of ['system', 'paper', 'classic', 'vapor', 'console', 'mac', 'sepia', 'midnight']) {
+      await page.evaluate((t) => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ theme: t }), theme);
+      const contrast = await page.evaluate(() => {
+        const lum = (c: string) => {
+          // rgb() runs 0 to 255; color(srgb …) runs 0 to 1.
+          const scale = c.startsWith('color(') ? 1 : 255;
+          const [r, g, b] = (c.match(/[\d.]+/g) ?? ['0', '0', '0']).slice(0, 3).map((v) => Number(v) / scale).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const ratio = (a: string, b: string) => {
+          const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+          return (x + 0.05) / (y + 0.05);
+        };
+        /** The first solid colour behind an element. */
+        const behind = (el: Element | null): string => {
+          for (let e = el; e; e = e.parentElement) {
+            const c = getComputedStyle(e).backgroundColor;
+            const a = c.match(/[\d.]+/g)?.[3];
+            if (c !== 'transparent' && (a === undefined || Number(a) > 0.5)) return c;
+          }
+          return getComputedStyle(document.body).backgroundColor;
+        };
+        const row = document.querySelector('.phone-row .grow')!;
+        const title = document.querySelector('.phone-big')!;
+        return { row: ratio(getComputedStyle(row).color, behind(row)), title: ratio(getComputedStyle(title).color, behind(title)) };
+      });
+      expect(contrast.row, `${theme}: a row's words`).toBeGreaterThan(4.5);
+      expect(contrast.title, `${theme}: the title`).toBeGreaterThan(4.5);
+    }
+  });
+});

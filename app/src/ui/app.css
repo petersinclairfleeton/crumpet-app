@@ -3198,3 +3198,24 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .ink-edit-bar span { flex: 1; }
 /* The calm layout in the other looks: the list's and the outline's titles keep clear of the window's top. */
 :root:not([data-look='crumpet']) .app.calm:not(.phone) :is(.list, .outline) { padding-top: 16px; }
+/* The calm layout's colours in every other theme come from that theme's own (light or dark),
+   so its rows, cards and lines follow it rather than Quiet Paper's light colours. */
+:root:not([data-look='crumpet']) {
+  --calm-card: var(--page);
+  --calm-side: var(--side-bg, var(--page));
+  --calm-edge: var(--line);
+  --calm-field: var(--field);
+  --calm-sel: var(--side-sel, var(--field));
+  --calm-hover: var(--side-hover, var(--field));
+  --calm-nav: var(--text2);
+  --calm-muted: var(--muted);
+  --calm-icon: var(--text2);
+  --calm-chip: var(--chip);
+  --calm-chip-ink: var(--text2);
+  --calm-hair: var(--line);
+  --calm-prose: var(--text);
+  --calm-wash: var(--shell, var(--page));
+}
+/* The phone's screens in the other themes: the library on the theme's sidebar colour, lists and books on its list colour. */
+:root:not([data-look='crumpet']) .app.phone .phone-library { background: var(--list-bg, var(--shell, var(--page))); color: var(--text); }
+:root:not([data-look='crumpet']) .app.phone .list { background: var(--list-bg, var(--shell, var(--page))); }
