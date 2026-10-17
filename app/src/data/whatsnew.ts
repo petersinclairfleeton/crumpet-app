@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-phone-book',
+    date: '17 October 2026',
+    title: 'A book on a phone, all of a piece',
+    points: [
+      'In a book on a phone, Cast and Research are rows like the library’s, under a heading with its own +, instead of small lists that folded away.',
+      'The round + adds a chapter and shows only under Chapters (under Cast it used to add a chapter you couldn’t see).',
+      'Chapters, Cast and Research share the switch evenly, and the book’s ··· menu says Rename book and Delete book.',
+    ],
+  },
+  {
     id: '2026-10-17-phone-settings',
     date: '17 October 2026',
     title: 'Settings on a phone, like an iPhone’s',

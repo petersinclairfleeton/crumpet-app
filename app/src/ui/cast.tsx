@@ -45,7 +45,8 @@ function Avatar({ member, size = 24 }: { member: CastMember; size?: number }) {
 }
 
 /** The characters and places under a project's outline. */
-export function CastList({ project }: { project: Project }) {
+/** `phone`: in a phone's book, under its Cast tab: a heading and rows like the library's, always open. */
+export function CastList({ project, phone = false }: { project: Project; phone?: boolean }) {
   const state = useAppState();
   const store = useAppStore();
   const [open, setOpen] = useState(true);
@@ -64,15 +65,19 @@ export function CastList({ project }: { project: Project }) {
   return (
     <section className="research" aria-label="Characters and places">
       <div className="research-head">
-        <button type="button" className="research-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <IconChevron size={10} className={open ? 'rot90' : ''} />
-          Characters &amp; places
-          <span className="count">{cast.length}</span>
-        </button>
+        {phone ? (
+          <h2 className="research-title">Characters &amp; places</h2>
+        ) : (
+          <button type="button" className="research-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+            <IconChevron size={10} className={open ? 'rot90' : ''} />
+            Characters &amp; places
+            <span className="count">{cast.length}</span>
+          </button>
+        )}
         <span className="grow" />
         <span className="note-actions">
           <button type="button" className="icon-btn" aria-label="Add a character or place" aria-expanded={adding} onClick={() => setAdding(!adding)}>
-            <IconPlus size={14} />
+            <IconPlus size={phone ? 20 : 14} />
           </button>
           {adding && (
             <Popover label="Add a character or place" onClose={() => setAdding(false)}>
@@ -114,7 +119,7 @@ export function CastList({ project }: { project: Project }) {
           )}
         </span>
       </div>
-      {open && (
+      {(open || phone) && (
         <ul className="research-items">
           {cast.length === 0 && <li className="research-empty">People and places in the book. Their names are spotted in your chapters.</li>}
           {group('character').map(row)}
