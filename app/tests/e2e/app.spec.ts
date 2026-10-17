@@ -5813,6 +5813,36 @@ test('calm Settings, Find and a first visit, as designed', async ({ page }) => {
   await expect(page.getByLabel('Title')).toHaveValue('harbour');
 });
 
+test('reopening Crumpet, the list lights the note that’s open, and a note names the notes that link to it', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.app')).toBeVisible();
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const c = (window as unknown as { crumpet: Record<string, (...a: unknown[]) => { id: string }> }).crumpet;
+    c.createNote({ title: 'Harbour', doc: md.fromMarkdown('Boats in, boats out.\n') });
+    c.createNote({ title: 'Storm', doc: md.fromMarkdown('It reached [[Harbour]] at night.\n') });
+    // Ferry is clearly the newest, at the top of the list.
+    await new Promise((r) => setTimeout(r, 30));
+    c.createNote({ title: 'Ferry', doc: md.fromMarkdown('Leaves at six. See [[Harbour]].\n') });
+  });
+  const notes = list(page);
+  // The oldest note, at the foot of the list: the calm note names the two that link to it, on one line.
+  await notes.locator('.card').filter({ has: page.locator('.card-title', { hasText: /^Harbour$/ }) }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('Harbour');
+  const from = page.getByRole('region', { name: 'Linked from' });
+  await expect(from.getByRole('button')).toHaveCount(2);
+  await expect(from.getByRole('button', { name: 'Ferry' })).toBeVisible();
+  await from.getByRole('button', { name: 'Storm' }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('Storm');
+  await expect(page.getByRole('region', { name: 'Linked from' })).toHaveCount(0);
+  // Come back later: the page shows Storm, and the list lights Storm too (not the newest note at the top).
+  await page.waitForTimeout(800);
+  await page.reload();
+  await expect(page.getByLabel('Title')).toHaveValue('Storm');
+  await expect(notes.locator('.card.selected')).toHaveCount(1);
+  await expect(notes.locator('.card.selected .card-title')).toHaveText('Storm');
+});
+
 test('the whole window: the graph beside the strip, a board on its own, and Export over everything', async ({ page }) => {
   await open(page);
   await newNote(page, 'Story ideas', 'See [[Storms]].');
@@ -5918,6 +5948,29 @@ test.describe('on a phone, in the calm look', () => {
     await outline.getByRole('button', { name: 'Chapters', exact: true }).click();
     await outline.getByRole('button', { name: 'Back to the library' }).click();
     await expect(library).toBeVisible();
+  });
+
+  test('a quick note from the library, one tap, waiting in the Inbox', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.app')).toBeVisible();
+    await page.evaluate(() => {
+      const c = (window as unknown as { crumpet: Record<string, (...a: unknown[]) => { id: string }> }).crumpet;
+      const nb = c.createNotebook('Journal');
+      c.createNote({ title: 'Monday', notebookId: nb.id });
+    });
+    const library = page.getByRole('navigation', { name: 'Notebooks' });
+    // Even after looking in a notebook, the library's + makes a loose note.
+    await library.getByRole('button', { name: /^Journal/ }).click();
+    await page.getByRole('button', { name: 'Back to the library' }).click();
+    await expect(library).toBeVisible();
+    await page.locator('.fab').click();
+    await expect(page.getByLabel('Title')).toBeFocused();
+    await page.keyboard.type('Ferry timetable');
+    await page.getByRole('button', { name: 'Back to notes' }).click();
+    const notes = page.getByRole('region', { name: 'Notes', exact: true });
+    await expect(notes.getByRole('heading', { name: 'Inbox' })).toBeVisible();
+    await expect(notes.locator('.card')).toHaveCount(1);
+    await expect(notes.locator('.card')).toContainText('Ferry timetable');
   });
 
   test('Settings as on an iPhone: a list of sections, each a page of its own with a way back', async ({ page }) => {
