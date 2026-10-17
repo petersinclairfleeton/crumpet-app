@@ -64,6 +64,9 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --shard=${{ matrix.shard }}/4 --reporter=line
+      - name: Show what the page looked like when a test failed
+        if: failure()
+        run: find test-results -name error-context.md -exec sh -c 'echo "== $1"; cat "$1"' _ {} \;
       - name: Keep what failed, to look at
         if: failure()
         uses: actions/upload-artifact@v4
