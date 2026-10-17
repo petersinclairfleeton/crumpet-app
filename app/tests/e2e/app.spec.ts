@@ -40,6 +40,19 @@ async function toolButton(page: Page, name: RegExp | string) {
   return page.locator('.more-menu').getByRole('button', { name }).first();
 }
 
+/**
+ * Opens a picture's or shape's menu and clicks one of its items. The editor may
+ * redraw the picture just after a change, taking an open menu with it, so this
+ * tries again until the click lands.
+ */
+async function fromMenu(hoverOn: Locator, block: Locator, menu: string, item: Locator) {
+  await expect(async () => {
+    await hoverOn.hover();
+    if (!(await item.isVisible())) await block.getByRole('button', { name: menu }).click();
+    await item.click({ timeout: 2_000 });
+  }).toPass({ timeout: 15_000 });
+}
+
 async function newNotebook(page: Page, name: string) {
   await sidebar(page).getByRole('button', { name: 'New notebook or stack' }).click();
   await page.getByRole('button', { name: 'New notebook', exact: true }).click();
@@ -3282,12 +3295,8 @@ test('a text box: typing in it, its fill and wrapping, resizing, and saving it',
   await page.keyboard.press('Control+b');
   await expect(text.locator('strong')).toHaveText('fact');
   // Fill and wrapping from its menu.
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'Fill light blue' }).click();
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'Square, on the right' }).click();
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'Fill light blue' }));
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'Square, on the right' }));
   await expect(shape).toHaveAttribute('data-wrap', 'right');
   // Drag its corner to make it wider.
   const box = shape.locator('.shape-box');
@@ -3321,13 +3330,9 @@ test('shapes: turned with the handle or the menu, and moved anywhere in front of
       return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.find((b) => b.shape)?.shape;
     });
   // The menu turns it a quarter.
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'Right 90°' }).click();
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'Right 90°' }));
   await expect.poll(async () => (await look())?.rot).toBe(90);
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'Straight' }).click();
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'Straight' }));
   await expect.poll(async () => (await look())?.rot).toBeUndefined();
   // The handle above it turns it to any angle (Shift: steps of 15°): dragging to the right of the middle is 90°.
   await shape.hover();
@@ -3342,9 +3347,7 @@ test('shapes: turned with the handle or the menu, and moved anywhere in front of
   await expect.poll(async () => (await look())?.rot).toBe(90);
   await expect(box).toHaveCSS('transform', /matrix/);
   // In front of the text, it takes no room and can be dragged anywhere.
-  await shape.hover();
-  await shape.getByRole('button', { name: 'Shape ▾' }).click();
-  await shape.getByRole('button', { name: 'In front of text' }).click();
+  await fromMenu(shape, shape, 'Shape ▾', shape.getByRole('button', { name: 'In front of text' }));
   await expect(shape).toHaveAttribute('data-wrap', 'free');
   const start = (await box.boundingBox())!;
   await shape.locator('.shape-wrap').hover();
@@ -3378,9 +3381,7 @@ test('arranging shapes: behind the text, tight and top-and-bottom wrapping, plac
       return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((x) => x.shape).map((x) => x.shape!);
     });
   const menu = async (shape: typeof a, item: string) => {
-    await shape.locator('.shape-box').hover();
-    await shape.getByRole('button', { name: 'Shape ▾' }).click();
-    await shape.getByRole('button', { name: item, exact: true }).click();
+    await fromMenu(shape.locator('.shape-box'), shape, 'Shape ▾', shape.getByRole('button', { name: item, exact: true }));
   };
   // Tight and top-and-bottom wrapping for the shape in the text.
   await menu(c, 'Tight, on the left');
@@ -3462,9 +3463,7 @@ test('more shapes from the gallery, shape styles, gradient fill, line thickness,
       return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
     });
   const menu = async (shape: typeof star, item: string | RegExp) => {
-    await shape.locator('.shape-box').hover();
-    await shape.getByRole('button', { name: 'Shape ▾' }).click();
-    await shape.getByRole('button', { name: item, exact: typeof item === 'string' }).first().click();
+    await fromMenu(shape.locator('.shape-box'), shape, 'Shape ▾', shape.getByRole('button', { name: item, exact: typeof item === 'string' }).first());
   };
   // A style from the gallery: a fill fading to a darker blue, white text.
   await menu(star, 'Style: Blue gradient');
@@ -3483,12 +3482,8 @@ test('more shapes from the gallery, shape styles, gradient fill, line thickness,
   await page.getByRole('group', { name: 'Lines' }).getByRole('button', { name: 'Line' }).click();
   const line = page.locator('.note-editor .blk-shape').filter({ has: page.locator('[data-kind="line"]') });
   await expect(line).toHaveCount(1);
-  await line.locator('.shape-box').hover();
-  await line.getByRole('button', { name: 'Shape ▾' }).click();
-  await line.locator('[data-shape-action="head"][data-value="open"]').click();
-  await line.locator('.shape-box').hover();
-  await line.getByRole('button', { name: 'Shape ▾' }).click();
-  await line.locator('[data-shape-action="tail"][data-value="dot"]').click();
+  await fromMenu(line.locator('.shape-box'), line, 'Shape ▾', line.locator('[data-shape-action="head"][data-value="open"]'));
+  await fromMenu(line.locator('.shape-box'), line, 'Shape ▾', line.locator('[data-shape-action="tail"][data-value="dot"]'));
   await expect.poll(async () => (await look()).find((x) => x.kind === 'line')).toMatchObject({ head: 'open', tail: 'dot' });
   await expect(line.locator('.shape-art marker')).toHaveCount(2);
 });
@@ -3504,9 +3499,7 @@ test('text in shapes (lines, bullets, direction), icons, edit points, linked tex
       return s.notes.find((n) => n.id === s.selectedId)!.doc.blocks.filter((b) => b.shape).map((b) => b.shape!);
     });
   const menu = async (shape: ReturnType<typeof page.locator>, item: string) => {
-    await shape.locator('.shape-box').hover();
-    await shape.getByRole('button', { name: 'Shape ▾' }).click();
-    await shape.getByRole('button', { name: item, exact: true }).first().click();
+    await fromMenu(shape.locator('.shape-box'), shape, 'Shape ▾', shape.getByRole('button', { name: item, exact: true }).first());
   };
   // A text box with two lines, the second a bullet.
   await page.keyboard.press('End');
@@ -3561,9 +3554,7 @@ test('text in shapes (lines, bullets, direction), icons, edit points, linked tex
   expect(offset).toBeLessThan(-10);
   // An SVG picture made a shape: its outline, in its colour, ready to recolour.
   const pic = page.locator('.note-editor .blk-image');
-  await pic.locator('img').hover();
-  await pic.getByRole('button', { name: 'Picture ▾' }).click();
-  await pic.getByRole('button', { name: 'Convert to shape' }).click();
+  await fromMenu(pic.locator('img'), pic, 'Picture ▾', pic.getByRole('button', { name: 'Convert to shape' }));
   await expect.poll(async () => (await looks()).find((l) => l.kind === 'path')).toMatchObject({ fill: '#336699', vb: [10, 10] });
 });
 
@@ -4642,27 +4633,19 @@ test('pictures: resize from the corner, wrap text round, move in front, turn, al
   await expect.poll(() => noteMarkdown(page)).toMatch(/\{pic w=2\.67\}/);
   expect(Math.round((await img.boundingBox())!.width)).toBe(Math.round(before - 144));
   // The menu: text wraps round it on the right.
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'Square, on the right' }).click();
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'Square, on the right' }));
   await expect(blk).toHaveAttribute('data-wrap', 'right');
   await expect(blk).toHaveCSS('float', 'right');
   // Turn it, and give it alt text of its own.
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'Right 90°' }).click();
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'Alt text…' }).click();
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'Right 90°' }));
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'Alt text…' }));
   const alt = page.getByRole('dialog', { name: 'Alt text' });
   await alt.getByLabel('Describe the picture').fill('A gull on a post');
   await alt.getByRole('button', { name: 'OK' }).click();
   await expect(img).toHaveAttribute('alt', 'A gull on a post');
   await expect.poll(() => noteMarkdown(page)).toContain('{pic w=2.67 wrap=right rot=90 alt="A gull on a post"}');
   // In front of the text, dragged by ✥.
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'In front of text' }).click();
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'In front of text' }));
   await img.hover();
   const mv = (await blk.locator('.pic-move').boundingBox())!;
   await page.mouse.move(mv.x + 10, mv.y + 10);
@@ -4671,9 +4654,7 @@ test('pictures: resize from the corner, wrap text round, move in front, turn, al
   await page.mouse.up();
   await expect.poll(() => noteMarkdown(page)).toMatch(/wrap=free x=(0.99|1|1.01) y=0.(49|5|51) rot=90/);
   // Reset: back to how it was put in, keeping the alt text.
-  await img.hover();
-  await blk.getByRole('button', { name: 'Picture ▾' }).click();
-  await blk.getByRole('button', { name: 'Reset picture' }).click();
+  await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name: 'Reset picture' }));
   await expect.poll(() => noteMarkdown(page)).toContain('![A gull](https://pics.example/gull.png) {pic alt="A gull on a post"}');
 });
 
@@ -4685,9 +4666,7 @@ test('pictures: crop by dragging an edge, to a ratio and a shape; styles; correc
   const img = blk.locator('img');
   await expect(img).toHaveJSProperty('complete', true);
   const menu = async (name: string) => {
-    await img.hover();
-    await blk.getByRole('button', { name: 'Picture ▾' }).click();
-    await blk.getByRole('button', { name, exact: true }).click();
+    await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name, exact: true }));
   };
   // Crop: drag the left edge an inch in. The picture keeps its scale; its window is an inch narrower.
   await menu('Crop');
@@ -4738,9 +4717,7 @@ test('pictures: remove a plain background, compress, and reset back to the origi
   const img = blk.locator('img');
   await expect(img).toHaveJSProperty('complete', true);
   const menu = async (name: string) => {
-    await img.hover();
-    await blk.getByRole('button', { name: 'Picture ▾' }).click();
-    await blk.getByRole('button', { name, exact: true }).click();
+    await fromMenu(img, blk, 'Picture ▾', blk.getByRole('button', { name, exact: true }));
   };
   /** The see-through-ness (alpha) of the picture's pixel at x, y, as it's drawn from its file. */
   const alphaAt = (x: number, y: number) =>
