@@ -107,14 +107,14 @@ test('accounts: create one with email, sign out, sign in again, reset a password
   // The name fills in, and Settings says who's signed in.
   await expect(page.locator('.settings').getByLabel('Your name')).toHaveValue('Sam Reed');
   const settings = page.locator('.settings');
-  await expect(settings).toContainText('Signed in as Sam Reed (sam@example.com) with email.');
+  await expect(settings).toContainText('sam@example.com, signed in with email.');
   await expect(settings).toContainText('Check your inbox for the link to confirm your email.');
   // Still signed in after a reload.
   await page.reload();
   await page.getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Settings…' }).click();
   await page.getByRole('tab', { name: 'Account', exact: true }).click();
-  await expect(settings).toContainText('Signed in as Sam Reed');
+  await expect(settings).toContainText('sam@example.com, signed in with email.');
 
   // Sign out, and a wrong password says so.
   await settings.getByRole('button', { name: 'Sign out' }).click();
@@ -135,7 +135,7 @@ test('accounts: create one with email, sign out, sign in again, reset a password
   await dialog.getByLabel('Password').fill('lighthouse');
   await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(settings).toContainText('Signed in as Sam Reed');
+  await expect(settings).toContainText('sam@example.com, signed in with email.');
 
   // Delete the account: gone from the service, and signed out here; the notes stay.
   await settings.getByRole('button', { name: 'Delete account…' }).click();

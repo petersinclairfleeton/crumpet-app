@@ -5,6 +5,7 @@ import { canPickFolder } from '../sync/google-picker';
 import { canUseFolder } from '../sync/folder';
 import { desktop } from '../data/desktop';
 import { useSync } from './hooks';
+import { SettingGroup, SettingRow } from './settingrows';
 
 /** Settings: where notes are kept: Google Drive, or a folder on this computer. */
 export function SyncSettings() {
@@ -20,23 +21,28 @@ export function SyncSettings() {
   if (config) {
     const s = state.status;
     return (
-      <div className="field sync-settings" role="group" aria-label="Where your notes live">
-        <span>Where your notes live</span>
-        <p className="sync-where">
-          {config.kind === 'folder' ? (
+      <SettingGroup title="Where your notes live">
+        <SettingRow
+          title={config.kind === 'folder' ? 'A folder on this computer' : 'Google Drive'}
+          hint={
             <>
-              In the folder <b>{config.folderName}</b> on this computer, as Markdown files you can open with any app.
+              <span className="sync-where">
+                {config.kind === 'folder' ? (
+                  <>
+                    In the folder <b>{config.folderName}</b> on this computer, as Markdown files you can open with any app.
+                  </>
+                ) : (
+                  <>
+                    In your Google Drive, in the folder <b>{config.folderName}</b>, as Markdown files you can open with any app.
+                  </>
+                )}
+              </span>
+              <span className={`sync-line${s?.phase === 'error' ? ' bad' : ''}`} role="status">
+                {statusText(s)}
+              </span>
             </>
-          ) : (
-            <>
-              In your Google Drive, in the folder <b>{config.folderName}</b>, as Markdown files you can open with any app.
-            </>
-          )}
-        </p>
-        <p className={`sync-line${s?.phase === 'error' ? ' bad' : ''}`} role="status">
-          {statusText(s)}
-        </p>
-        <div className="sync-actions">
+          }
+        >
           {s?.error?.kind === 'auth' ? (
             <button type="button" className="btn primary" onClick={() => run(() => sync.reconnect())}>
               {config.kind === 'folder' ? 'Allow access to the folder' : 'Sign in again'}
@@ -49,7 +55,7 @@ export function SyncSettings() {
           <button type="button" className="btn quiet" onClick={() => sync.disconnect()}>
             Disconnect
           </button>
-        </div>
+        </SettingRow>
         {config.kind === 'drive' && !!s?.unseen?.length && (
           <div className="sync-unseen" role="note">
             <b>Some chapters in your Drive folder can’t be opened by Crumpet</b>
@@ -71,15 +77,14 @@ export function SyncSettings() {
           </p>
         )}
         {error && <p className="sync-line bad">{error}</p>}
-      </div>
+      </SettingGroup>
     );
   }
 
   if (state.choosing) {
     const existing = state.choosing.existing;
     return (
-      <div className="field sync-settings" role="group" aria-label="Where your notes live">
-        <span>Where should your notes go?</span>
+      <SettingGroup title="Where should your notes go?" label="Where your notes live">
         <div className="sync-choices">
           <button type="button" className="sync-choice" disabled={state.connecting} onClick={() => run(() => sync.useFolder(existing ?? 'new'))}>
             <b>{existing ? 'Your Crumpet folder' : 'A new “Crumpet” folder'}</b>
@@ -99,43 +104,32 @@ export function SyncSettings() {
         </div>
         {state.connecting && <p className="sync-line">Connecting…</p>}
         {error && <p className="sync-line bad">{error}</p>}
-      </div>
+      </SettingGroup>
     );
   }
 
   return (
-    <div className="field sync-settings" role="group" aria-label="Where your notes live">
-      <span>Where your notes live</span>
-      <p className="sync-where">On this device only.</p>
-      <div className="sync-actions">
-        {(!desktop || BUILT_IN_CLIENT_ID) && (
+    <SettingGroup title="Where your notes live" hint="On this device only. Choose a place below to have them on your other devices too.">
+      {(!desktop || BUILT_IN_CLIENT_ID) && (
+        <SettingRow
+          title="Google Drive"
+          hint={BUILT_IN_CLIENT_ID ? `On every device, as Markdown files you own.${desktop ? ' Google’s sign-in opens in your browser, then brings you back.' : ''} Crumpet sees only the files it makes.` : 'Not set up in this copy of Crumpet yet.'}
+        >
           <button type="button" className="btn google" disabled={state.connecting || !BUILT_IN_CLIENT_ID} onClick={() => run(() => sync.signInToGoogle())}>
             <GoogleMark />
             {state.connecting ? 'Opening Google…' : 'Continue with Google'}
           </button>
-        )}
+        </SettingRow>
+      )}
+      <SettingRow title="A folder on this computer" hint={canUseFolder ? 'Pick one that iCloud Drive, Dropbox or OneDrive keeps in step to have your notes everywhere.' : 'Needs Chrome or Edge on a computer.'}>
         {canUseFolder && (
           <button type="button" className="btn" disabled={state.connecting} onClick={() => run(() => sync.useLocalFolder())}>
-            Use a folder on this computer…
+            Choose a folder…
           </button>
         )}
-      </div>
-      {desktop && !BUILT_IN_CLIENT_ID ? (
-        <p className="sync-hint">
-          Keep your notes as Markdown files in a folder on this computer. To have them on your other devices too, pick a folder that iCloud Drive, Dropbox or OneDrive keeps in step.
-        </p>
-      ) : (
-      <p className="sync-hint">
-        {BUILT_IN_CLIENT_ID
-          ? `Keep your notes as Markdown files in a folder in your Google Drive, and see them on all your devices.${desktop ? ' Google’s sign-in opens in your browser, then brings you back here.' : ''} Crumpet can only see the files it makes there.`
-          : 'Google Drive isn’t set up in this copy of Crumpet yet.'}
-        {canUseFolder
-          ? ' Or keep them in a folder on this computer: pick one that Dropbox, OneDrive or iCloud Drive keeps in step to have them on your other devices too.'
-          : ' (Keeping notes in a folder on this computer needs Chrome or Edge on a computer.)'}
-      </p>
-      )}
+      </SettingRow>
       {error && <p className="sync-line bad">{error}</p>}
-    </div>
+    </SettingGroup>
   );
 }
 

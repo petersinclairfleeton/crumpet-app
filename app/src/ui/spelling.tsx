@@ -7,7 +7,8 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import type { AppState } from '../data/store';
 import { useAppState, useAppStore } from './hooks';
-import { IconClose } from './icons';
+import { IconChevronDown, IconClose } from './icons';
+import { SettingGroup, Switch } from './settingrows';
 
 export const SPELL_LANGS: [string, string][] = [
   ['', 'The browser’s own'],
@@ -82,27 +83,31 @@ export function SpellingSettings() {
   const [word, setWord] = useState('');
   const names = state.projects.flatMap((p) => p.cast ?? []).length;
   return (
-    <div className="field" role="group" aria-label="Spelling">
-      <span>Spelling</span>
-      <label className="check-row">
-        <input type="checkbox" checked={!sp.off} onChange={(e) => store.updateSettings({ spelling: { ...sp, off: !e.target.checked || undefined } })} />
-        Check spelling as you type
+    <SettingGroup title="Spelling">
+      <Switch
+        label="Check spelling as you type"
+        hint={names ? 'Your browser does the checking. Your characters’ and places’ names are never marked.' : 'Your browser does the checking. Names of characters and places in your books are never marked.'}
+        on={!sp.off}
+        onChange={(v) => store.updateSettings({ spelling: { ...sp, off: !v || undefined } })}
+      />
+      <label className="settings-row">
+        <span>
+          <b>Language</b>
+          <small>In Chrome and Edge, add it in the browser’s own settings (Languages) too.</small>
+        </span>
+        <span className="select-wrap">
+          <select value={sp.lang ?? ''} onChange={(e) => store.updateSettings({ spelling: { ...sp, lang: e.target.value || undefined } })}>
+            {SPELL_LANGS.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <IconChevronDown size={14} />
+        </span>
       </label>
-      <label className="check-row spell-lang">
-        Language
-        <select value={sp.lang ?? ''} onChange={(e) => store.updateSettings({ spelling: { ...sp, lang: e.target.value || undefined } })}>
-          {SPELL_LANGS.map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p className="sync-hint">
-        Your browser does the checking. In Chrome and Edge, the language needs adding in the browser’s own settings (Languages) to be checked.
-        {names ? ' Your characters’ and places’ names are never marked.' : ' Names of characters and places in your projects are never marked.'}
-      </p>
       <div className="ac-words" role="group" aria-label="Your dictionary">
+        <span className="ac-words-title">Your dictionary</span>
         {(sp.words ?? []).map((w) => (
           <div key={w} className="ac-word">
             <span className="grow">{w}</span>
@@ -126,6 +131,6 @@ export function SpellingSettings() {
           </button>
         </form>
       </div>
-    </div>
+    </SettingGroup>
   );
 }

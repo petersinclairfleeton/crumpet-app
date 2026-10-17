@@ -5,13 +5,14 @@ import { useState } from 'react';
 import { AUTOCORRECT_DEFAULTS, type AutoCorrectOptions } from '@crumpet/editor/autocorrect';
 import { useAppState, useAppStore } from './hooks';
 import { IconClose } from './icons';
+import { SettingGroup, Switch } from './settingrows';
 
-const KINDS: [keyof typeof AUTOCORRECT_DEFAULTS, string][] = [
-  ['quotes', '“Curly” quotes and apostrophes'],
-  ['dashes', 'Dashes: word--word to word—word, and 1 - 5 to 1 – 5'],
-  ['symbols', 'Symbols: ... to …, (c) to ©, (tm) to ™, -> to →'],
-  ['capitals', 'A capital at the start of each sentence, and I'],
-  ['typos', 'Put common typos right (teh to the, dont to don’t)'],
+const KINDS: [keyof typeof AUTOCORRECT_DEFAULTS, string, string][] = [
+  ['quotes', '“Curly” quotes and apostrophes', '"Like this" becomes “like this”.'],
+  ['dashes', 'Dashes', 'word--word becomes word—word, and 1 - 5 becomes 1 – 5.'],
+  ['symbols', 'Symbols', '... becomes …, (c) ©, (tm) ™ and -> →.'],
+  ['capitals', 'Capitals', 'At the start of each sentence, and for I.'],
+  ['typos', 'Common typos', 'teh becomes the, dont becomes don’t.'],
 ];
 
 export function AutoCorrectSettings() {
@@ -35,16 +36,12 @@ export function AutoCorrectSettings() {
     set({ words: next });
   };
   return (
-    <div className="field" role="group" aria-label="AutoCorrect">
-      <span>AutoCorrect</span>
-      <p className="sync-hint">Put right as you type. Press Ctrl+Z straight after a correction to take it back.</p>
-      {KINDS.map(([key, label]) => (
-        <label key={key} className="check-row">
-          <input type="checkbox" checked={ac[key] ?? AUTOCORRECT_DEFAULTS[key]} onChange={(e) => set({ [key]: e.target.checked })} />
-          {label}
-        </label>
+    <SettingGroup title="AutoCorrect" hint="Put right as you type. Undo straight after a correction takes it back.">
+      {KINDS.map(([key, label, hint]) => (
+        <Switch key={key} label={label} hint={hint} on={ac[key] ?? AUTOCORRECT_DEFAULTS[key]} onChange={(v) => set({ [key]: v })} />
       ))}
       <div className="ac-words" role="group" aria-label="Your own replacements">
+        <span className="ac-words-title">Your own replacements</span>
         {words.map(([t, r]) => (
           <div key={t} className="ac-word">
             <code>{t}</code>
@@ -70,6 +67,6 @@ export function AutoCorrectSettings() {
           </button>
         </form>
       </div>
-    </div>
+    </SettingGroup>
   );
 }

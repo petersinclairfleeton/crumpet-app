@@ -145,7 +145,7 @@ test('keep notes in a folder on this computer: files written there, changes made
   await page.keyboard.press('Enter');
   await page.keyboard.type('The boats come in at dusk.');
   await sidebar(page).getByRole('button', { name: 'Saved on this device' }).click();
-  await where(page).getByRole('button', { name: 'Use a folder on this computer…' }).click();
+  await where(page).getByRole('button', { name: 'Choose a folder…' }).click();
   await expect(where(page)).toContainText('In the folder My notes on this computer');
   await expect(where(page).getByRole('status')).toHaveText(/Synced/);
   const files = () =>
