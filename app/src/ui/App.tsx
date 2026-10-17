@@ -478,8 +478,9 @@ export function App() {
       {narrow && pane === 'list' && !state.focusMode && !phoneCalm && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
       {/* The calm phone: no bar of tabs, just the round + on a list (or a book's chapters). */}
       {/* Out of the way of the results while searching. */}
-      {phoneCalm && pane === 'list' && !state.focusMode && !state.query && (
-        <button type="button" className="fab" aria-label={project ? 'New chapter' : 'New note'} onClick={() => (project ? store.addChapter(project.id) : newNote())}>
+      {/* (A book's is the outline's own, which knows which of its tabs is open.) */}
+      {phoneCalm && pane === 'list' && !state.focusMode && !state.query && !project && (
+        <button type="button" className="fab" aria-label="New note" onClick={newNote}>
           <IconPlus size={26} />
         </button>
       )}

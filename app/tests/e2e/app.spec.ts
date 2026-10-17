@@ -5911,6 +5911,10 @@ test.describe('on a phone, in the calm look', () => {
     await expect(outline.locator('.outline-chapter')).toHaveCount(3);
     await outline.getByRole('button', { name: 'Cast', exact: true }).click();
     await expect(outline.locator('.outline-chapter')).toHaveCount(0);
+    // The cast as rows under a heading with its own +; the round + is for chapters only.
+    await expect(outline.getByRole('heading', { name: 'Characters & places' })).toBeVisible();
+    await expect(outline.getByRole('button', { name: 'Add a character or place' })).toBeVisible();
+    await expect(page.locator('.fab')).toHaveCount(0);
     await outline.getByRole('button', { name: 'Chapters', exact: true }).click();
     await outline.getByRole('button', { name: 'Back to the library' }).click();
     await expect(library).toBeVisible();

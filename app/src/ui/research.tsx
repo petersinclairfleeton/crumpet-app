@@ -51,7 +51,8 @@ export function addResearchFiles(store: ReturnType<typeof useAppStore>, projectI
 }
 
 /** The research list under a project's outline. */
-export function ResearchList({ project }: { project: Project }) {
+/** `phone`: in a phone's book, under its Research tab: a heading and rows like the library's, always open. */
+export function ResearchList({ project, phone = false }: { project: Project; phone?: boolean }) {
   const state = useAppState();
   const store = useAppStore();
   const [open, setOpen] = useState(true);
@@ -60,15 +61,19 @@ export function ResearchList({ project }: { project: Project }) {
   return (
     <section className="research" aria-label="Research">
       <div className="research-head">
-        <button type="button" className="research-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <IconChevron size={10} className={open ? 'rot90' : ''} />
-          Research
-          <span className="count">{items.length}</span>
-        </button>
+        {phone ? (
+          <h2 className="research-title">Research</h2>
+        ) : (
+          <button type="button" className="research-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+            <IconChevron size={10} className={open ? 'rot90' : ''} />
+            Research
+            <span className="count">{items.length}</span>
+          </button>
+        )}
         <span className="grow" />
         <span className="note-actions">
           <button type="button" className="icon-btn" aria-label="Add research" aria-expanded={adding} onClick={() => setAdding(!adding)}>
-            <IconPlus size={14} />
+            <IconPlus size={phone ? 20 : 14} />
           </button>
           {adding && (
             <Popover label="Add research" onClose={() => setAdding(false)}>
@@ -97,7 +102,7 @@ export function ResearchList({ project }: { project: Project }) {
           )}
         </span>
       </div>
-      {open && (
+      {(open || phone) && (
         <ul className="research-items">
           {items.length === 0 && <li className="research-empty">Notes, web clippings, pictures and PDFs for this project.</li>}
           {items.map((n) => {

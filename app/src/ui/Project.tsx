@@ -190,7 +190,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                 {menu === 'menu' && (
                   <>
                     <button type="button" className="menu-item" onClick={() => setMenu('rename')}>
-                      Rename project
+                      {calm || phone ? 'Rename book' : 'Rename project'}
                     </button>
                     {(calm || phone) && (
                       <button type="button" className="menu-item" aria-label="Add part" onClick={() => (setMenu(null), setRenaming(store.addPart(project.id) ?? null))}>
@@ -214,7 +214,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                       Export: Word, e-book, PDF…
                     </button>
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
-                      Delete project
+                      {calm || phone ? 'Delete book…' : 'Delete project'}
                     </button>
                   </>
                 )}
@@ -244,7 +244,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                       Delete <b>{project.name}</b> and all {chapters.size} chapter{chapters.size === 1 ? '' : 's'}? This can’t be undone.
                     </p>
                     <button type="button" className="btn danger" onClick={() => store.deleteProject(project.id)}>
-                      Delete project
+                      {calm || phone ? 'Delete book' : 'Delete project'}
                     </button>
                   </div>
                 )}
@@ -333,7 +333,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
       </header>
 
       {phone && phoneTab !== 'chapters' ? (
-        phoneTab === 'cast' ? <CastList project={project} /> : <ResearchList project={project} />
+        phoneTab === 'cast' ? <CastList project={project} phone /> : <ResearchList project={project} phone />
       ) : calm && mode === 'corkboard' ? (
         <div className="book-show" role="group" aria-label="Show on the cards">
           <p className="book-label">Show</p>
@@ -526,6 +526,12 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
       {!phone && <CastList project={project} />}
       {!phone && <ResearchList project={project} />}
       </>
+      )}
+      {/* The round + adds a chapter; under Cast and Research, their own + beside the heading adds to them. */}
+      {phone && phoneTab === 'chapters' && !state.focusMode && (
+        <button type="button" className="fab" aria-label="New chapter" onClick={() => store.addChapter(project.id)}>
+          <IconPlus size={26} />
+        </button>
       )}
     </section>
   );

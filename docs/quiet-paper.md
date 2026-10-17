@@ -54,4 +54,4 @@ The same pass on an iPhone: what a phone needs, shaped the way an iPhone app is.
 - [x] Writing: the keyboard bar's menus open (they were clipped out of sight) as a panel above it, its tools evenly spaced; Aa's short list of styles; the note's and chapter's ··· menus shorter, icons at the end, downloads behind one row, no keyboard shortcuts on touch screens (#173)
 - [x] The library and lists: the same groups as the computer, tags as chips, no More, back buttons that say where they go, a list menu without desktop choices (Sort by only, always cards), plain Cancel, the + out of the way while searching (#174)
 - [x] Settings like an iPhone's: a list of sections (with the theme and your name beside them), each a page of its own with ‹ Settings and Done; what a phone can't use left out; controls under their words (#175)
-- [ ] A book: characters and research as the same rows as chapters
+- [x] A book: Cast and Research as rows under a heading with its +, the round + only under Chapters, the switch even, "book" not "project" in its menu (#176)
