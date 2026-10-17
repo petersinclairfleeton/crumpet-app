@@ -133,6 +133,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     clicking it (`editor.onInkEdit`) or Draw (`insertDrawing`) opens
     `ui/inktools.tsx`'s drawing window (pointer events, pressure, undo,
     replay); Word gets a PNG of it (`inkPng` in `docx.ts`, browser only).
+    Ink editing (Word's ink editor): `editor/src/inkedit.ts` reads a stroke as a gesture
+    (`classifyGesture`: strike, scribble, circle, split, insert; `toWords`, `nearestGap`),
+    and `editor.inkGesture(points)` acts on it through `posAtPoint`; the app's layer is
+    `InkEditHost` in `ui/inktools.tsx` (More → Edit with ink, `openInkEditing`).
     Macros: the editor records steps (`startMacro`/`stopMacro`/`playMacro`,
     `MacroStep`: typing, Enter, Backspace, caret moves, and calls to
     `MACRO_COMMANDS`, wrapped while recording); `ui/macros.tsx` (Macros ▾,

@@ -41,7 +41,7 @@ export const TOOL_GROUPS: ToolGroup[] = ['Text', 'Paragraph', 'Insert', 'Layout'
 const GROUP_KEYS: Record<ToolGroup, string[]> = {
   Text: ['font', 'size', 'grow', 'shrink', 'fontdlg', 'color', 'highlight', 'case', 'effects', 'clear', 'underline', 'strike', 'code', 'sup', 'sub', 'dropcap', 'style', 'bold', 'italic'],
   Paragraph: ['align', 'spacing', 'bullet', 'numbered', 'multilevel', 'todo', 'borders', 'shading', 'h', 'marks'],
-  Insert: ['link', 'table', 'symbol', 'date', 'chart', 'video', 'screenshot', 'object', 'model3d', 'equation', 'form', 'draw', 'shapes', 'textbox', 'icons', 'attach', 'snippets', 'signature', 'blankpage', 'cover', 'create'],
+  Insert: ['link', 'table', 'symbol', 'date', 'chart', 'video', 'screenshot', 'object', 'model3d', 'equation', 'form', 'draw', 'inkedit', 'shapes', 'textbox', 'icons', 'attach', 'snippets', 'signature', 'blankpage', 'cover', 'create'],
   Layout: ['breaks', 'columns', 'orientation', 'linenumbers', 'hyphenation', 'pagesetup', 'pageborders', 'watermark', 'paper', 'gridlines', 'pageslayout', 'outlineview', 'newwindow', 'syncscroll', 'reader', 'pages', 'design', 'themes'],
   References: ['references', 'toc', 'chapter', 'outline', 'links', 'search', 'thesaurus'],
   Review: ['comment', 'comments', 'bright', 'protect', 'check', 'snapshots', 'writing'],
