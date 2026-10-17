@@ -8,6 +8,7 @@ import { preview } from '../data/selectors';
 import { desktop } from '../data/desktop';
 import { useAppState, useAppStore } from './hooks';
 import { IconClose } from './icons';
+import { SettingGroup, SettingRow } from './settingrows';
 
 /** Where this Crumpet lives, for the bookmark to open (the Mac app has an address of its own for clips). */
 function appUrl(): string {
@@ -23,23 +24,23 @@ export function ClipperSettings() {
   }, [href]);
   const local = location.protocol === 'file:' && !desktop;
   return (
-    <div className="field clipper" role="group" aria-label="Web clipper">
-      <span>Web clipper</span>
-      <p className="sync-hint">
-        Save web pages as notes. Drag this button to your browser’s bookmarks bar, then click it on any page. Select part of a page first to keep just that part.
-        {desktop && ' The page comes to this app (your browser may ask once whether to open Crumpet).'}
-      </p>
-      <a ref={link} className="clip-bookmark" draggable onClick={(e) => e.preventDefault()} title="Drag me to your bookmarks bar">
-        ✂ Clip to Crumpet
-      </a>
-      <p className="sync-hint">If a site won’t let the button work, copy what you want and paste it into a note: headings, lists, links and formatting come too.</p>
-      {local && <p className="sync-hint">The clipper needs Crumpet opened from a web address, not a file on this device.</p>}
+    <SettingGroup title="Web clipper" hint="Save web pages as notes. Select part of a page first to keep just that part.">
+      <SettingRow
+        title="The clipper button"
+        hint={`Drag it to your browser’s bookmarks bar, then click it on any page.${desktop ? ' The page comes to this app (your browser may ask once whether to open Crumpet).' : ''}`}
+      >
+        <a ref={link} className="clip-bookmark" draggable onClick={(e) => e.preventDefault()} title="Drag me to your bookmarks bar">
+          ✂ Clip to Crumpet
+        </a>
+      </SettingRow>
+      {local && <p className="setting-group-hint">The clipper needs Crumpet opened from a web address, not a file on this device.</p>}
       <details className="clip-help">
         <summary>On a phone or tablet</summary>
         <p>Add any page as a bookmark, edit it, and paste this as its address:</p>
         <textarea readOnly rows={3} value={href} aria-label="Bookmark address" onFocus={(e) => e.currentTarget.select()} />
       </details>
-    </div>
+      <p className="setting-group-hint">If a site won’t let the button work, copy what you want and paste it into a note: headings, lists, links and formatting come too.</p>
+    </SettingGroup>
   );
 }
 

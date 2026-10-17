@@ -2544,7 +2544,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .switch-row small { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 input.switch { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 38px; height: 22px; margin: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 18%, transparent); cursor: pointer; transition: background 0.15s; }
 input.switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgb(0 0 0 / 0.25); transition: transform 0.15s; }
-input.switch:checked { background: var(--accent); }
+/* On is ink, not honey: the accent stays for the one thing each screen asks you to do. */
+input.switch:checked { background: var(--text); }
+input.switch:checked::after { background: var(--page); box-shadow: none; }
 input.switch:checked::after { transform: translateX(16px); }
 input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 [data-motion='reduce'] input.switch, [data-motion='reduce'] input.switch::after { transition: none; }
@@ -2928,7 +2930,6 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .settings-dialog.calm .settings-head .icon-btn { width: 32px; height: 32px; }
 .dialog.settings-dialog.calm .settings { flex: 1; overflow-y: auto; gap: 0; padding: 16px 40px 32px; }
 .settings-dialog.calm .settings > .field { margin-bottom: 8px; }
-.settings-dialog.calm .settings-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--calm-muted, var(--muted)); }
 .theme-row { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 8px; }
 .theme-pick { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; border: none; background: none; font: 400 13px var(--ui-font); color: var(--text); cursor: pointer; }
 .theme-pic { position: relative; display: flex; gap: 6px; width: 112px; height: 72px; box-sizing: border-box; padding: 8px; border-radius: 8px; border: 1px solid var(--line); overflow: hidden; }
@@ -2964,6 +2965,33 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .size-pick .range { flex: 1; }
 .settings-dialog.calm .switch-row { padding: 16px 0; border-top: 1px solid var(--calm-hair, var(--line)); }
 .settings-dialog.calm .switch-row:first-child { border-top: none; }
+/* Every page of Settings is built the same way (settingrows.tsx): groups under a
+   quiet heading, rows with a name, a line about it and the control at the end. */
+.setting-group { display: flex; flex-direction: column; margin-top: 32px; }
+.settings > .setting-group:first-child, .settings-dialog:not(.calm) .setting-group { margin-top: 0; }
+.setting-group-title { margin: 0 0 4px; font: 600 13px var(--ui-font); color: var(--text2); }
+.setting-group-hint { margin: 0 0 8px; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.setting-group > :is(.setting-group-title, .setting-group-hint) + :is(.settings-row, .switch-row) { border-top: none; }
+.setting-group > .ac-words { margin: 8px 0 4px; }
+.settings-row-end { flex: none; display: flex; align-items: center; gap: 8px; }
+.settings-row small b { font-weight: 500; color: var(--text2); }
+.settings-row small .sync-line { display: block; margin-top: 2px; font-size: 13px; }
+.settings-dialog.calm .settings-row-end .btn, .settings-dialog.calm .settings-row-end .clip-bookmark { height: 36px; padding: 0 14px; font-weight: 500; font-size: 14px; }
+.settings-dialog.calm .settings-row-end .btn.quiet { padding: 0 10px; }
+.settings-dialog.calm .settings-row-end .clip-bookmark { box-shadow: none; border-radius: 8px; }
+.settings-dialog.calm .font-choose { height: 36px; }
+.select-wrap { position: relative; flex: none; display: inline-flex; align-items: center; }
+.select-wrap select { appearance: none; -webkit-appearance: none; width: 200px; height: 36px; padding: 0 32px 0 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); font: 400 14px var(--ui-font); color: var(--text); cursor: pointer; }
+.select-wrap svg { position: absolute; right: 12px; pointer-events: none; color: var(--muted); }
+.settings-input { flex: none; width: 200px; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); font: 400 14px var(--ui-font); color: var(--text); }
+.ac-words-title { font-size: 13px; font-weight: 500; color: var(--text2); }
+.settings-dialog.calm .ac-add input { height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); font: 400 14px var(--ui-font); color: var(--text); }
+.settings-dialog.calm .ac-add .btn { height: 36px; font-weight: 500; }
+.settings-dialog.calm .more-themes.btn { height: auto; margin-top: 16px; padding: 0; font-size: 13px; font-weight: 500; color: var(--text2); }
+.settings-dialog.calm .more-themes.btn:hover { color: var(--text); }
+.btn.quiet.danger { color: var(--danger, #b3261e); }
+.settings-dialog.calm .clip-help { margin: 12px 0; }
+.settings-dialog.calm .clip-help summary { font-size: 13px; color: var(--text2); }
 
 /* ---- Quiet Paper: Find anything (design 11) ---- */
 [data-calm='1'] .dialog.finder { position: relative; width: min(640px, calc(100vw - 32px)); border-radius: 12px; }

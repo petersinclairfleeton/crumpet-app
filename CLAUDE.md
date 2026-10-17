@@ -142,7 +142,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `MACRO_COMMANDS`, wrapped while recording); `ui/macros.tsx` (Macros ▾,
     the recording strip, Alt+Shift+number) keeps them in `settings.macros`.
     `ui/customise.tsx`: Customise the bar (`settings.toolbarCustom` hide/pin;
-    pinned items get priority 9). `ui/help.tsx`: the top bar's Help menu (guide,
+    pinned items get priority 9). `ui/settingrows.tsx`: what every page of Settings is
+    built from (`SettingGroup`, `SettingRow`, `Switch`), so they all look alike. `ui/help.tsx`: the top bar's Help menu (guide,
     What's new from `data/whatsnew.ts` with `settings.whatsNewSeen`, feedback and
     support only when `VITE_FEEDBACK_EMAIL` / `VITE_SUPPORT_URL` are set).
   - `table.ts`: table formatting (merged cells, shading, column alignment
@@ -376,7 +377,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `data/paper.ts`, `ui/paper.tsx`) sets `--paper`/`--paper-ink` and
     `data-paper` on the page. Tokens and look rules are in `app.css`;
     the theme list (names, previews) in `ui/themes.ts`.
-    The calm look is `!settings.toolbarAll` (Settings → Appearance → Show every
+    The calm look is `!settings.toolbarAll` (Settings → Formatting bar → Show every
     formatting tool): five tools and a short More (`QUICK_TOOLS`, then All writing
     tools…), the note's views in its ··· menu, three right-sidebar tabs plus More,
     no list before the first note, and a note in page view with the sidebar as

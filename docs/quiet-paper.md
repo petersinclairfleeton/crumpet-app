@@ -38,3 +38,12 @@ items are in the app; the PR that built each is in brackets.
 - [x] 14 iPad landscape (#147, already close)
 - [x] 15 iPad portrait: the right sidebar as a sheet from the bottom (#153)
 - [x] The Mac app's window: checked with the new look, nothing needed changing (#153)
+
+## Calmer still: clarity, restraint, consistency
+After the canvas, a pass to make Crumpet feel calm and of a piece, the way an
+Apple app does: fewer things on screen, one way of doing each thing, the same
+look for the same kind of control everywhere.
+
+- [x] Settings all of a piece: every page built from the same rows (`settingrows.tsx`), switches instead of tick boxes, plain examples, sync as two clear choices, each setting in one place, switches in ink (#170)
+- [ ] One voice: headings in normal case, one drop-down sign, menus without stray icons, no red dot, quieter links
+- [ ] Books with less on screen: no colour key, one New chapter, no how-to lines, tidy chapter header

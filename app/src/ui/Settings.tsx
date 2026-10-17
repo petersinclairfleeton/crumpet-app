@@ -13,6 +13,7 @@ import { THEMES, themeInfo } from './themes';
 import { PaperSwatches } from './paper';
 import { AutoCorrectSettings } from './autocorrect';
 import { SpellingSettings } from './spelling';
+import { SettingGroup, SettingRow, Switch } from './settingrows';
 
 const SECTIONS = [
   { id: 'account', label: 'Account & sync' },
@@ -96,8 +97,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
             <div className="settings" role="tabpanel" id="settings-panel" aria-labelledby={`settings-${shown}`}>
               {shown === 'look' && (
                 <>
-                  <div className="field" role="group" aria-label="Theme">
-                    <span className="settings-label">Theme</span>
+                  <SettingGroup title="Theme">
                     <div className="theme-row">
                       {(allThemes || !CALM_THEMES.some(([id]) => id === s.theme) ? THEMES.map((t) => [t.id, t.name] as [string, string]) : CALM_THEMES).map(([id, name]) => (
                         <button key={id} type="button" className="theme-pick" aria-pressed={s.theme === id} aria-label={name} title={themeInfo(id as typeof s.theme).hint} onClick={() => store.updateSettings({ theme: id as typeof s.theme })}>
@@ -110,11 +110,11 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
                       ))}
                     </div>
                     {!allThemes && CALM_THEMES.some(([id]) => id === s.theme) && (
-                      <button type="button" className="link-btn more-themes" onClick={() => setAllThemes(true)}>
-                        More themes ({THEMES.length - CALM_THEMES.length})
+                      <button type="button" className="btn quiet more-themes" onClick={() => setAllThemes(true)}>
+                        More themes…
                       </button>
                     )}
-                  </div>
+                  </SettingGroup>
                   <div className="settings-row" role="group" aria-label="Accent colour">
                     <span>
                       <b>Accent</b>
@@ -150,27 +150,20 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
                       <big aria-hidden="true">A</big>
                     </span>
                   </label>
-                  <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
                   <Switch label="Open the inspector with every note" hint="Off means it opens only when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
                   <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
                 </>
               )}
               {shown === 'writing' && (
                 <>
-                  <div className="field" role="group" aria-label="Paper">
-                    <span className="settings-label">Paper</span>
-                    <p className="sync-hint">The colour of the page you write on, in notes and chapters (printing stays white).</p>
+                  <SettingGroup title="Paper" hint="The colour of the page you write on. Printing stays white.">
                     <PaperSwatches />
-                  </div>
-                  <div className="field" role="group" aria-label="Typewriter">
-                    <span className="settings-label">Typewriter</span>
-                    {TYPEWRITER.map(([key, label]) => (
-                      <label key={key} className="check-row">
-                        <input type="checkbox" checked={!!s.typewriter?.[key]} onChange={(e) => store.updateSettings({ typewriter: { ...s.typewriter, [key]: e.target.checked } })} />
-                        {label}
-                      </label>
+                  </SettingGroup>
+                  <SettingGroup title="Typewriter">
+                    {TYPEWRITER.map(([key, label, hint]) => (
+                      <Switch key={key} label={label} hint={hint} on={!!s.typewriter?.[key]} onChange={(v) => store.updateSettings({ typewriter: { ...s.typewriter, [key]: v } })} />
                     ))}
-                  </div>
+                  </SettingGroup>
                   <AutoCorrectSettings />
                   <SpellingSettings />
                 </>
@@ -179,23 +172,22 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
                 <>
                   <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
                   <Switch label="Tools only over selected text" hint="Off keeps the five tools at the top of the page; on, they float over the words you select." on={s.toolbar === 'selection'} onChange={(v) => store.updateSettings({ toolbar: v ? 'selection' : 'always' })} />
-                  <div className="settings-row">
-                    <span>
-                      <b>Choose the buttons</b>
-                      <small>Hide the ones you never use, keep the ones you do on the bar.</small>
-                    </span>
+                  <SettingRow title="Choose the buttons" hint="Hide the ones you never use, keep the ones you do on the bar.">
                     <button type="button" className="btn" onClick={() => (onClose(), openCustomise())}>
                       Customise the bar…
                     </button>
-                  </div>
+                  </SettingRow>
                 </>
               )}
               {shown === 'sync' && <SyncSettings />}
               {shown === 'profile' && (
                 <>
-                  <label className="field">
-                    <span className="settings-label">Your name</span>
-                    <input value={s.name} placeholder="On manuscripts, comments and changes" onChange={(e) => store.updateSettings({ name: e.target.value })} />
+                  <label className="settings-row">
+                    <span>
+                      <b>Your name</b>
+                      <small>On manuscripts, comments and tracked changes.</small>
+                    </span>
+                    <input className="settings-input" value={s.name} placeholder="Your name" onChange={(e) => store.updateSettings({ name: e.target.value })} />
                   </label>
                   <AccountSettings />
                 </>
@@ -209,7 +201,6 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               {shown === 'advanced' && (
                 <>
                   <Switch label="Keep earlier versions as you write" hint="Crumpet keeps the text as it was, at most every ten minutes, to compare and go back to." on={s.autoVersions !== false} onChange={(v) => store.updateSettings({ autoVersions: v })} />
-                  <Switch label="Keep the right sidebar open" hint="Outline, review, styles and more beside the writing." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
                 </>
               )}
             </div>
@@ -310,21 +301,11 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
                 <span>Text size · {size}px</span>
                 <input className="range" type="range" min={13} max={24} step={1} value={size} style={{ '--pct': `${((size - 13) / 11) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
               </label>
-              <div className="field" role="group" aria-label="Typewriter">
-                <span>Typewriter</span>
-                {(
-                  [
-                    ['scroll', 'Keep the line you’re typing in the middle of the screen'],
-                    ['fade', 'Fade the other paragraphs'],
-                    ['sound', 'Typing sounds'],
-                  ] as const
-                ).map(([key, label]) => (
-                  <label key={key} className="check-row">
-                    <input type="checkbox" checked={!!s.typewriter?.[key]} onChange={(e) => store.updateSettings({ typewriter: { ...s.typewriter, [key]: e.target.checked } })} />
-                    {label}
-                  </label>
+              <SettingGroup title="Typewriter">
+                {TYPEWRITER.map(([key, label, hint]) => (
+                  <Switch key={key} label={label} hint={hint} on={!!s.typewriter?.[key]} onChange={(v) => store.updateSettings({ typewriter: { ...s.typewriter, [key]: v } })} />
                 ))}
-              </div>
+              </SettingGroup>
               <AutoCorrectSettings />
               <SpellingSettings />
             </>
@@ -345,23 +326,10 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
 
 const MAIN_THEMES = ['system', 'light', 'dark', 'paper'];
 const TYPEWRITER = [
-  ['scroll', 'Keep the line you’re typing in the middle of the screen'],
-  ['fade', 'Fade the other paragraphs'],
-  ['sound', 'Typing sounds'],
+  ['scroll', 'Keep your line in the middle', 'The page scrolls so the line you’re typing stays in the middle of the screen.'],
+  ['fade', 'Fade the other paragraphs', 'Only the one you’re writing in stays dark.'],
+  ['sound', 'Typing sounds', 'A soft click with each key.'],
 ] as const;
-
-/** An on/off setting: its name and a line about it, with a switch at the end. */
-function Switch({ label, hint, on, onChange }: { label: string; hint: string; on: boolean; onChange(v: boolean): void }) {
-  return (
-    <label className="switch-row">
-      <span>
-        <b>{label}</b>
-        <small>{hint}</small>
-      </span>
-      <input type="checkbox" role="switch" className="switch" checked={on} onChange={(e) => onChange(e.target.checked)} />
-    </label>
-  );
-}
 
 const SAMPLE = 'The quick brown fox jumps over the lazy dog. 1234567890';
 const CATEGORIES: [string, string][] = [

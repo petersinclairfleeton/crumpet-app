@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-17-settings-calm',
+    date: '17 October 2026',
+    title: 'Settings, all of a piece',
+    points: [
+      'Every page of Settings now looks and works the same way: a short heading for each group, then one row per setting with a line about it, and its switch, menu or button at the end.',
+      'Writing’s typewriter, AutoCorrect and spelling options are switches, each with a plain example (“teh becomes the”), and the spelling language is a proper menu.',
+      'Sync and storage offers two clear choices, Google Drive or a folder on this computer, each with one button.',
+      'Each setting is in one place only: Show every formatting tool is under Formatting bar, and the inspector’s switch under Appearance. Switches that are on are ink-coloured, so honey is kept for the one main thing on each screen.',
+    ],
+  },
+  {
     id: '2026-10-17-paper-phone',
     date: '17 October 2026',
     title: 'Paper and ink on a phone, fixed',

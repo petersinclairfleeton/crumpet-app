@@ -2124,7 +2124,7 @@ test('typewriter mode: the typing line stays mid-screen, other paragraphs fade, 
   await sidebar(page).locator('.account').click();
   await page.getByRole('tab', { name: 'Writing' }).click();
   const tw = page.getByRole('group', { name: 'Typewriter' });
-  await tw.getByLabel('Keep the line you’re typing in the middle of the screen').check();
+  await tw.getByLabel('Keep your line in the middle').check();
   await tw.getByLabel('Fade the other paragraphs').check();
   await tw.getByLabel('Typing sounds').check();
   await page.keyboard.press('Escape');
@@ -5512,7 +5512,7 @@ test('the calm bar: five buttons, the rest under More in groups, and page view�
   await opts.getByRole('button', { name: /Add a reminder/ }).click();
   await expect(page.getByRole('dialog', { name: 'Reminder' })).toBeVisible();
   await page.keyboard.press('Escape');
-  // Settings → Appearance → Show every formatting tool puts them all back on the bar.
+  // Settings → Formatting bar → Show every formatting tool puts them all back on the bar.
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
   await expect(bar.getByRole('button', { name: 'Underline' })).toBeVisible();
   // In page view, the groups are menus of their own, as Word's tabs are.

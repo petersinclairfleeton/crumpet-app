@@ -10,6 +10,7 @@ import { googleIdentity } from '../sync/google-auth';
 import { desktop } from '../data/desktop';
 import { useAppState, useAppStore } from './hooks';
 import { Logo } from './icons';
+import { SettingRow } from './settingrows';
 
 const WEB_CLIENT_ID = (import.meta.env?.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? '';
 /** Google sign-in for accounts: in the browser (the Mac app offers email). */
@@ -177,33 +178,37 @@ export function AccountSettings() {
   if (!accountsReady) return null;
   if (!a)
     return (
-      <div className="field account-field">
-        <span>Account</span>
-        <p className="sync-hint">Sign in to have your name and email on every device. Optional: Crumpet works the same without.</p>
+      <SettingRow title="Not signed in" hint="Sign in to have your name and email on every device. Optional: Crumpet works the same without.">
         <button type="button" className="btn" onClick={openSignIn}>
           Sign in or create an account
         </button>
-      </div>
+      </SettingRow>
     );
   return (
-    <div className="field account-field">
-      <span>Account</span>
-      <p className="account-who">
-        Signed in as <b>{a.name || a.email}</b>
-        {a.name && a.email ? ` (${a.email})` : ''} with {a.via === 'google' ? 'Google' : 'email'}.
-        {a.via === 'password' && a.verified === false && <small className="sync-hint"> Check your inbox for the link to confirm your email.</small>}
-      </p>
-      <div className="account-actions">
+    <>
+      <SettingRow
+        title={a.name || a.email}
+        hint={
+          <span className="account-who">
+            {a.name && a.email ? `${a.email}, signed` : 'Signed'} in with {a.via === 'google' ? 'Google' : 'email'}.
+            {a.via === 'password' && a.verified === false && ' Check your inbox for the link to confirm your email.'}
+          </span>
+        }
+      >
         <button type="button" className="btn" onClick={() => saveAccount(null)}>
           Sign out
         </button>
+      </SettingRow>
+      <SettingRow title="Delete account" hint={confirm ? 'Delete it for good? Your notes stay on this device and in your folder.' : 'Your notes stay on this device and in your folder.'}>
         {!confirm ? (
-          <button type="button" className="link-btn danger" onClick={() => setConfirm(true)}>
+          <button type="button" className="btn quiet danger" onClick={() => setConfirm(true)}>
             Delete account…
           </button>
         ) : (
-          <span className="menu-confirm">
-            <span>Delete your account for good? Your notes stay on this device and in your folder.</span>
+          <>
+            <button type="button" className="btn" onClick={() => setConfirm(false)}>
+              Cancel
+            </button>
             <button
               type="button"
               className="btn danger"
@@ -218,18 +223,15 @@ export function AccountSettings() {
             >
               Delete account
             </button>
-            <button type="button" className="btn" onClick={() => setConfirm(false)}>
-              Cancel
-            </button>
-          </span>
+          </>
         )}
-      </div>
+      </SettingRow>
       {error && (
         <p className="signin-error" role="alert">
           {error}
         </p>
       )}
-    </div>
+    </>
   );
 }
 
