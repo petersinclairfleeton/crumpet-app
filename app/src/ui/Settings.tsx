@@ -5,8 +5,8 @@ import { ClipperSettings } from './clipper';
 import { InstallSettings } from './install';
 import { ACCENTS, DEFAULT_NOTE_SIZE, type NoteFont } from '../data/types';
 import { DEFAULT_FONT, type FontChoice, canListAllSystemFonts, fontStack, googleFonts, loadGoogleFont, systemFonts } from './fonts';
-import { useAppState, useAppStore } from './hooks';
-import { IconChevronDown, IconClose } from './icons';
+import { useAppState, useAppStore, useMedia } from './hooks';
+import { IconBack, IconChevron, IconChevronDown, IconClose } from './icons';
 import { openCustomise } from './customise';
 import { SyncSettings } from './SyncSettings';
 import { THEMES, themeInfo } from './themes';
@@ -46,7 +46,10 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
   const s = state.settings;
   const panel = useRef<HTMLDivElement>(null);
   const calm = !s.toolbarAll;
-  const [section, setSection] = useState<SettingsSection>(asked ?? (calm ? 'look' : 'account'));
+  // On a phone, as in an iPhone's Settings: a list of the sections first, each opening as a page of its own.
+  const phone = useMedia('(max-width: 759px)') && calm;
+  const [picked, setSection] = useState<SettingsSection | null>(asked ?? (calm ? (phone ? null : 'look') : 'account'));
+  const section: SettingsSection = picked ?? 'look';
   const [fontOpen, setFontOpen] = useState(false);
   // Four themes up front; the rest wait under More themes (open while one of them is chosen).
   const [allThemes, setAllThemes] = useState(false);
@@ -68,8 +71,167 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
   const ownAccent = themeInfo(s.theme).accent;
 
   if (calm) {
-    const title = section === 'advanced' ? 'Advanced' : (CALM_SECTIONS.find((x) => x.id === section)?.label ?? 'Appearance');
+    // A phone has no Mac app to offer, only its Home Screen.
+    const label = (x: (typeof CALM_SECTIONS)[number]) => (phone && x.id === 'app' ? 'Clipper and app' : x.label);
+    const title = section === 'advanced' ? 'Advanced' : label(CALM_SECTIONS.find((x) => x.id === section) ?? CALM_SECTIONS[0]);
     const shown: SettingsSection = section === 'account' ? 'profile' : section;
+    const content = (
+      <>
+        {shown === 'look' && (
+          <>
+            <SettingGroup title="Theme">
+              <div className="theme-row">
+                {(allThemes || !CALM_THEMES.some(([id]) => id === s.theme) ? THEMES.map((t) => [t.id, t.name] as [string, string]) : CALM_THEMES).map(([id, name]) => (
+                  <button key={id} type="button" className="theme-pick" aria-pressed={s.theme === id} aria-label={name} title={themeInfo(id as typeof s.theme).hint} onClick={() => store.updateSettings({ theme: id as typeof s.theme })}>
+                    <span className={`theme-pic ${id}`} aria-hidden="true">
+                      <i />
+                      <i />
+                    </span>
+                    {name}
+                  </button>
+                ))}
+              </div>
+              {!allThemes && CALM_THEMES.some(([id]) => id === s.theme) && (
+                <button type="button" className="btn quiet more-themes" onClick={() => setAllThemes(true)}>
+                  More themes…
+                </button>
+              )}
+            </SettingGroup>
+            <div className="settings-row" role="group" aria-label="Accent colour">
+              <span>
+                <b>Accent</b>
+                <small>{ownAccent ? 'This theme has its own colours.' : 'Used once per screen: the New note button, the chosen dot.'}</small>
+              </span>
+              {!ownAccent && (
+                <span className="accents">
+                  {ACCENTS.map((a) => (
+                    <button key={a.hex} type="button" className={`swatch big${s.accent === a.hex ? ' on' : ''}`} style={{ background: a.hex }} aria-label={a.name} aria-pressed={s.accent === a.hex} title={a.name} onClick={() => store.updateSettings({ accent: a.hex })} />
+                  ))}
+                </span>
+              )}
+            </div>
+            <div className="settings-row">
+              <span>
+                <b>Writing font</b>
+                <small>For titles and your text. Menus stay in Onest.</small>
+              </span>
+              <button type="button" className="font-choose" aria-expanded={fontOpen} onClick={() => setFontOpen(!fontOpen)} style={{ fontFamily: fontStack(s.noteFont ?? DEFAULT_FONT) }}>
+                {(s.noteFont ?? DEFAULT_FONT).family}
+                <IconChevronDown size={14} />
+              </button>
+            </div>
+            {fontOpen && <FontPicker value={s.noteFont ?? DEFAULT_FONT} onChange={(f) => store.updateSettings({ noteFont: f })} />}
+            <label className="settings-row">
+              <span>
+                <b>Text size</b>
+                <small>The writing only. The interface follows your device.</small>
+              </span>
+              <span className="size-pick">
+                <small aria-hidden="true">A</small>
+                <input className="range" type="range" aria-label={`Text size, ${size}px`} min={13} max={24} step={1} value={size} style={{ '--pct': `${((size - 13) / 11) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
+                <big aria-hidden="true">A</big>
+              </span>
+            </label>
+            {/* A phone has no inspector. */}
+            {!phone && <Switch label="Open the inspector with every note" hint="Off means it opens only when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />}
+            <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
+          </>
+        )}
+        {shown === 'writing' && (
+          <>
+            <SettingGroup title="Paper" hint="The colour of the page you write on. Printing stays white.">
+              <PaperSwatches />
+            </SettingGroup>
+            <SettingGroup title="Typewriter">
+              {TYPEWRITER.map(([key, label, hint]) => (
+                <Switch key={key} label={label} hint={hint} on={!!s.typewriter?.[key]} onChange={(v) => store.updateSettings({ typewriter: { ...s.typewriter, [key]: v } })} />
+              ))}
+            </SettingGroup>
+            <AutoCorrectSettings />
+            <SpellingSettings />
+          </>
+        )}
+        {shown === 'bar' && (
+          <>
+            <Switch label="Show every formatting tool" hint={phone ? 'Off keeps the few tools above the keyboard and puts the rest under ···.' : 'Off keeps the bar to five tools and puts the rest under More.'} on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
+            {/* A phone's bar is the one above the keyboard: these shape the computer's. */}
+            {!phone && (
+              <>
+                <Switch label="Tools only over selected text" hint="Off keeps the five tools at the top of the page; on, they float over the words you select." on={s.toolbar === 'selection'} onChange={(v) => store.updateSettings({ toolbar: v ? 'selection' : 'always' })} />
+                <SettingRow title="Choose the buttons" hint="Hide the ones you never use, keep the ones you do on the bar.">
+                  <button type="button" className="btn" onClick={() => (onClose(), openCustomise())}>
+                    Customise the bar…
+                  </button>
+                </SettingRow>
+              </>
+            )}
+          </>
+        )}
+        {shown === 'sync' && <SyncSettings />}
+        {shown === 'profile' && (
+          <>
+            <label className="settings-row">
+              <span>
+                <b>Your name</b>
+                <small>On manuscripts, comments and tracked changes.</small>
+              </span>
+              <input className="settings-input" value={s.name} placeholder="Your name" onChange={(e) => store.updateSettings({ name: e.target.value })} />
+            </label>
+            <AccountSettings />
+          </>
+        )}
+        {shown === 'app' && (
+          <>
+            <ClipperSettings touch={phone} />
+            <InstallSettings />
+          </>
+        )}
+        {shown === 'advanced' && (
+          <>
+            <Switch label="Keep earlier versions as you write" hint="Crumpet keeps the text as it was, at most every ten minutes, to compare and go back to." on={s.autoVersions !== false} onChange={(v) => store.updateSettings({ autoVersions: v })} />
+          </>
+        )}
+      </>
+    );
+    if (phone) {
+      const row = (id: SettingsSection, label: string, detail?: string) => (
+        <li key={id}>
+          <button type="button" className="phone-row" onClick={() => setSection(id)}>
+            <span className="grow">{label}</span>
+            {detail && <span className="count">{detail}</span>}
+            <IconChevron size={16} className="phone-chevron" />
+          </button>
+        </li>
+      );
+      return createPortal(
+        <div className="dialog settings-dialog calm phone-settings" role="dialog" aria-modal="true" aria-label="Settings" tabIndex={-1} ref={panel}>
+          <header className="phone-bar">
+            {picked && (
+              <button type="button" className="icon-btn back" aria-label="Back to Settings" onClick={() => setSection(null)}>
+                <IconBack size={18} />
+                <span className="back-label">Settings</span>
+              </button>
+            )}
+            <span className="grow" />
+            <button type="button" className="phone-done" onClick={onClose}>
+              Done
+            </button>
+          </header>
+          <h2 className="phone-big">{picked ? title : 'Settings'}</h2>
+          {picked ? (
+            <div className="settings" role="region" aria-label={title}>
+              {content}
+            </div>
+          ) : (
+            <nav className="phone-settings-list" aria-label="Sections">
+              <ul className="phone-group">{CALM_SECTIONS.map((x) => row(x.id, label(x), x.id === 'look' ? (CALM_THEMES.find(([id]) => id === s.theme)?.[1] ?? themeInfo(s.theme).name) : x.id === 'profile' ? s.name || undefined : undefined))}</ul>
+              <ul className="phone-group">{row('advanced', 'Advanced')}</ul>
+            </nav>
+          )}
+        </div>,
+        document.body,
+      );
+    }
     return createPortal(
       <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
         <div className="dialog settings-dialog calm" role="dialog" aria-modal="true" aria-label="Settings" tabIndex={-1} ref={panel}>
@@ -95,114 +257,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               </button>
             </header>
             <div className="settings" role="tabpanel" id="settings-panel" aria-labelledby={`settings-${shown}`}>
-              {shown === 'look' && (
-                <>
-                  <SettingGroup title="Theme">
-                    <div className="theme-row">
-                      {(allThemes || !CALM_THEMES.some(([id]) => id === s.theme) ? THEMES.map((t) => [t.id, t.name] as [string, string]) : CALM_THEMES).map(([id, name]) => (
-                        <button key={id} type="button" className="theme-pick" aria-pressed={s.theme === id} aria-label={name} title={themeInfo(id as typeof s.theme).hint} onClick={() => store.updateSettings({ theme: id as typeof s.theme })}>
-                          <span className={`theme-pic ${id}`} aria-hidden="true">
-                            <i />
-                            <i />
-                          </span>
-                          {name}
-                        </button>
-                      ))}
-                    </div>
-                    {!allThemes && CALM_THEMES.some(([id]) => id === s.theme) && (
-                      <button type="button" className="btn quiet more-themes" onClick={() => setAllThemes(true)}>
-                        More themes…
-                      </button>
-                    )}
-                  </SettingGroup>
-                  <div className="settings-row" role="group" aria-label="Accent colour">
-                    <span>
-                      <b>Accent</b>
-                      <small>{ownAccent ? 'This theme has its own colours.' : 'Used once per screen: the New note button, the chosen dot.'}</small>
-                    </span>
-                    {!ownAccent && (
-                      <span className="accents">
-                        {ACCENTS.map((a) => (
-                          <button key={a.hex} type="button" className={`swatch big${s.accent === a.hex ? ' on' : ''}`} style={{ background: a.hex }} aria-label={a.name} aria-pressed={s.accent === a.hex} title={a.name} onClick={() => store.updateSettings({ accent: a.hex })} />
-                        ))}
-                      </span>
-                    )}
-                  </div>
-                  <div className="settings-row">
-                    <span>
-                      <b>Writing font</b>
-                      <small>For titles and your text. Menus stay in Onest.</small>
-                    </span>
-                    <button type="button" className="font-choose" aria-expanded={fontOpen} onClick={() => setFontOpen(!fontOpen)} style={{ fontFamily: fontStack(s.noteFont ?? DEFAULT_FONT) }}>
-                      {(s.noteFont ?? DEFAULT_FONT).family}
-                      <IconChevronDown size={14} />
-                    </button>
-                  </div>
-                  {fontOpen && <FontPicker value={s.noteFont ?? DEFAULT_FONT} onChange={(f) => store.updateSettings({ noteFont: f })} />}
-                  <label className="settings-row">
-                    <span>
-                      <b>Text size</b>
-                      <small>The writing only. The interface follows your device.</small>
-                    </span>
-                    <span className="size-pick">
-                      <small aria-hidden="true">A</small>
-                      <input className="range" type="range" aria-label={`Text size, ${size}px`} min={13} max={24} step={1} value={size} style={{ '--pct': `${((size - 13) / 11) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
-                      <big aria-hidden="true">A</big>
-                    </span>
-                  </label>
-                  <Switch label="Open the inspector with every note" hint="Off means it opens only when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
-                  <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
-                </>
-              )}
-              {shown === 'writing' && (
-                <>
-                  <SettingGroup title="Paper" hint="The colour of the page you write on. Printing stays white.">
-                    <PaperSwatches />
-                  </SettingGroup>
-                  <SettingGroup title="Typewriter">
-                    {TYPEWRITER.map(([key, label, hint]) => (
-                      <Switch key={key} label={label} hint={hint} on={!!s.typewriter?.[key]} onChange={(v) => store.updateSettings({ typewriter: { ...s.typewriter, [key]: v } })} />
-                    ))}
-                  </SettingGroup>
-                  <AutoCorrectSettings />
-                  <SpellingSettings />
-                </>
-              )}
-              {shown === 'bar' && (
-                <>
-                  <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
-                  <Switch label="Tools only over selected text" hint="Off keeps the five tools at the top of the page; on, they float over the words you select." on={s.toolbar === 'selection'} onChange={(v) => store.updateSettings({ toolbar: v ? 'selection' : 'always' })} />
-                  <SettingRow title="Choose the buttons" hint="Hide the ones you never use, keep the ones you do on the bar.">
-                    <button type="button" className="btn" onClick={() => (onClose(), openCustomise())}>
-                      Customise the bar…
-                    </button>
-                  </SettingRow>
-                </>
-              )}
-              {shown === 'sync' && <SyncSettings />}
-              {shown === 'profile' && (
-                <>
-                  <label className="settings-row">
-                    <span>
-                      <b>Your name</b>
-                      <small>On manuscripts, comments and tracked changes.</small>
-                    </span>
-                    <input className="settings-input" value={s.name} placeholder="Your name" onChange={(e) => store.updateSettings({ name: e.target.value })} />
-                  </label>
-                  <AccountSettings />
-                </>
-              )}
-              {shown === 'app' && (
-                <>
-                  <ClipperSettings />
-                  <InstallSettings />
-                </>
-              )}
-              {shown === 'advanced' && (
-                <>
-                  <Switch label="Keep earlier versions as you write" hint="Crumpet keeps the text as it was, at most every ten minutes, to compare and go back to." on={s.autoVersions !== false} onChange={(v) => store.updateSettings({ autoVersions: v })} />
-                </>
-              )}
+              {content}
             </div>
           </div>
         </div>

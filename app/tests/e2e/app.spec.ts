@@ -5916,6 +5916,28 @@ test.describe('on a phone, in the calm look', () => {
     await expect(library).toBeVisible();
   });
 
+  test('Settings as on an iPhone: a list of sections, each a page of its own with a way back', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.app')).toBeVisible();
+    await page.getByRole('navigation', { name: 'Notebooks' }).getByRole('button', { name: 'Settings' }).click();
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    await expect(settings.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(settings.getByRole('tab')).toHaveCount(0);
+    await settings.getByRole('button', { name: /^Writing/ }).click();
+    await expect(settings.getByRole('heading', { name: 'Writing' })).toBeVisible();
+    await settings.getByRole('switch', { name: /Typing sounds/ }).check();
+    await settings.getByRole('button', { name: 'Back to Settings' }).click();
+    // What a phone can't use isn't offered: the inspector, a folder on the computer.
+    await settings.getByRole('button', { name: /^Appearance/ }).click();
+    await expect(settings.getByRole('switch', { name: /Open the inspector/ })).toHaveCount(0);
+    await settings.getByRole('button', { name: 'Back to Settings' }).click();
+    await settings.getByRole('button', { name: /^Sync and storage/ }).click();
+    await expect(settings.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+    await settings.getByRole('button', { name: 'Done' }).click();
+    await expect(settings).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { typewriter?: { sound?: boolean } } } } }).crumpet.getState().settings.typewriter?.sound)).toBe(true);
+  });
+
   test('writing: Aa and ··· open where they can be seen, and the note’s menu is short', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.app')).toBeVisible();

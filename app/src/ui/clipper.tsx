@@ -15,7 +15,8 @@ function appUrl(): string {
   return desktop ? 'crumpet://clip' : `${location.origin}${location.pathname}`;
 }
 
-export function ClipperSettings() {
+/** `touch`: on a phone there's no bookmarks bar to drag the button to, so the way for phones comes first. */
+export function ClipperSettings({ touch = false }: { touch?: boolean }) {
   const href = useMemo(() => bookmarklet(appUrl()), []);
   const link = useRef<HTMLAnchorElement>(null);
   // React won't render javascript: links, so the address is set directly.
@@ -25,16 +26,18 @@ export function ClipperSettings() {
   const local = location.protocol === 'file:' && !desktop;
   return (
     <SettingGroup title="Web clipper" hint="Save web pages as notes. Select part of a page first to keep just that part.">
-      <SettingRow
-        title="The clipper button"
-        hint={`Drag it to your browser’s bookmarks bar, then click it on any page.${desktop ? ' The page comes to this app (your browser may ask once whether to open Crumpet).' : ''}`}
-      >
-        <a ref={link} className="clip-bookmark" draggable onClick={(e) => e.preventDefault()} title="Drag me to your bookmarks bar">
-          ✂ Clip to Crumpet
-        </a>
-      </SettingRow>
+      {!touch && (
+        <SettingRow
+          title="The clipper button"
+          hint={`Drag it to your browser’s bookmarks bar, then click it on any page.${desktop ? ' The page comes to this app (your browser may ask once whether to open Crumpet).' : ''}`}
+        >
+          <a ref={link} className="clip-bookmark" draggable onClick={(e) => e.preventDefault()} title="Drag me to your bookmarks bar">
+            ✂ Clip to Crumpet
+          </a>
+        </SettingRow>
+      )}
       {local && <p className="setting-group-hint">The clipper needs Crumpet opened from a web address, not a file on this device.</p>}
-      <details className="clip-help">
+      <details className="clip-help" open={touch}>
         <summary>On a phone or tablet</summary>
         <p>Add any page as a bookmark, edit it, and paste this as its address:</p>
         <textarea readOnly rows={3} value={href} aria-label="Bookmark address" onFocus={(e) => e.currentTarget.select()} />
