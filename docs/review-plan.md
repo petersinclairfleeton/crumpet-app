@@ -127,6 +127,9 @@ In order of how much it gets in the way of the five things above.
 
 ## The build list
 
+Continued by `docs/launch-plan.md` (18 October 2026): its stage 1 does groups
+6, 3, 2 and 4, and stage 5 groups 9, 8 and 5; tick items here as they land.
+
 Work through the groups in order, one pull request per group (or per few
 items when it's big), as `CLAUDE.md` describes, ticking items here as they
 land and updating the guide in the same pull request.
