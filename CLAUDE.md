@@ -3,12 +3,17 @@
 Read this first in every session. `PLAN.md` has the product plan and visual
 design; this file is how we work and where things are.
 
-**Current work: the October review's plan.** `docs/review-plan.md` is a
-review of the whole app for the writer it's for, then "The build list": groups
-in order, each item a checkbox with where in the code to start. "Continue the
-plan" means take the first group with unticked items, build it (one PR per
-group, or per few items when it's big), tick the items, and carry on. Peter's
-decisions are recorded at the top of the build list; follow them.
+**Current work: the launch plan.** `docs/launch-plan.md` takes Crumpet from
+here to a paid launch with no money spent first: stages in order, each item a
+checkbox with where in the code to start, Peter's calls (🎬) with options to
+ask him, and the few steps only he can do (🙋). "Continue the launch plan" (or
+"continue the plan") means follow its "How Claude works through this plan"
+rules: dated items first, then the first stage with work that isn't waiting on
+Peter; one PR per item or few items; ask the calls it reaches; tick, record,
+and carry on. Its first
+stages finish the October review's build list (`docs/review-plan.md`: the
+review of the whole app, and where in the code each of its items starts);
+tick items in both.
 
 Word is done (Peter's call, October 2026): `docs/word-features.md` stays as
 the record of what Crumpet has, but no new Word features unless Peter asks.
