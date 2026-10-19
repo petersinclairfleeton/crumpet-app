@@ -76,8 +76,10 @@ export function Ruler({ editor, width: baseWidth, boxes, margins: baseMargins, s
     const x = drag.at;
     setDrag(null);
     const round = (n: number) => Math.round(n * 1000) / 1000;
-    if (drag.which === 'first') editor.setPara({ first: round(x - left) || undefined });
-    else if (drag.which === 'left') editor.setPara({ left: round(Math.max(-margins.left, x)) || undefined, first: round(first) || undefined });
+    // The style's own indent is left to the style; anything else (even none, against a style that indents) is kept.
+    const own = (n: number, style = 0) => (round(n) === round(style) ? undefined : round(n));
+    if (drag.which === 'first') editor.setPara({ first: own(x - left, def?.firstIndent) });
+    else if (drag.which === 'left') editor.setPara({ left: own(Math.max(-margins.left, x), def?.leftIndent), first: own(first, def?.firstIndent) });
     else editor.setPara({ right: round(Math.max(0, inches - margins.left - margins.right - x)) || undefined });
   };
 

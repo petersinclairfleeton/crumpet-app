@@ -10,6 +10,15 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-19-indents-zoom',
+    date: '19 October 2026',
+    title: 'Indents you can change, and zoom that works',
+    points: [
+      'In a book, Backspace at the start of an indented line takes its indent away (as in Word), and Tab puts it back. Setting Special to None in the Paragraph window, or dragging the ruler’s first-line marker to the margin, now sticks too: before, the book’s style put the indent straight back.',
+      'Page view’s − and + zoom the pages with One page chosen too (they used to change the number and nothing else), and from Fit they step from the size the page is shown at.',
+    ],
+  },
+  {
     id: '2026-10-17-phone-book',
     date: '17 October 2026',
     title: 'A book on a phone, all of a piece',

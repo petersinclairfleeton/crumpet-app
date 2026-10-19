@@ -2094,6 +2094,37 @@ export class Editor {
     return paraValue(this.state, key);
   }
 
+  /** The caret at the start of a paragraph, collapsed: that paragraph. */
+  private paragraphStart(): Block | null {
+    const s = this.state;
+    if (this.isReadOnly || !isCollapsed(s.selection) || s.selection.focus.offset !== 0) return null;
+    const blk = getBlock(s.doc, s.selection.focus.block);
+    return blk.type === 'paragraph' ? blk : null;
+  }
+
+  /** How far the paragraph's first line is indented on screen (by hand or by its style), in pixels. */
+  private firstIndentPx(id: string): number {
+    const el = this.view.blockElement(id);
+    return el ? parseFloat(getComputedStyle(el).textIndent) || 0 : 0;
+  }
+
+  /** Backspace at the start of an indented paragraph: its first line goes back to the margin. */
+  private dropFirstIndent(): boolean {
+    const blk = this.paragraphStart();
+    if (!blk || this.firstIndentPx(blk.id) <= 0) return false;
+    this.dispatch(setPara(this.state, { first: 0 }), 'command');
+    return true;
+  }
+
+  /** Tab at the start of a paragraph whose indent was taken away: the style's indent comes back. */
+  private restoreFirstIndent(): boolean {
+    const blk = this.paragraphStart();
+    if (!blk || blk.para?.first !== 0) return false;
+    this.dispatch(setPara(this.state, { first: undefined }), 'command');
+    // Its style has no indent of its own: Tab types a tab as usual.
+    return this.firstIndentPx(blk.id) > 0;
+  }
+
   /** Increase (1) or decrease (-1) indent. */
   /** Word's Column Break (Ctrl+Shift+Enter). */
   insertColumnBreak(): void {
@@ -2486,6 +2517,11 @@ export class Editor {
     this.syncSelectionFromDom();
     if (/^insert(Text|ReplacementText|FromPaste|FromDrop)/.test(e.inputType)) this.reviseLook();
     const s = this.state;
+    // Backspace at the start of a paragraph with a first-line indent takes the indent away first, as in Word.
+    if (e.inputType === 'deleteContentBackward' && this.dropFirstIndent()) {
+      e.preventDefault();
+      return;
+    }
     if (this.tracking && this.trackedInput(e)) return;
 
     switch (e.inputType) {
@@ -3096,6 +3132,7 @@ export class Editor {
       this.syncSelectionFromDom();
       const nest = indent(this.state, e.shiftKey ? -1 : 1);
       if (nest) this.dispatch(nest, 'command');
+      else if (!e.shiftKey && this.restoreFirstIndent()) return;
       else if (!e.shiftKey && !this.isReadOnly && INLINE_TYPES.has(getBlock(this.state.doc, this.state.selection.focus.block).type)) {
         this.reviseLook();
         this.dispatch(this.tracking ? trackedInsertText(this.state, '\t', this.tracking.author) : insertText(this.state, '\t'));
