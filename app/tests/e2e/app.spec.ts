@@ -2262,7 +2262,7 @@ test('first-line indents in a book: Backspace takes one away, Tab brings it back
   await expect(line(1)).toHaveCSS('text-indent', '0px');
 });
 
-test('page view zoom works with One page and Two pages, and steps from the size on screen', async ({ page }) => {
+test('page view zoom works with One page and Two pages, steps from the size on screen, and keeps the page in the middle', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('/');
   await expect(page.locator('.app')).toBeVisible();
@@ -2287,6 +2287,12 @@ test('page view zoom works with One page and Two pages, and steps from the size 
   await expect.poll(sheetWidth).toBeGreaterThan(fit);
   await bar.getByRole('button', { name: 'Zoom in' }).click();
   await expect.poll(sheetWidth).toBeGreaterThan(fit * 1.1);
+  // At real size the page sits in the middle of the pane beside the outline, not off to the right.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ zoom: 100 }));
+  await expect(bar.locator('.zoom-level')).toHaveText('100%');
+  const middle = (sel: string) => page.locator(sel).first().evaluate((el) => { const b = el.getBoundingClientRect(); return Math.round((b.left + b.right) / 2); });
+  await expect.poll(() => middle('.sheet')).toBeGreaterThan((await middle('.note-scroll')) - 3);
+  await expect.poll(() => middle('.sheet')).toBeLessThan((await middle('.note-scroll')) + 3);
   // Two pages fits them again.
   await bar.getByRole('button', { name: 'Two pages' }).click();
   await expect(bar.getByRole('button', { name: 'Fit' })).toHaveAttribute('aria-pressed', 'true');
