@@ -810,7 +810,6 @@ test('the page scrolls to follow the typing, in normal view and page view', asyn
 
 test('page view: typing inside a paragraph redraws just that paragraph, not every page', async ({ page }) => {
   await open(page);
-  // (At 18px each paragraph's first line ends after "slick with salt.", where End takes the caret.)
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true }, noteSize: 18 }));
   await newNote(page, 'Pages', '');
   for (let i = 0; i < 30; i++) {
@@ -821,7 +820,10 @@ test('page view: typing inside a paragraph redraws just that paragraph, not ever
   const pages = await page.locator('.pg').count();
   // Mark the pages; a full redraw would replace them.
   await page.evaluate(() => document.querySelectorAll('.pg').forEach((el) => ((el as HTMLElement).dataset.mark = 'kept')));
-  await page.locator('.note-editor .blk', { hasText: 'Paragraph 3:' }).click();
+  // Click on the paragraph's last line, so End goes to its end.
+  const third = page.locator('.note-editor .blk', { hasText: 'Paragraph 3:' });
+  const tb = (await third.boundingBox())!;
+  await third.click({ position: { x: 4, y: tb.height - 6 } });
   await page.keyboard.press('End');
   await page.keyboard.type(' Quietly');
   await expect(page.locator('.note-editor .blk', { hasText: 'Paragraph 3:' })).toContainText('salt. Quietly');
@@ -2262,7 +2264,7 @@ test('first-line indents in a book: Backspace takes one away, Tab brings it back
   await expect(line(1)).toHaveCSS('text-indent', '0px');
 });
 
-test('page view zoom works with One page and Two pages, and steps from the size on screen', async ({ page }) => {
+test('page view zoom works with One page and Two pages, steps from the size on screen, and keeps the page in the middle', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('/');
   await expect(page.locator('.app')).toBeVisible();
@@ -2287,6 +2289,12 @@ test('page view zoom works with One page and Two pages, and steps from the size 
   await expect.poll(sheetWidth).toBeGreaterThan(fit);
   await bar.getByRole('button', { name: 'Zoom in' }).click();
   await expect.poll(sheetWidth).toBeGreaterThan(fit * 1.1);
+  // At real size the page sits in the middle of the pane beside the outline, not off to the right.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ zoom: 100 }));
+  await expect(bar.locator('.zoom-level')).toHaveText('100%');
+  const middle = (sel: string) => page.locator(sel).first().evaluate((el) => { const b = el.getBoundingClientRect(); return Math.round((b.left + b.right) / 2); });
+  await expect.poll(() => middle('.sheet')).toBeGreaterThan((await middle('.note-scroll')) - 3);
+  await expect.poll(() => middle('.sheet')).toBeLessThan((await middle('.note-scroll')) + 3);
   // Two pages fits them again.
   await bar.getByRole('button', { name: 'Two pages' }).click();
   await expect(bar.getByRole('button', { name: 'Fit' })).toHaveAttribute('aria-pressed', 'true');
