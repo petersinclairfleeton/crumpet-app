@@ -810,7 +810,6 @@ test('the page scrolls to follow the typing, in normal view and page view', asyn
 
 test('page view: typing inside a paragraph redraws just that paragraph, not every page', async ({ page }) => {
   await open(page);
-  // (At 18px each paragraph's first line ends after "slick with salt.", where End takes the caret.)
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true }, noteSize: 18 }));
   await newNote(page, 'Pages', '');
   for (let i = 0; i < 30; i++) {
@@ -821,7 +820,10 @@ test('page view: typing inside a paragraph redraws just that paragraph, not ever
   const pages = await page.locator('.pg').count();
   // Mark the pages; a full redraw would replace them.
   await page.evaluate(() => document.querySelectorAll('.pg').forEach((el) => ((el as HTMLElement).dataset.mark = 'kept')));
-  await page.locator('.note-editor .blk', { hasText: 'Paragraph 3:' }).click();
+  // Click on the paragraph's last line, so End goes to its end.
+  const third = page.locator('.note-editor .blk', { hasText: 'Paragraph 3:' });
+  const tb = (await third.boundingBox())!;
+  await third.click({ position: { x: 4, y: tb.height - 6 } });
   await page.keyboard.press('End');
   await page.keyboard.type(' Quietly');
   await expect(page.locator('.note-editor .blk', { hasText: 'Paragraph 3:' })).toContainText('salt. Quietly');
