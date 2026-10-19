@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ClipperSettings } from './clipper';
 import { InstallSettings } from './install';
+import { AiSettings } from './aisettings';
 import { ACCENTS, DEFAULT_NOTE_SIZE, type NoteFont } from '../data/types';
 import { DEFAULT_FONT, type FontChoice, canListAllSystemFonts, fontStack, googleFonts, loadGoogleFont, systemFonts } from './fonts';
 import { useAppState, useAppStore, useMedia } from './hooks';
@@ -184,6 +185,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
           <>
             <ClipperSettings touch={phone} />
             <InstallSettings />
+            {!phone && <AiSettings />}
           </>
         )}
         {shown === 'advanced' && (
@@ -370,6 +372,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
             <>
               <ClipperSettings />
               <InstallSettings />
+              <AiSettings />
             </>
           )}
         </div>

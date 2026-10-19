@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-19-mcp',
+    date: '19 October 2026',
+    title: 'Your notes, with Claude and other AIs',
+    points: [
+      'Claude can now search and read your notes, notebooks, tags and books (chapters in order, characters and places, research), and write new notes for you: “What have I written about Rome?”, “Summarise chapter 3”, “Make a packing list in Travel”. It never changes or deletes what you’ve written, and locked notes stay locked.',
+      'Settings → Clipper and Mac app → Add to Claude downloads it for Claude for desktop; open the file, and choose the folder Crumpet syncs to. Notes Claude writes come into Crumpet at its next sync.',
+      'Other AI apps that support MCP (ChatGPT, Gemini, Cursor and more) can use the same server.',
+    ],
+  },
+  {
     id: '2026-10-19-paste-title',
     date: '19 October 2026',
     title: 'Pasted writing finds its title',

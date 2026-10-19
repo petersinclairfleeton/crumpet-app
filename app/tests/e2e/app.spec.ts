@@ -1595,6 +1595,15 @@ test('track changes: typing is marked added, deleting strikes through, and chang
   await expect(body.locator('ins.trk')).toHaveCount(0);
 });
 
+test('settings offer Crumpet to Claude and other AI apps', async ({ page }) => {
+  await open(page);
+  await sidebar(page).locator('.account').click();
+  await page.getByRole('tab', { name: 'Clipper & app' }).click();
+  await expect(page.getByText('Claude and other AIs')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Add to Claude' })).toHaveAttribute('href', /releases\/latest\/download\/Crumpet\.mcpb$/);
+  await expect(page.getByRole('link', { name: 'How to set it up' })).toHaveAttribute('href', /docs\/mcp\.md$/);
+});
+
 test('web clipper: the bookmark on another site opens Crumpet with the page, to save as a note', async ({ page, context }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
