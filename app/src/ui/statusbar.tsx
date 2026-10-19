@@ -57,8 +57,13 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
 
   const zoom = settings.zoom;
   const setZoom = (z: number | undefined) => store.updateSettings({ zoom: z && Math.round(z) !== 0 ? Math.min(300, Math.max(25, Math.round(z))) : undefined });
+  // From Fit, − and + step from the size the pages are drawn at now.
+  const fitted = () => {
+    const sheet = scroller.current?.querySelector<HTMLElement>('.sheet');
+    return sheet?.offsetWidth ? Math.round((sheet.getBoundingClientRect().width / sheet.offsetWidth) * 100) : 100;
+  };
   const step = (dir: 1 | -1) => {
-    const now = zoom ?? 100;
+    const now = zoom ?? fitted();
     const next = dir > 0 ? (ZOOMS.find((z) => z > now) ?? 300) : ([...ZOOMS].reverse().find((z) => z < now) ?? 25);
     setZoom(next);
   };
@@ -111,10 +116,10 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
       </button>
       {calm && (
         <span className="status-pair" role="group" aria-label="Pages on screen">
-          <button type="button" className="status-btn" aria-pressed={(settings.pageLayout ?? 'one') === 'one'} onClick={() => store.updateSettings({ pageLayout: 'one' })}>
+          <button type="button" className="status-btn" aria-pressed={(settings.pageLayout ?? 'one') === 'one'} onClick={() => store.updateSettings({ pageLayout: 'one', zoom: undefined })}>
             One page
           </button>
-          <button type="button" className="status-btn" aria-pressed={settings.pageLayout === 'multi' && (settings.pagesPerRow ?? 2) === 2} onClick={() => store.updateSettings({ pageLayout: 'multi', pagesPerRow: 2 })}>
+          <button type="button" className="status-btn" aria-pressed={settings.pageLayout === 'multi' && (settings.pagesPerRow ?? 2) === 2} onClick={() => store.updateSettings({ pageLayout: 'multi', pagesPerRow: 2, zoom: undefined })}>
             Two pages
           </button>
         </span>
@@ -124,7 +129,7 @@ export function StatusBar({ editors, scroller, pageOffset = 0, pageTotal }: { ed
           −
         </button>
         {calm && level}
-        <input type="range" aria-label="Zoom level" min={25} max={300} step={5} value={zoom ?? 100} onChange={(e) => setZoom(Number(e.target.value))} />
+        <input type="range" aria-label="Zoom level" min={25} max={300} step={5} value={zoom ?? fitted()} onChange={(e) => setZoom(Number(e.target.value))} />
         <button type="button" className="status-btn" aria-label="Zoom in" onClick={() => step(1)}>
           +
         </button>

@@ -2229,6 +2229,69 @@ test('paragraph settings: line spacing, indent, the Paragraph window, and a page
   await expect(page.locator('.note-editor .blk').nth(1)).toHaveAttribute('data-page-before', '');
 });
 
+test('first-line indents in a book: Backspace takes one away, Tab brings it back, and the Paragraph window can set none', async ({ page }) => {
+  await open(page);
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.locator('.note-editor .blk').first().click();
+  await page.keyboard.type('The rain came down.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('"Hello," she said.');
+  const line = (n: number) => page.locator('.note-editor .blk').nth(n);
+  // The book's style indents every paragraph after the first.
+  const indent = await line(1).evaluate((el) => getComputedStyle(el).textIndent);
+  expect(parseFloat(indent)).toBeGreaterThan(0);
+  // Backspace at the start of the line: the indent goes, the text stays where it was.
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Backspace');
+  await expect(line(1)).toHaveCSS('text-indent', '0px');
+  await expect(line(1)).toHaveText('“Hello,” she said.');
+  // Tab brings it back.
+  await page.keyboard.press('Tab');
+  await expect(line(1)).toHaveCSS('text-indent', indent);
+  await expect(line(1)).toHaveText('“Hello,” she said.');
+  // The Paragraph window shows the style's indent, and None takes it away.
+  await (await toolButton(page, /Paragraph settings/)).click();
+  const dialog = page.getByRole('dialog', { name: 'Paragraph' });
+  await expect(dialog.getByLabel('Special')).toHaveValue('first');
+  await dialog.getByLabel('Special').selectOption('none');
+  await dialog.getByRole('button', { name: 'OK' }).click();
+  await expect(line(1)).toHaveCSS('text-indent', '0px');
+});
+
+test('page view zoom works with One page and Two pages, and steps from the size on screen', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('/');
+  await expect(page.locator('.app')).toBeVisible();
+  // The calm look's status bar: One page / Two pages and − Fit +.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ pageView: { notes: true, projects: true } }));
+  await page.getByRole('button', { name: 'Start a book' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.page-view')).toBeVisible();
+  const bar = page.getByRole('group', { name: 'Page details' });
+  const sheetWidth = () => page.locator('.sheet').first().evaluate((el) => el.getBoundingClientRect().width);
+  await bar.getByRole('button', { name: 'One page' }).click();
+  await expect(bar.getByRole('button', { name: 'Fit' })).toHaveAttribute('aria-pressed', 'true');
+  await page.waitForTimeout(200);
+  const fit = await sheetWidth();
+  // Zoom in from the fitted page: one step bigger, and the page grows.
+  await bar.getByRole('button', { name: 'Zoom in' }).click();
+  await expect(bar.locator('.zoom-level')).toHaveText(/%$/);
+  const level = parseInt(await bar.locator('.zoom-level').innerText());
+  expect(level).toBeGreaterThan((fit / 816) * 100);
+  expect(level).toBeLessThanOrEqual((fit / 816) * 100 + 25);
+  await expect.poll(sheetWidth).toBeGreaterThan(fit);
+  await bar.getByRole('button', { name: 'Zoom in' }).click();
+  await expect.poll(sheetWidth).toBeGreaterThan(fit * 1.1);
+  // Two pages fits them again.
+  await bar.getByRole('button', { name: 'Two pages' }).click();
+  await expect(bar.getByRole('button', { name: 'Fit' })).toHaveAttribute('aria-pressed', 'true');
+});
+
 test('page view status bar: page and word count, zoom, ruler indents, headings to jump to, and symbols and dates', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1600, height: 900 });
@@ -2245,10 +2308,10 @@ test('page view status bar: page and word count, zoom, ruler indents, headings t
   await page.keyboard.press('Shift+Home');
   await expect(bar.getByLabel('Word count')).toHaveText('4 of 4 words');
   await page.keyboard.press('End');
-  // Zoom: in from Fit, then back to Fit.
+  // Zoom: in from Fit (a step up from the size on screen), then back to Fit.
   await bar.getByRole('button', { name: 'Zoom in' }).click();
-  await expect(bar.getByRole('button', { name: '110%' })).toBeVisible();
-  await bar.getByRole('button', { name: '110%' }).click();
+  await expect(bar.locator('.zoom-level')).toHaveText(/^\d+%$/);
+  await bar.locator('.zoom-level').click();
   await expect(bar.getByRole('button', { name: 'Fit' })).toHaveAttribute('aria-pressed', 'true');
   // The ruler: drag the left indent half an inch in.
   await bar.getByRole('button', { name: 'Ruler' }).click();

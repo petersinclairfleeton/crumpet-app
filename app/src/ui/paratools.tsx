@@ -236,7 +236,11 @@ type Special = 'none' | 'first' | 'hanging';
 export function ParagraphDialog({ editor, onClose, onTabs }: { editor: Editor; onClose(): void; onTabs?(): void }) {
   const v = <K extends keyof ParaLook>(k: K) => editor.paraValue(k);
   const num = (x: number | undefined) => (x === undefined ? '' : String(x));
-  const first = v('first');
+  // The first line's indent: set by hand, or else as the paragraph's style draws it.
+  const blockEl = editor.view.blockElement(editor.currentBlock().id);
+  const styleFirst = blockEl ? Math.round((parseFloat(getComputedStyle(blockEl).textIndent) || 0) / 96 * 100) / 100 : 0;
+  const handFirst = v('first');
+  const first = handFirst ?? (styleFirst || undefined);
   const [left, setLeft] = useState(num(v('left')));
   const [right, setRight] = useState(num(v('right')));
   const [special, setSpecial] = useState<Special>(first === undefined || first === 0 ? 'none' : first > 0 ? 'first' : 'hanging');
@@ -263,10 +267,12 @@ export function ParagraphDialog({ editor, onClose, onTabs }: { editor: Editor; o
   const n = (s: string) => (s.trim() === '' || !Number.isFinite(+s) ? undefined : +s);
   const apply = () => {
     const b = n(by) ?? 0;
+    // None against an indent is kept as no indent, or the style's would come back; the style's own indent is left to the style.
+    const chosen = special === 'none' || !b ? (first ? 0 : undefined) : special === 'first' ? b : -b;
     editor.setPara({
       left: n(left),
       right: n(right),
-      first: special === 'none' || !b ? undefined : special === 'first' ? b : -b,
+      first: handFirst === undefined && chosen === styleFirst ? undefined : chosen,
       before: n(before),
       after: n(after),
       line: n(line),

@@ -87,7 +87,8 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   useLayoutEffect(() => {
     const el = outer.current;
     if (!el || !enabled || print) return;
-    if (zoom && !onePage) {
+    // A zoom chosen with − and + wins, whatever the pages on screen.
+    if (zoom) {
       setScale(zoom / 100);
       return;
     }
