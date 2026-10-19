@@ -1,5 +1,6 @@
 # Builds Crumpet for Mac (desktop/) on one of GitHub's Macs whenever the app
-# changes, and publishes it as the latest release, so this link always gets
+# changes, and publishes it as the latest release (with Crumpet's MCP server
+# for Claude and other AIs, app/mcp/), so this link always gets
 # the newest one:
 # https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Mac.dmg
 #
@@ -42,6 +43,10 @@ jobs:
           npx tsc --noEmit
           npx vite build
 
+      - name: Build the AI connection (MCP server and Claude extension)
+        working-directory: app
+        run: node mcp/build.mjs
+
       - name: Build the Mac app
         working-directory: desktop
         env:
@@ -76,6 +81,10 @@ jobs:
             2. Open Crumpet. The first time, macOS says it can't check it: open System Settings → Privacy & Security, scroll down, and click **Open Anyway**. (It isn't signed with an Apple Developer ID yet.)
 
             Your notes are kept on the Mac. To have them on your other devices too, choose Settings → Account & sync → **Continue with Google** (the same Google Drive folder as the website), or "Use a folder on this computer".
+
+            **Claude and other AIs:** open **Crumpet.mcpb** with Claude for desktop to let Claude search and read your notes and books and write new notes, from the folder Crumpet syncs to. Other AI apps that support MCP can run **crumpet-mcp.mjs** (`node crumpet-mcp.mjs /path/to/folder`). See docs/mcp.md.
           files: |
             desktop/release/Crumpet-Mac.dmg
             desktop/release/Crumpet-Mac.zip
+            app/dist-mcp/Crumpet.mcpb
+            app/dist-mcp/crumpet-mcp.mjs

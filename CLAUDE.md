@@ -458,6 +458,14 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   skipped or under automation) and Settings → Account. Off unless
   `VITE_FIREBASE_API_KEY` is set (`docs/accounts-setup.md`); browser tests
   fake the service (`tests/e2e/account.spec.ts`).
+- MCP (Claude and other AIs, `docs/mcp.md`): `app/src/mcp/` is an MCP server over the
+  synced folder (`vault.ts` reads notes, notebooks and books from the files, `tools.ts`:
+  search, list_notes, list_notebooks, list_books, read_book, read, create_note; it never
+  changes or deletes a file; `server.ts`: JSON-RPC over stdio). `app/mcp/main.mjs` is its
+  Node side; `node mcp/build.mjs` (in app/) makes `dist-mcp/crumpet-mcp.mjs` and the Claude
+  extension `Crumpet.mcpb`, published with the Mac app's release (`mac.yml`);
+  `ui/aisettings.tsx` is Settings → Clipper & app's Add to Claude. Notes it writes reach
+  Crumpet through a folder sync (not Google Drive: drive.file hides them).
 - `docs/google-drive-setup.md`: one-off Google setup. The Google client id
   and API key in `app/.env` are public by design. Never ask for or store a
   client secret.
