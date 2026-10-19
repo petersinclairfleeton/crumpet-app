@@ -52,7 +52,7 @@ const CHAPTERS: Chapter[] = [
     title: 'Notes, notebooks and tags',
     lede: 'Start writing straight away; organise later, in whichever way suits you.',
     points: [
-      { title: 'A new note', text: `Click New note, or press N anywhere. The first line is its title. Notes not yet in a notebook wait in the Inbox; file one from the notebook’s name above its title.` },
+      { title: 'A new note', text: `Click New note, or press N anywhere. The first line is its title; paste a long piece into a new note and its first line becomes the title by itself (the 📋 beside the pasted text can put it back). Notes not yet in a notebook wait in the Inbox; file one from the notebook’s name above its title.` },
       { title: 'Notebooks and stacks', text: 'Group notes in notebooks, and notebooks in stacks. Open Notebooks in the sidebar to see them all, and drag a note onto one to file it; drag notebooks onto a stack to put them in it, or above one another to change their order.' },
       { title: 'Tags and favourites', text: 'Add tags under a note’s title (tags can nest, like book/characters), and star the notes you keep coming back to.' },
       { title: 'Find anything', text: `${mod}K opens Find anything: any note, chapter or heading by name or by a word in it, grouped into notes, what’s in your books and headings, each with a line of its text, and Search everything at the bottom lists every note, chapter, PDF and picture with the words (the Search box in the sidebar does the same, with filters); ${mod}P lists every command. Inside a note, ${mod}F finds and replaces, with wildcards, formatting and a list of results under More options.` },

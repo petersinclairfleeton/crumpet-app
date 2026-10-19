@@ -1,6 +1,7 @@
 // Word's Paste Options and Office Clipboard. After pasting, a small button
 // by the text offers Keep formatting, Merge formatting (lists, bold and
-// italic kept; the look of the text where it goes) and Text only. And what
+// italic kept; the look of the text where it goes) and Text only (and, when a
+// pasted first line became the note's title, keeping it in the text). And what
 // you copy or cut is kept (while Crumpet is open) in the right sidebar's
 // Clipboard tab, to paste again from there.
 
@@ -98,7 +99,7 @@ export function useClipboard(editor: Editor | null): void {
   useEffect(() => {
     if (!editor) return;
     editor.onCopied = (text, md) => addClip(text, md);
-    editor.onPasted = (formatted) => window.dispatchEvent(new CustomEvent(OPEN, { detail: { editor, formatted } }));
+    editor.onPasted = (formatted, titled) => window.dispatchEvent(new CustomEvent(OPEN, { detail: { editor, formatted, titled } }));
     return () => {
       editor.onCopied = null;
       editor.onPasted = null;
@@ -108,13 +109,13 @@ export function useClipboard(editor: Editor | null): void {
 
 /** The Paste Options button, by the text just pasted, until something else is done. */
 export function PasteOptionsHost() {
-  const [open, setOpen] = useState<{ editor: Editor; formatted: boolean } | null>(null);
+  const [open, setOpen] = useState<{ editor: Editor; formatted: boolean; titled: boolean } | null>(null);
   const [menu, setMenu] = useState(false);
   const [at, setAt] = useState<{ top: number; left: number } | null>(null);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const on = (e: Event) => {
-      setOpen((e as CustomEvent<{ editor: Editor; formatted: boolean }>).detail);
+      setOpen((e as CustomEvent<{ editor: Editor; formatted: boolean; titled: boolean }>).detail);
       setMenu(false);
     };
     window.addEventListener(OPEN, on);
@@ -150,11 +151,11 @@ export function PasteOptionsHost() {
     };
   }, [open]);
   if (!open || !at) return null;
-  const choose = (mode: 'keep' | 'merge' | 'text') => {
+  const choose = (mode?: 'keep' | 'merge' | 'text', title = true) => {
     // Closed first: pasting again opens it afresh (to choose again).
     setOpen(null);
     open.editor.focus();
-    open.editor.pasteAgain(mode);
+    open.editor.pasteAgain(mode, title);
   };
   return createPortal(
     <div ref={box} className="paste-options" style={{ top: at.top, left: at.left }}>
@@ -176,6 +177,11 @@ export function PasteOptionsHost() {
           <button type="button" role="menuitem" className="menu-item" onClick={() => choose('text')}>
             Text only
           </button>
+          {open.titled && (
+            <button type="button" role="menuitem" className="menu-item" onClick={() => choose(undefined, false)}>
+              Keep the first line in the text
+            </button>
+          )}
         </div>
       )}
     </div>,

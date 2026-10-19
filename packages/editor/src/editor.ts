@@ -155,6 +155,7 @@ export interface Pasted {
 import { type PageBox, type PageGeometry, Paginator } from './paginate';
 import { type Step, mapSelectionThrough } from './sync/transform';
 import { chartFromRows } from './chart';
+import { isBlankDoc, splitTitleBlocks, splitTitleText } from './pastetitle';
 
 /** A macro's step: typed words, Enter, a deleted character, a caret move, or one of the editor's commands. */
 export type MacroStep =
@@ -3479,11 +3480,19 @@ export class Editor {
   /** The clipboard's type for Crumpet's own text (Markdown), so copying and pasting within Crumpet keeps everything. */
   static readonly CLIPBOARD_TYPE = CRUMPET_TYPE;
 
-  /** What was last pasted, and how far back to undo to paste it again another way. */
-  private lastPaste: { what: Pasted; depth: number } | null = null;
+  /** What was last pasted, how far back to undo to paste it again another way, and whether its first line went to the title. */
+  private lastPaste: { what: Pasted; depth: number; mode: 'keep' | 'merge' | 'text'; titled: boolean } | null = null;
 
-  /** After a paste: the app offers Keep formatting, Merge formatting and Text only (Word's Paste Options). */
-  onPasted: ((formatted: boolean) => void) | null = null;
+  /** After a paste: the app offers Keep formatting, Merge formatting and Text only (Word's Paste Options), and keeping the first line in the text if it became the title. */
+  onPasted: ((formatted: boolean, titled: boolean) => void) | null = null;
+
+  /**
+   * Pasting into an empty document (set by the app for a note's title box):
+   * `take` is offered the first line and the rest's text, and returns true if
+   * it made that line the title (it's then left out of the paste); `giveBack`
+   * puts the title back as it was, when the paste is done again keeping it.
+   */
+  pasteTitle: { take(title: string, restText: string, heading: boolean): boolean; giveBack(): void } | null = null;
 
   /**
    * Pastes text: formatted (Crumpet's own, or HTML from a web page, Word or
@@ -3491,13 +3500,24 @@ export class Editor {
    * bold and italic kept, but the text taking on the look where it goes), or
    * plain text only.
    */
-  paste(what: Pasted, mode: 'keep' | 'merge' | 'text' = 'keep'): void {
+  paste(what: Pasted, mode: 'keep' | 'merge' | 'text' = 'keep', title = true): void {
     if (this.isReadOnly) return;
     const depth = this.history.depth;
     let blocks: Block[] | null = null;
     if (mode !== 'text') {
       if (what.md) blocks = fromMarkdown(what.md).blocks;
       else if (what.html && this.htmlToBlocks) blocks = this.htmlToBlocks(what.html);
+    }
+    let text = what.text;
+    // A long piece pasted into an empty note: its first line may be the title.
+    let titled = false;
+    if (title && this.pasteTitle && !this.tracking && isBlankDoc(this.state.doc)) {
+      const split = blocks?.length ? splitTitleBlocks(blocks) : text ? splitTitleText(text) : null;
+      if (split && split.title && this.pasteTitle.take(split.title, split.restText, split.heading)) {
+        titled = true;
+        if (typeof split.rest === 'string') text = split.rest;
+        else blocks = split.rest;
+      }
     }
     if (blocks?.length) {
       if (mode === 'merge') blocks = blocks.map((b) => ({ ...b, style: undefined, align: undefined, para: undefined, runs: b.runs.map(({ look: _look, ...r }) => r) }));
@@ -3509,21 +3529,22 @@ export class Editor {
       }
       this.dispatch(insertBlocks(this.state, blocks));
     } else {
-      if (!what.text) return;
+      if (!text) return;
       this.reviseLook();
-      if (this.tracking) this.dispatch(trackedInsertText(this.state, what.text, this.tracking.author));
-      else this.dispatch(pasteLink(this.state, what.text) ?? insertText(this.state, what.text));
+      if (this.tracking) this.dispatch(trackedInsertText(this.state, text, this.tracking.author));
+      else this.dispatch(pasteLink(this.state, text) ?? insertText(this.state, text));
     }
-    this.lastPaste = { what, depth };
-    this.onPasted?.(!!(what.md || (what.html && this.htmlToBlocks)));
+    this.lastPaste = { what, depth, mode, titled };
+    this.onPasted?.(!!(what.md || (what.html && this.htmlToBlocks)), titled);
   }
 
-  /** Pastes what was last pasted again, another way (Word's Paste Options). */
-  pasteAgain(mode: 'keep' | 'merge' | 'text'): void {
+  /** Pastes what was last pasted again, another way (Word's Paste Options), or keeping its first line in the text (`title` false) rather than as the title. */
+  pasteAgain(mode?: 'keep' | 'merge' | 'text', title = true): void {
     const last = this.lastPaste;
     if (!last) return;
     while (this.history.depth > last.depth && this.history.canUndo) this.undo();
-    this.paste(last.what, mode);
+    if (last.titled) this.pasteTitle?.giveBack();
+    this.paste(last.what, mode ?? last.mode, title);
   }
 
   /** Word's Multilevel List: every level of the list styled at once (see setMultilevel). */
