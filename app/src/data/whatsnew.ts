@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-19-paste-title',
+    date: '19 October 2026',
+    title: 'Pasted writing finds its title',
+    points: [
+      'Paste a long piece (an article, a story, a chapter) into a new, empty note and its first line becomes the note’s title, with the rest as its text. It happens only when that line looks like a title: short, not a sentence ending in a full stop, with plenty of writing after it. Chapters do the same.',
+      'Not wanted? The 📋 button beside the pasted text has Keep the first line in the text.',
+      'Pasting several lines into an empty title box keeps the first line there and sends the rest into the note.',
+    ],
+  },
+  {
     id: '2026-10-19-indents-zoom',
     date: '19 October 2026',
     title: 'Indents you can change, and zoom that works',

@@ -1676,6 +1676,47 @@ test('pasting from a web page or Word keeps headings, lists and formatting', asy
   await expect(body.locator('ins.trk strong')).toHaveText('Bold bit');
 });
 
+test('pasting a long piece into an empty note makes its first line the title', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await expect(page.getByLabel('Title')).toBeFocused();
+  await page.keyboard.press('Enter');
+  const story = 'The rain came down over the hills all night, and in the morning the river had climbed its banks and taken the old bridge with it. Nobody in the village had seen anything like it.';
+  const paste = (where: string, html: string, text: string) =>
+    page.evaluate(
+      ([w, h, t]) => {
+        const dt = new DataTransfer();
+        if (h) dt.setData('text/html', h);
+        dt.setData('text/plain', t);
+        document.querySelector(w)!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+      },
+      [where, html, text],
+    );
+  await paste('.note-editor', `<h1>The night the bridge went</h1><p>${story}</p><p>Second paragraph.</p>`, `The night the bridge went\n\n${story}\n\nSecond paragraph.`);
+  const body = page.locator('.note-editor');
+  await expect(page.getByLabel('Title')).toHaveValue('The night the bridge went');
+  await expect(body.locator('.blk')).toHaveCount(2);
+  await expect(body.locator('.blk').first()).toHaveText(story);
+  // Paste Options can keep the line in the text instead.
+  await page.getByRole('button', { name: 'Paste options' }).click();
+  await page.getByRole('menuitem', { name: 'Keep the first line in the text' }).click();
+  await expect(page.getByLabel('Title')).toHaveValue('');
+  await expect(body.locator('h1')).toHaveText('The night the bridge went');
+  await expect(body.locator('.blk')).toHaveCount(3);
+  // Something short, or a first line that's a sentence, stays in the text.
+  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await page.keyboard.press('Enter');
+  await paste('.note-editor', '', `It rained all night.\n${story}`);
+  await expect(page.getByLabel('Title')).toHaveValue('');
+  await expect(body.locator('.blk').first()).toHaveText('It rained all night.');
+  // Several lines pasted into an empty title box: the first stays there, the rest goes to the text.
+  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await expect(page.getByLabel('Title')).toBeFocused();
+  await paste('.note-title', '', 'Shopping\nEggs\nMilk');
+  await expect(page.getByLabel('Title')).toHaveValue('Shopping');
+  await expect(body.locator('.blk')).toHaveText(['Eggs', 'Milk']);
+});
+
 test('track changes: new and removed paragraph breaks are tracked too', async ({ page }) => {
   await open(page);
   await newNote(page, 'Breaks', 'First line. Second line.');

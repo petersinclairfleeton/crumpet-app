@@ -16,6 +16,7 @@ import { useOfferHelped } from './helpers';
 import { bookEntries, footnotesBefore, goToLater, useBookToc, useFootnoteStart } from './booktoc';
 import type { TocEntry } from '@crumpet/editor/view';
 import { EditorHost } from './EditorHost';
+import { usePasteTitle } from './pastetitle';
 import { FormatTools, KeyboardBar, LinkBar, SelectionBar, isMac, useDocEditor } from './editing';
 import { FindBar, useFindKey } from './find';
 import { useTypewriter } from './typewriter';
@@ -676,6 +677,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const store = useAppStore();
   const editorRef = useRef<Editor | null>(null);
   const [chapterEditor, setChapterEditor] = useState<Editor | null>(null);
+  const pasteTitle = usePasteTitle(editorRef, chapter.title, (title) => store.setChapterTitle(chapter.id, title));
   const [goalOpen, setGoalOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState<string | boolean>(false);
   const [finding, setFinding] = useState(false);
@@ -897,6 +899,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         placeholder="Chapter title"
         value={chapter.title}
         onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))}
+        onPaste={pasteTitle.onTitlePaste}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -1013,6 +1016,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         onEditor={(ed) => {
           editorRef.current = ed;
           setChapterEditor(ed);
+          pasteTitle.attach(ed);
         }}
       />
       <CastSpotting editor={chapterEditor} project={project} />

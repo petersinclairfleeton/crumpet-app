@@ -10,6 +10,7 @@ import { useAppState, useAppStore, useNav, useSync } from './hooks';
 import { recentNotes, viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
+import { usePasteTitle } from './pastetitle';
 import { chooseFiles, isMac } from './editing';
 import { FindBar, useFindKey } from './find';
 import { Tour } from './Tour';
@@ -44,6 +45,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const note = store.note(noteId === undefined ? state.selectedId : noteId);
   const editorRef = useRef<Editor | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const pasteTitle = usePasteTitle(editorRef, note?.title ?? '', (title) => note && store.setTitle(note.id, title));
   const [menu, setMenu] = useState(false);
   // On a phone the menu's download formats wait behind one row, like a submenu.
   const [downloads, setDownloads] = useState(false);
@@ -447,6 +449,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         value={note.title}
         readOnly={trashed || reading}
         onChange={(e) => store.setTitle(note.id, e.target.value.replace(/\n/g, ' '))}
+        onPaste={pasteTitle.onTitlePaste}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.shiftKey)) {
             e.preventDefault();
@@ -627,6 +630,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         footer={footer}
         onEditor={(ed) => {
           editorRef.current = ed;
+          pasteTitle.attach(ed);
         }}
       />
     </section>
