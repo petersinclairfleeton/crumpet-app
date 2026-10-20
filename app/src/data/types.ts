@@ -84,6 +84,8 @@ export interface Project {
   cast?: CastMember[];
   /** A finish date for the word goal. */
   deadline?: Deadline;
+  /** The draft the book is on, once one was started for the whole book ("Draft 2", what it's for). */
+  draft?: BookDraft;
   createdAt: number;
   updatedAt: number;
 }
@@ -120,6 +122,13 @@ export interface Chapter {
   drafts?: ChapterDraft[];
   createdAt: number;
   updatedAt: number;
+}
+
+/** A draft of the whole book: every chapter got a draft of this name when it began. */
+export interface BookDraft {
+  name: string;
+  note: string;
+  at: number;
 }
 
 /** A draft's name and what it's for ("Tighten the pacing"). */

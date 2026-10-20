@@ -3,6 +3,7 @@
 // list, the sidebar, a project's outline, or another tab) to the edge of a pane
 // splits it, and dropping it in the middle or on the tab bar adds a tab.
 
+import { chapterDraft } from '../data/drafts';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { type Group, type PaneNode, type Side, type Tab, type Workspace, activeGroup, activeTab, closeOthers, closeTab, closeWhere, drop, emptyWorkspace, findGroup, focusGroup, focusTab, groups, open, resize, sameTab, shownTabs, split, tidyWorkspace } from '../data/panes';
 import type { AppState } from '../data/store';
@@ -73,8 +74,12 @@ export function tabTitle(state: AppState, t: Tab): string {
     }
     case 'project':
       return state.projects.find((p) => p.id === t.id)?.name || 'Untitled project';
-    case 'chapter':
-      return state.chapters.find((c) => c.id === t.id)?.title.trim() || 'Untitled chapter';
+    case 'chapter': {
+      const c = state.chapters.find((x) => x.id === t.id);
+      const title = c?.title.trim() || 'Untitled chapter';
+      const d = c && t.draft ? chapterDraft(c, t.draft) : undefined;
+      return d ? `${title} · ${d.name}` : title;
+    }
     case 'cast':
       return state.projects.find((p) => p.id === t.project)?.cast?.find((m) => m.id === t.id)?.name || 'Card';
     case 'graph':
@@ -534,7 +539,7 @@ function TabView({ tab, narrow, onBack, onNewNote, onNewProject, onClose }: { ta
     case 'chapter': {
       const chapter = state.chapters.find((c) => c.id === tab.id);
       const project = chapter && state.projects.find((p) => p.id === chapter.projectId);
-      return chapter && project ? <ChapterPane project={project} chapter={chapter} narrow={narrow} onBack={onBack} /> : <Gone onClose={onClose} />;
+      return chapter && project ? <ChapterPane project={project} chapter={chapter} narrow={narrow} onBack={onBack} draft={tab.draft} /> : <Gone onClose={onClose} />;
     }
     case 'research': {
       const note = state.notes.find((n) => n.id === tab.id);

@@ -127,6 +127,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       ...withValue('page', jsonField(b?.page, l.page, r.page, r.updated > l.updated ? r.page : l.page)),
       ...withValue('cast', mergeCast(b?.cast ?? [], l.cast ?? [], r.cast ?? [])),
       ...withValue('deadline', jsonField(b?.deadline, l.deadline, r.deadline, r.updated > l.updated ? r.deadline : l.deadline)),
+      ...withValue('draft', jsonField(b?.draft, l.draft, r.draft, r.updated > l.updated ? r.draft : l.draft)),
     }));
     if (p) tree.projects[id] = p;
   }

@@ -59,6 +59,13 @@ export function nextDraftName(names: string[]): string {
   return `Draft ${top + 1}`;
 }
 
+/** The name for a new draft of the whole book: one more than any chapter's highest. */
+export function nextBookDraftName(chapters: Chapter[]): string {
+  let top = 1;
+  for (const c of chapters) top = Math.max(top, Number(/\d+$/.exec(nextDraftName(chapterDrafts(c).map((d) => d.name)))![0]));
+  return `Draft ${top}`;
+}
+
 /** Short form for a badge: "D2" for "Draft 2", else the name's first letters. */
 export function draftBadge(name: string): string {
   const m = /^draft\s+(\d+)$/i.exec(name.trim());

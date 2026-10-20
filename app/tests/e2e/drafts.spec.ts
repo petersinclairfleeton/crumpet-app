@@ -61,7 +61,6 @@ test('drafts in the calm look: a new draft, the tabs, an older draft, and which 
   await page.getByRole('button', { name: 'Use Draft 1 instead' }).click();
   await expect(page.locator('.draft-aside')).toHaveCount(0);
   await expect(outline.locator('.draft-badge')).toHaveText('D1');
-  await page.screenshot({ path: 'test-results/drafts-calm.png' });
 
   // Everything is still there after a reload.
   await page.reload();
@@ -87,4 +86,31 @@ test('drafts with the full bar: a blank page, and deleting a draft', async ({ pa
   await page.getByRole('button', { name: 'Delete this draft…' }).click();
   await expect(tabs).toHaveCount(0);
   await expect(text(page)).toHaveText('The lamp had not been lit.');
+});
+
+test('a new draft of the whole book, and the old draft open beside the new one', async ({ page }) => {
+  const outline = await book(page, true);
+  await outline.getByRole('button', { name: 'Add chapter' }).click();
+  await page.getByLabel('Chapter title').fill('Salt');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The glass was furred with salt.');
+
+  await outline.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: 'New draft of the book…' }).click();
+  const form = page.getByRole('group', { name: 'New draft of the book' });
+  await expect(form.getByLabel('Name')).toHaveValue('Draft 2');
+  await form.getByLabel('What it’s for').fill('Bring the wreck in early');
+  await form.getByRole('button', { name: /Copy every chapter/ }).click();
+  await expect(outline.locator('.book-draft')).toHaveText('Draft 2 · Bring the wreck in early');
+  await expect(outline.locator('.draft-badge')).toHaveText(['D2', 'D2']);
+
+  // The first draft beside the second, scrolling together.
+  await outline.locator('.outline-chapter').first().click();
+  const tabs = page.getByRole('tablist', { name: 'Drafts of this chapter' });
+  await tabs.getByRole('tab', { name: /Draft 1/ }).click({ button: 'right' });
+  await page.getByRole('button', { name: 'Open beside' }).click();
+  const panes = page.locator('section[aria-label="Chapter"]');
+  await expect(panes).toHaveCount(2);
+  await expect(panes.nth(1).getByRole('tab', { name: /Draft 1/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(panes.nth(0).getByRole('tab', { name: /Draft 2/ })).toHaveAttribute('aria-selected', 'true');
 });
