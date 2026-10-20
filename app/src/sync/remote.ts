@@ -10,15 +10,17 @@
 //   the path it had last time.
 // - A note file renamed elsewhere takes its new name as its title.
 // - A folder in `Projects/` with a `project.json` is a project; its Markdown
-//   files are chapters (in the order project.json gives), not notes.
+//   files are chapters (in the order project.json gives), not notes; those in
+//   its Drafts folder are chapters' other drafts.
 
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { type CastMember, type ChapterStatus, type Deadline, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
-import { ATTACHMENTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, RESEARCH, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
+import { FIRST_DRAFT } from '../data/drafts';
+import { ATTACHMENTS, DRAFTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, RESEARCH, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
 import { type NoteFile, parseNoteFile } from './notefile';
 import type { Entry, Provider } from './provider';
-import { type TChapter, type TNote, type TSettings, type Tree, emptyTree, hashId } from './tree';
+import { type TChapter, type TDraft, type TNote, type TSettings, type Tree, emptyTree, hashId } from './tree';
 
 export interface VaultMeta {
   version: 1;
@@ -376,14 +378,16 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   }
 
   // ---- projects and chapters
+  const usedDrafts = new Set<string>();
   for (const [dir, json] of [...projectDirs].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
     const id = projectIdOf.get(dir)!;
     const jsonEntry = snap.entries.find((e) => e.path === `${dir}/${PROJECT_FILE}`);
     const was = base.tree.projects?.[id];
     // Its Markdown files are its chapters, in subfolders too (a subfolder is a part); Research holds notes.
     const inResearch = (p: string) => p.startsWith(`${dir}/${RESEARCH}/`);
+    const inDrafts = (p: string) => p.startsWith(`${dir}/${DRAFTS}/`);
     const files = Object.keys(snap.files)
-      .filter((p) => projectOf(p) === dir && !inResearch(p))
+      .filter((p) => projectOf(p) === dir && !inResearch(p) && !inDrafts(p))
       .sort((a, b) => (parentOf(a) === dir) !== (parentOf(b) === dir) ? (parentOf(a) === dir ? -1 : 1) : a < b ? -1 : 1);
     const chapterIds: string[] = [];
     for (const path of files) {
@@ -405,6 +409,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
         created: f.created ?? modified,
         updated: f.updated ?? modified,
         body: f.body,
+        ...(f.draft ? { draft: f.draft, draftName: f.draftName ?? FIRST_DRAFT, draftNote: f.draftNote ?? '', draftCreated: f.draftCreated ?? f.created ?? modified } : {}),
       };
       const prev = base.tree.chapters?.[cid];
       if (prev && chapter.updated === prev.updated && (chapter.body !== prev.body || chapter.title !== prev.title)) chapter.updated = Math.max(modified, prev.updated + 1);
@@ -414,6 +419,29 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
     }
     // The outline from project.json, keeping only chapters that are here; any others go at the end.
     const present = new Set(chapterIds);
+    // Drafts the book isn't using, each with the id of its chapter (one whose chapter isn't here is left alone).
+    for (const path of Object.keys(snap.files).filter((p) => projectOf(p) === dir && inDrafts(p)).sort()) {
+      const { file: f, modified } = snap.files[path];
+      const chapter = f.chapter && present.has(f.chapter) ? tree.chapters[f.chapter] : undefined;
+      if (!chapter) continue;
+      let did = f.id ?? hashId('draft', path);
+      if (usedDrafts.has(did) || did === (chapter.draft ?? chapter.id)) did = hashId('draft', `${path}#${did}`);
+      usedDrafts.add(did);
+      const folder = baseName(parentOf(path));
+      const draft: TDraft = {
+        id: did,
+        chapterId: chapter.id,
+        name: f.draftName !== undefined && fitsName(folder, safeName(f.draftName || 'Draft')) ? f.draftName : folder,
+        note: f.draftNote ?? '',
+        created: f.created ?? modified,
+        updated: f.updated ?? modified,
+        body: f.body,
+      };
+      const prev = base.tree.drafts?.[did];
+      if (prev && draft.updated === prev.updated && (draft.body !== prev.body || draft.name !== prev.name)) draft.updated = Math.max(modified, prev.updated + 1);
+      tree.drafts![did] = draft;
+      where.drafts[did] = path;
+    }
     const outline: OutlineItem[] = [];
     const listed = new Set<string>();
     const hidden = (Array.isArray(json.outline) ? json.outline : []).filter((x) => x?.type === 'chapter' && typeof x.id === 'string' && !present.has(x.id)).length;

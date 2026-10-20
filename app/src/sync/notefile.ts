@@ -40,9 +40,15 @@ export interface NoteFile {
   status?: string;
   synopsis?: string;
   goal?: number | null;
+  /** Drafts: on a chapter, the draft its text is; on a draft's own file (in a book's Drafts folder), its chapter's id. */
+  draft?: string;
+  draftName?: string;
+  draftNote?: string;
+  draftCreated?: number;
+  chapter?: string;
 }
 
-const KNOWN = new Set(['id', 'title', 'tags', 'favorite', 'reminder', 'reminder-done', 'file', 'created', 'updated', 'trashed', 'from', 'status', 'synopsis', 'goal']);
+const KNOWN = new Set(['id', 'title', 'tags', 'favorite', 'reminder', 'reminder-done', 'file', 'created', 'updated', 'trashed', 'from', 'status', 'synopsis', 'goal', 'draft', 'draft-name', 'draft-note', 'draft-created', 'chapter']);
 
 export function writeNoteFile(f: NoteFile): string {
   const lines = ['---'];
@@ -63,6 +69,11 @@ export function writeNoteFile(f: NoteFile): string {
   if (f.status !== undefined) lines.push(`status: ${scalar(f.status)}`);
   if (f.synopsis !== undefined) lines.push(`synopsis: ${f.synopsis ? scalar(f.synopsis) : '""'}`);
   if (f.goal !== undefined && f.goal !== null) lines.push(`goal: ${f.goal}`);
+  if (f.chapter) lines.push(`chapter: ${scalar(f.chapter)}`);
+  if (f.draft) lines.push(`draft: ${scalar(f.draft)}`);
+  if (f.draftName !== undefined) lines.push(`draft-name: ${f.draftName ? scalar(f.draftName) : '""'}`);
+  if (f.draftNote !== undefined) lines.push(`draft-note: ${f.draftNote ? scalar(f.draftNote) : '""'}`);
+  if (f.draftCreated !== undefined) lines.push(`draft-created: ${date(f.draftCreated)}`);
   if (f.extra) lines.push(f.extra.replace(/\n+$/, ''));
   lines.push('---');
   return f.body ? `${lines.join('\n')}\n\n${f.body}` : `${lines.join('\n')}\n`;
@@ -129,6 +140,23 @@ export function parseNoteFile(text: string): NoteFile {
       case 'synopsis':
         f.synopsis = parseScalar(raw);
         break;
+      case 'chapter':
+        if (parseScalar(raw)) f.chapter = parseScalar(raw);
+        break;
+      case 'draft':
+        if (parseScalar(raw)) f.draft = parseScalar(raw);
+        break;
+      case 'draft-name':
+        f.draftName = parseScalar(raw);
+        break;
+      case 'draft-note':
+        f.draftNote = parseScalar(raw);
+        break;
+      case 'draft-created': {
+        const at = parseDate(parseScalar(raw));
+        if (at !== null) f.draftCreated = at;
+        break;
+      }
       case 'goal': {
         const n = parseInt(parseScalar(raw), 10);
         f.goal = Number.isFinite(n) && n > 0 ? n : null;

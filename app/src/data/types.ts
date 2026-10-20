@@ -114,7 +114,25 @@ export interface Chapter {
   goal: number | null;
   /** Keywords, like Scrivener's: point of view, plot thread, place... (in the chapter file's `tags`). */
   keywords?: string[];
+  /** The draft `doc` is, when it has been named (absent: its first, "Draft 1", whose id is the chapter's). */
+  draft?: DraftInfo;
+  /** The chapter's other drafts: every one stays editable; `doc` is the one the book uses. */
+  drafts?: ChapterDraft[];
   createdAt: number;
+  updatedAt: number;
+}
+
+/** A draft's name and what it's for ("Tighten the pacing"). */
+export interface DraftInfo {
+  id: string;
+  name: string;
+  note: string;
+  createdAt: number;
+}
+
+/** A draft of a chapter that the book isn't using just now. */
+export interface ChapterDraft extends DraftInfo {
+  doc: Doc;
   updatedAt: number;
 }
 

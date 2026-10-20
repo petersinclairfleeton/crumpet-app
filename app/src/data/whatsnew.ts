@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-20-chapter-drafts',
+    date: '20 October 2026',
+    title: 'Drafts of a chapter',
+    points: [
+      'Rewrite a chapter and keep what you had: the chapter’s ··· menu → New draft… starts Draft 2, as a copy to revise or a blank page to write again.',
+      'Tabs above the chapter switch between its drafts, and you can still write in any of them. The dot marks the one your book uses (for Read, printing and export); “Use Draft 1 instead” goes back. The outline shows a small D2 on chapters that have moved on.',
+      'Each draft can have a name and a note on what it’s for. In your synced folder, drafts the book isn’t using are in the book’s Drafts folder, one folder per draft.',
+    ],
+  },
+  {
     id: '2026-10-19-mcp',
     date: '19 October 2026',
     title: 'Your notes, with Claude and other AIs',

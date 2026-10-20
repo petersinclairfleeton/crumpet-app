@@ -3312,3 +3312,24 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 /* The phone's screens in the other themes: the library on the theme's sidebar colour, lists and books on its list colour. */
 :root:not([data-look='crumpet']) .app.phone .phone-library { background: var(--list-bg, var(--shell, var(--page))); color: var(--text); }
 :root:not([data-look='crumpet']) .app.phone .list { background: var(--list-bg, var(--shell, var(--page))); }
+
+/* Drafts of a chapter (ui/drafts.tsx): tabs above the chapter, the outline's badge. */
+.draft-bar { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+[data-look='crumpet'] .draft-bar { align-items: center; text-align: center; }
+.draft-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: 13px; }
+.draft-tab { display: inline-flex; align-items: center; border-radius: 8px; }
+.draft-tab > button { display: inline-flex; align-items: center; gap: 6px; border: none; background: none; color: var(--muted); font: inherit; font-weight: 600; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+.draft-tab > button:hover { color: var(--text); background: var(--field); }
+.draft-tab.on { background: var(--field); }
+.draft-tab.on > button { color: var(--text); }
+.draft-tab.on > button:first-child { padding-right: 2px; }
+.draft-tab .draft-more { padding: 4px 6px; }
+.draft-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+.draft-add { border: none; background: none; color: var(--muted); padding: 4px 6px; border-radius: 8px; cursor: pointer; display: inline-flex; }
+.draft-add:hover { color: var(--text); background: var(--field); }
+.draft-note { margin: 0; font-size: 13px; font-style: italic; color: var(--muted); }
+.draft-aside { margin: 0; font-size: 13px; color: var(--muted); }
+.draft-choice { display: flex; flex-direction: column; gap: 1px; padding: 6px 0; white-space: normal; }
+.draft-choice small { color: var(--muted); font-weight: 400; }
+.draft-new .menu-item { height: auto; }
+.draft-badge { flex: none; font-size: 11px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; line-height: 16px; }

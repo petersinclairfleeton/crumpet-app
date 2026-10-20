@@ -232,6 +232,19 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     settings in `.crumpet/vault.json`; snapshots one file each in
     `.crumpet/snapshots/` (`sync/snapshots.ts`, never changed once taken). A sync merges three versions (this
     device, the files, the last agreed version).
+  - `src/data/drafts.ts`: drafts of a chapter (`docs/drafts-plan.md`). A chapter's
+    `doc` is the draft the book uses (`draft`: its id, name, note; absent = its
+    first, "Draft 1", whose id is the chapter's), its others in `drafts`, all
+    editable; `withDraftInUse` swaps them. Store: `newDraft` (copy or blank),
+    `useDraft`, `setDraftDoc`, `setDraftInfo`, `deleteDraft`. `ui/drafts.tsx`:
+    the tabs above a chapter (`DraftTabs`, only with 2+ drafts; ChapterPane's
+    `viewId`, the editor's `loadKey`, `draftDocId` = chapter id for the one in
+    use, `chapter~draft` otherwise, `docOwner` back), `NewDraftChoices`, the
+    outline's `DraftBadge`. In the folder, drafts not in use are
+    `Projects/Book/Drafts/<draft name>/<chapter file name>` (front matter
+    `chapter:`, `draft-name:`), the chapter file says `draft:`; a sync merges
+    each draft on its own (`mergeDrafts`), so a switch on one device and
+    writing on another never mix. The MCP server leaves Drafts out.
   - `src/data/keywords.ts`: chapter keywords (Scrivener's), saved in the
     chapter file's `tags`; `ui/keywords.tsx` draws chips and the outline's
     filter (`keywordFilter` in the store, applied to outline, cards and
