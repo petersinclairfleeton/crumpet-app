@@ -228,7 +228,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     browser may ask again after a restart: "Allow access to the folder"). Notes
     are Markdown files with front matter; projects are folders with
     `project.json` (outline, styles, characters and places) and numbered
-    chapter files, plus `Research/`; pictures are in `Attachments/`; shared
+    chapter files, plus `Research/` (notes linked in from the notebooks are
+    listed by id as `linked` in `project.json`: `Project.linked`,
+    `store.linkNote`/`linkedNotes`, shown by `ResearchList`); pictures are in `Attachments/`; shared
     settings in `.crumpet/vault.json`; snapshots one file each in
     `.crumpet/snapshots/` (`sync/snapshots.ts`, never changed once taken). A sync merges three versions (this
     device, the files, the last agreed version).

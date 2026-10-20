@@ -127,7 +127,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
   const phone = !state.settings.toolbarAll && narrowScreen;
   const [phoneTab, setPhoneTab] = useState<'chapters' | 'cast' | 'research'>('chapters');
   const [footOpen, setFootOpen] = useState<null | 'cast' | 'research'>(null);
-  const researchCount = state.notes.filter((n) => n.projectId === project.id && n.trashedAt === null).length;
+  const researchCount = state.notes.filter((n) => n.projectId === project.id && n.trashedAt === null).length + store.linkedNotes(project.id).length;
   const show = { synopsis: true, status: true, keywords: true, ...state.settings.cardShow };
 
   const drop = () => {
@@ -653,7 +653,8 @@ function DeadlineLine({ project, goal, total, onEdit }: { project: Project; goal
 export function ProjectPane({ project, narrow, onBack }: { project: Project; narrow: boolean; onBack(): void }) {
   const state = useAppState();
   const store = useAppStore();
-  const research = state.notes.find((n) => n.id === state.researchId && n.projectId === project.id && n.trashedAt === null);
+  const linked = !!state.researchId && !!project.linked?.includes(state.researchId);
+  const research = state.notes.find((n) => n.id === state.researchId && (n.projectId === project.id || (linked && !n.projectId)) && n.trashedAt === null);
   const member = project.cast?.find((m) => m.id === state.castId);
   if (!research && !member) return <ProjectWriting project={project} narrow={narrow} onBack={onBack} />;
   // On a phone, closing a card or research note goes back to the book's outline.
@@ -661,7 +662,7 @@ export function ProjectPane({ project, narrow, onBack }: { project: Project; nar
     clear();
     if (narrow) onBack();
   };
-  const pane = member ? <CastPane key={member.id} project={project} member={member} narrow={narrow} onClose={close(() => store.openCast(null))} /> : <ResearchPane key={research!.id} note={research!} onClose={close(() => store.openResearch(null))} />;
+  const pane = member ? <CastPane key={member.id} project={project} member={member} narrow={narrow} onClose={close(() => store.openCast(null))} /> : <ResearchPane key={research!.id} note={research!} linkedTo={linked ? project.id : undefined} onClose={close(() => store.openResearch(null))} />;
   // Research opens beside the writing (on a phone, instead of it).
   if (narrow) return pane;
   return (

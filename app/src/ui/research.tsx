@@ -1,15 +1,18 @@
 // A project's research: notes, web clippings, pictures and PDFs kept with
-// the project, listed under its outline and opened beside the writing.
+// the project, listed under its outline and opened beside the writing; and
+// notes linked in from the notebooks, which stay where they are.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type Doc, makeBlock } from '@crumpet/editor/model';
+import { isBoard } from '../data/board';
 import { addFile, mediaUrl } from '../data/files';
+import { isLocked } from '../data/lock';
 import { fullSheet } from '../data/styles';
 import type { Note, Project } from '../data/types';
 import { displayTitle } from '../data/selectors';
 import { useAppState, useAppStore } from './hooks';
 import { EditorHost } from './EditorHost';
-import { IconChevron, IconClose, IconMore, IconNote, IconPlus } from './icons';
+import { IconChevron, IconClose, IconLink, IconMore, IconNote, IconPlus } from './icons';
 import { tabDrag } from './tabdrag';
 import { Popover } from './Sidebar';
 
@@ -50,14 +53,59 @@ export function addResearchFiles(store: ReturnType<typeof useAppStore>, projectI
   input.click();
 }
 
+/** Can a note be linked into a book? Not a locked note or a board, which need their own view. */
+export const linkable = (n: Note) => !n.projectId && n.trashedAt === null && !isLocked(n.doc) && !isBoard(n);
+
+/** Picks a note from the notebooks to link into a book: a search box over the notes not linked yet. */
+function LinkPicker({ project, onDone }: { project: Project; onDone(): void }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const [query, setQuery] = useState('');
+  const linked = new Set(project.linked ?? []);
+  const q = query.trim().toLowerCase();
+  const found = state.notes
+    .filter((n) => linkable(n) && !linked.has(n.id) && (!q || displayTitle(n).toLowerCase().includes(q)))
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 8);
+  return (
+    <>
+      <input className="link-search" autoFocus aria-label="Find a note to link" placeholder="Find a note…" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && found[0] && (store.linkNote(project.id, found[0].id), onDone())} />
+      {found.map((n) => (
+        <button
+          key={n.id}
+          type="button"
+          className="menu-item"
+          onClick={() => {
+            store.linkNote(project.id, n.id);
+            onDone();
+          }}
+        >
+          <span className="ellipsis">{displayTitle(n)}</span>
+        </button>
+      ))}
+      {!found.length && <p className="menu-hint">{q ? 'No notes match.' : 'Every note is linked already.'}</p>}
+    </>
+  );
+}
+
 /** The research list under a project's outline. */
 /** `phone`: in a phone's book, under its Research tab: a heading and rows like the library's, always open. */
 export function ResearchList({ project, phone = false }: { project: Project; phone?: boolean }) {
   const state = useAppState();
   const store = useAppStore();
   const [open, setOpen] = useState(true);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<'menu' | 'link' | null>(null);
   const items = useMemo(() => state.notes.filter((n) => n.projectId === project.id && n.trashedAt === null).sort((a, b) => a.title.localeCompare(b.title)), [state.notes, project.id]);
+  const linked = store.linkedNotes(project.id);
+  // A linked note drags out as the note it is.
+  const row = (n: Note, glyph: React.ReactNode) => (
+    <li key={n.id}>
+      <button type="button" className={`research-item${state.researchId === n.id ? ' selected' : ''}`} aria-current={state.researchId === n.id ? 'true' : undefined} onClick={() => store.openResearch(state.researchId === n.id ? null : n.id)} {...tabDrag({ kind: n.projectId ? 'research' : 'note', id: n.id })}>
+        {glyph}
+        <span className="grow ellipsis">{displayTitle(n)}</span>
+      </button>
+    </li>
+  );
   return (
     <section className="research" aria-label="Research">
       <div className="research-head">
@@ -67,21 +115,26 @@ export function ResearchList({ project, phone = false }: { project: Project; pho
           <button type="button" className="research-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
             <IconChevron size={10} className={open ? 'rot90' : ''} />
             Research
-            <span className="count">{items.length}</span>
+            <span className="count">{items.length + linked.length}</span>
           </button>
         )}
         <span className="grow" />
         <span className="note-actions">
-          <button type="button" className="icon-btn" aria-label="Add research" aria-expanded={adding} onClick={() => setAdding(!adding)}>
+          <button type="button" className="icon-btn" aria-label="Add research" aria-expanded={!!adding} onClick={() => setAdding(adding ? null : 'menu')}>
             <IconPlus size={phone ? 20 : 14} />
           </button>
-          {adding && (
-            <Popover label="Add research" onClose={() => setAdding(false)}>
+          {adding === 'link' && (
+            <Popover label="Link a note" onClose={() => setAdding(null)}>
+              <LinkPicker project={project} onDone={() => setAdding(null)} />
+            </Popover>
+          )}
+          {adding === 'menu' && (
+            <Popover label="Add research" onClose={() => setAdding(null)}>
               <button
                 type="button"
                 className="menu-item"
                 onClick={() => {
-                  setAdding(false);
+                  setAdding(null);
                   store.addResearchNote(project.id);
                 }}
               >
@@ -91,11 +144,14 @@ export function ResearchList({ project, phone = false }: { project: Project; pho
                 type="button"
                 className="menu-item"
                 onClick={() => {
-                  setAdding(false);
+                  setAdding(null);
                   addResearchFiles(store, project.id);
                 }}
               >
                 Pictures or PDFs…
+              </button>
+              <button type="button" className="menu-item" onClick={() => setAdding('link')}>
+                Link a note…
               </button>
               <p className="menu-hint">Web pages: use the web clipper and choose this project.</p>
             </Popover>
@@ -104,20 +160,25 @@ export function ResearchList({ project, phone = false }: { project: Project; pho
       </div>
       {(open || phone) && (
         <ul className="research-items">
-          {items.length === 0 && <li className="research-empty">Notes, web clippings, pictures and PDFs for this project.</li>}
+          {items.length + linked.length === 0 && <li className="research-empty">Notes, web clippings, pictures and PDFs for this project, and notes linked from your notebooks.</li>}
           {items.map((n) => {
             const kind = researchKind(n);
-            return (
-              <li key={n.id}>
-                <button type="button" className={`research-item${state.researchId === n.id ? ' selected' : ''}`} aria-current={state.researchId === n.id ? 'true' : undefined} onClick={() => store.openResearch(state.researchId === n.id ? null : n.id)} {...tabDrag({ kind: 'research', id: n.id })}>
-                  <span className={`research-glyph ${kind}`} aria-label={KIND_LABEL[kind]}>
-                    {KIND_GLYPH[kind]}
-                  </span>
-                  <span className="grow ellipsis">{displayTitle(n)}</span>
-                </button>
-              </li>
+            return row(
+              n,
+              <span className={`research-glyph ${kind}`} aria-label={KIND_LABEL[kind]}>
+                {KIND_GLYPH[kind]}
+              </span>,
             );
           })}
+          {items.length > 0 && linked.length > 0 && <li className="cast-divider" aria-hidden="true" />}
+          {linked.map((n) =>
+            row(
+              n,
+              <span className="research-glyph linked" aria-label="Linked note" title="Linked from your notes">
+                <IconLink size={11} />
+              </span>,
+            ),
+          )}
         </ul>
       )}
     </section>
@@ -150,8 +211,8 @@ function PdfView({ src }: { src: string }) {
   );
 }
 
-/** A research note, open beside the writing. */
-export function ResearchPane({ note, onClose }: { note: Note; onClose(): void }) {
+/** A research note, open beside the writing. `linkedTo`: the book a note from the notebooks is linked into. */
+export function ResearchPane({ note, linkedTo, onClose }: { note: Note; linkedTo?: string; onClose(): void }) {
   const state = useAppState();
   const store = useAppStore();
   const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
@@ -176,7 +237,15 @@ export function ResearchPane({ note, onClose }: { note: Note; onClose(): void })
         label="Research note text"
         lead={
           <span className="research-kind">
-            <IconNote size={13} /> Research
+            {linkedTo ? (
+              <>
+                <IconLink size={13} /> Linked note
+              </>
+            ) : (
+              <>
+                <IconNote size={13} /> Research
+              </>
+            )}
           </span>
         }
         trail={
@@ -186,6 +255,34 @@ export function ResearchPane({ note, onClose }: { note: Note; onClose(): void })
             </button>
             {menu && (
               <Popover label="Research options" onClose={() => setMenu(false)}>
+                {linkedTo ? (
+                  <>
+                    <button
+                      type="button"
+                      className="menu-item"
+                      onClick={() => {
+                        setMenu(false);
+                        store.setView({ kind: 'all' });
+                        store.select(note.id);
+                      }}
+                    >
+                      Show in notes
+                    </button>
+                    <button
+                      type="button"
+                      className="menu-item"
+                      onClick={() => {
+                        setMenu(false);
+                        store.unlinkNote(linkedTo, note.id);
+                        onClose();
+                      }}
+                    >
+                      Unlink from this book
+                    </button>
+                    <p className="menu-hint">Unlinking keeps the note in your notes.</p>
+                  </>
+                ) : (
+                  <>
                 <button
                   type="button"
                   className="menu-item"
@@ -208,6 +305,8 @@ export function ResearchPane({ note, onClose }: { note: Note; onClose(): void })
                 >
                   Move to Trash
                 </button>
+                  </>
+                )}
               </Popover>
             )}
             <button type="button" className="icon-btn" aria-label="Close research" title="Close" onClick={onClose}>

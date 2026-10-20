@@ -1,5 +1,5 @@
 // The menu a right click on a note in the list (or Recent Notes) opens: open
-// it, rename it, star it, file it, tag it, copy it or throw it away. With
+// it, rename it, star it, file it, tag it, link it into a book, copy it or throw it away. With
 // several notes picked, it works on all of them.
 
 import { useLayoutEffect, useRef, useState } from 'react';
@@ -8,8 +8,9 @@ import { allTags, displayTitle } from '../data/selectors';
 import type { Note } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
 import { usePanes } from './panes';
+import { linkable } from './research';
 import { InlineInput, Popover } from './Sidebar';
-import { IconStar, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconLink, IconStar, IconTag, IconTrash, NotebookIcon } from './icons';
 
 export interface NoteMenuAt {
   ids: string[];
@@ -27,7 +28,7 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
   const state = useAppState();
   const store = useAppStore();
   const panes = usePanes();
-  const [mode, setMode] = useState<'menu' | 'rename' | 'move' | 'tag'>('menu');
+  const [mode, setMode] = useState<'menu' | 'rename' | 'move' | 'tag' | 'link'>('menu');
   const box = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: at.x, top: at.y });
   const notes = at.ids.map((id) => store.note(id)).filter((n): n is Note => !!n);
@@ -93,6 +94,11 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
             <button type="button" className="menu-item" onClick={() => setMode('tag')}>
               <IconTag size={14} /> Add tag…
             </button>
+            {state.projects.length > 0 && notes.every(linkable) && (
+              <button type="button" className="menu-item" onClick={() => setMode('link')}>
+                <IconLink size={14} /> Link to a book…
+              </button>
+            )}
             {one && !one.projectId && (
               <button
                 type="button"
@@ -134,6 +140,20 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
                 <NotebookIcon color={nb.color} size={12} cut="var(--page)" /> {nb.name}
               </button>
             ))}
+          </>
+        )}
+        {mode === 'link' && (
+          <>
+            <p className="menu-label">Show in a book’s research</p>
+            {state.projects.map((p) => {
+              const all = notes.every((n) => p.linked?.includes(n.id));
+              return (
+                <button key={p.id} type="button" className="menu-item" aria-pressed={all} onClick={each((n) => (all ? store.unlinkNote(p.id, n.id) : store.linkNote(p.id, n.id)))}>
+                  <span className="grow ellipsis">{p.name}</span>
+                  {all && <span aria-hidden="true">✓</span>}
+                </button>
+              );
+            })}
           </>
         )}
         {mode === 'tag' && (

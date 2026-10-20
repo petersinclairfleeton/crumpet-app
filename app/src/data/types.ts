@@ -82,6 +82,8 @@ export interface Project {
   page?: PageSetup;
   /** The book's characters and places. */
   cast?: CastMember[];
+  /** Notes from the notebooks linked into the book (by id): shown with its research, kept where they are. */
+  linked?: string[];
   /** A finish date for the word goal. */
   deadline?: Deadline;
   /** The draft the book is on, once one was started for the whole book ("Draft 2", what it's for). */
