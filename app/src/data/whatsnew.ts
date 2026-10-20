@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-20-draft-progress',
+    date: '20 October 2026',
+    title: 'How far each draft has come',
+    points: [
+      'Under a chapter’s draft tabs, a line compares the draft with the one before: “4,120 words · 380 fewer than Draft 1 · 34% rewritten”. A draft’s ⌄ menu → Compare with Draft 1 shows every word added and taken out.',
+      'The outline does the same for the whole book, under the book’s draft.',
+      'Snapshots and the versions kept as you write belong to each draft, and a snapshot’s Make it a new draft starts a draft from it.',
+    ],
+  },
+  {
     id: '2026-10-20-linked-notes',
     date: '20 October 2026',
     title: 'Link your notes into a book',

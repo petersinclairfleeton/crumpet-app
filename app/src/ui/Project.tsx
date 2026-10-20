@@ -42,7 +42,7 @@ import { KeywordChips, KeywordEditor, KeywordFilter, hasKeyword } from './keywor
 import { type Doc, makeBlock } from '@crumpet/editor/model';
 import { chapterDraft, draftDocId, draftInUse } from '../data/drafts';
 import { usePanes } from './panes';
-import { BookDraftForm, DraftBadge, DraftTabs, NewDraftChoices } from './drafts';
+import { BookDraftForm, BookProgress, DraftBadge, DraftTabs, NewDraftChoices } from './drafts';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
   { id: 'todo', label: 'To do' },
@@ -276,6 +276,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
             <button type="button" className="book-draft" title={`Change what ${project.draft.name} is for`} onClick={() => setMenu('draftnote')}>
               <strong>{project.draft.name}</strong>
               {project.draft.note ? <span> · {project.draft.note}</span> : <span className="book-draft-add"> · what’s it for?</span>}
+              <BookProgress chapters={[...chapters.values()].map((x) => x.chapter)} />
             </button>
           ))}
         {calm && (

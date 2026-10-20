@@ -4,6 +4,10 @@
 // had another needs nothing extra. (Snapshots and automatic versions are the
 // safety net within a draft; see snapshots.ts.)
 
+import type { Doc } from '@crumpet/editor/model';
+import { plainText } from './compare';
+import { compareTexts } from './snapshots';
+import { wordsIn } from './stats';
 import type { Chapter, ChapterDraft } from './types';
 
 /** One draft of a chapter, whether or not the book is using it. */
@@ -17,6 +21,19 @@ export const FIRST_DRAFT = 'Draft 1';
 /** The editor's id for a draft: the chapter's own for the one in use, so the sidebar's tabs work on it as ever. */
 export function draftDocId(c: Chapter, draftId: string): string {
   return draftId === draftInUse(c) ? c.id : `${c.id}~${draftId}`;
+}
+
+/**
+ * Where a draft's snapshots and versions are kept (their `docId`): the
+ * chapter's id for its first draft (as before drafts), `chapter~draft` for the others.
+ */
+export function versionKey(chapterId: string, draftId: string): string {
+  return draftId === chapterId ? chapterId : `${chapterId}~${draftId}`;
+}
+
+/** The draft an editor's id or a snapshot's key is for (the chapter's own id: its first). */
+export function keyDraft(key: string): string {
+  return key.split('~')[1] ?? key;
 }
 
 /** The chapter (or note) an editor's id is for. */
@@ -80,4 +97,62 @@ export function withDraftInUse(c: Chapter, id: string, now: number): Chapter {
   const was: ChapterDraft = { id: draftInUse(c), name: c.draft?.name || FIRST_DRAFT, note: c.draft?.note ?? '', createdAt: c.draft?.createdAt ?? c.createdAt, doc: c.doc, updatedAt: c.updatedAt };
   const drafts = [...(c.drafts ?? []).filter((d) => d.id !== id), was];
   return { ...c, doc: next.doc, draft: { id: next.id, name: next.name, note: next.note, createdAt: next.createdAt }, drafts, updatedAt: now };
+}
+
+/** A draft against the one before it: its words, how many more (or fewer), and how much of it is new. */
+export interface DraftChange {
+  words: number;
+  delta: number;
+  /** The share of its words that weren't in the draft before (0 to 1). */
+  rewritten: number;
+  /** Its words that weren't in the draft before. */
+  added: number;
+}
+
+const WORD = /[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu;
+const changes = new WeakMap<Doc, WeakMap<Doc, DraftChange>>();
+
+/** How `after` differs from `before` (remembered for the same two texts, as it's worked out word by word). */
+export function draftChange(before: Doc, after: Doc): DraftChange {
+  let m = changes.get(before);
+  const known = m?.get(after);
+  if (known) return known;
+  const words = wordsIn(after);
+  const added = compareTexts(plainText(before), plainText(after))
+    .filter((p) => p.kind === 'add')
+    .reduce((n, p) => n + (p.text.match(WORD) ?? []).length, 0);
+  const out = { words, delta: words - wordsIn(before), added, rewritten: words ? Math.min(1, added / words) : 0 };
+  if (!m) changes.set(before, (m = new WeakMap()));
+  m.set(after, out);
+  return out;
+}
+
+/** The draft started just before this one, if any. */
+export function draftBefore(c: Chapter, id: string): DraftView | undefined {
+  const all = chapterDrafts(c);
+  const i = all.findIndex((d) => d.id === id);
+  return i > 0 ? all[i - 1] : undefined;
+}
+
+/** The book against the drafts before: each chapter's draft in use against the draft started before it (null when none has one). */
+export function bookChange(chapters: Chapter[]): DraftChange | null {
+  let words = 0;
+  let before = 0;
+  let added = 0;
+  let any = false;
+  for (const c of chapters) {
+    const prev = draftBefore(c, draftInUse(c));
+    const ch = prev ? draftChange(prev.doc, c.doc) : null;
+    if (ch && prev) {
+      any = true;
+      words += ch.words;
+      before += ch.words - ch.delta;
+      added += ch.added;
+    } else {
+      const n = wordsIn(c.doc);
+      words += n;
+      before += n;
+    }
+  }
+  return any ? { words, delta: words - before, added, rewritten: words ? Math.min(1, added / words) : 0 } : null;
 }

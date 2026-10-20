@@ -11,6 +11,7 @@ import { fromMarkdown } from '@crumpet/editor/markdown';
 import { useAppState, useAppStore } from './hooks';
 import { type Snapshot, compareTexts } from '../data/snapshots';
 import { IconClose } from './icons';
+import { chapterDraft, docOwner, draftInUse, keyDraft, versionKey } from '../data/drafts';
 
 const docText = (doc: Doc) =>
   doc.blocks
@@ -28,9 +29,14 @@ const dayOf = (t: number) => {
 };
 const when = (t: number) => new Date(t).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
-export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Editor }) {
+export function SnapshotsPanel({ docId: shownId, editor }: { docId: string; editor: Editor }) {
   const state = useAppState();
   const store = useAppStore();
+  // A chapter's snapshots are its shown draft's (see versionKey).
+  const chapter = state.chapters.find((c) => c.id === docOwner(shownId));
+  const draftId = chapter ? (shownId.includes('~') ? keyDraft(shownId) : draftInUse(chapter)) : null;
+  const docId = chapter && draftId ? versionKey(chapter.id, draftId) : shownId;
+  const draftName = chapter?.drafts?.length && draftId ? chapterDraft(chapter, draftId)?.name : undefined;
   const [name, setName] = useState('');
   const [asking, setAsking] = useState<null | { id: string; what: 'restore' | 'delete' }>(null);
   const [comparing, setComparing] = useState<Snapshot | null>(null);
@@ -39,7 +45,7 @@ export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Edito
   const list = all.filter((s) => showAuto || !s.auto);
   const versions = all.filter((s) => s.auto).length;
   const keeping = state.settings.autoVersions !== false;
-  const known = state.notes.some((n) => n.id === docId) || state.chapters.some((c) => c.id === docId);
+  const known = state.notes.some((n) => n.id === docId) || !!chapter;
   if (!known) return <p className="right-empty">Snapshots are for notes and chapters.</p>;
   return (
     <div className="snapshots">
@@ -56,6 +62,7 @@ export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Edito
           Take snapshot
         </button>
       </form>
+      {draftName && <p className="snapshot-of">Snapshots of {draftName}</p>}
       <div className="snapshot-options">
         <label className="check-row">
           <input type="checkbox" checked={keeping} onChange={(e) => store.updateSettings({ autoVersions: e.target.checked })} /> Keep versions while I write
@@ -101,6 +108,11 @@ export function SnapshotsPanel({ docId, editor }: { docId: string; editor: Edito
                 <button type="button" className="link-btn" onClick={() => setAsking({ id: s.id, what: 'restore' })}>
                   Go back to this
                 </button>
+                {chapter && (
+                  <button type="button" className="link-btn" title="Start a new draft of the chapter from this text" onClick={() => store.draftFromSnapshot(s.id)}>
+                    Make it a new draft
+                  </button>
+                )}
                 <button type="button" className="link-btn danger" onClick={() => setAsking({ id: s.id, what: 'delete' })}>
                   Delete
                 </button>

@@ -38,6 +38,13 @@ test('drafts in the calm look: a new draft, the tabs, an older draft, and which 
   await page.keyboard.press('End');
   await page.keyboard.type(' Not since the wreck.');
   await expect(outline.locator('.draft-badge')).toHaveText('D2');
+  // How it compares with the draft before.
+  await expect(page.locator('.draft-progress')).toHaveText('10 words · 4 more than Draft 1 · 40% rewritten');
+  await page.getByRole('button', { name: 'Draft 2 options' }).click();
+  await page.getByRole('button', { name: 'Compare with Draft 1' }).click();
+  const compare = page.getByRole('dialog', { name: 'Compare Draft 2 with Draft 1' });
+  await expect(compare).toContainText('Not since the wreck.');
+  await compare.getByRole('button', { name: 'Close' }).click();
 
   // The first draft is still there, and can be written in.
   await tabs.getByRole('tab', { name: /Draft 1/ }).click();
@@ -101,8 +108,9 @@ test('a new draft of the whole book, and the old draft open beside the new one',
   await expect(form.getByLabel('Name')).toHaveValue('Draft 2');
   await form.getByLabel('What it’s for').fill('Bring the wreck in early');
   await form.getByRole('button', { name: /Copy every chapter/ }).click();
-  await expect(outline.locator('.book-draft')).toHaveText('Draft 2 · Bring the wreck in early');
+  await expect(outline.locator('.book-draft')).toContainText('Draft 2 · Bring the wreck in early');
   await expect(outline.locator('.draft-badge')).toHaveText(['D2', 'D2']);
+  await expect(outline.locator('.book-draft-progress')).toHaveText('+0 words since the drafts before · 0% rewritten');
 
   // The first draft beside the second, scrolling together.
   await outline.locator('.outline-chapter').first().click();
