@@ -159,8 +159,9 @@ function CastPicture({ src }: { src: string }) {
 function BookNotes({ projectId }: { projectId: string }) {
   const state = useAppState();
   const store = useAppStore();
-  const notes = state.notes.filter((n) => n.projectId === projectId && n.trashedAt === null).sort((a, b) => b.updatedAt - a.updatedAt);
-  if (!notes.length) return <p className="right-empty">The book’s research notes show here: add them under Research in the outline, or drag a note onto the book.</p>;
+  const linked = new Set(store.linkedNotes(projectId).map((n) => n.id));
+  const notes = state.notes.filter((n) => ((n.projectId === projectId && n.trashedAt === null) || linked.has(n.id))).sort((a, b) => b.updatedAt - a.updatedAt);
+  if (!notes.length) return <p className="right-empty">The book’s research notes show here: add them under Research in the outline, link a note from your notebooks there, or drag a note onto the book.</p>;
   return (
     <ul className="chapter-cast">
       {notes.map((n) => (
@@ -168,7 +169,7 @@ function BookNotes({ projectId }: { projectId: string }) {
           <button type="button" className="cast-card" onClick={() => store.openResearch(n.id)}>
             <span className="cast-card-head">
               <b>{displayTitle(n)}</b>
-              <small>Note</small>
+              <small>{linked.has(n.id) ? 'Linked note' : 'Note'}</small>
             </span>
             <span className="cast-card-text">{preview(n)}</span>
           </button>

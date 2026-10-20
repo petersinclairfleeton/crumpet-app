@@ -53,6 +53,7 @@ export interface ProjectJson {
   styles?: StyleSheet;
   page?: PageSetup;
   cast?: CastMember[];
+  linked?: string[];
   deadline?: Deadline;
   created: number;
   updated: number;
@@ -137,7 +138,7 @@ function cleanDeadline(d: unknown): Deadline | undefined {
 }
 
 export function writeProject(p: ProjectJson): string {
-  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.deadline ? { deadline: p.deadline } : {}) }, null, 2)}\n`;
+  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}) }, null, 2)}\n`;
 }
 
 const STATUSES = new Set<ChapterStatus>(['todo', 'draft', 'revised', 'done']);
@@ -450,6 +451,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       ...(json.styles && typeof json.styles === 'object' && json.styles.styles ? { styles: json.styles } : {}),
       ...(json.page && typeof json.page === 'object' && json.page.margins ? { page: json.page } : {}),
       ...(Array.isArray(json.cast) && json.cast.length ? { cast: cleanCast(json.cast) } : {}),
+      ...(Array.isArray(json.linked) && json.linked.some((x: unknown) => typeof x === 'string') ? { linked: json.linked.filter((x: unknown): x is string => typeof x === 'string') } : {}),
       ...(cleanDeadline(json.deadline) ? { deadline: cleanDeadline(json.deadline) } : {}),
     };
     where.projects[id] = dir;

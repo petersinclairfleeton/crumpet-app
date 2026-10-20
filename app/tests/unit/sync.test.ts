@@ -787,3 +787,32 @@ describe('characters and places', () => {
     expect(names(phone.store)).toEqual(names(mac.store));
   });
 });
+
+describe('notes linked into a book', () => {
+  it('sync in project.json, links made and taken away on each device both kept', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const p = mac.store.createProject('The Lighthouse');
+    const a = mac.store.createNote({ title: 'Tides' });
+    const b = mac.store.createNote({ title: 'Lamps' });
+    const c = mac.store.createNote({ title: 'Gulls' });
+    mac.store.linkNote(p.id, a.id);
+    mac.store.linkNote(p.id, b.id);
+    mac.store.flush();
+    await mac.engine.sync();
+    expect(cloud.files.get('Projects/The Lighthouse/project.json')!.text).toContain(`"linked"`);
+    await phone.engine.sync();
+    expect(phone.store.linkedNotes(p.id).map((n) => n.title)).toEqual(['Tides', 'Lamps']);
+    // The Mac unlinks one, the phone links another: both kept.
+    mac.store.unlinkNote(p.id, a.id);
+    phone.store.linkNote(p.id, c.id);
+    await mac.engine.sync();
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect(mac.store.linkedNotes(p.id).map((n) => n.title)).toEqual(['Lamps', 'Gulls']);
+    expect(phone.store.linkedNotes(p.id).map((n) => n.title)).toEqual(['Lamps', 'Gulls']);
+    // The notes themselves stay among the notes.
+    expect(phone.store.note(c.id)?.projectId ?? null).toBe(null);
+  });
+});

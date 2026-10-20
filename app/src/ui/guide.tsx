@@ -102,7 +102,7 @@ const CHAPTERS: Chapter[] = [
     lede: 'Everything about your story, next to the writing.',
     points: [
       { title: 'A card for everyone', text: 'Add characters and places to a project. Crumpet spots their names in your chapters; hover over one to see their card.' },
-      { title: 'Research beside you', text: 'Keep notes, pictures and PDFs in a project’s Research (drag a note onto the project to add it), and open them next to the chapter you’re writing.' },
+      { title: 'Research beside you', text: 'Keep notes, pictures and PDFs in a project’s Research (drag a note onto the project to add it), and open them next to the chapter you’re writing. A note that belongs in your notebooks too can be linked instead: Research’s + → Link a note…, or Link to a book… in the note’s right-click menu. It shows with the book’s research, marked with a link, and stays where it is; change it in either place.' },
       { title: 'Clip the web', text: 'The web clipper (Settings → Clipper and Mac app) saves a web page, or the part you select, as a note in one click.' },
       { title: 'See the connections', text: 'The Graph draws your notes and the links between them, so related ideas find each other: it has the window, beside the slim strip (anything on the strip leaves it). The open note is the honey dot, its links in honey; rest the mouse on a dot to see its links and notebook, and zoom with − Fit + in the corner.' },
     ],

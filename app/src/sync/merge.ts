@@ -122,6 +122,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       ...withValue('styles', jsonField(b?.styles, l.styles, r.styles, r.updated > l.updated ? r.styles : l.styles)),
       ...withValue('page', jsonField(b?.page, l.page, r.page, r.updated > l.updated ? r.page : l.page)),
       ...withValue('cast', mergeCast(b?.cast ?? [], l.cast ?? [], r.cast ?? [])),
+      ...withValue('linked', mergeIds(b?.linked ?? [], l.linked ?? [], r.linked ?? [])),
       ...withValue('deadline', jsonField(b?.deadline, l.deadline, r.deadline, r.updated > l.updated ? r.deadline : l.deadline)),
     }));
     if (p) tree.projects[id] = p;
@@ -231,6 +232,14 @@ function mergeCast(b: CastMember[], l: CastMember[], r: CastMember[]): CastMembe
   // This device's order, then any added elsewhere.
   const order = [...l.map((m) => m.id), ...r.map((m) => m.id)];
   out.sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id));
+  return out.length ? out : undefined;
+}
+
+/** A list of ids changed on both sides: kept unless one side took it away, plus any either side added. */
+function mergeIds(b: string[], l: string[], r: string[]): string[] | undefined {
+  const base = new Set(b);
+  const [L, R] = [new Set(l), new Set(r)];
+  const out = [...new Set([...l, ...r])].filter((id) => (base.has(id) ? L.has(id) && R.has(id) : true));
   return out.length ? out : undefined;
 }
 

@@ -689,7 +689,7 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.deadline ? { deadline: t.deadline } : {}) };
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.linked?.length ? { linked: t.linked } : {}), ...(t.deadline ? { deadline: t.deadline } : {}) };
       if (
         cur &&
         cur.name === next.name &&
@@ -700,6 +700,7 @@ export class AppStore {
         JSON.stringify(cur.styles ?? null) === JSON.stringify(next.styles ?? null) &&
         JSON.stringify(cur.page ?? null) === JSON.stringify(next.page ?? null) &&
         JSON.stringify(cur.cast ?? null) === JSON.stringify(next.cast ?? null) &&
+        JSON.stringify(cur.linked ?? null) === JSON.stringify(next.linked ?? null) &&
         JSON.stringify(cur.deadline ?? null) === JSON.stringify(next.deadline ?? null)
       )
         return cur;
@@ -996,6 +997,28 @@ export class AppStore {
     this.set({ notes: [note, ...this.state.notes], ...(open ? { researchId: note.id } : {}) });
     this.save(this.storage.putNote(note));
     return note;
+  }
+
+  /** The notes linked into a project from the notebooks (not its own research), in the order linked. */
+  linkedNotes(projectId: string): Note[] {
+    const byId = new Map(this.state.notes.map((n) => [n.id, n]));
+    return (this.project(projectId)?.linked ?? []).map((id) => byId.get(id)).filter((n): n is Note => !!n && n.trashedAt === null && !n.projectId);
+  }
+
+  /** Links a note into a project: it shows with the book's research but stays in its notebook. */
+  linkNote(projectId: string, noteId: string): void {
+    const p = this.project(projectId);
+    if (!p || p.linked?.includes(noteId)) return;
+    this.updateProject(projectId, { linked: [...(p.linked ?? []), noteId] });
+  }
+
+  /** Takes a linked note out of a project (the note itself stays where it is). */
+  unlinkNote(projectId: string, noteId: string): void {
+    const p = this.project(projectId);
+    if (!p?.linked?.includes(noteId)) return;
+    const linked = p.linked.filter((id) => id !== noteId);
+    this.updateProject(projectId, { linked: linked.length ? linked : undefined });
+    if (this.state.researchId === noteId) this.set({ researchId: null });
   }
 
   /** Opens a research note beside the writing (null closes it). */

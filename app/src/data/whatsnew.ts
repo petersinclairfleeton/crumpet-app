@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-20-linked-notes',
+    date: '20 October 2026',
+    title: 'Link your notes into a book',
+    points: [
+      'A book’s Research can now show notes from your notebooks as well as its own: Research’s + → Link a note…, or right-click a note → Link to a book…. A linked note stays in its notebook, so your general notes and the book’s own notes sit together without moving or copying anything.',
+      'Linked notes are marked with a link, open beside the chapter like research, and Unlink from this book (in its ··· menu) takes it out of the book again.',
+      'Fixed: the + menus under Characters & places and Research, at the foot of a book’s outline, were cut off.',
+    ],
+  },
+  {
     id: '2026-10-19-mcp',
     date: '19 October 2026',
     title: 'Your notes, with Claude and other AIs',
