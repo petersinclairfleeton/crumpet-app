@@ -3,8 +3,10 @@
 // and each draft's menu (rename, its note, use it for the book, delete).
 // See data/drafts.ts.
 
-import { useState } from 'react';
-import { type DraftView, chapterDraft, chapterDrafts, draftBadge, nextBookDraftName } from '../data/drafts';
+import { useDeferredValue, useState } from 'react';
+import { type DraftChange, type DraftView, bookChange, chapterDraft, chapterDrafts, draftBadge, draftBefore, draftChange, nextBookDraftName } from '../data/drafts';
+import { plainText } from '../data/compare';
+import { CompareDialog } from './snapshots';
 import { docWords } from '../data/selectors';
 import type { Chapter, Project } from '../data/types';
 import { useAppStore } from './hooks';
@@ -45,8 +47,14 @@ export function DraftTabs({ chapter, viewing, onView, onBeside }: { chapter: Cha
   const store = useAppStore();
   const drafts = chapterDrafts(chapter);
   const [menu, setMenu] = useState<null | { id: string; mode: 'menu' | 'rename' | 'note' } | 'new'>(null);
+  const [comparing, setComparing] = useState<null | { before: DraftView; after: DraftView }>(null);
+  // Worked out word by word, so it can lag a little behind typing.
+  const later = useDeferredValue(chapter);
   if (drafts.length < 2) return null;
   const shown = drafts.find((d) => d.id === viewing) ?? drafts.find((d) => d.inUse)!;
+  const prev = draftBefore(later, shown.id);
+  const shownLater = chapterDraft(later, shown.id);
+  const change = prev && shownLater ? draftChange(prev.doc, shownLater.doc) : null;
   const inUse = drafts.find((d) => d.inUse)!;
   const open = menu && menu !== 'new' ? drafts.find((d) => d.id === menu.id) : undefined;
   return (
@@ -101,6 +109,11 @@ export function DraftTabs({ chapter, viewing, onView, onBeside }: { chapter: Cha
                   Use this draft for the book
                 </button>
               )}
+              {draftBefore(chapter, open.id) && (
+                <button type="button" className="menu-item" onClick={() => (setMenu(null), setComparing({ before: draftBefore(chapter, open.id)!, after: open }))}>
+                  Compare with {draftBefore(chapter, open.id)!.name}
+                </button>
+              )}
               {onBeside && (
                 <button type="button" className="menu-item" onClick={() => (setMenu(null), onBeside(open.id))}>
                   Open beside
@@ -153,6 +166,20 @@ export function DraftTabs({ chapter, viewing, onView, onBeside }: { chapter: Cha
         </Popover>
       )}
       {shown.note && <p className="draft-note">{shown.note}</p>}
+      {change && prev && <p className="draft-progress">{progressLine(change, prev.name)}</p>}
+      {comparing && (
+        <CompareDialog
+          label={`Compare ${comparing.after.name} with ${comparing.before.name}`}
+          title={
+            <>
+              {comparing.after.name} <small>since {comparing.before.name}</small>
+            </>
+          }
+          before={plainText(comparing.before.doc)}
+          after={plainText(comparing.after.doc)}
+          onClose={() => setComparing(null)}
+        />
+      )}
       {!shown.inUse && (
         <p className="draft-aside" role="status">
           Your book uses {inUse.name}.{' '}
@@ -162,6 +189,25 @@ export function DraftTabs({ chapter, viewing, onView, onBeside }: { chapter: Cha
         </p>
       )}
     </div>
+  );
+}
+
+/** "4,120 words · 380 fewer than Draft 1 · 34% rewritten" */
+export function progressLine(c: DraftChange, before: string): string {
+  const more = c.delta === 0 ? `as long as ${before}` : `${Math.abs(c.delta).toLocaleString()} ${c.delta > 0 ? 'more' : 'fewer'} than ${before}`;
+  return `${words(c.words)} · ${more} · ${Math.round(c.rewritten * 100)}% rewritten`;
+}
+
+/** The book against the drafts before, for the outline: "+1,200 words · 22% rewritten". */
+export function BookProgress({ chapters }: { chapters: Chapter[] }) {
+  const later = useDeferredValue(chapters);
+  const c = bookChange(later);
+  if (!c) return null;
+  return (
+    <span className="book-draft-progress">
+      {c.delta >= 0 ? '+' : '−'}
+      {Math.abs(c.delta).toLocaleString()} words since the drafts before · {Math.round(c.rewritten * 100)}% rewritten
+    </span>
   );
 }
 

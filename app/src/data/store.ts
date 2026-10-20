@@ -18,7 +18,7 @@ import { relinkDoc, sameTitle } from './links';
 import { decodeReminder, tidyReminder } from './reminders';
 import { type Snapshot, VERSION_GAP, pruneVersions, snapshotAttachments } from './snapshots';
 import { tidyKeywords } from './keywords';
-import { FIRST_DRAFT, chapterDraft, chapterDrafts, draftInUse, nextBookDraftName, nextDraftName, withDraftInUse } from './drafts';
+import { FIRST_DRAFT, chapterDraft, chapterDrafts, docOwner, draftInUse, keyDraft, nextBookDraftName, nextDraftName, versionKey, withDraftInUse } from './drafts';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { removeRevisionColors } from './revisions';
 import { type CastMember, type Chapter, type ChapterDraft, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, SHARED_SETTINGS, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
@@ -1194,8 +1194,9 @@ export class AppStore {
   takeSnapshot(docId: string, name = ''): Snapshot | null {
     this.flush();
     const note = this.note(docId);
-    const chapter = note ? undefined : this.chapter(docId);
-    const doc = note?.doc ?? chapter?.doc;
+    // A chapter's: the draft the key names (see versionKey).
+    const chapter = note ? undefined : this.chapter(docOwner(docId));
+    const doc = note?.doc ?? (chapter && chapterDraft(chapter, keyDraft(docId))?.doc);
     if (!doc) return null;
     const snap: Snapshot = { id: newId(), docId, kind: note ? 'note' : 'chapter', title: (note?.title ?? chapter?.title ?? '').trim(), name: name.trim(), at: this.now(), words: wordsIn(doc), md: toMarkdown(doc) };
     this.setSnapshots([snap, ...this.state.snapshots]);
@@ -1221,7 +1222,8 @@ export class AppStore {
 
   /** A note or chapter has gone for good: its automatic versions go too (snapshots taken by hand stay). */
   private dropVersions(docId: string): void {
-    const drop = this.state.snapshots.filter((x) => x.docId === docId && x.auto).map((x) => x.id);
+    // A chapter's go with it: every draft's.
+    const drop = this.state.snapshots.filter((x) => (x.docId === docId || x.docId.startsWith(`${docId}~`)) && x.auto).map((x) => x.id);
     if (!drop.length) return;
     this.setSnapshots(this.state.snapshots.filter((x) => !drop.includes(x.id)));
     this.forgetSnapshots(drop);
@@ -1241,7 +1243,7 @@ export class AppStore {
     const md = toMarkdown(before);
     if (!md.trim() || latest?.md === md) return;
     const note = this.note(docId);
-    const chapter = note ? undefined : this.chapter(docId);
+    const chapter = note ? undefined : this.chapter(docOwner(docId));
     const snap: Snapshot = { id: newId(), docId, kind: note ? 'note' : 'chapter', title: (note?.title ?? chapter?.title ?? '').trim(), name: '', at: now, words, md, auto: true };
     const list = [snap, ...this.state.snapshots];
     const drop = new Set(pruneVersions(list.filter((x) => x.docId === docId), now));
@@ -1253,12 +1255,22 @@ export class AppStore {
   restoreSnapshot(id: string): void {
     const snap = this.state.snapshots.find((x) => x.id === id);
     if (!snap) return;
-    const doc = this.note(snap.docId)?.doc ?? this.chapter(snap.docId)?.doc;
+    const chapter = this.note(snap.docId) ? undefined : this.chapter(docOwner(snap.docId));
+    const doc = this.note(snap.docId)?.doc ?? (chapter && chapterDraft(chapter, keyDraft(snap.docId))?.doc);
     if (!doc) return;
     this.takeSnapshot(snap.docId, `Before going back to ${snap.auto ? `the version of ${new Date(snap.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : snap.name || 'the snapshot'}`);
     const restored = matchIds(doc, fromMarkdown(snap.md));
     if (this.note(snap.docId)) this.setDoc(snap.docId, restored);
-    else this.setChapterDoc(snap.docId, restored);
+    else if (chapter) this.setDraftDoc(chapter.id, keyDraft(snap.docId), restored);
+  }
+
+  /** A snapshot or version of a chapter as a new draft, which the book then uses. Returns its id. */
+  draftFromSnapshot(id: string): string | undefined {
+    const snap = this.state.snapshots.find((x) => x.id === id);
+    const chapter = snap && !this.note(snap.docId) ? this.chapter(docOwner(snap.docId)) : undefined;
+    if (!snap || !chapter) return undefined;
+    const from = snap.auto ? `the version of ${new Date(snap.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : `the snapshot “${snap.name || 'Snapshot'}”`;
+    return this.newDraft(chapter.id, { doc: fromMarkdown(snap.md), note: `From ${from}` });
   }
 
   /** Snapshots deleted here, still to be removed from the folder. */
@@ -1284,11 +1296,12 @@ export class AppStore {
   }
 
   setChapterDoc(id: string, doc: Doc): void {
-    const before = this.chapter(id)?.doc;
+    const c = this.chapter(id);
+    const before = c?.doc;
     this.updateChapter(id, { doc }, true);
-    if (before) {
+    if (c && before) {
       this.countWords(id, before, doc);
-      this.keepVersion(id, before);
+      this.keepVersion(versionKey(id, draftInUse(c)), before);
     }
   }
 
@@ -1298,7 +1311,7 @@ export class AppStore {
    * Starts a new draft of a chapter: a copy of draft `from` (the one in use
    * unless given), or a blank page. The book uses it from then on. Returns its id.
    */
-  newDraft(chapterId: string, opts: { from?: string; blank?: boolean; name?: string; note?: string } = {}): string | undefined {
+  newDraft(chapterId: string, opts: { from?: string; blank?: boolean; doc?: Doc; name?: string; note?: string } = {}): string | undefined {
     const c = this.chapter(chapterId);
     if (!c) return undefined;
     const from = chapterDraft(c, opts.from ?? draftInUse(c));
@@ -1308,7 +1321,7 @@ export class AppStore {
     const id = newId();
     const name = opts.name?.trim() || nextDraftName(chapterDrafts(c).map((d) => d.name));
     // A copy gets block ids of its own, so the two can be open side by side.
-    const doc = opts.blank ? emptyDoc() : fromMarkdown(toMarkdown(from.doc));
+    const doc = opts.doc ?? (opts.blank ? emptyDoc() : fromMarkdown(toMarkdown(from.doc)));
     this.cancelSave(chapterId);
     this.putChapter({ ...c, doc, draft: { id, name, note: opts.note?.trim() ?? '', createdAt: t }, drafts: [...(c.drafts ?? []), was], updatedAt: t });
     return id;
@@ -1352,6 +1365,7 @@ export class AppStore {
     const t = this.now();
     this.updateChapter(chapterId, { drafts: c.drafts!.map((d) => (d.id === draftId ? { ...d, doc, updatedAt: t } : d)) }, true);
     this.countWords(chapterId, before, doc);
+    this.keepVersion(versionKey(chapterId, draftId), before);
   }
 
   /** Renames a draft, or changes the note on what it's for. */
@@ -1382,6 +1396,7 @@ export class AppStore {
     // The first draft is the chapter's own: with no other left, it needs no name of its own unless it was given one.
     const plain = !drafts.length && c.draft?.id === c.id && c.draft.name === FIRST_DRAFT && !c.draft.note;
     this.putChapter({ ...c, drafts: drafts.length ? drafts : undefined, ...(plain ? { draft: undefined } : {}), updatedAt: this.now() });
+    if (draftId !== chapterId) this.dropVersions(versionKey(chapterId, draftId));
     this.forgetUnused([gone.doc]);
   }
 

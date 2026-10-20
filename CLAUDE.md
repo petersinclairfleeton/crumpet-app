@@ -244,7 +244,12 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     project.json) comes from `newBookDraft` (a draft in every chapter;
     `BookDraftForm`; shown under the outline's title). Open beside opens a
     chapter tab with `draft` (`ChapterPane`'s `draft`) and turns on
-    `syncScroll`. In the folder, drafts not in use are
+    `syncScroll`. Progress: `draftChange` (words, and the share new, by
+    `compareTexts`; remembered per pair of docs), `bookChange`, shown by
+    `DraftTabs` and `BookProgress`. Snapshots and versions of a draft have
+    `docId` = `versionKey(chapter, draft)` (the chapter's id for Draft 1, else
+    `chapter~draft`); the Snapshots tab works it out from the editor's id
+    (`keyDraft`), and `draftFromSnapshot` makes one a draft. In the folder, drafts not in use are
     `Projects/Book/Drafts/<draft name>/<chapter file name>` (front matter
     `chapter:`, `draft-name:`), the chapter file says `draft:`; a sync merges
     each draft on its own (`mergeDrafts`), so a switch on one device and

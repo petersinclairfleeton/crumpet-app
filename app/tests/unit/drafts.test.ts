@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { MemoryStorage } from '../../src/data/db';
 import { AppStore } from '../../src/data/store';
-import { chapterDrafts, draftBadge, draftInUse, nextBookDraftName, nextDraftName } from '../../src/data/drafts';
+import { bookChange, chapterDrafts, draftBadge, draftChange, draftInUse, nextBookDraftName, nextDraftName, versionKey } from '../../src/data/drafts';
 import { SyncEngine, type SyncState } from '../../src/sync/engine';
 import { MemoryProvider } from '../../src/sync/provider';
 import { localTree } from '../../src/sync/tree';
@@ -85,6 +85,61 @@ describe('drafts of a chapter', () => {
     const c = store.chapter(id)!;
     expect(c.draft).toBeUndefined();
     expect(c.drafts).toBeUndefined();
+  });
+});
+
+describe('progress between drafts', () => {
+  it('counts words and how much was rewritten', () => {
+    const c = draftChange(md('One two three four.\n'), md('One two five six seven eight.\n'));
+    expect(c.words).toBe(6);
+    expect(c.delta).toBe(2);
+    // Four of the six words are new.
+    expect(c.rewritten).toBeCloseTo(4 / 6);
+  });
+
+  it('adds up the book against each chapter\'s draft before', async () => {
+    const { store, id } = await book();
+    const p = store.getState().projects[0];
+    const two = store.addChapter(p.id)!;
+    store.setChapterDoc(two.id, md('Two words.\n'));
+    expect(bookChange(store.getState().chapters)).toBeNull();
+    store.newBookDraft(p.id);
+    store.setChapterDoc(id, md('The first try, longer now.\n'));
+    const b = bookChange(store.getState().chapters)!;
+    expect(b.words).toBe(7);
+    expect(b.delta).toBe(2);
+    expect(b.rewritten).toBeGreaterThan(0);
+  });
+});
+
+describe('snapshots of drafts', () => {
+  it('keeps each draft\'s snapshots and versions apart, and turns a snapshot into a draft', async () => {
+    const { store, id } = await book();
+    store.takeSnapshot(id, 'First');
+    const d2 = store.newDraft(id)!;
+    store.takeSnapshot(versionKey(id, d2), 'Second');
+    const of = (key: string) => store.getState().snapshots.filter((s) => s.docId === key && !s.auto).map((s) => s.name);
+    expect(of(id)).toEqual(['First']);
+    expect(of(versionKey(id, d2))).toEqual(['Second']);
+    // Writing in the first draft (not in use) keeps its own version (versions are ten minutes apart).
+    store.setDraftDoc(id, id, md('Changed.\n'));
+    clock += 20 * 60 * 1000;
+    store.setDraftDoc(id, id, md('Changed again.\n'));
+    expect(store.getState().snapshots.some((s) => s.docId === id && s.auto)).toBe(true);
+    // Going back to a snapshot of the first draft changes that draft, not the one in use.
+    const first = store.getState().snapshots.find((s) => s.name === 'First')!;
+    store.restoreSnapshot(first.id);
+    expect(toMarkdown(chapterDrafts(store.chapter(id)!)[0].doc)).toBe('The first try.\n');
+    expect(text(store, id)).toBe('The first try.\n');
+    store.setChapterDoc(id, md('Draft two text.\n'));
+    // A snapshot as a new draft.
+    const d3 = store.draftFromSnapshot(first.id)!;
+    expect(names(store, id)).toEqual(['Draft 1', 'Draft 2', 'Draft 3*']);
+    expect(store.chapter(id)!.draft!.id).toBe(d3);
+    expect(text(store, id)).toBe('The first try.\n');
+    // Deleting the chapter forgets every draft's versions.
+    store.deleteChapter(id);
+    expect(store.getState().snapshots.filter((s) => s.auto && s.docId.startsWith(id))).toEqual([]);
   });
 });
 

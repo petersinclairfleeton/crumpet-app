@@ -78,7 +78,7 @@ at once, and keep improving from there.
    chapter's own, so chapters without drafts need nothing new.
 2. [x] **Book drafts**: New draft of the book, the outline's draft line and
    note, open beside with scrolling together.
-3. [ ] **Progress and snapshots**: words and how much changed per draft and for
+3. [x] **Progress and snapshots**: words and how much changed per draft and for
    the book, snapshots per draft, turn a snapshot into a draft.
 
 ## Open questions for later
