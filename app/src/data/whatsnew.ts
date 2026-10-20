@@ -10,6 +10,15 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-20-right-click',
+    date: '20 October 2026',
+    title: 'Right-click anywhere',
+    points: [
+      'Right-click in your writing for Crumpet’s own menu: spelling suggestions for a word it doesn’t know (with Add to dictionary and Ignore all), Cut, Copy, Paste, Paste text only, Link…, New comment, Look up, Undo and Redo.',
+      'Right-click a link to open or copy it, a picture to copy or save it, a chapter or card to open it in a new tab or beside, and a text box for cut, copy and paste. Anywhere else gives New note, Find anything, All commands, Settings and the guide.',
+    ],
+  },
+  {
     id: '2026-10-20-draft-progress',
     date: '20 October 2026',
     title: 'How far each draft has come',

@@ -26,9 +26,9 @@ export function startTabDrag(e: React.DragEvent, tab: Tab, from?: { group: strin
   window.addEventListener('drop', () => setTimeout(end), { capture: true, once: true });
 }
 
-/** The props that make a row draggable into a pane. `notes`: the notes it carries to the sidebar (several picked ones, say). */
-export function tabDrag(tab: Tab, notes?: string[]): { draggable: true; onDragStart(e: React.DragEvent): void } {
-  return { draggable: true, onDragStart: (e) => startTabDrag(e, tab, undefined, notes) };
+/** The props that make a row draggable into a pane (and offer Open in a new tab on a right click). `notes`: the notes it carries to the sidebar (several picked ones, say). */
+export function tabDrag(tab: Tab, notes?: string[]): { draggable: true; 'data-tab': string; onDragStart(e: React.DragEvent): void } {
+  return { draggable: true, 'data-tab': JSON.stringify(tab), onDragStart: (e) => startTabDrag(e, tab, undefined, notes) };
 }
 
 /** The notes being dragged (to drop on the Trash, a notebook, Favorites or a tag), if any. */
