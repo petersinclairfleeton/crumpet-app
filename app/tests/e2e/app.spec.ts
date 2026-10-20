@@ -6335,3 +6335,56 @@ test.describe('on a phone, every theme in dark mode', () => {
     }
   });
 });
+
+test('a book links notes from the notebooks into its research, and its foot menus aren’t cut off', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.app')).toBeVisible();
+  const projectId = await page.evaluate(() => {
+    type C = { createProject(n: string): { id: string }; createNote(n: object): void; addResearchNote(p: string, n: object, open: boolean): void; setView(v: object): void };
+    const c = (window as unknown as { crumpet: C }).crumpet;
+    c.createNote({ title: 'Tides at Gull Rock' });
+    c.createNote({ title: 'Ideas for the ending' });
+    const p = c.createProject('The Lighthouse');
+    c.addResearchNote(p.id, { title: 'Lighthouse lamps' }, false);
+    c.setView({ kind: 'all' });
+    return p.id;
+  });
+  // From a note's own menu: Link to a book.
+  await list(page).getByRole('button', { name: /Ideas for the ending/ }).first().click({ button: 'right' });
+  await page.getByRole('button', { name: 'Link to a book…' }).click();
+  await page.getByRole('dialog', { name: 'Ideas for the ending: options' }).getByRole('button', { name: 'The Lighthouse' }).click();
+  await page.evaluate((id) => (window as unknown as { crumpet: { openProject(id: string): void } }).crumpet.openProject(id), projectId);
+  const outline = page.getByRole('region', { name: 'Outline' });
+  // The + menu under Characters & places shows whole, not clipped by the list's box.
+  await outline.getByRole('button', { name: /^Characters & places/ }).click();
+  await outline.getByRole('button', { name: 'Add a character or place' }).click();
+  const newPlace = page.getByRole('button', { name: 'New place' });
+  await expect(newPlace).toBeVisible();
+  await newPlace.click();
+  await expect(page.locator('.cast-pane, [aria-label="Place"]').first()).toBeVisible();
+  // From the book: Research → + → Link a note…, with a search box.
+  await outline.getByRole('button', { name: /^Research/ }).click();
+  await outline.getByRole('button', { name: 'Add research' }).click();
+  await page.getByRole('button', { name: 'Link a note…' }).click();
+  await page.getByLabel('Find a note to link').fill('tides');
+  await expect(page.getByRole('dialog', { name: 'Link a note' }).getByRole('button')).toHaveCount(1);
+  await page.keyboard.press('Enter');
+  // Its own research and the linked notes, side by side.
+  await expect(outline.locator('.research-item')).toHaveText(['¶Lighthouse lamps', 'Ideas for the ending', 'Tides at Gull Rock']);
+  await expect(outline.getByRole('button', { name: /^Research/ })).toContainText('3');
+  // A linked note opens beside the writing and is the same note: changes show in the notes.
+  await outline.locator('.research-item', { hasText: 'Tides at Gull Rock' }).click();
+  const pane = page.getByRole('region', { name: 'Research note' });
+  await expect(pane).toContainText('Linked note');
+  await pane.getByLabel('Research note text').click();
+  await page.keyboard.type('Spring tides in March.');
+  await pane.getByRole('button', { name: 'Research options' }).click();
+  await page.getByRole('button', { name: 'Unlink from this book' }).click();
+  await expect(outline.locator('.research-item')).toHaveText(['¶Lighthouse lamps', 'Ideas for the ending']);
+  const text = await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: { getState(): { notes: { title: string; projectId?: string | null; doc: { blocks: { runs: { text: string }[] }[] } }[] } } }).crumpet;
+    const n = c.getState().notes.find((x) => x.title === 'Tides at Gull Rock')!;
+    return { project: n.projectId ?? null, text: n.doc.blocks.map((b) => b.runs.map((r) => r.text).join('')).join('\n') };
+  });
+  expect(text).toEqual({ project: null, text: 'Spring tides in March.' });
+});
