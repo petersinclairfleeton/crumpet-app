@@ -4,9 +4,9 @@
 // See data/drafts.ts.
 
 import { useState } from 'react';
-import { type DraftView, chapterDraft, chapterDrafts, draftBadge } from '../data/drafts';
+import { type DraftView, chapterDraft, chapterDrafts, draftBadge, nextBookDraftName } from '../data/drafts';
 import { docWords } from '../data/selectors';
-import type { Chapter } from '../data/types';
+import type { Chapter, Project } from '../data/types';
 import { useAppStore } from './hooks';
 import { IconChevron, IconPlus } from './icons';
 import { InlineInput, Popover } from './Sidebar';
@@ -41,7 +41,7 @@ export function NewDraftChoices({ chapter, from, onMade }: { chapter: Chapter; f
  * dot. Nothing is drawn while a chapter has only its first draft (New draft
  * is in its menu then).
  */
-export function DraftTabs({ chapter, viewing, onView }: { chapter: Chapter; viewing: string; onView(id: string): void }) {
+export function DraftTabs({ chapter, viewing, onView, onBeside }: { chapter: Chapter; viewing: string; onView(id: string): void; onBeside?(id: string): void }) {
   const store = useAppStore();
   const drafts = chapterDrafts(chapter);
   const [menu, setMenu] = useState<null | { id: string; mode: 'menu' | 'rename' | 'note' } | 'new'>(null);
@@ -99,6 +99,11 @@ export function DraftTabs({ chapter, viewing, onView }: { chapter: Chapter; view
               {!open.inUse && (
                 <button type="button" className="menu-item" onClick={() => (setMenu(null), store.useDraft(chapter.id, open.id))}>
                   Use this draft for the book
+                </button>
+              )}
+              {onBeside && (
+                <button type="button" className="menu-item" onClick={() => (setMenu(null), onBeside(open.id))}>
+                  Open beside
                 </button>
               )}
               <button type="button" className="menu-item" onClick={() => setMenu({ id: open.id, mode: 'rename' })}>
@@ -172,5 +177,42 @@ export function DraftBadge({ chapter }: { chapter: Chapter }) {
     <span className="draft-badge" title={`The book uses ${used.name} (of ${drafts.length} drafts)`}>
       {draftBadge(used.name)}
     </span>
+  );
+}
+
+/** New draft of the book: a name and what it's for, then every chapter starts one, as a copy or a blank page. */
+export function BookDraftForm({ project, chapters, onDone }: { project: Project; chapters: Chapter[]; onDone(): void }) {
+  const store = useAppStore();
+  const [name, setName] = useState(() => nextBookDraftName(chapters));
+  const [note, setNote] = useState('');
+  const make = (blank: boolean) => {
+    store.newBookDraft(project.id, { name, note, blank });
+    onDone();
+  };
+  return (
+    <div className="draft-new book-draft-form" role="group" aria-label="New draft of the book">
+      <p className="menu-label">New draft of the whole book</p>
+      <label className="field-row">
+        <span>Name</span>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <label className="field-row">
+        <span>What it’s for</span>
+        <input type="text" value={note} placeholder="Tighten the pacing, cut the subplot…" onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && make(false)} />
+      </label>
+      <p className="draft-small">Each of the {chapters.length === 1 ? 'chapter' : `${chapters.length} chapters`} starts {name.trim() || 'a new draft'}; the drafts before stay, to look back at or go back to.</p>
+      <button type="button" className="menu-item" onClick={() => make(false)}>
+        <span className="draft-choice">
+          <strong>Copy every chapter</strong>
+          <small>Revise from where the book is now</small>
+        </span>
+      </button>
+      <button type="button" className="menu-item" onClick={() => make(true)}>
+        <span className="draft-choice">
+          <strong>Blank pages</strong>
+          <small>Write every chapter again</small>
+        </span>
+      </button>
+    </div>
   );
 }

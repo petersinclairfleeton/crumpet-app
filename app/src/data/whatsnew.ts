@@ -20,6 +20,15 @@ export const WHATS_NEW: WhatsNew[] = [
     ],
   },
   {
+    id: '2026-10-20-book-drafts',
+    date: '20 October 2026',
+    title: 'A second draft of the whole book',
+    points: [
+      'The book’s ··· menu → New draft of the book… starts Draft 2 (or 3, or 4) in every chapter at once: copies to revise, or blank pages to write again. Give it a note on what it’s for (“Bring the wreck in early”) and the outline shows it under the book’s name; click it to change it.',
+      'A draft’s ⌄ menu → Open beside puts an older draft next to the one you’re writing, scrolling together, to look back at while you rewrite.',
+    ],
+  },
+  {
     id: '2026-10-20-chapter-drafts',
     date: '20 October 2026',
     title: 'Drafts of a chapter',

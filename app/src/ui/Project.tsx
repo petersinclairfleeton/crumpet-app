@@ -41,7 +41,8 @@ import { startTabDrag } from './tabdrag';
 import { KeywordChips, KeywordEditor, KeywordFilter, hasKeyword } from './keywords';
 import { type Doc, makeBlock } from '@crumpet/editor/model';
 import { chapterDraft, draftDocId, draftInUse } from '../data/drafts';
-import { DraftBadge, DraftTabs, NewDraftChoices } from './drafts';
+import { usePanes } from './panes';
+import { BookDraftForm, DraftBadge, DraftTabs, NewDraftChoices } from './drafts';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
   { id: 'todo', label: 'To do' },
@@ -83,7 +84,7 @@ export function shownOutline(project: Project, chapters: Chapter[], word: string
 export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Project; onOpenChapter(id: string): void; onBack?(): void }) {
   const state = useAppState();
   const store = useAppStore();
-  const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'deadline' | 'delete'>(null);
+  const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'deadline' | 'delete' | 'draft' | 'draftnote'>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -188,7 +189,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
             <button type="button" className="icon-btn" aria-label="Project options" aria-expanded={menu === 'menu'} onClick={() => setMenu(menu ? null : 'menu')}>
               <IconMore size={16} />
             </button>
-            {(menu === 'menu' || menu === 'delete' || menu === 'goal' || menu === 'deadline') && (
+            {(menu === 'menu' || menu === 'delete' || menu === 'goal' || menu === 'deadline' || menu === 'draft') && (
               <Popover onClose={() => setMenu(null)} label="Project options">
                 {menu === 'menu' && (
                   <>
@@ -206,6 +207,9 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                     <button type="button" className="menu-item" onClick={() => setMenu('deadline')}>
                       Deadline…
                     </button>
+                    <button type="button" className="menu-item" onClick={() => setMenu('draft')}>
+                      New draft of the book…
+                    </button>
                     <button
                       type="button"
                       className="menu-item"
@@ -221,6 +225,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                     </button>
                   </>
                 )}
+                {menu === 'draft' && <BookDraftForm project={project} chapters={[...chapters.values()].map((x) => x.chapter)} onDone={() => setMenu(null)} />}
                 {menu === 'goal' && (
                   <GoalInput
                     label="Word goal for the project"
@@ -256,6 +261,23 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
           </div>
           {!calm && <FoldButton what="list" />}
         </div>
+        {project.draft &&
+          (menu === 'draftnote' ? (
+            <InlineInput
+              label={`What ${project.draft.name} is for`}
+              placeholder="Tighten the pacing, cut the subplot…"
+              initial={project.draft.note}
+              onDone={(v) => {
+                setMenu(null);
+                if (v !== null) store.setBookDraftNote(project.id, v);
+              }}
+            />
+          ) : (
+            <button type="button" className="book-draft" title={`Change what ${project.draft.name} is for`} onClick={() => setMenu('draftnote')}>
+              <strong>{project.draft.name}</strong>
+              {project.draft.note ? <span> · {project.draft.note}</span> : <span className="book-draft-add"> · what’s it for?</span>}
+            </button>
+          ))}
         {calm && (
           <>
             <div className="segmented book-modes" role="group" aria-label="Writing view">
@@ -676,7 +698,7 @@ function AutoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) 
   return <textarea ref={ref} rows={1} {...props} />;
 }
 
-export function ChapterPane({ project, chapter, narrow, onBack }: { project: Project; chapter: Chapter; narrow: boolean; onBack(): void }) {
+export function ChapterPane({ project, chapter, narrow, onBack, draft }: { project: Project; chapter: Chapter; narrow: boolean; onBack(): void; draft?: string }) {
   const state = useAppState();
   const store = useAppStore();
   const editorRef = useRef<Editor | null>(null);
@@ -709,7 +731,13 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const next = list[at + 1]?.chapter;
   const part = list[at]?.part;
   // The draft shown: the one the book uses unless another was picked from the tabs.
-  const [viewId, setViewId] = useState('');
+  // (A pane opened beside another shows the draft it was opened for.)
+  const [viewId, setViewId] = useState(draft ?? '');
+  const panes = usePanes();
+  const openBeside = (id: string) => {
+    panes.split({ kind: 'chapter', id: chapter.id, draft: id }, 'right');
+    store.updateSettings({ syncScroll: true });
+  };
   const shown = chapterDraft(chapter, viewId) ?? chapterDraft(chapter, draftInUse(chapter))!;
   const single = !chapter.drafts?.length;
   const [newDraftOpen, setNewDraftOpen] = useState(false);
@@ -720,8 +748,8 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
 
   useEffect(() => {
     setGoalOpen(false);
-    setViewId('');
-  }, [chapter.id]);
+    setViewId(draft ?? '');
+  }, [chapter.id, draft]);
 
   // Page numbers carry on from the chapters before (as last laid out, or estimated from their words).
   const [pages, setPages] = useState(0);
@@ -917,7 +945,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
 
   const header = (
     <>
-      <DraftTabs chapter={chapter} viewing={shown.id} onView={setViewId} />
+      <DraftTabs chapter={chapter} viewing={shown.id} onView={setViewId} onBeside={openBeside} />
       <div className="chapter-opening">
       <p className="chapter-kicker">{[!calm && !phone && part?.title, `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ')}</p>
       <AutoTextarea

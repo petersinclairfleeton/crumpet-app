@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { MemoryStorage } from '../../src/data/db';
 import { AppStore } from '../../src/data/store';
-import { chapterDrafts, draftBadge, draftInUse, nextDraftName } from '../../src/data/drafts';
+import { chapterDrafts, draftBadge, draftInUse, nextBookDraftName, nextDraftName } from '../../src/data/drafts';
 import { SyncEngine, type SyncState } from '../../src/sync/engine';
 import { MemoryProvider } from '../../src/sync/provider';
 import { localTree } from '../../src/sync/tree';
@@ -88,6 +88,29 @@ describe('drafts of a chapter', () => {
   });
 });
 
+describe('drafts of the whole book', () => {
+  it('starts a draft of every chapter at once, named for the book', async () => {
+    const { store, id } = await book();
+    const p = store.getState().projects[0];
+    const two = store.addChapter(p.id)!;
+    store.setChapterDoc(two.id, md('Chapter two.\n'));
+    // One chapter is already on its second draft: the book's next is the third.
+    store.newDraft(id);
+    expect(nextBookDraftName(store.getState().chapters)).toBe('Draft 3');
+    expect(store.newBookDraft(p.id, { note: 'Cut the subplot' })).toBe('Draft 3');
+    expect(names(store, id)).toEqual(['Draft 1', 'Draft 2', 'Draft 3*']);
+    expect(names(store, two.id)).toEqual(['Draft 1', 'Draft 3*']);
+    expect(text(store, two.id)).toBe('Chapter two.\n');
+    expect(store.project(p.id)!.draft).toMatchObject({ name: 'Draft 3', note: 'Cut the subplot' });
+    store.setBookDraftNote(p.id, 'Cut the subplot, sooner');
+    expect(store.project(p.id)!.draft!.note).toBe('Cut the subplot, sooner');
+    // Blank pages.
+    store.newBookDraft(p.id, { blank: true });
+    expect(text(store, two.id)).toBe('');
+    expect(store.project(p.id)!.draft!.name).toBe('Draft 4');
+  });
+});
+
 describe('syncing drafts', () => {
   async function pair() {
     const cloud = new MemoryProvider(now);
@@ -161,6 +184,17 @@ describe('syncing drafts', () => {
     await phone.engine.sync();
     await mac.engine.sync();
     for (const s of [mac.store, phone.store]) expect(toMarkdown(chapterDrafts(s.chapter(id)!)[0].doc)).toBe('One, from the Mac.\n\nTwo, from the phone.\n');
+  });
+
+  it('syncs the book\'s draft in project.json', async () => {
+    const { cloud, mac, phone } = await pair();
+    const p = mac.store.getState().projects[0];
+    mac.store.newBookDraft(p.id, { note: 'Faster' });
+    await mac.engine.sync();
+    expect(cloud.files.get('Projects/Book/project.json')!.text).toContain('"draft"');
+    await phone.engine.sync();
+    expect(phone.store.project(p.id)!.draft).toMatchObject({ name: 'Draft 2', note: 'Faster' });
+    expect(localTree(phone.store.getState())).toEqual(localTree(mac.store.getState()));
   });
 
   it('deleting a chapter deletes its drafts', async () => {

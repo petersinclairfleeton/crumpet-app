@@ -242,7 +242,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     the tabs above a chapter (`DraftTabs`, only with 2+ drafts; ChapterPane's
     `viewId`, the editor's `loadKey`, `draftDocId` = chapter id for the one in
     use, `chapter~draft` otherwise, `docOwner` back), `NewDraftChoices`, the
-    outline's `DraftBadge`. In the folder, drafts not in use are
+    outline's `DraftBadge`. A book's draft (`project.draft`: name, note; in
+    project.json) comes from `newBookDraft` (a draft in every chapter;
+    `BookDraftForm`; shown under the outline's title). Open beside opens a
+    chapter tab with `draft` (`ChapterPane`'s `draft`) and turns on
+    `syncScroll`. In the folder, drafts not in use are
     `Projects/Book/Drafts/<draft name>/<chapter file name>` (front matter
     `chapter:`, `draft-name:`), the chapter file says `draft:`; a sync merges
     each draft on its own (`mergeDrafts`), so a switch on one device and
