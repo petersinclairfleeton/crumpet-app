@@ -8,6 +8,9 @@
 //   Projects/Book/project.json       a project: name, goal, order of parts and chapters
 //   Projects/Book/01 Opening.md      its chapters, numbered in order
 //   Projects/Book/Research/Map.md    notes kept as research for it
+//   Projects/Book/Drafts/Draft 1/01 Opening.md
+//                                    a chapter's draft the book isn't using
+//                                    (the chapter's own file is the one it is)
 //
 // Names are made safe for every file system, and kept unique within a folder
 // ignoring case (macOS and Windows don't tell "Ideas" and "ideas" apart).
@@ -25,6 +28,8 @@ export const ATTACHMENTS = 'Attachments';
 export const PROJECT_FILE = 'project.json';
 /** A project's research notes, in a folder inside the project's. */
 export const RESEARCH = 'Research';
+/** Chapters' other drafts, a folder for each draft's name inside the project's. */
+export const DRAFTS = 'Drafts';
 
 export interface Layout {
   stacks: Record<string, string>;
@@ -33,10 +38,11 @@ export interface Layout {
   /** Project folders. */
   projects: Record<string, string>;
   chapters: Record<string, string>;
+  drafts: Record<string, string>;
 }
 
 export function emptyLayout(): Layout {
-  return { stacks: {}, notebooks: {}, notes: {}, projects: {}, chapters: {} };
+  return { stacks: {}, notebooks: {}, notes: {}, projects: {}, chapters: {}, drafts: {} };
 }
 
 /** A layout saved by an earlier version, with every part present. */
@@ -142,7 +148,20 @@ export function layout(tree: Tree, prev: Layout): Layout {
       chapters[id] = join(dir, `${String(i + 1).padStart(width, '0')} ${safeName(c.title || 'Untitled')}.md`);
     });
   }
-  return { stacks, notebooks, notes, projects, chapters };
+  // Drafts the book isn't using: a folder for each draft's name, each file
+  // named like its chapter's, so "Drafts/Draft 1" reads like that draft of the book.
+  const drafts: Record<string, string> = {};
+  for (const d of Object.values(tree.drafts ?? {}).sort((a, b) => a.created - b.created || (a.id < b.id ? -1 : 1))) {
+    const c = tree.chapters[d.chapterId];
+    const file = chapters[d.chapterId];
+    if (!c || !file || !projects[c.projectId]) continue;
+    const dir = join(join(projects[c.projectId], DRAFTS), safeName(d.name || 'Draft'));
+    const base = baseName(file).replace(/\.md$/i, '');
+    let name = base;
+    for (let n = 2; !take(dir, `${name}.md`); n++) name = `${base} ${n}`;
+    drafts[d.id] = join(dir, `${name}.md`);
+  }
+  return { stacks, notebooks, notes, projects, chapters, drafts };
 }
 
 /** A project's chapter ids in outline order (any missing from the outline last). */

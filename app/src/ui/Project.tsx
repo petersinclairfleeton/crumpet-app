@@ -7,7 +7,7 @@ import { chapterPages, rememberPages } from '../data/pagecount';
 import { type PageFields, PageToggle, PageView } from './pages';
 import { StylesDialog, useSheetClass, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
-import { chapterWords, numberInWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
+import { chapterWords, docWords, numberInWords, projectChapters, projectGoal, projectWords } from '../data/selectors';
 import { dayKey, wordsToday } from '../data/stats';
 import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
@@ -39,7 +39,9 @@ import { CastList, CastPane, CastSpotting } from './cast';
 import { FoldButton } from './fold';
 import { startTabDrag } from './tabdrag';
 import { KeywordChips, KeywordEditor, KeywordFilter, hasKeyword } from './keywords';
-import { makeBlock } from '@crumpet/editor/model';
+import { type Doc, makeBlock } from '@crumpet/editor/model';
+import { chapterDraft, draftDocId, draftInUse } from '../data/drafts';
+import { DraftBadge, DraftTabs, NewDraftChoices } from './drafts';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
   { id: 'todo', label: 'To do' },
@@ -454,6 +456,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                   <span className={`status-dot ${c.status}`} title={STATUSES.find((s) => s.id === c.status)?.label} />
                   {!phone && <span className="outline-num">{number}.</span>}
                   <span className="grow ellipsis outline-title">{phone && `${number}. `}{c.title || 'Untitled chapter'}</span>
+                  {c.drafts?.length ? <DraftBadge chapter={c} /> : null}
                   <span className="outline-words">{c.goal ? `${n.toLocaleString()} / ${c.goal.toLocaleString()}` : n.toLocaleString()}</span>
                 </span>
                 {(!calm || phone) && c.synopsis && <span className="outline-synopsis">{c.synopsis}</span>}
@@ -691,7 +694,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   // The calm look on a phone: a chapter reads like a note, its status and goal in the ··· menu.
   const phone = !state.settings.toolbarAll && narrow;
   const paged = state.settings.pageView?.projects ?? !(calm || phone);
-  const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords' | 'synopsis'>(null);
+  const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords' | 'synopsis' | 'draft'>(null);
   // An iPad held upright (design 15): the outline button and where you are, the chapters a menu away.
   const midWidth = useMedia('(max-width: 1099px)');
   const compact = calm && midWidth && !state.query.trim();
@@ -704,11 +707,20 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
   const prev = list[at - 1]?.chapter;
   const next = list[at + 1]?.chapter;
   const part = list[at]?.part;
-  const n = chapterWords(chapter);
+  // The draft shown: the one the book uses unless another was picked from the tabs.
+  const [viewId, setViewId] = useState('');
+  const shown = chapterDraft(chapter, viewId) ?? chapterDraft(chapter, draftInUse(chapter))!;
+  const single = !chapter.drafts?.length;
+  const [newDraftOpen, setNewDraftOpen] = useState(false);
+  const onDoc = (doc: Doc) => (shown.inUse ? store.setChapterDoc(chapter.id, doc) : store.setDraftDoc(chapter.id, shown.id, doc));
+  const n = docWords(shown.doc);
   const total = projectWords(project, state.chapters);
   const styles = useSheetClass(sheet);
 
-  useEffect(() => setGoalOpen(false), [chapter.id]);
+  useEffect(() => {
+    setGoalOpen(false);
+    setViewId('');
+  }, [chapter.id]);
 
   // Page numbers carry on from the chapters before (as last laid out, or estimated from their words).
   const [pages, setPages] = useState(0);
@@ -841,6 +853,9 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
               <button type="button" className="menu-item" onClick={() => setChapterMenu('keywords')}>
                 Keywords…
               </button>
+              <button type="button" className="menu-item" onClick={() => setChapterMenu('draft')}>
+                New draft…
+              </button>
               {phone && (
                 <button type="button" className="menu-item" onClick={() => setChapterMenu('synopsis')}>
                   Synopsis…
@@ -860,6 +875,16 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
           )}
           {chapterMenu === 'synopsis' && (
             <AutoTextarea className="synopsis" aria-label="Synopsis" placeholder="Synopsis: what happens in this chapter" value={chapter.synopsis} onChange={(e) => store.setChapterSynopsis(chapter.id, e.target.value)} />
+          )}
+          {chapterMenu === 'draft' && (
+            <NewDraftChoices
+              chapter={chapter}
+              from={shown.id}
+              onMade={(id) => {
+                setChapterMenu(null);
+                setViewId(id);
+              }}
+            />
           )}
           {chapterMenu === 'keywords' && (
             <div className="note-meta chapter-keywords">
@@ -891,6 +916,7 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
 
   const header = (
     <>
+      <DraftTabs chapter={chapter} viewing={shown.id} onView={setViewId} />
       <div className="chapter-opening">
       <p className="chapter-kicker">{[!calm && !phone && part?.title, `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ')}</p>
       <AutoTextarea
@@ -931,6 +957,23 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
           <button type="button" className="add-tag" aria-expanded={goalOpen} onClick={() => setGoalOpen(!goalOpen)}>
             {chapter.goal ? 'Change goal' : 'Set word goal'}
           </button>
+          {single && (
+            <button type="button" className="add-tag" aria-expanded={newDraftOpen} onClick={() => setNewDraftOpen(!newDraftOpen)}>
+              New draft
+            </button>
+          )}
+          {newDraftOpen && (
+            <Popover onClose={() => setNewDraftOpen(false)} label="New draft">
+              <NewDraftChoices
+                chapter={chapter}
+                from={shown.id}
+                onMade={(id) => {
+                  setNewDraftOpen(false);
+                  setViewId(id);
+                }}
+              />
+            </Popover>
+          )}
           {goalOpen && (
             <Popover onClose={() => setGoalOpen(false)} label="Chapter word goal">
               <GoalInput
@@ -960,13 +1003,13 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
     </p>
   );
 
-  const bookTargets = list.map(({ chapter: c }) => ({ id: c.id, doc: c.doc, editor: c.id === chapter.id ? chapterEditor : null, label: c.title || 'Untitled chapter' }));
+  const bookTargets = list.map(({ chapter: c }) => ({ id: c.id, doc: c.id === chapter.id ? shown.doc : c.doc, editor: c.id === chapter.id ? chapterEditor : null, label: c.title || 'Untitled chapter' }));
   return (
     <section className="pane find-host" aria-label="Chapter" onKeyDown={onFindKey}>
       {finding && (
         <FindBar
           targets={findScope === 'book' ? bookTargets : bookTargets.filter((t) => t.id === chapter.id)}
-          onReplaceDoc={(id, doc) => store.setChapterDoc(id, doc)}
+          onReplaceDoc={(id, doc) => (id === chapter.id ? onDoc(doc) : store.setChapterDoc(id, doc))}
           onGoTo={(id) => store.selectChapter(id)}
           author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
           scopes={[
@@ -1003,11 +1046,12 @@ export function ChapterPane({ project, chapter, narrow, onBack }: { project: Pro
         onPages={onPages}
         onEditStyles={(key?: string) => setStylesOpen(key ?? true)}
         onSheet={(styles) => store.setProjectStyles(project.id, styles)}
-        docId={chapter.id}
-        doc={chapter.doc}
-        onDoc={(doc) => store.setChapterDoc(chapter.id, doc)}
+        docId={draftDocId(chapter, shown.id)}
+        loadKey={`${chapter.id}~${shown.id}`}
+        doc={shown.doc}
+        onDoc={onDoc}
         readOnly={false}
-        label="Chapter text"
+        label={single ? 'Chapter text' : `Chapter text, ${shown.name}`}
         lead={lead}
         trail={trail}
         floatTools={calm}

@@ -6,7 +6,7 @@
 // settings are left out.
 
 import { parseNoteFile, writeNoteFile } from '../sync/notefile';
-import { ATTACHMENTS, PROJECTS, PROJECT_FILE, RESEARCH, baseName, join, parentOf, safeName } from '../sync/layout';
+import { ATTACHMENTS, PROJECTS, DRAFTS, PROJECT_FILE, RESEARCH, baseName, join, parentOf, safeName } from '../sync/layout';
 
 /** The folder, as the server sees it: its files by path ("Ideas/Rome.md"), read and written by the host (Node, or a test). */
 export interface Folder {
@@ -130,7 +130,8 @@ export async function readIndex(folder: Folder): Promise<Index> {
     };
     if (parts[0] === PROJECTS) {
       const book = bookByDir.get(parts.slice(0, 2).join('/'));
-      if (!book || parts.length < 3) continue;
+      // Chapters' other drafts (Drafts/) aren't the book: it's made of the drafts its chapter files hold.
+      if (!book || parts.length < 3 || parts[2] === DRAFTS) continue;
       e.book = book.name;
       if (parts[2] === RESEARCH) e.kind = 'research';
       else {

@@ -14,12 +14,12 @@
 
 import { SHARED_SETTINGS } from '../data/types';
 import type { AppStore } from '../data/store';
-import { type Layout, META_FILE, PROJECT_FILE, RESEARCH, fullLayout, join, layout, parentOf } from './layout';
+import { DRAFTS, type Layout, META_FILE, PROJECT_FILE, RESEARCH, fullLayout, join, layout, parentOf } from './layout';
 import { mergeTrees } from './merge';
 import { type NoteFile, writeNoteFile } from './notefile';
 import { type Provider, ProviderError } from './provider';
 import { type Base, type FileCache, type ProjectCache, type Snapshot, type Unseen, emptyBase, readRemote, remoteTree, writeMeta, writeProject } from './remote';
-import { type TChapter, type TNote, type Tree, fullTree, localTree, sameChapter, sameNote } from './tree';
+import { type TChapter, type TDraft, type TNote, type Tree, fullTree, localTree, sameChapter, sameDraft, sameNote } from './tree';
 import { type StatsCache, syncStats } from './stats';
 import { syncSnapshots } from './snapshots';
 import { dailyWords } from '../data/stats';
@@ -258,6 +258,16 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
     delete cache[path];
   }
 
+  // Deleted drafts (and ones the book now uses: their text is in the chapter's file).
+  const mergedDrafts = merged.drafts ?? {};
+  for (const id of Object.keys(remote.drafts ?? {})) {
+    if (mergedDrafts[id]) continue;
+    const path = at.drafts[id];
+    await p.remove(path);
+    live.delete(path);
+    delete cache[path];
+  }
+
   // Moves and renames. A file can only move into a free name; when files swap
   // names (chapters being reordered), one steps aside first.
   const moves = new Map<string, string>();
@@ -268,6 +278,10 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
   for (const id of Object.keys(merged.chapters)) {
     const from = at.chapters[id];
     if (from !== undefined && from !== want.chapters[id]) moves.set(from, want.chapters[id]);
+  }
+  for (const id of Object.keys(mergedDrafts)) {
+    const from = at.drafts[id];
+    if (from !== undefined && want.drafts[id] !== undefined && from !== want.drafts[id]) moves.set(from, want.drafts[id]);
   }
   const move = async (from: string, to: string) => {
     const e = await p.move(from, to);
@@ -315,6 +329,18 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
     cache[path] = { rev: e.rev, file };
   }
 
+  // New and changed drafts.
+  for (const d of Object.values(mergedDrafts)) {
+    const path = want.drafts[d.id];
+    if (path === undefined) continue;
+    const r = remote.drafts?.[d.id];
+    if (at.drafts[d.id] !== undefined && r && sameDraft(d, r)) continue;
+    const file = draftFile(d, merged.chapters[d.chapterId]);
+    const e = await p.write(path, writeNoteFile(file));
+    addLive(path);
+    cache[path] = { rev: e.rev, file };
+  }
+
   // Each project's name, goal and outline.
   const projectFiles: ProjectCache = {};
   for (const pr of Object.values(merged.projects)) {
@@ -345,7 +371,8 @@ async function push(p: Provider, snap: Snapshot, remote: Tree, at: Layout, merge
   }
 
   // Folders of stacks, notebooks and projects that moved or went, once nothing is left inside.
-  const old = [...Object.values(at.stacks), ...Object.values(at.notebooks), ...Object.values(at.projects), ...Object.values(at.projects).map((p) => join(p, RESEARCH)).filter((f) => live.has(f))].filter((f) => !folders.has(f));
+  const draftDirs = [...Object.values(at.drafts).map(parentOf), ...Object.values(at.projects).map((p) => join(p, DRAFTS))].filter((f) => live.has(f) && !Object.values(want.drafts).some((d) => d.startsWith(`${f}/`)));
+  const old = [...Object.values(at.stacks), ...Object.values(at.notebooks), ...Object.values(at.projects), ...Object.values(at.projects).map((p) => join(p, RESEARCH)).filter((f) => live.has(f)), ...draftDirs].filter((f) => !folders.has(f));
   for (const f of old.sort((a, b) => b.split('/').length - a.split('/').length)) {
     if ([...live].some((q) => q.startsWith(`${f}/`))) continue;
     try {
@@ -389,5 +416,25 @@ export function chapterFile(c: TChapter): NoteFile {
     status: c.status,
     synopsis: c.synopsis,
     goal: c.goal,
+    ...(c.draft ? { draft: c.draft, draftName: c.draftName ?? '', draftNote: c.draftNote ?? '', draftCreated: c.draftCreated ?? c.created } : {}),
+  };
+}
+
+/** A draft the book isn't using as its file: its chapter's title and id, its name and note. */
+export function draftFile(d: TDraft, c: TChapter | undefined): NoteFile {
+  return {
+    id: d.id,
+    title: c?.title ?? null,
+    tags: [],
+    favorite: false,
+    created: d.created,
+    updated: d.updated,
+    trashed: null,
+    from: null,
+    extra: '',
+    body: d.body,
+    chapter: d.chapterId,
+    draftName: d.name,
+    draftNote: d.note,
   };
 }

@@ -25,6 +25,8 @@ import { StatusBar } from './statusbar';
 interface Props {
   /** The document shown (a note or a chapter) and where its edits go. */
   docId: string;
+  /** Which text is loaded, when that can change without `docId` changing (a chapter's drafts). */
+  loadKey?: string;
   doc: Doc;
   onDoc(doc: Doc): void;
   readOnly: boolean;
@@ -58,7 +60,7 @@ interface Props {
 }
 
 /** One document with its toolbar: our editor engine, mounted once and re-loaded when a different document opens. */
-export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, trail, floatTools = false, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, onSheet, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
+export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp, lead, trail, floatTools = false, header, footer, reading = false, label = 'Note text', sheet, onEditStyles, onSheet, page = null, onEditor, onPage, pageFields, pagePlace, chapters, onPages }: Props) {
   const store = useAppStore();
   const state = useAppState();
   // Marked as final, or editing restricted (Word's Protect Document): read only, but comments still allowed when only comments are.
@@ -81,7 +83,7 @@ export function EditorHost({ docId, doc, onDoc, readOnly: readOnlyProp, lead, tr
   const styles = useSheetClass(sheet);
   const paged = !!page && !reading;
   const { host, editor: ed } = useDocEditor({
-    docId,
+    docId: loadKey ?? docId,
     doc,
     readOnly,
     onDoc,

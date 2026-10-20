@@ -71,6 +71,23 @@ export interface TChapter {
   updated: number;
   /** Markdown. */
   body: string;
+  /** The draft the body is, once the chapter has drafts (absent: its first, with the chapter's id). */
+  draft?: string;
+  draftName?: string;
+  draftNote?: string;
+  draftCreated?: number;
+}
+
+/** A draft of a chapter that the book isn't using (the one it uses is the chapter's body). */
+export interface TDraft {
+  id: string;
+  chapterId: string;
+  name: string;
+  note: string;
+  created: number;
+  updated: number;
+  /** Markdown. */
+  body: string;
 }
 
 /** Settings shared by every device: how notes look on the page, and the sidebar's order. */
@@ -87,10 +104,12 @@ export interface Tree {
   notes: Record<string, TNote>;
   projects: Record<string, TProject>;
   chapters: Record<string, TChapter>;
+  /** Chapters' other drafts (absent in trees saved before drafts). */
+  drafts?: Record<string, TDraft>;
 }
 
 export function emptyTree(): Tree {
-  return { stacks: {}, notebooks: {}, notes: {}, projects: {}, chapters: {} };
+  return { stacks: {}, notebooks: {}, notes: {}, projects: {}, chapters: {}, drafts: {} };
 }
 
 /** A tree saved by an earlier version, with every part present. */
@@ -134,7 +153,8 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
   }
   for (const c of state.chapters ?? []) {
     if (!tree.projects[c.projectId]) continue;
-    tree.chapters[c.id] = { id: c.id, projectId: c.projectId, title: c.title, status: c.status, synopsis: c.synopsis, goal: c.goal, ...(c.keywords?.length ? { keywords: c.keywords } : {}), created: c.createdAt, updated: c.updatedAt, body: toMarkdown(c.doc) };
+    tree.chapters[c.id] = { id: c.id, projectId: c.projectId, title: c.title, status: c.status, synopsis: c.synopsis, goal: c.goal, ...(c.keywords?.length ? { keywords: c.keywords } : {}), created: c.createdAt, updated: c.updatedAt, body: toMarkdown(c.doc), ...(c.draft ? { draft: c.draft.id, draftName: c.draft.name, draftNote: c.draft.note, draftCreated: c.draft.createdAt } : {}) };
+    for (const d of c.drafts ?? []) tree.drafts![d.id] = { id: d.id, chapterId: c.id, name: d.name, note: d.note, created: d.createdAt, updated: d.updatedAt, body: toMarkdown(d.doc) };
   }
   return tree;
 }
@@ -168,8 +188,16 @@ export function sameChapter(a: TChapter | undefined, b: TChapter | undefined): b
       sameTags(a.keywords ?? [], b.keywords ?? []) &&
       a.created === b.created &&
       a.updated === b.updated &&
-      a.body === b.body)
+      a.body === b.body &&
+      (a.draft ?? null) === (b.draft ?? null) &&
+      (a.draftName ?? null) === (b.draftName ?? null) &&
+      (a.draftNote ?? null) === (b.draftNote ?? null) &&
+      (a.draftCreated ?? null) === (b.draftCreated ?? null))
   );
+}
+
+export function sameDraft(a: TDraft | undefined, b: TDraft | undefined): boolean {
+  return a === b || (!!a && !!b && a.chapterId === b.chapterId && a.name === b.name && a.note === b.note && a.created === b.created && a.updated === b.updated && a.body === b.body);
 }
 
 export function sameStack(a: TStack | undefined, b: TStack | undefined): boolean {
