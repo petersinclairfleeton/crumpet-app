@@ -14,7 +14,7 @@
 //   its Drafts folder are chapters' other drafts.
 
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
-import { type CastMember, type ChapterStatus, type Deadline, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
+import { type BookDraft, type CastMember, type ChapterStatus, type Deadline, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 import { FIRST_DRAFT } from '../data/drafts';
 import { ATTACHMENTS, DRAFTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, RESEARCH, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
@@ -56,6 +56,7 @@ export interface ProjectJson {
   page?: PageSetup;
   cast?: CastMember[];
   deadline?: Deadline;
+  draft?: BookDraft;
   created: number;
   updated: number;
 }
@@ -138,8 +139,15 @@ function cleanDeadline(d: unknown): Deadline | undefined {
   return { date: x.date, from: typeof x.from === 'string' && day.test(x.from) ? x.from : x.date, startWords: typeof x.startWords === 'number' && x.startWords >= 0 ? x.startWords : 0 };
 }
 
+/** The book's draft from a project.json, if it's well formed. */
+function cleanBookDraft(d: unknown): BookDraft | undefined {
+  const x = d as Partial<BookDraft> | null;
+  if (!x || typeof x !== 'object' || typeof x.name !== 'string' || !x.name) return undefined;
+  return { name: x.name, note: typeof x.note === 'string' ? x.note : '', at: typeof x.at === 'number' ? x.at : 0 };
+}
+
 export function writeProject(p: ProjectJson): string {
-  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.deadline ? { deadline: p.deadline } : {}) }, null, 2)}\n`;
+  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}) }, null, 2)}\n`;
 }
 
 const STATUSES = new Set<ChapterStatus>(['todo', 'draft', 'revised', 'done']);
@@ -479,6 +487,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       ...(json.page && typeof json.page === 'object' && json.page.margins ? { page: json.page } : {}),
       ...(Array.isArray(json.cast) && json.cast.length ? { cast: cleanCast(json.cast) } : {}),
       ...(cleanDeadline(json.deadline) ? { deadline: cleanDeadline(json.deadline) } : {}),
+      ...(cleanBookDraft(json.draft) ? { draft: cleanBookDraft(json.draft) } : {}),
     };
     where.projects[id] = dir;
   }

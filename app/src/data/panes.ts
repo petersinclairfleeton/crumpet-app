@@ -6,7 +6,8 @@
 export type Tab =
   | { kind: 'note'; id: string }
   | { kind: 'project'; id: string }
-  | { kind: 'chapter'; id: string }
+  /** A chapter, showing one of its drafts (`draft`) or the one the book uses. */
+  | { kind: 'chapter'; id: string; draft?: string }
   | { kind: 'research'; id: string }
   | { kind: 'cast'; project: string; id: string }
   /** The graph of notes and links (one, so its id is always 'graph'). */
@@ -43,6 +44,7 @@ export function emptyWorkspace(tab?: Tab): Workspace {
 
 export function sameTab(a: Tab | undefined, b: Tab | undefined): boolean {
   if (!a || !b || a.kind !== b.kind || a.id !== b.id) return false;
+  if (a.kind === 'chapter') return (a.draft ?? '') === ((b as typeof a).draft ?? '');
   return a.kind !== 'cast' || (b.kind === 'cast' && a.project === b.project);
 }
 
@@ -254,7 +256,8 @@ export function tidyWorkspace(raw: unknown): Workspace | null {
     if (!x || typeof x !== 'object' || typeof x.id !== 'string') return null;
     if (x.kind === 'cast') return typeof x.project === 'string' ? { kind: 'cast', project: x.project, id: x.id } : null;
     if (x.kind === 'graph') return { kind: 'graph', id: 'graph' };
-    return x.kind === 'note' || x.kind === 'project' || x.kind === 'chapter' || x.kind === 'research' ? ({ kind: x.kind, id: x.id } as Tab) : null;
+    if (x.kind === 'chapter') return { kind: 'chapter', id: x.id, ...(typeof x.draft === 'string' && x.draft ? { draft: x.draft } : {}) };
+    return x.kind === 'note' || x.kind === 'project' || x.kind === 'research' ? ({ kind: x.kind, id: x.id } as Tab) : null;
   };
   const node = (n: unknown): PaneNode | null => {
     const x = n as Partial<PaneNode> & { group?: Partial<Group>; children?: unknown[]; sizes?: unknown[] };

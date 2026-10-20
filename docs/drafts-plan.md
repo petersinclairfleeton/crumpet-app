@@ -76,7 +76,7 @@ at once, and keep improving from there.
    that draft (to read or write in); the dot marks the one the book uses, and
    "Use Draft 1 instead" (or the tab's ⌄ menu) switches. Draft 1's id is the
    chapter's own, so chapters without drafts need nothing new.
-2. [ ] **Book drafts**: New draft of the book, the outline's draft line and
+2. [x] **Book drafts**: New draft of the book, the outline's draft line and
    note, open beside with scrolling together.
 3. [ ] **Progress and snapshots**: words and how much changed per draft and for
    the book, snapshots per draft, turn a snapshot into a draft.

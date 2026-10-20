@@ -18,7 +18,7 @@ import { relinkDoc, sameTitle } from './links';
 import { decodeReminder, tidyReminder } from './reminders';
 import { type Snapshot, VERSION_GAP, pruneVersions, snapshotAttachments } from './snapshots';
 import { tidyKeywords } from './keywords';
-import { FIRST_DRAFT, chapterDraft, chapterDrafts, draftInUse, nextDraftName, withDraftInUse } from './drafts';
+import { FIRST_DRAFT, chapterDraft, chapterDrafts, draftInUse, nextBookDraftName, nextDraftName, withDraftInUse } from './drafts';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { removeRevisionColors } from './revisions';
 import { type CastMember, type Chapter, type ChapterDraft, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, SHARED_SETTINGS, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
@@ -690,7 +690,7 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.deadline ? { deadline: t.deadline } : {}) };
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.deadline ? { deadline: t.deadline } : {}), ...(t.draft ? { draft: t.draft } : {}) };
       if (
         cur &&
         cur.name === next.name &&
@@ -701,7 +701,8 @@ export class AppStore {
         JSON.stringify(cur.styles ?? null) === JSON.stringify(next.styles ?? null) &&
         JSON.stringify(cur.page ?? null) === JSON.stringify(next.page ?? null) &&
         JSON.stringify(cur.cast ?? null) === JSON.stringify(next.cast ?? null) &&
-        JSON.stringify(cur.deadline ?? null) === JSON.stringify(next.deadline ?? null)
+        JSON.stringify(cur.deadline ?? null) === JSON.stringify(next.deadline ?? null) &&
+        JSON.stringify(cur.draft ?? null) === JSON.stringify(next.draft ?? null)
       )
         return cur;
       this.save(this.storage.putProject(next));
@@ -1311,6 +1312,26 @@ export class AppStore {
     this.cancelSave(chapterId);
     this.putChapter({ ...c, doc, draft: { id, name, note: opts.note?.trim() ?? '', createdAt: t }, drafts: [...(c.drafts ?? []), was], updatedAt: t });
     return id;
+  }
+
+  /**
+   * A new draft of the whole book: every chapter starts a draft of this name
+   * (a copy of the one the book uses, or a blank page). Returns its name.
+   */
+  newBookDraft(projectId: string, opts: { name?: string; note?: string; blank?: boolean } = {}): string | undefined {
+    const project = this.project(projectId);
+    if (!project) return undefined;
+    const ids = project.outline.filter((x) => x.type === 'chapter').map((x) => x.id);
+    const name = opts.name?.trim() || nextBookDraftName(this.state.chapters.filter((c) => ids.includes(c.id)));
+    for (const id of ids) this.newDraft(id, { name, blank: opts.blank });
+    this.updateProject(projectId, { draft: { name, note: opts.note?.trim() ?? '', at: this.now() } });
+    return name;
+  }
+
+  /** What the book's draft is for. */
+  setBookDraftNote(projectId: string, note: string): void {
+    const draft = this.project(projectId)?.draft;
+    if (draft) this.updateProject(projectId, { draft: { ...draft, note: note.trim() } });
   }
 
   /** Makes the book use another of a chapter's drafts. */
