@@ -8,6 +8,9 @@
 //   and the other becomes a "conflicted copy" next to it.
 // - Deleted on one side and edited on the other: the edit wins and the note
 //   comes back.
+// - A chapter's drafts merge one by one, the one the book uses as much as the
+//   others, so switching drafts on one device and writing on another never
+//   mixes two drafts' text.
 // - Projects and chapters merge the same way. When both sides changed a
 //   project's outline, both sets of changes are kept: chapters and parts
 //   added on either side are added, removed on either side are removed, and
@@ -17,7 +20,8 @@ import { SHARED_SETTINGS } from '../data/types';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { mergeText } from './textmerge';
 import type { CastMember, OutlineItem } from '../data/types';
-import { type TChapter, type TNote, type Tree, emptyTree, sameChapter, sameNote, sameNotebook, sameJson, sameOutline, sameProject, sameStack, sameTags } from './tree';
+import { FIRST_DRAFT } from '../data/drafts';
+import { type TChapter, type TDraft, type TNote, type Tree, emptyTree, sameChapter, sameNote, sameNotebook, sameJson, sameOutline, sameProject, sameStack, sameTags } from './tree';
 
 export interface MergeOptions {
   newId(): string;
@@ -128,11 +132,17 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
     if (p) tree.projects[id] = p;
   }
   const copyOf = new Map<string, string>();
+  // Chapters with drafts on any side: their text is merged draft by draft below.
+  const drafty = new Set<string>();
+  for (const t of [base, local, remote]) {
+    for (const c of Object.values(t.chapters)) if (c.draft !== undefined) drafty.add(c.id);
+    for (const d of Object.values(t.drafts ?? {})) drafty.add(d.chapterId);
+  }
   for (const id of keys(base.chapters, local.chapters, remote.chapters)) {
     const conflict: { copy?: TChapter } = {};
     const c = pick(base.chapters[id], local.chapters[id], remote.chapters[id], sameChapter, (b, l, r) => {
       const newer = r.updated > l.updated ? r : l;
-      const text = mergeText(b?.body ?? '', l.body, r.body);
+      const text = drafty.has(id) ? l.body : mergeText(b?.body ?? '', l.body, r.body);
       if (text === null) conflict.copy = { ...r, id: opts.newId(), title: `${r.title || 'Untitled'} (conflicted copy ${new Date(opts.now).toISOString().slice(0, 10)})`, created: opts.now };
       return {
         id,
@@ -145,6 +155,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
         created: Math.min(l.created, r.created),
         updated: Math.max(l.updated, r.updated),
         body: text === null ? l.body : tidy(text),
+        ...withValue('draft', drafty.has(id) ? field(b ? (b.draft ?? id) : undefined, l.draft ?? id, r.draft ?? id, newer.draft ?? id) : undefined),
       };
     });
     if (c) tree.chapters[id] = c;
@@ -153,6 +164,11 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       copyOf.set(conflict.copy.id, id);
       copies.push(conflict.copy.id);
     }
+  }
+  tree.drafts = {};
+  for (const id of [...drafty].sort()) {
+    const c = tree.chapters[id];
+    if (c) mergeDrafts(c, base, local, remote, tree, copies, opts);
   }
   // A chapter needs its project: one deleted on one side while written in on the other comes back.
   for (const c of Object.values(tree.chapters)) {
@@ -184,6 +200,67 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
   for (const n of Object.values(tree.notes)) if (n.projectId && !tree.projects[n.projectId]) tree.notes[n.id] = { ...n, projectId: undefined };
 
   return { tree, copies };
+}
+
+/**
+ * A chapter's drafts, each merged on its own (the one the book uses is the
+ * chapter's body on each side), then the one in use put back as the body.
+ */
+function mergeDrafts(c: TChapter, base: Tree, local: Tree, remote: Tree, tree: Tree, copies: string[], opts: MergeOptions): void {
+  const cid = c.id;
+  const ids = new Set<string>();
+  for (const t of [base, local, remote]) {
+    const tc = t.chapters[cid];
+    if (tc) ids.add(tc.draft ?? cid);
+    for (const d of Object.values(t.drafts ?? {})) if (d.chapterId === cid) ids.add(d.id);
+  }
+  const merged = new Map<string, TDraft>();
+  for (const x of [...ids].sort()) {
+    const conflict: { copy?: TDraft } = {};
+    const d = pick(draftView(base, cid, x), draftView(local, cid, x), draftView(remote, cid, x), sameDraftText, (b, l, r) => {
+      const text = mergeText(b?.body ?? '', l.body, r.body);
+      if (text === null) conflict.copy = { ...r, id: opts.newId(), name: `${r.name} (conflicted copy ${new Date(opts.now).toISOString().slice(0, 10)})`, created: opts.now };
+      return {
+        id: x,
+        chapterId: cid,
+        name: field(b?.name, l.name, r.name),
+        note: field(b?.note, l.note, r.note),
+        created: Math.min(l.created, r.created),
+        updated: Math.max(l.updated, r.updated),
+        body: text === null ? l.body : tidy(text),
+      };
+    });
+    if (d) merged.set(x, d);
+    if (conflict.copy) {
+      merged.set(conflict.copy.id, conflict.copy);
+      copies.push(conflict.copy.id);
+    }
+  }
+  // The draft in use was deleted on one side while the other switched to it: this device's choice, else the newest.
+  let inUse = c.draft ?? cid;
+  if (!merged.has(inUse)) {
+    const mine = local.chapters[cid]?.draft ?? cid;
+    inUse = merged.has(mine) ? mine : ([...merged.values()].sort((a, b) => a.created - b.created).pop()?.id ?? inUse);
+  }
+  const used = merged.get(inUse);
+  const { draft: _d, draftName: _n, draftNote: _o, draftCreated: _c, ...plain } = c;
+  const named = used && (c.draft !== undefined || inUse !== cid || used.name !== FIRST_DRAFT || used.note || merged.size > 1);
+  tree.chapters[cid] = used ? { ...plain, body: used.body, ...(named ? { draft: inUse, draftName: used.name, draftNote: used.note, draftCreated: used.created } : {}) } : plain;
+  for (const d of merged.values()) if (d.id !== inUse) tree.drafts![d.id] = { ...d, chapterId: cid };
+}
+
+/** Draft `x` of a chapter as one side has it: the chapter's own body when it's the one in use. */
+function draftView(t: Tree, cid: string, x: string): TDraft | undefined {
+  const c = t.chapters[cid];
+  if (!c) return undefined;
+  if ((c.draft ?? cid) === x) return { id: x, chapterId: cid, name: c.draftName ?? FIRST_DRAFT, note: c.draftNote ?? '', created: c.draftCreated ?? c.created, updated: c.updated, body: c.body };
+  const d = t.drafts?.[x];
+  return d && d.chapterId === cid ? d : undefined;
+}
+
+/** Same words, name and note (when it was last touched aside: the one in use shares its chapter's date). */
+function sameDraftText(a: TDraft | undefined, b: TDraft | undefined): boolean {
+  return a === b || (!!a && !!b && a.name === b.name && a.note === b.note && a.created === b.created && a.body === b.body);
 }
 
 /**

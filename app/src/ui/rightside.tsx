@@ -24,6 +24,7 @@ import { CheckTab } from './checks';
 import { ThesaurusTab } from './thesaurus';
 import { sameBookmark, toggleBookmark } from '../data/bookmarks';
 import { appearances } from '../data/cast';
+import { docOwner } from '../data/drafts';
 
 export type RightTab = 'chapter' | 'notes' | 'outline' | 'pages' | 'check' | 'styles' | 'comments' | 'links' | 'snapshots' | 'writing' | 'thesaurus' | 'clipboard' | 'objects' | 'search';
 const TABS: { key: RightTab; label: string }[] = [
@@ -60,7 +61,7 @@ export function RightSidebar() {
   const store = useAppStore();
   const helped = useHelped();
   // In a book's chapter, the first tab shows who and where the chapter mentions.
-  const chapter = helped ? state.chapters.find((c) => c.id === helped.docId) : undefined;
+  const chapter = helped ? state.chapters.find((c) => c.id === docOwner(helped.docId)) : undefined;
   // (A book's notes, its research, are a tab beside a chapter in the calm look.)
   const calmBook = !!chapter && !state.settings.toolbarAll;
   const tabs = (chapter ? TABS : TABS.filter((t) => t.key !== 'chapter')).filter((t) => t.key !== 'notes' || calmBook);

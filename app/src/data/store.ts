@@ -9,7 +9,7 @@
 import { makeBlock, type Doc } from '@crumpet/editor/model';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { matchIds } from '@crumpet/editor/diff';
-import type { Tree } from '../sync/tree';
+import type { TDraft, Tree } from '../sync/tree';
 import { type PageSetup, type StyleDef, type StyleKey, type StyleSheet, fullSheet } from './styles';
 import type { Persisted, Storage } from './db';
 import { attachmentsIn, forgetFiles } from './files';
@@ -18,9 +18,10 @@ import { relinkDoc, sameTitle } from './links';
 import { decodeReminder, tidyReminder } from './reminders';
 import { type Snapshot, VERSION_GAP, pruneVersions, snapshotAttachments } from './snapshots';
 import { tidyKeywords } from './keywords';
+import { FIRST_DRAFT, chapterDraft, chapterDrafts, draftInUse, nextDraftName, withDraftInUse } from './drafts';
 import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, templateDoc } from './templates';
 import { removeRevisionColors } from './revisions';
-import { type CastMember, type Chapter, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, SHARED_SETTINGS, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
+import { type CastMember, type Chapter, type ChapterDraft, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, SHARED_SETTINGS, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
 import { inOrder, moveInOrder, notebookTree, projectsInOrder } from './selectors';
 import { activeTab, tidyWorkspace } from './panes';
 
@@ -184,7 +185,7 @@ export class AppStore {
 
   /** Deletes attachments nothing uses any more (no note, chapter, character or place). */
   private forgetPictures(candidates: string[]): void {
-    const used = new Set([...this.state.notes.map((n) => n.doc), ...this.state.chapters.map((c) => c.doc)].flatMap((d) => attachmentsIn(d.blocks)));
+    const used = new Set([...this.state.notes.map((n) => n.doc), ...this.state.chapters.flatMap((c) => [c.doc, ...(c.drafts ?? []).map((d) => d.doc)])].flatMap((d) => attachmentsIn(d.blocks)));
     for (const n of this.state.notes) if (n.file) used.add(n.file);
     for (const p of this.state.projects) for (const m of p.cast ?? []) if (m.picture) used.add(m.picture);
     // A snapshot still uses the pictures it had.
@@ -708,13 +709,41 @@ export class AppStore {
       return next;
     });
     const chaptersById = new Map(state.chapters.map((c) => [c.id, c]));
+    const draftsOf = new Map<string, TDraft[]>();
+    for (const d of Object.values(tree.drafts ?? {})) draftsOf.set(d.chapterId, [...(draftsOf.get(d.chapterId) ?? []), d]);
     const chapters: Chapter[] = Object.values(treeChapters).map((t) => {
       const cur = chaptersById.get(t.id);
-      const doc = cur && toMarkdown(cur.doc) === t.body ? cur.doc : matchIds(cur?.doc ?? emptyDoc(), fromMarkdown(t.body));
-      const next: Chapter = { id: t.id, projectId: t.projectId, title: t.title, doc, status: t.status, synopsis: t.synopsis, goal: t.goal, ...(t.keywords?.length ? { keywords: t.keywords } : {}), createdAt: t.created, updatedAt: t.updated };
+      // A draft's text is kept as it is here when unchanged (so an open editor isn't reloaded), whether or not the book was using it.
+      const known = (id: string, md: string) => {
+        const was = cur && draftInUse(cur) === id ? cur.doc : cur?.drafts?.find((d) => d.id === id)?.doc;
+        return was && toMarkdown(was) === md ? was : matchIds(was ?? cur?.doc ?? emptyDoc(), fromMarkdown(md));
+      };
+      const doc = known(t.draft ?? t.id, t.body);
+      const drafts: ChapterDraft[] = (draftsOf.get(t.id) ?? []).sort((a, b) => a.created - b.created || (a.id < b.id ? -1 : 1)).map((d) => {
+        const was = cur?.drafts?.find((x) => x.id === d.id);
+        const next: ChapterDraft = { id: d.id, name: d.name, note: d.note, createdAt: d.created, updatedAt: d.updated, doc: known(d.id, d.body) };
+        return was && was.doc === next.doc && was.name === next.name && was.note === next.note && was.createdAt === next.createdAt && was.updatedAt === next.updatedAt ? was : next;
+      });
+      const next: Chapter = {
+        id: t.id,
+        projectId: t.projectId,
+        title: t.title,
+        doc,
+        status: t.status,
+        synopsis: t.synopsis,
+        goal: t.goal,
+        ...(t.keywords?.length ? { keywords: t.keywords } : {}),
+        ...(t.draft ? { draft: { id: t.draft, name: t.draftName ?? FIRST_DRAFT, note: t.draftNote ?? '', createdAt: t.draftCreated ?? t.created } } : {}),
+        ...(drafts.length ? { drafts } : {}),
+        createdAt: t.created,
+        updatedAt: t.updated,
+      };
       if (
         cur &&
         cur.doc === doc &&
+        JSON.stringify(cur.draft ?? null) === JSON.stringify(next.draft ?? null) &&
+        (cur.drafts ?? []).length === drafts.length &&
+        drafts.every((d, i) => cur.drafts![i] === d) &&
         cur.projectId === next.projectId &&
         cur.title === next.title &&
         cur.status === next.status &&
@@ -1083,7 +1112,7 @@ export class AppStore {
     this.set({ projects: this.state.projects.filter((p) => p.id !== id), chapters: this.state.chapters.filter((c) => c.projectId !== id), view });
     this.save(this.storage.deleteProject(id));
     if (view.kind === 'all') this.reselectIfHidden();
-    this.forgetUnused(gone.map((c) => c.doc));
+    this.forgetUnused(gone.flatMap((c) => [c.doc, ...(c.drafts ?? []).map((d) => d.doc)]));
     const pictures = (project?.cast ?? []).flatMap((m) => (m.picture ? [m.picture] : []));
     if (pictures.length) this.forgetPictures(pictures);
   }
@@ -1285,6 +1314,84 @@ export class AppStore {
     }
   }
 
+  // ---------- drafts ----------
+
+  /**
+   * Starts a new draft of a chapter: a copy of draft `from` (the one in use
+   * unless given), or a blank page. The book uses it from then on. Returns its id.
+   */
+  newDraft(chapterId: string, opts: { from?: string; blank?: boolean; name?: string; note?: string } = {}): string | undefined {
+    const c = this.chapter(chapterId);
+    if (!c) return undefined;
+    const from = chapterDraft(c, opts.from ?? draftInUse(c));
+    if (!from) return undefined;
+    const t = this.now();
+    const was: ChapterDraft = { id: draftInUse(c), name: c.draft?.name || FIRST_DRAFT, note: c.draft?.note ?? '', createdAt: c.draft?.createdAt ?? c.createdAt, doc: c.doc, updatedAt: c.updatedAt };
+    const id = newId();
+    const name = opts.name?.trim() || nextDraftName(chapterDrafts(c).map((d) => d.name));
+    // A copy gets block ids of its own, so the two can be open side by side.
+    const doc = opts.blank ? emptyDoc() : fromMarkdown(toMarkdown(from.doc));
+    this.cancelSave(chapterId);
+    this.putChapter({ ...c, doc, draft: { id, name, note: opts.note?.trim() ?? '', createdAt: t }, drafts: [...(c.drafts ?? []), was], updatedAt: t });
+    return id;
+  }
+
+  /** Makes the book use another of a chapter's drafts. */
+  useDraft(chapterId: string, draftId: string): void {
+    const c = this.chapter(chapterId);
+    if (!c || draftId === draftInUse(c)) return;
+    this.cancelSave(chapterId);
+    this.putChapter(withDraftInUse(c, draftId, this.now()));
+  }
+
+  /** Writing in a draft, whether or not the book uses it. */
+  setDraftDoc(chapterId: string, draftId: string, doc: Doc): void {
+    const c = this.chapter(chapterId);
+    if (!c) return;
+    if (draftId === draftInUse(c)) return this.setChapterDoc(chapterId, doc);
+    const before = c.drafts?.find((d) => d.id === draftId)?.doc;
+    if (!before) return;
+    const t = this.now();
+    this.updateChapter(chapterId, { drafts: c.drafts!.map((d) => (d.id === draftId ? { ...d, doc, updatedAt: t } : d)) }, true);
+    this.countWords(chapterId, before, doc);
+  }
+
+  /** Renames a draft, or changes the note on what it's for. */
+  setDraftInfo(chapterId: string, draftId: string, patch: { name?: string; note?: string }): void {
+    const c = this.chapter(chapterId);
+    if (!c) return;
+    const tidy = { ...(patch.name !== undefined ? { name: patch.name.trim() || FIRST_DRAFT } : {}), ...(patch.note !== undefined ? { note: patch.note } : {}) };
+    if (draftId === draftInUse(c)) {
+      const info = c.draft ?? { id: c.id, name: FIRST_DRAFT, note: '', createdAt: c.createdAt };
+      this.updateChapter(chapterId, { draft: { ...info, ...tidy } }, true);
+    } else if (c.drafts?.some((d) => d.id === draftId)) {
+      this.updateChapter(chapterId, { drafts: c.drafts.map((d) => (d.id === draftId ? { ...d, ...tidy } : d)) }, true);
+    }
+  }
+
+  /** Deletes a draft (never a chapter's last). If the book was using it, it uses the newest of the others. */
+  deleteDraft(chapterId: string, draftId: string): void {
+    let c = this.chapter(chapterId);
+    if (!c?.drafts?.length) return;
+    const gone = chapterDraft(c, draftId);
+    if (!gone) return;
+    if (gone.inUse) {
+      const newest = chapterDrafts(c).filter((d) => !d.inUse).pop()!;
+      c = withDraftInUse(c, newest.id, this.now());
+    }
+    const drafts = (c.drafts ?? []).filter((d) => d.id !== draftId);
+    this.cancelSave(chapterId);
+    // The first draft is the chapter's own: with no other left, it needs no name of its own unless it was given one.
+    const plain = !drafts.length && c.draft?.id === c.id && c.draft.name === FIRST_DRAFT && !c.draft.note;
+    this.putChapter({ ...c, drafts: drafts.length ? drafts : undefined, ...(plain ? { draft: undefined } : {}), updatedAt: this.now() });
+    this.forgetUnused([gone.doc]);
+  }
+
+  private putChapter(next: Chapter): void {
+    this.set({ chapters: this.state.chapters.map((c) => (c.id === next.id ? next : c)) });
+    this.save(this.storage.putChapter(next));
+  }
+
   setChapterTitle(id: string, title: string): void {
     this.updateChapter(id, { title }, true);
   }
@@ -1314,7 +1421,7 @@ export class AppStore {
     this.save(this.storage.deleteChapter(id));
     if (project) this.updateProject(project.id, { outline: project.outline.filter((x) => x.id !== id) });
     this.dropVersions(id);
-    this.forgetUnused([chapter.doc]);
+    this.forgetUnused([chapter.doc, ...(chapter.drafts ?? []).map((d) => d.doc)]);
   }
 }
 
