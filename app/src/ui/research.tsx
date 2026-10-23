@@ -10,7 +10,7 @@ import { isLocked } from '../data/lock';
 import { fullSheet } from '../data/styles';
 import type { Note, Project } from '../data/types';
 import { displayTitle } from '../data/selectors';
-import { useAppState, useAppStore } from './hooks';
+import { useAppState, useAppStore, useAutoHeight } from './hooks';
 import { EditorHost } from './EditorHost';
 import { IconChevron, IconClose, IconLink, IconMore, IconNote, IconPlus } from './icons';
 import { tabDrag } from './tabdrag';
@@ -217,7 +217,8 @@ export function ResearchPane({ note, linkedTo, onClose }: { note: Note; linkedTo
   const store = useAppStore();
   const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
   const [menu, setMenu] = useState(false);
-  const title = useRef<HTMLInputElement>(null);
+  const title = useRef<HTMLTextAreaElement>(null);
+  useAutoHeight(title);
   const kind = researchKind(note);
   const pdf = kind === 'pdf' ? note.doc.blocks.find((b) => b.type === 'file')?.src : undefined;
 
@@ -316,7 +317,7 @@ export function ResearchPane({ note, linkedTo, onClose }: { note: Note; linkedTo
         }
         header={
           <>
-            <input ref={title} className="note-title research-title" aria-label="Title" placeholder="Untitled" value={note.title} onChange={(e) => store.setTitle(note.id, e.target.value)} />
+            <textarea ref={title} rows={1} className="note-title research-title" aria-label="Title" placeholder="Untitled" value={note.title} onChange={(e) => store.setTitle(note.id, e.target.value.replace(/\n/g, ' '))} onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()} />
             {pdf && <PdfView src={pdf} />}
           </>
         }

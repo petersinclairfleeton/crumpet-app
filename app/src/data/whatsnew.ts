@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-23-more-right-click',
+    date: '23 October 2026',
+    title: 'More in the right-click menu, and a warning before closing mid-sync',
+    points: [
+      'In your writing, the menu starts with Bold, Italic, Underline and Strikethrough buttons, and has Font…, Paragraph… and Clear formatting.',
+      'Right-click a table cell to insert a row above or below, a column left or right, merge or split cells, or delete a row, a column or the table.',
+      'Right-click a chapter in a book’s outline to open it (here, in a new tab or beside), rename it, set its status, add a chapter after it, or move it up or down. Parts have Rename, New chapter, Move and Remove.',
+      'Closing the tab (or the Mac app) before your latest changes have reached Google Drive or your folder now asks first, and starts the sync straight away, so waiting a moment lets it finish.',
+      'Fixed: a long note title sometimes lost its last line when the window or the sidebar changed width. And a note’s picture in the note list now shows whole, not cropped, with the note’s title stopping short of it.',
+    ],
+  },
+  {
     id: '2026-10-20-right-click',
     date: '20 October 2026',
     title: 'Right-click anywhere',

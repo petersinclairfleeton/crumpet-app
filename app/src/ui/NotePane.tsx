@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
 import { PageToggle } from './pages';
 import { ExportItems } from './exportmenu';
@@ -6,7 +6,7 @@ import { LockedNote, PasswordDialog, removePassword, useOpened } from './locked'
 import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
-import { useAppState, useAppStore, useNav, useSync } from './hooks';
+import { useAppState, useAppStore, useAutoHeight, useNav, useSync } from './hooks';
 import { recentNotes, viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
@@ -75,12 +75,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   }, [reading]);
 
   // The title wraps onto more lines as needed.
-  useLayoutEffect(() => {
-    const el = titleRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  });
+  useAutoHeight(titleRef);
 
   // A brand-new, empty note starts with the cursor in its title.
   useEffect(() => {
