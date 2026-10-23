@@ -1239,6 +1239,13 @@ export class Editor {
     this.view.blockElement(id)?.querySelector('.table-wrap')?.classList.add('painting');
   }
 
+  /** A Table menu action (`row`, `del-col`, `merge-right`, `delete`…) on the table cell `cell`, as from the app's right-click menu. */
+  tableAction(cell: HTMLElement, action: string, value?: string): void {
+    const id = cell.closest<HTMLElement>('[data-block]')?.dataset.block;
+    if (!id || this.isReadOnly || !cell.classList.contains('cell')) return;
+    this.reshapeTable(id, action, Number(cell.dataset.r), Number(cell.dataset.c), value);
+  }
+
   /** Changes a table's shape or look (Word's Table Layout and Design) from the cell at r, c. */
   private reshapeTable(id: string, action: string, r: number, c: number, value?: string): void {
     this.commitTable(id);

@@ -1,7 +1,7 @@
 // A project (a book, an essay, a thesis): its outline of parts and chapters,
 // and the writing, one chapter at a time or as one long manuscript.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { fullSheet, manuscriptPage } from '../data/styles';
 import { chapterPages, rememberPages } from '../data/pagecount';
 import { type PageFields, PageToggle, PageView } from './pages';
@@ -23,7 +23,7 @@ import { useTypewriter } from './typewriter';
 import { useDocFontsLoaded, useFontKeys } from './fonttools';
 import { useParaKeys } from './paratools';
 import { StatusBar } from './statusbar';
-import { useAppState, useAppStore, useMedia, useNav } from './hooks';
+import { useAppState, useAppStore, useAutoHeight, useMedia, useNav } from './hooks';
 import { IconBack, IconBox, IconChevron, IconRightPanel, IconSidebar, IconFocus, IconMore, IconPeople, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
@@ -42,6 +42,7 @@ import { KeywordChips, KeywordEditor, KeywordFilter, hasKeyword } from './keywor
 import { type Doc, makeBlock } from '@crumpet/editor/model';
 import { chapterDraft, draftDocId, draftInUse } from '../data/drafts';
 import { usePanes } from './panes';
+import { MenuAtPoint } from './contextmenu';
 import { BookDraftForm, BookProgress, DraftBadge, DraftTabs, NewDraftChoices } from './drafts';
 
 export const STATUSES: { id: ChapterStatus; label: string }[] = [
@@ -50,6 +51,88 @@ export const STATUSES: { id: ChapterStatus; label: string }[] = [
   { id: 'revised', label: 'Revised' },
   { id: 'done', label: 'Done' },
 ];
+
+/** The right-click menu on a chapter or part in a book's outline. */
+function OutlineItemMenu({ project, id, x, y, onOpenChapter, onRenamePart, onClose }: { project: Project; id: string; x: number; y: number; onOpenChapter(id: string): void; onRenamePart(id: string): void; onClose(): void }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const panes = usePanes();
+  const [renaming, setRenaming] = useState(false);
+  const index = project.outline.findIndex((x) => x.id === id);
+  const item = project.outline[index];
+  if (!item) return null;
+  const last = project.outline.length - 1;
+  const chapter = item.type === 'chapter' ? state.chapters.find((c) => c.id === id) : undefined;
+  const done = (fn: () => void) => () => {
+    fn();
+    onClose();
+  };
+  const row = (label: string, fn: () => void, opts: { danger?: boolean; disabled?: boolean } = {}) => (
+    <button type="button" role="menuitem" className={`menu-item${opts.danger ? ' danger' : ''}`} disabled={opts.disabled} onClick={done(fn)}>
+      {label}
+    </button>
+  );
+  const moves = (
+    <>
+      {row('Move up', () => store.moveOutlineItem(project.id, id, index - 1), { disabled: index === 0 })}
+      {row('Move down', () => store.moveOutlineItem(project.id, id, index + 2), { disabled: index === last })}
+    </>
+  );
+  const title = chapter ? chapter.title || 'Untitled chapter' : item.type === 'part' ? item.title : '';
+  return (
+    <MenuAtPoint x={x} y={y} label={`${title}: options`} onClose={onClose}>
+      {renaming && chapter ? (
+        <InlineInput
+          label="Chapter title"
+          initial={chapter.title}
+          placeholder="Chapter title"
+          onDone={(t) => {
+            if (t !== null && t.trim()) store.setChapterTitle(chapter.id, t.trim());
+            onClose();
+          }}
+        />
+      ) : chapter ? (
+        <>
+          {row('Open', () => onOpenChapter(chapter.id))}
+          {row('Open in a new tab', () => panes.open({ kind: 'chapter', id: chapter.id }, 'tab'))}
+          {row('Open to the side', () => panes.split({ kind: 'chapter', id: chapter.id }, 'right'))}
+          <hr className="menu-rule" />
+          <button type="button" role="menuitem" className="menu-item" onClick={() => setRenaming(true)}>
+            Rename…
+          </button>
+          <p className="menu-label">Status</p>
+          <div className="menu-status" role="group" aria-label="Status">
+            {STATUSES.map((st) => (
+              <button key={st.id} type="button" role="menuitemradio" aria-checked={chapter.status === st.id} className={`menu-status-pick${chapter.status === st.id ? ' on' : ''}`} onClick={done(() => store.setChapterStatus(chapter.id, st.id))}>
+                <span className={`status-dot ${st.id}`} aria-hidden="true" /> {st.label}
+              </button>
+            ))}
+          </div>
+          <hr className="menu-rule" />
+          {row('New chapter after this', () => store.addChapter(project.id, chapter.id))}
+          {moves}
+          <hr className="menu-rule" />
+          {row(
+            'Delete chapter',
+            () => {
+              const n = chapterWords(chapter);
+              if (n === 0 || confirm(`Delete “${chapter.title || 'Untitled chapter'}” and its ${n.toLocaleString()} ${n === 1 ? 'word' : 'words'}?`)) store.deleteChapter(chapter.id);
+            },
+            { danger: true },
+          )}
+        </>
+      ) : (
+        <>
+          {row('Rename part', () => onRenamePart(id))}
+          {row('New chapter at the start of this part', () => store.addChapter(project.id, id))}
+          {moves}
+          <hr className="menu-rule" />
+          {row('Remove part (keeps its chapters)', () => store.deletePart(project.id, id), { danger: true })}
+        </>
+      )}
+    </MenuAtPoint>
+  );
+}
 
 function Progress({ value, goal, label }: { value: number; goal: number | null; label: string }) {
   if (!goal) return null;
@@ -86,6 +169,8 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
   const store = useAppStore();
   const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'deadline' | 'delete' | 'draft' | 'draftnote'>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
+  // A chapter or part right-clicked in the outline: its menu where the pointer is.
+  const [itemAt, setItemAt] = useState<{ id: string; x: number; y: number } | null>(null);
   const [printing, setPrinting] = useState(false);
   const [exporting, setExporting] = useState(false);
   // Printing from the Export window can leave out the chapters marked To do.
@@ -403,6 +488,12 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
               const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
               setDropAt(e.clientY < box.top + box.height / 2 ? index : index + 1);
             },
+            onContextMenu: (e: React.MouseEvent) => {
+              if ((e.target as Element).closest('input, textarea')) return;
+              e.preventDefault();
+              setItemMenu(null);
+              setItemAt({ id: item.id, x: e.clientX, y: e.clientY });
+            },
           };
           const move = (delta: number) => {
             setItemMenu(null);
@@ -507,6 +598,17 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
           );
         })}
       </ol>
+      {itemAt && (
+        <OutlineItemMenu
+          project={project}
+          id={itemAt.id}
+          x={itemAt.x}
+          y={itemAt.y}
+          onOpenChapter={onOpenChapter}
+          onRenamePart={setRenaming}
+          onClose={() => setItemAt(null)}
+        />
+      )}
 
       {phone ? null : calm ? (
         <button type="button" className="book-new" aria-label="Add chapter" onClick={() => store.addChapter(project.id)}>
@@ -690,12 +792,7 @@ function ProjectWriting({ project, narrow, onBack }: { project: Project; narrow:
 
 function AutoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const ref = useRef<HTMLTextAreaElement>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-  });
+  useAutoHeight(ref);
   return <textarea ref={ref} rows={1} {...props} />;
 }
 

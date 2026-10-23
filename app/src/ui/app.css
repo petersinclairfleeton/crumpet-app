@@ -340,6 +340,7 @@ input, select { font: inherit; color: inherit; }
 .menu-item { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 10px; border: none; border-radius: 8px; background: none; color: var(--text); text-align: left; cursor: pointer; font-size: 13px; }
 .menu-item:hover { background: var(--field); }
 .menu-item.danger { color: var(--danger); }
+.menu-item:disabled { opacity: 0.45; cursor: default; background: none; }
 .menu-colours { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
 .menu-confirm { display: flex; flex-direction: column; gap: 8px; padding: 6px; }
 .menu-confirm p { margin: 0; line-height: 1.45; }
@@ -436,8 +437,10 @@ input, select { font: inherit; color: inherit; }
 .card { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 10px; margin-bottom: 2px; border: none; border-radius: 8px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
 .card:hover { background: var(--field); }
 .card.selected { background: var(--page); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1.5px var(--accent); }
-.card.has-thumb { position: relative; padding-right: 76px; }
-.card-thumb { position: absolute; right: 10px; top: 10px; width: 56px; height: 56px; border-radius: 8px; background: var(--field) center / cover no-repeat; }
+.card.has-thumb { position: relative; }
+/* The whole picture shows, not just its middle, and the card's text stops short of it (in every look). */
+.card-thumb { position: absolute; right: 12px; top: 12px; width: 56px; height: 56px; border-radius: 8px; background: var(--field) center / contain no-repeat; }
+.card.has-thumb > :not(.card-thumb) { margin-right: 68px; }
 .card-top { display: flex; align-items: baseline; gap: 8px; }
 .card-title { flex: 1; font-size: 14px; font-weight: 700; }
 .pin { color: var(--accent-ink); display: inline-flex; }
@@ -3350,3 +3353,16 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .draft-progress { margin: 0; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .book-draft-progress { display: block; font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .snapshot-of { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+
+/* The right-click menu's format buttons (bold, italic, underline, strikethrough), as one row at its top. */
+.menu-format { display: flex; gap: 2px; padding: 0 0 4px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.menu-format button { flex: 1; height: 30px; border: none; border-radius: 8px; background: none; color: var(--text); cursor: pointer; font: 600 14px var(--ui-font, inherit); }
+.menu-format button:hover { background: var(--field); }
+.menu-format .menu-format-italic { font-style: italic; font-family: Georgia, serif; }
+.menu-format .menu-format-underline { text-decoration: underline; }
+.menu-format .menu-format-strike { text-decoration: line-through; }
+/* A chapter's status, picked from its right-click menu. */
+.menu-status { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+.menu-status-pick { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; border: none; border-radius: 8px; background: none; color: var(--text); font-size: 13px; cursor: pointer; text-align: left; }
+.menu-status-pick:hover { background: var(--field); }
+.menu-status-pick.on { background: var(--field); font-weight: 600; }

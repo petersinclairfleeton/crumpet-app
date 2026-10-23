@@ -4,6 +4,7 @@
 // paste, link, comment and look up; in a box: cut, copy, paste; on a link or
 // a picture: open, copy or save it; anywhere else: new note, find, commands,
 // settings and the guide. A long press on a phone or tablet is left to it.
+// In a table cell: rows, columns, merging and splitting too.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -12,11 +13,13 @@ import type { Selection } from '@crumpet/editor/model';
 import type { Tab } from '../data/panes';
 import { speller } from '../data/spell';
 import { useClips } from './clipboard';
+import { openFontDialog } from './fontdialog';
 import { isMac } from './editing';
 import { openGuide } from './guide';
 import { currentHelped } from './helpers';
 import { useAppState, useAppStore } from './hooks';
 import { usePanes } from './panes';
+import { ParagraphDialog } from './paratools';
 import { Popover } from './Sidebar';
 import { ignoreWord, passedWords, useAddWord } from './spelling';
 import { wordAtCaret } from './thesaurus';
@@ -25,7 +28,7 @@ const mod = isMac ? '⌘' : 'Ctrl+';
 
 type At =
   | { kind: 'editor'; x: number; y: number; editor: Editor; word: { word: string; sel: Selection } | null; link: string | null; img: HTMLImageElement | null }
-  | { kind: 'field'; x: number; y: number; field: HTMLElement; img: null }
+  | { kind: 'field'; x: number; y: number; field: HTMLElement; img: null; editor: Editor | null; cell: HTMLElement | null }
   | { kind: 'page'; x: number; y: number; link: string | null; img: HTMLImageElement | null; tab: Tab | null; text: string };
 
 export interface ContextActions {
@@ -61,7 +64,10 @@ function whatsAt(e: MouseEvent): At | null {
     const word = wordAtCaret(editor);
     return { kind: 'editor', x, y, editor, word, link: editor.currentLink() ?? link, img };
   }
-  if (field) return { kind: 'field', x, y, field, img: null };
+  if (field) {
+    const cell = editor ? (field.closest('.cell') as HTMLElement | null) : null;
+    return { kind: 'field', x, y, field, img: null, editor, cell };
+  }
   const tabEl = el.closest('[data-tab]');
   let tab: Tab | null = null;
   try {
@@ -75,6 +81,7 @@ function whatsAt(e: MouseEvent): At | null {
 /** Listens for right clicks across the app and shows Crumpet's menu. */
 export function ContextMenuHost({ actions }: { actions: ContextActions }) {
   const [at, setAt] = useState<At | null>(null);
+  const [para, setPara] = useState<Editor | null>(null);
   useEffect(() => {
     let touch = false;
     const onDown = (e: PointerEvent) => (touch = e.pointerType === 'touch' || e.pointerType === 'pen');
@@ -105,8 +112,12 @@ export function ContextMenuHost({ actions }: { actions: ContextActions }) {
       document.removeEventListener('scroll', close, true);
     };
   }, [at]);
-  if (!at) return null;
-  return <ContextMenu key={`${at.x},${at.y}`} at={at} actions={actions} onClose={() => setAt(null)} />;
+  return (
+    <>
+      {at && <ContextMenu key={`${at.x},${at.y}`} at={at} actions={actions} onParagraph={setPara} onClose={() => setAt(null)} />}
+      {para && <ParagraphDialog editor={para} onClose={() => setPara(null)} />}
+    </>
+  );
 }
 
 /** A menu line. Pressing it doesn't take the focus, so the text's selection stays for the command. */
@@ -120,6 +131,30 @@ function Item({ label, keys, onPick, danger }: { label: string; keys?: string; o
 }
 
 const Rule = () => <hr className="menu-rule" />;
+
+/** A menu opened where the pointer is, kept on the screen: opened up or to the left when there isn't room below or to the right. */
+export function MenuAtPoint({ x, y, label, onClose, children }: { x: number; y: number; label: string; onClose(): void; children: React.ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ left: x, top: y });
+  useLayoutEffect(() => {
+    const el = box.current?.firstElementChild as HTMLElement | null;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const left = Math.max(8, Math.min(x, innerWidth - r.width - 8));
+    const top = y + r.height + 8 > innerHeight ? Math.max(8, y - r.height) : y;
+    if (left !== pos.left || top !== pos.top) setPos({ left, top });
+  });
+  return createPortal(
+    <div className="context-menu app-menu" ref={box} style={{ left: pos.left, top: pos.top }} onContextMenu={(e) => e.preventDefault()}>
+      <Popover label={label} onClose={onClose}>
+        <div role="menu" aria-label={label} className="app-menu-items">
+          {children}
+        </div>
+      </Popover>
+    </div>,
+    document.body,
+  );
+}
 
 /** Reads the clipboard: its plain text and any HTML (null when the browser won't let Crumpet read it). */
 async function readClipboard(): Promise<{ text: string; html: string } | null> {
@@ -168,26 +203,14 @@ function copyText(text: string): void {
   navigator.clipboard?.writeText(text).catch(() => undefined);
 }
 
-function ContextMenu({ at, actions, onClose }: { at: At; actions: ContextActions; onClose(): void }) {
+function ContextMenu({ at, actions, onParagraph, onClose }: { at: At; actions: ContextActions; onParagraph(ed: Editor): void; onClose(): void }) {
   const state = useAppState();
   const store = useAppStore();
   const panes = usePanes();
   const clips = useClips();
   const addWord = useAddWord();
-  const box = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ left: at.x, top: at.y });
   const [note, setNote] = useState('');
   const [spelling, setSpelling] = useState<{ word: string; suggestions: string[] } | null>(null);
-
-  // Kept on the screen: opened up or to the left when there isn't room below or to the right.
-  useLayoutEffect(() => {
-    const el = box.current?.firstElementChild as HTMLElement | null;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const left = Math.max(8, Math.min(at.x, innerWidth - r.width - 8));
-    const top = at.y + r.height + 8 > innerHeight ? Math.max(8, at.y - r.height) : at.y;
-    if (left !== pos.left || top !== pos.top) setPos({ left, top });
-  });
 
   // A word the spelling check doesn't know: its suggestions at the top, as Word does (English only, like the Check tab).
   const sp = state.settings.spelling;
@@ -272,6 +295,22 @@ function ContextMenu({ at, actions, onClose }: { at: At; actions: ContextActions
             <Rule />
           </>
         )}
+        {!ro && (
+          <div className="menu-format" role="group" aria-label="Format">
+            {(
+              [
+                ['bold', 'Bold', 'B', `${mod}B`],
+                ['italic', 'Italic', 'I', `${mod}I`],
+                ['underline', 'Underline', 'U', `${mod}U`],
+                ['strike', 'Strikethrough', 'S', ''],
+              ] as const
+            ).map(([mark, name, glyph, keys]) => (
+              <button key={mark} type="button" role="menuitem" className={`menu-format-${mark}`} aria-label={name} title={keys ? `${name} (${keys})` : name} onMouseDown={(e) => e.preventDefault()} onClick={done(() => ed.toggleMark(mark))}>
+                {glyph}
+              </button>
+            ))}
+          </div>
+        )}
         {pictureItems(at.img)}
         {linkItems(at.link, ed)}
         {!ro && <Item label="Cut" keys={`${mod}X`} onPick={done(() => document.execCommand('cut'))} />}
@@ -290,6 +329,14 @@ function ContextMenu({ at, actions, onClose }: { at: At; actions: ContextActions
             keys={`${mod}K`}
             onPick={done(() => ed.view.root.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: !isMac, metaKey: isMac, bubbles: true })))}
           />
+        )}
+        {!ro && (
+          <>
+            <Item label="Font…" keys={`${mod}D`} onPick={done(() => openFontDialog(ed))} />
+            <Item label="Paragraph…" onPick={done(() => onParagraph(ed))} />
+            <Item label="Clear formatting" onPick={done(() => ed.clearFormatting())} />
+            <Rule />
+          </>
         )}
         {ed.onCommentKey && <Item label="New comment" keys={isMac ? '⌘⌥M' : 'Ctrl+Alt+M'} onPick={done(() => ed.onCommentKey?.())} />}
         {at.word && <Item label={`Look up “${at.word.word.length > 24 ? `${at.word.word.slice(0, 24)}…` : at.word.word}”`} keys={isMac ? '⇧F7' : 'Shift+F7'} onPick={done(() => store.updateLayout({ right: true, rightTab: 'thesaurus' }))} />}
@@ -315,8 +362,8 @@ function ContextMenu({ at, actions, onClose }: { at: At; actions: ContextActions
     };
     body = (
       <>
-        {!ro && <Item label="Undo" keys={`${mod}Z`} onPick={done(() => document.execCommand('undo'))} />}
-        {!ro && <Rule />}
+        {!ro && !at.cell && <Item label="Undo" keys={`${mod}Z`} onPick={done(() => document.execCommand('undo'))} />}
+        {!ro && !at.cell && <Rule />}
         {!ro && !secret && <Item label="Cut" keys={`${mod}X`} onPick={done(() => document.execCommand('cut'))} />}
         {!secret && <Item label="Copy" keys={`${mod}C`} onPick={done(() => document.execCommand('copy'))} />}
         {!ro && <Item label="Paste" keys={`${mod}V`} onPick={() => void paste()} />}
@@ -329,6 +376,7 @@ function ContextMenu({ at, actions, onClose }: { at: At; actions: ContextActions
             else document.execCommand('selectAll');
           })}
         />
+        {at.cell && at.editor && !ro && <TableItems editor={at.editor} cell={at.cell} onDone={onClose} />}
       </>
     );
   } else {
@@ -360,14 +408,34 @@ function ContextMenu({ at, actions, onClose }: { at: At; actions: ContextActions
     );
   }
 
-  return createPortal(
-    <div className="context-menu app-menu" ref={box} style={{ left: pos.left, top: pos.top }} onContextMenu={(e) => e.preventDefault()}>
-      <Popover label="Menu" onClose={onClose}>
-        <div role="menu" aria-label="Menu" className="app-menu-items">
-          {note ? <p className="menu-note">{note}</p> : body}
-        </div>
-      </Popover>
-    </div>,
-    document.body,
+  return (
+    <MenuAtPoint x={at.x} y={at.y} label="Menu" onClose={onClose}>
+      {note ? <p className="menu-note">{note}</p> : body}
+    </MenuAtPoint>
+  );
+}
+
+/** A table cell's rows, columns, merging and splitting (as the Table menu under the table has). */
+function TableItems({ editor, cell, onDone }: { editor: Editor; cell: HTMLElement; onDone(): void }) {
+  const act = (action: string) => () => {
+    editor.tableAction(cell, action);
+    onDone();
+  };
+  return (
+    <>
+      <Rule />
+      <Item label="Insert row above" onPick={act('row-above')} />
+      <Item label="Insert row below" onPick={act('row')} />
+      <Item label="Insert column left" onPick={act('col-left')} />
+      <Item label="Insert column right" onPick={act('col')} />
+      <Rule />
+      <Item label="Merge with cell to the right" onPick={act('merge-right')} />
+      <Item label="Merge with cell below" onPick={act('merge-down')} />
+      <Item label="Split cell" onPick={act('split')} />
+      <Rule />
+      <Item label="Delete row" danger onPick={act('del-row')} />
+      <Item label="Delete column" danger onPick={act('del-col')} />
+      <Item label="Delete table" danger onPick={act('delete')} />
+    </>
   );
 }

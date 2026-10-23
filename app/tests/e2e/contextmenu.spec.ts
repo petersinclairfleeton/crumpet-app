@@ -99,3 +99,67 @@ test('right click in a text box and elsewhere shows Crumpet’s menu, never the 
     expect(await rightClick(page, vw.width * fx, vw.height * fy)).toBe(true);
   }
 });
+
+test('right click formats the writing, and works on a table’s rows and columns', async ({ page }) => {
+  await open(page);
+  // Bold from the menu's row of format buttons, on the selected word.
+  const lh = await wordAt(page, 'lighthouse');
+  await page.mouse.dblclick(lh.x, lh.y);
+  await page.mouse.click(lh.x, lh.y, { button: 'right' });
+  await expect(menu(page).getByRole('menuitem', { name: 'Paragraph…' })).toBeVisible();
+  await menu(page).getByRole('menuitem', { name: 'Bold' }).click();
+  await expect(text(page).locator('strong')).toHaveText('lighthouse');
+
+  // Paragraph… opens Word's Paragraph window.
+  await page.mouse.click(lh.x, lh.y, { button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Paragraph…' }).click();
+  await expect(page.getByRole('dialog', { name: 'Paragraph' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // A table: a row and a column added, then the column taken away again.
+  await text(page).click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/table');
+  await page.keyboard.press('Enter');
+  const table = page.locator('.note-editor .blk-table table');
+  await expect(table.locator('tr')).toHaveCount(3);
+  const cols = () => table.locator('tr').first().locator('th');
+  const n = await cols().count();
+  await table.locator('td .cell').first().click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Insert row below' }).click();
+  await expect(table.locator('tr')).toHaveCount(4);
+  await table.locator('td .cell').first().click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Insert column right' }).click();
+  await expect(cols()).toHaveCount(n + 1);
+  await table.locator('td .cell').first().click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Delete column' }).click();
+  await expect(cols()).toHaveCount(n);
+});
+
+test('right click on a chapter in a book’s outline', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.getByLabel('Chapter title').fill('The Keeper');
+  const outline = page.getByRole('region', { name: 'Outline' });
+  const chapter = (name: string) => outline.locator('.outline-chapter', { hasText: name });
+  await chapter('The Keeper').click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Rename…' }).click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('The Lamp');
+  await page.keyboard.press('Enter');
+  await expect(chapter('The Lamp')).toBeVisible();
+
+  await chapter('The Lamp').click({ button: 'right' });
+  await menu(page).getByRole('menuitemradio', { name: 'Revised' }).click();
+  await expect(chapter('The Lamp').locator('.status-dot.revised')).toBeVisible();
+
+  await chapter('The Lamp').click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'New chapter after this' }).click();
+  await expect(outline.locator('.outline-chapter')).toHaveCount(2);
+  await outline.locator('.outline-chapter').nth(1).click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Move up' }).click();
+  await expect(outline.locator('.outline-chapter').nth(1)).toContainText('The Lamp');
+});

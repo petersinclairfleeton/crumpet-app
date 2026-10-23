@@ -6,7 +6,7 @@
 // The window is Mac-native: the sidebar shows the real see-through blur of
 // the desktop behind it, and the red, yellow and green buttons sit in it.
 
-const { app, BrowserWindow, Menu, clipboard, ipcMain, net, protocol, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, net, protocol, session, shell } = require('electron');
 const google = require('./google.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -126,6 +126,18 @@ function createWindow() {
   });
 
   win.webContents.on('context-menu', (_e, params) => contextMenu(params));
+  // The page asks to stay open while its notes are still syncing: ask the person (Electron would otherwise just not close).
+  win.webContents.on('will-prevent-unload', (e) => {
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'warning',
+      buttons: ['Wait', 'Close anyway'],
+      defaultId: 0,
+      cancelId: 0,
+      message: 'Crumpet is still syncing',
+      detail: 'Your latest changes are saved on this Mac but haven’t reached your folder yet. Wait a moment for them to sync, or close anyway and they’ll sync next time.',
+    });
+    if (choice === 1) e.preventDefault();
+  });
 
   win.webContents.on('did-finish-load', () => (loaded = true));
   win.webContents.on('did-start-loading', () => (loaded = false));

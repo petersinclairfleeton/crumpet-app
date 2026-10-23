@@ -230,9 +230,18 @@ export class SyncConnection {
       if (typeof document === 'undefined' || document.visibilityState === 'visible') engine.sync().catch(() => {});
     };
     this.poll = setInterval(kick, POLL_MS);
+    // Closing the tab (or the window) before the changes have reached the folder: the browser asks first,
+    // and the sync carries on meanwhile, so staying a moment lets it finish.
+    const leaving = (e: BeforeUnloadEvent) => {
+      if (!engine.busy) return;
+      engine.hurry();
+      e.preventDefault();
+      e.returnValue = '';
+    };
     if (typeof window !== 'undefined') {
       window.addEventListener('online', kick);
       document.addEventListener('visibilitychange', kick);
+      window.addEventListener('beforeunload', leaving);
     }
     this.stopEngine = () => {
       off();
@@ -240,6 +249,7 @@ export class SyncConnection {
       if (typeof window !== 'undefined') {
         window.removeEventListener('online', kick);
         document.removeEventListener('visibilitychange', kick);
+        window.removeEventListener('beforeunload', leaving);
       }
     };
     this.set({ config, status: engine.getStatus() });

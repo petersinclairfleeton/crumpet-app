@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useSyncExternalStore } from 'react';
+import { type RefObject, createContext, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AppState, AppStore } from '../data/store';
 import type { ConnectionState, SyncConnection } from '../sync/connection';
 
@@ -69,4 +69,45 @@ export interface Nav {
 export const NavContext = createContext<Nav>({ openNote: () => {}, openTitle: () => {} });
 export function useNav(): Nav {
   return useContext(NavContext);
+}
+
+/**
+ * Keeps a text area as tall as its text (a title of several lines shows them all): after each
+ * change, and when it gets narrower or wider (a sidebar folded, the window resized) or the
+ * title's font finishes loading, any of which can wrap it onto more lines.
+ */
+export function useAutoHeight(ref: RefObject<HTMLTextAreaElement>): void {
+  const watching = useRef<{ el: HTMLTextAreaElement; stop(): void } | null>(null);
+  useLayoutEffect(() => fit(ref.current));
+  // Watch the box showing now (it may come and go, or be another one).
+  useEffect(() => {
+    const el = ref.current;
+    if (watching.current?.el === el) return;
+    watching.current?.stop();
+    watching.current = el ? { el, stop: watchSize(el) } : null;
+  });
+  useEffect(() => () => watching.current?.stop(), []);
+}
+
+function watchSize(el: HTMLTextAreaElement): () => void {
+  let width = el.clientWidth;
+  const resized = new ResizeObserver(() => {
+    if (el.clientWidth === width) return;
+    width = el.clientWidth;
+    fit(el);
+  });
+  resized.observe(el);
+  const fonts = () => fit(el);
+  document.fonts?.addEventListener?.('loadingdone', fonts);
+  void document.fonts?.ready.then(fonts);
+  return () => {
+    resized.disconnect();
+    document.fonts?.removeEventListener?.('loadingdone', fonts);
+  };
+}
+
+function fit(el: HTMLTextAreaElement | null): void {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight}px`;
 }

@@ -122,6 +122,19 @@ export class SyncEngine {
     }, delay);
   }
 
+  /** A change is waiting to sync, or a sync is running: closing Crumpet now would leave the folder behind. */
+  get busy(): boolean {
+    return !!this.timer || !!this.running;
+  }
+
+  /** Syncs a change that's waiting now, rather than after the pause (as Crumpet is about to close). */
+  hurry(): void {
+    if (!this.timer) return;
+    clearTimeout(this.timer);
+    this.timer = null;
+    this.sync().catch(() => {});
+  }
+
   /** Syncs a moment after each local change. */
   watch(delay = 2000): void {
     let last = this.store.getState();

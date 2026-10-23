@@ -188,3 +188,23 @@ test('keep notes in a folder on this computer: files written there, changes made
   await expect(where(page).getByRole('status')).toHaveText(/Synced/);
   await context.close();
 });
+
+test('closing the tab before the changes have synced asks first', async ({ browser }) => {
+  const drive = new FakeDrive();
+  const page = await device(browser, drive);
+  await openSync(page);
+  await where(page).getByRole('button', { name: 'Continue with Google' }).click();
+  await where(page).getByRole('button', { name: /A new “Crumpet” folder/ }).click();
+  await expect(sidebar(page).locator('.side-foot')).toContainText('Google Drive · synced');
+  await page.keyboard.press('Escape');
+  /** Would the browser ask before closing? */
+  const asks = () => page.evaluate(() => !window.dispatchEvent(new Event('beforeunload', { cancelable: true })));
+  expect(await asks()).toBe(false);
+
+  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await page.keyboard.type('Not yet synced');
+  expect(await asks()).toBe(true);
+  // Asking also syncs straight away, so once it's in the folder closing is fine again.
+  await expect.poll(() => vault(drive, 'Crumpet'), { timeout: 15_000 }).toContain('Not yet synced.md');
+  await expect.poll(asks, { timeout: 15_000 }).toBe(false);
+});
