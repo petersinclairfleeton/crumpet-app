@@ -16,6 +16,7 @@ import { tabDrag } from './tabdrag';
 import { InlineInput, Popover } from './Sidebar';
 import { Item, MenuAtPoint, Rule } from './contextmenu';
 import { usePanes } from './panes';
+import { FamilyTreeDialog, Relationships } from './family';
 
 const KIND: Record<CastMember['kind'], string> = { character: 'Character', place: 'Place' };
 
@@ -102,6 +103,7 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
   const [adding, setAdding] = useState(false);
   const [naming, setNaming] = useState(false);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [tree, setTree] = useState(false);
   const cast = project.cast ?? [];
   const group = (kind: CastMember['kind']) => cast.filter((m) => m.kind === kind).sort((a, b) => a.name.localeCompare(b.name));
   const row = (m: CastMember) => (
@@ -126,6 +128,11 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
         )}
         <span className="grow" />
         <span className="note-actions">
+          {cast.filter((m) => m.kind === 'character').length > 1 && (
+            <button type="button" className="btn small quiet family-btn" onClick={() => setTree(true)}>
+              Family tree
+            </button>
+          )}
           <button type="button" className="icon-btn" aria-label="Add a character or place" aria-expanded={adding} onClick={() => setAdding(!adding)}>
             <IconPlus size={phone ? 20 : 14} />
           </button>
@@ -178,6 +185,7 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
         </ul>
       )}
       {menu && <CastMenu project={project} id={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
+      {tree && <FamilyTreeDialog project={project} onClose={() => setTree(false)} />}
     </section>
   );
 }
@@ -277,6 +285,7 @@ export function CastPane({ project, member, narrow = false, onClose }: { project
             <span>Description</span>
             <textarea rows={2} aria-label="Description" placeholder={member.kind === 'place' ? 'What it’s like, in a line or two' : 'Who they are, in a line or two'} value={member.description} onChange={(e) => update({ description: e.target.value })} />
           </label>
+          {member.kind === 'character' && <Relationships project={project} member={member} />}
           <label className="cast-field">
             <span>Notes</span>
             <textarea rows={8} aria-label="Notes" placeholder="Anything worth remembering" value={member.notes} onChange={(e) => update({ notes: e.target.value })} />

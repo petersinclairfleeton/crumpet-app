@@ -106,6 +106,8 @@ export interface CastMember {
   /** A line or two, shown when hovering over the name. */
   description: string;
   notes: string;
+  /** How a character is connected to others (parent of, partner of, friend of...), read from either side. */
+  ties?: import('./family').Tie[];
 }
 
 export interface Chapter {

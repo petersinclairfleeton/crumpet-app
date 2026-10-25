@@ -72,6 +72,12 @@ const MAX_SAVE_WAIT_MS = 2000;
 const RESCUE_KEY = 'crumpet:unsaved';
 const DAY = 24 * 60 * 60 * 1000;
 
+/** A character with these ties (none: the field goes). */
+function withTies(m: CastMember, ties: NonNullable<CastMember['ties']>): CastMember {
+  const { ties: _, ...rest } = m;
+  return ties.length ? { ...rest, ties } : rest;
+}
+
 export function newId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 }
@@ -1089,7 +1095,8 @@ export class AppStore {
     const p = this.project(projectId);
     if (!p?.cast) return;
     const gone = p.cast.find((m) => m.id === id);
-    this.updateProject(projectId, { cast: p.cast.filter((m) => m.id !== id) });
+    const cast = p.cast.filter((m) => m.id !== id).map((m) => (m.ties?.some((t) => t.to === id) ? withTies(m, m.ties.filter((t) => t.to !== id)) : m));
+    this.updateProject(projectId, { cast });
     if (this.state.castId === id) this.set({ castId: null });
     if (gone?.picture) this.forgetPictures([gone.picture]);
   }
