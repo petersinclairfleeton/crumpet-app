@@ -9,6 +9,7 @@ import type { AppState } from '../data/store';
 import { type BookDraft, type CastMember, type ChapterStatus, type Deadline, type OutlineItem, SHARED_SETTINGS, type Settings, type SharedSetting } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 import type { BookPlan } from '../data/plan';
+import type { BookDesign } from '../data/bookdesign';
 
 export interface TStack {
   id: string;
@@ -59,6 +60,7 @@ export interface TProject {
   draft?: BookDraft;
   plan?: BookPlan;
   series?: string;
+  design?: BookDesign;
   created: number;
   updated: number;
 }
@@ -154,7 +156,7 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
     };
   }
   for (const p of state.projects ?? []) {
-    tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}), ...(p.plan ? { plan: p.plan } : {}), ...(p.series ? { series: p.series } : {}) };
+    tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}), ...(p.plan ? { plan: p.plan } : {}), ...(p.series ? { series: p.series } : {}), ...(p.design ? { design: p.design } : {}) };
   }
   for (const c of state.chapters ?? []) {
     if (!tree.projects[c.projectId]) continue;
@@ -171,7 +173,7 @@ export function sameOutline(a: OutlineItem[], b: OutlineItem[]): boolean {
 export function sameProject(a: TProject | undefined, b: TProject | undefined): boolean {
   return (
     a === b ||
-    (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline) && sameJson(a.styles, b.styles) && sameJson(a.page, b.page) && sameJson(a.cast, b.cast) && sameJson(a.linked, b.linked) && sameJson(a.deadline, b.deadline) && sameJson(a.draft, b.draft) && sameJson(a.plan, b.plan) && (a.series ?? '') === (b.series ?? ''))
+    (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline) && sameJson(a.styles, b.styles) && sameJson(a.page, b.page) && sameJson(a.cast, b.cast) && sameJson(a.linked, b.linked) && sameJson(a.deadline, b.deadline) && sameJson(a.draft, b.draft) && sameJson(a.plan, b.plan) && (a.series ?? '') === (b.series ?? '') && sameJson(a.design, b.design))
   );
 }
 

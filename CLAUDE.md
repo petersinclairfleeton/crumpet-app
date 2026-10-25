@@ -289,6 +289,23 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     Version history: `setDoc`/`setChapterDoc` keep the text as it was as an
     automatic snapshot (`auto`), at most every ten minutes (`keepVersion`),
     thinned by `pruneVersions`; off with `settings.autoVersions = false`.
+  - Writers' tools (October 2026): weekly and monthly goals with days off
+    (`periodGoal` in `data/stats.ts`, `settings.weeklyGoal`/`monthlyGoal`/`restDays`);
+    writing sprints (`data/sprints.ts`, `ui/sprint.tsx`, `settings.sprint`/`sprints`);
+    a book's Plan view (`data/plan.ts`, `ui/plan.tsx`: timeline, plotlines,
+    structure beats in `project.plan`, merged by `mergePlan`); characters' `ties`
+    and the family tree (`data/family.ts`, `ui/family.tsx`); series
+    (`data/series.ts`: books with the same `project.series` share cast and research,
+    `bookCast`, `findMember`); importing sources (`data/bibimport.ts`: BibTeX, RIS,
+    CSL JSON, References → Manage sources…); Share with readers (`data/share.ts`,
+    `ui/share.tsx`: a Google Doc copy open to comments by link, signed in by
+    `googleReady` in `sync/connection.ts`; `bringBack` puts readers' comments on the
+    text; `settings.shares`, a shared setting; `tests/support/fake-drive.ts` fakes
+    permissions and comments); print-ready books (`data/bookdesign.ts`,
+    `project.design`, Export → Print-ready book: `printPage` trim and running heads,
+    `chapterOpening`, `designDoc` scene breaks, `designCss`; `PrintJob`'s `book`
+    adds blank pages so chapters start on the right, `bookOffsets`, and moves each
+    page's text for the spine, `mirrorShift`).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
     download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the
@@ -524,6 +541,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   fonts come from the internet (the Mac's own font is used offline).
 - Accounts are on (Firebase key in `app/.env`, `docs/accounts-setup.md`); the Mac app
   offers email sign-in only (no Google there yet).
+- Share with readers was tested against a fake Google Drive, not the real one
+  yet. Print-ready books were checked as PDFs here (trim size, pages, margins),
+  not yet in KDP's or IngramSpark's previewer; their typefaces come from Google
+  Fonts (a plain serif offline), and there's no bleed (nothing runs to the edge).
 - Not built yet: native iPhone/iPad apps, Dropbox/OneDrive/iCloud as
   services of their own (they need app keys from their makers; on a computer,
   a folder they keep in step works instead), sharing. Reminders only nudge

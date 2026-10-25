@@ -92,6 +92,8 @@ export interface Project {
   plan?: import('./plan').BookPlan;
   /** The series it's in (books with the same series name share their characters, places and research). */
   series?: string;
+  /** How it's printed as a book (Export → Print-ready book): trim size, typeface, chapter openings… */
+  design?: import('./bookdesign').BookDesign;
   createdAt: number;
   updatedAt: number;
 }

@@ -10,13 +10,16 @@ import { useAppStore } from './hooks';
 import { blockText, chapterWords, numberInWords, projectChapters } from '../data/selectors';
 import { type BookOptions, DOCX_TYPE, EPUB_TYPE, docxName, download, exportAs, fileName, projectDocx, projectEpub, projectParts } from '../data/wordfiles';
 import { IconClose } from './icons';
+import { BOOK_FONTS, type BookDesign, type BookFont, DEFAULT_DESIGN, HEADING_DESIGNS, OUTSIDE, SCENE_BREAKS, type SceneBreak, TRIMS, type TrimSize, estimatePages, insideMargin, trimOf } from '../data/bookdesign';
+import { loadGoogleFont } from './fonts';
 
-type Way = 'docx' | 'epub' | 'pdf' | 'odt' | 'rtf' | 'html' | 'txt';
+type Way = 'docx' | 'epub' | 'pdf' | 'book' | 'odt' | 'rtf' | 'html' | 'txt';
 
 const WAYS: { id: Way; badge: string; name: string; hint: string; action: string }[] = [
   { id: 'docx', badge: 'DOCX', name: 'Manuscript for Word', hint: 'In your manuscript format, with page numbers and headers.', action: 'Download as Word document' },
   { id: 'epub', badge: 'EPUB', name: 'E-book', hint: 'For Apple Books, Kobo and Kindle, with a contents page.', action: 'Download as e-book (ePub)' },
   { id: 'pdf', badge: 'PDF', name: 'PDF to print or share', hint: 'Laid out as page view shows it.', action: 'Print or save as PDF' },
+  { id: 'book', badge: 'BOOK', name: 'Print-ready book', hint: 'A paperback’s pages for Amazon KDP, IngramSpark or a printer.', action: 'Make a print-ready PDF' },
 ];
 const OTHERS: { id: Way; name: string }[] = [
   { id: 'odt', name: 'OpenDocument (LibreOffice)' },
@@ -31,7 +34,7 @@ function exportState(state: AppState, skipTodo: boolean): AppState {
   return skipTodo ? { ...state, chapters: state.chapters.filter((c) => c.status !== 'todo') } : state;
 }
 
-export function ExportBook({ project, onClose, onPrint }: { project: Project; onClose(): void; onPrint(skipTodo: boolean, opts: BookOptions): void }) {
+export function ExportBook({ project, onClose, onPrint }: { project: Project; onClose(): void; onPrint(skipTodo: boolean, opts: BookOptions, design?: BookDesign): void }) {
   const store = useAppStore();
   const [way, setWay] = useState<Way>('docx');
   const [skipTodo, setSkipTodo] = useState(false);
@@ -47,6 +50,18 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
   const first = list[0];
   const author = (state.settings.name || '').trim();
   const action = WAYS.find((w) => w.id === way)?.action ?? `Download as ${OTHERS.find((o) => o.id === way)?.name}`;
+  // A print-ready book's design, kept with the book.
+  const [design, setDesign] = useState<BookDesign>(project.design ?? DEFAULT_DESIGN);
+  const change = (patch: Partial<BookDesign>) => {
+    const next = { ...design, ...patch };
+    setDesign(next);
+    store.setBookDesign(project.id, next);
+  };
+  const trim = trimOf(design);
+  const pages = estimatePages(words, design) + list.length;
+  useEffect(() => {
+    if (way === 'book') loadGoogleFont(design.font, 1 | 2 | 4);
+  }, [way, design.font]);
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -55,9 +70,9 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
   }, [onClose]);
 
   const go = async () => {
-    if (way === 'pdf') {
+    if (way === 'pdf' || way === 'book') {
       onClose();
-      onPrint(skipTodo, opts);
+      onPrint(skipTodo, opts, way === 'book' ? design : undefined);
       return;
     }
     setBusy(true);
@@ -109,6 +124,62 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
               </select>
             </label>
           </div>
+          {way === 'book' && (
+            <div className="book-design-form" role="group" aria-label="Book design">
+              <p className="menu-label">Book design</p>
+              <label className="export-other">
+                <span>Trim size</span>
+                <select aria-label="Trim size" value={design.trim} onChange={(e) => change({ trim: e.target.value as TrimSize })}>
+                  {TRIMS.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} · {t.hint}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="export-other">
+                <span>Typeface</span>
+                <select aria-label="Typeface" value={design.font} onChange={(e) => change({ font: e.target.value as BookFont })}>
+                  {BOOK_FONTS.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.id} · {f.hint}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="export-other">
+                <span>Chapters</span>
+                <div className="segmented" role="radiogroup" aria-label="Chapter openings">
+                  {HEADING_DESIGNS.map((h) => (
+                    <button key={h.id} type="button" role="radio" aria-checked={design.headings === h.id} title={h.hint} onClick={() => change({ headings: h.id })}>
+                      {h.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="export-other">
+                <span>Scene breaks</span>
+                <select aria-label="Scene breaks" value={design.sceneBreak} onChange={(e) => change({ sceneBreak: e.target.value as SceneBreak })}>
+                  {SCENE_BREAKS.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="check-row">
+                <input type="checkbox" checked={design.dropCaps} onChange={(e) => change({ dropCaps: e.target.checked })} />
+                A drop cap to open each chapter
+              </label>
+              <label className="check-row">
+                <input type="checkbox" checked={design.recto} onChange={(e) => change({ recto: e.target.checked })} />
+                Chapters start on a right-hand page
+              </label>
+              <p className="export-more-note">
+                {trim.name} pages, about {pages.toLocaleString()} of them: {insideMargin(pages)} in at the spine, {OUTSIDE} in at the outside edge; your name over left-hand pages and the title over right-hand ones. Scene breaks are lines of {'*\u00a0*\u00a0*'} (or the Scene Break style). In the print window, choose Save as PDF: that’s the interior file to upload (on KDP, Paperback content → Manuscript, with the same trim size).
+              </p>
+            </div>
+          )}
           <p className="menu-label">Included</p>
           <label className="check-row">
             <input type="checkbox" checked={way !== 'epub' && !!opts.titlePage} disabled={way === 'epub'} onChange={(e) => setOpts({ ...opts, titlePage: e.target.checked })} />
@@ -139,11 +210,18 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
               Cancel
             </button>
             <button type="button" className="btn primary" aria-label={action} disabled={busy || !list.length} onClick={go}>
-              {way === 'pdf' ? 'Print or save as PDF…' : `Export .${way}`}
+              {way === 'pdf' ? 'Print or save as PDF…' : way === 'book' ? 'Make the PDF…' : `Export .${way}`}
             </button>
           </footer>
         </div>
         <aside className="export-preview" aria-label="Preview of page 1">
+          {way === 'book' && first ? (
+            <div className={`export-page book-page ${design.headings}`} aria-hidden="true" style={{ aspectRatio: `${trim.w} / ${trim.h}`, fontFamily: `'${design.font}', Georgia, serif` }}>
+              {design.headings !== 'simple' && <div className="bp-num">{design.headings === 'classic' ? `Chapter ${numberInWords(first.number)}` : first.number}</div>}
+              {first.chapter.title.trim() && first.chapter.title.trim() !== `Chapter ${first.number}` && <div className="bp-title">{first.chapter.title}</div>}
+              <p className={design.dropCaps ? 'bp-drop' : undefined}>{first.chapter.doc.blocks.map(blockText).join(' ').slice(0, 520) || 'The first lines of the chapter.'}</p>
+            </div>
+          ) : (
           <div className="export-page" aria-hidden="true">
             <div className="export-page-head">{[author.split(/\s+/).pop(), (project.name || 'Untitled').toUpperCase(), '1'].filter(Boolean).join(' / ')}</div>
             {opts.titlePage && way !== 'epub' && first ? (
@@ -165,7 +243,8 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
               <p>No chapters to export.</p>
             )}
           </div>
-          <small>Page 1</small>
+          )}
+          <small>{way === 'book' ? `A chapter’s first page, ${trim.name}` : 'Page 1'}</small>
         </aside>
       </div>
     </div>,

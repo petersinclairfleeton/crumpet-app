@@ -24,6 +24,7 @@ import { removeRevisionColors } from './revisions';
 import { type CastMember, type Chapter, type ChapterDraft, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, SHARED_SETTINGS, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
 import { inOrder, moveInOrder, notebookTree, projectsInOrder } from './selectors';
 import { type BookPlan, tidyPlan } from './plan';
+import type { BookDesign } from './bookdesign';
 import { activeTab, tidyWorkspace } from './panes';
 
 export interface AppState {
@@ -697,7 +698,7 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.linked?.length ? { linked: t.linked } : {}), ...(t.deadline ? { deadline: t.deadline } : {}), ...(t.draft ? { draft: t.draft } : {}), ...(t.plan ? { plan: t.plan } : {}), ...(t.series ? { series: t.series } : {}) };
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.linked?.length ? { linked: t.linked } : {}), ...(t.deadline ? { deadline: t.deadline } : {}), ...(t.draft ? { draft: t.draft } : {}), ...(t.plan ? { plan: t.plan } : {}), ...(t.series ? { series: t.series } : {}), ...(t.design ? { design: t.design } : {}) };
       if (
         cur &&
         cur.name === next.name &&
@@ -712,7 +713,8 @@ export class AppStore {
         JSON.stringify(cur.deadline ?? null) === JSON.stringify(next.deadline ?? null) &&
         JSON.stringify(cur.draft ?? null) === JSON.stringify(next.draft ?? null) &&
         JSON.stringify(cur.plan ?? null) === JSON.stringify(next.plan ?? null) &&
-        (cur.series ?? '') === (next.series ?? '')
+        (cur.series ?? '') === (next.series ?? '') &&
+        JSON.stringify(cur.design ?? null) === JSON.stringify(next.design ?? null)
       )
         return cur;
       this.save(this.storage.putProject(next));
@@ -973,6 +975,11 @@ export class AppStore {
     if (!updated) return;
     this.set({ projects });
     this.save(this.storage.putProject(updated));
+  }
+
+  /** The book's print design (Export → Print-ready book). */
+  setBookDesign(id: string, design: BookDesign): void {
+    this.updateProject(id, { design });
   }
 
   /** Puts a book in a series (by name; empty takes it out). */

@@ -17,6 +17,7 @@ import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { type BookDraft, type CastMember, type ChapterStatus, type Deadline, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 import { type BookPlan, cleanPlan } from '../data/plan';
+import { type BookDesign, cleanDesign } from '../data/bookdesign';
 import { cleanTies } from '../data/family';
 import { FIRST_DRAFT } from '../data/drafts';
 import { ATTACHMENTS, DRAFTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, RESEARCH, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
@@ -62,6 +63,7 @@ export interface ProjectJson {
   draft?: BookDraft;
   plan?: BookPlan;
   series?: string;
+  design?: BookDesign;
   created: number;
   updated: number;
 }
@@ -154,7 +156,7 @@ function cleanBookDraft(d: unknown): BookDraft | undefined {
 }
 
 export function writeProject(p: ProjectJson): string {
-  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}), ...(p.plan ? { plan: p.plan } : {}), ...(p.series ? { series: p.series } : {}) }, null, 2)}\n`;
+  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}), ...(p.plan ? { plan: p.plan } : {}), ...(p.series ? { series: p.series } : {}), ...(p.design ? { design: p.design } : {}) }, null, 2)}\n`;
 }
 
 const STATUSES = new Set<ChapterStatus>(['todo', 'draft', 'revised', 'done']);
@@ -498,6 +500,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       ...(cleanBookDraft(json.draft) ? { draft: cleanBookDraft(json.draft) } : {}),
       ...(cleanPlan(json.plan) ? { plan: cleanPlan(json.plan) } : {}),
       ...(typeof json.series === 'string' && json.series.trim() ? { series: json.series.trim() } : {}),
+      ...(cleanDesign(json.design) ? { design: cleanDesign(json.design) } : {}),
     };
     where.projects[id] = dir;
   }
