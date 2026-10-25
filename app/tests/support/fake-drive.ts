@@ -1,6 +1,7 @@
 // Just enough of Google Drive's REST API (v3), in memory, for tests.
 
 const FOLDER = 'application/vnd.google-apps.folder';
+const GOOGLE_DOC = 'application/vnd.google-apps.document';
 
 interface FakeFile {
   id: string;
@@ -12,6 +13,10 @@ interface FakeFile {
   version: number;
   modifiedTime: string;
   createdTime: number;
+  /** Who can open it by its link (Google Docs shared with readers). */
+  permissions?: { role: string; type: string }[];
+  /** Readers' comments, as Drive's comments API gives them. */
+  comments?: unknown[];
 }
 
 /** Just enough of Google Drive's REST API, in memory. */
@@ -38,7 +43,7 @@ export class FakeDrive {
       return new Response('rate limit exceeded', { status: 429 });
     }
     const path = url.pathname.replace(/^\/(upload\/)?drive\/v3/, '');
-    const m = /^\/files(?:\/([^/]+))?$/.exec(path);
+    const m = /^\/files(?:\/([^/]+))?(?:\/(permissions|comments))?$/.exec(path);
     if (!m) return new Response('not found', { status: 404 });
     const id = m[1];
     const json = (x: unknown) => new Response(JSON.stringify(x), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -66,6 +71,11 @@ export class FakeDrive {
     }
     const f = id ? this.files.get(id) : undefined;
     if (!f) return new Response('not found', { status: 404 });
+    if (m[2] === 'permissions' && method === 'POST') {
+      (f.permissions ??= []).push(JSON.parse(String(init.body)));
+      return json({ id: `perm${f.permissions.length}` });
+    }
+    if (m[2] === 'comments') return method === 'GET' ? json({ comments: f.comments ?? [] }) : new Response('bad', { status: 400 });
     if (method === 'GET') return url.searchParams.get('alt') === 'media' ? new Response(f.content) : json(meta(f));
     if (method === 'PATCH') {
       if (url.pathname.startsWith('/upload')) {
@@ -101,7 +111,7 @@ export class FakeDrive {
 }
 
 function meta(f: FakeFile) {
-  return { id: f.id, name: f.name, mimeType: f.mimeType, parents: f.parents, version: String(f.version), modifiedTime: f.modifiedTime, ...(f.mimeType === FOLDER ? {} : { md5Checksum: `md5-${hash(f.content)}` }) };
+  return { id: f.id, name: f.name, mimeType: f.mimeType, parents: f.parents, version: String(f.version), modifiedTime: f.modifiedTime, ...(f.mimeType === FOLDER ? {} : { md5Checksum: `md5-${hash(f.content)}` }), ...(f.mimeType === GOOGLE_DOC ? { webViewLink: `https://docs.google.com/document/d/${f.id}/edit` } : {}) };
 }
 
 function hash(s: string) {

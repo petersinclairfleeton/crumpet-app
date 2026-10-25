@@ -173,7 +173,7 @@ export interface Snippet {
 }
 
 /** Settings shared by every device through the synced folder (the rest stay on this device). */
-export const SHARED_SETTINGS = ['noteStyles', 'notePage', 'sideOrder', 'defaultStyles', 'sources', 'citeStyle', 'snippets'] as const;
+export const SHARED_SETTINGS = ['noteStyles', 'notePage', 'sideOrder', 'defaultStyles', 'sources', 'citeStyle', 'snippets', 'shares'] as const;
 export type SharedSetting = (typeof SHARED_SETTINGS)[number];
 
 export interface Settings {
@@ -211,6 +211,8 @@ export interface Settings {
   /** A writing sprint under way (kept through a reload), and the sprints done, newest first. */
   sprint?: import('./sprints').Sprint | null;
   sprints?: import('./sprints').SprintDone[];
+  /** Copies shared with readers as Google Docs (Share with readers), with the comments brought back from each. */
+  shares?: import('./share').Shared[];
   /** Read aloud: speed (1 = normal) and the voice chosen (its voiceURI). */
   speech?: { rate?: number; voice?: string | null };
   /** Keep versions of notes and chapters automatically while writing (on unless turned off). */

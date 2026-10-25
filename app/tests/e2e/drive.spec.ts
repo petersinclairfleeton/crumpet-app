@@ -233,3 +233,57 @@ test('“Syncing…” shows while changes are on their way, then “Synced”, 
   await expect(note).toHaveCount(0);
   expect(vault(drive, 'Crumpet')).toContain('On its way again.md');
 });
+
+// Share with readers: a copy as a Google Doc in a folder of its own, open to comments by its link; readers'
+// comments come back onto the words they're on.
+const GOOGLE_DOC = 'application/vnd.google-apps.document';
+
+test('share a note with readers as a Google Doc, then bring their comments back onto the text', async ({ browser }) => {
+  const drive = new FakeDrive();
+  const page = await device(browser, drive);
+  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The lamp had not been lit. The keeper waited by the stove.');
+  await page.locator('.note-pane').getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'Share with readers…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Share with readers' });
+  await expect(dialog).toContainText('Crumpet – shared copies');
+  await dialog.getByRole('button', { name: 'Make a link' }).click();
+  await expect(dialog.getByRole('status')).toContainText('Copied the link', { timeout: 15_000 });
+
+  // In Drive: a Google Doc in its own folder, anyone with the link can comment; the notes' own folder isn't touched.
+  const doc = [...drive.files.values()].find((f) => f.mimeType === GOOGLE_DOC)!;
+  expect(doc.name).toBe('The Lighthouse');
+  expect(drive.files.get(doc.parents[0])?.name).toBe('Crumpet – shared copies');
+  expect(doc.permissions).toEqual([{ role: 'commenter', type: 'anyone', allowFileDiscovery: false }]);
+  await expect(dialog.getByRole('link', { name: 'The Lighthouse' })).toHaveAttribute('href', `https://docs.google.com/document/d/${doc.id}/edit`);
+  await expect(dialog.getByRole('list', { name: 'Shared copies' })).toContainText('readers can comment');
+
+  // Nothing yet; then a reader comments on some words, and one more on words since cut.
+  await dialog.getByRole('button', { name: 'Bring back comments' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('No comments yet.');
+  doc.comments = [
+    { id: 'k1', content: 'Why not? Say more.', quotedFileContent: { value: 'not been lit' }, author: { displayName: 'Ann Reader' }, createdTime: '2026-10-20T10:30:00Z', resolved: false, replies: [{ content: 'Agreed!', author: { displayName: 'Bo' }, createdTime: '2026-10-20T11:00:00Z' }] },
+    { id: 'k2', content: 'Lovely.', quotedFileContent: { value: 'a line since cut' }, author: { displayName: 'Bo' }, createdTime: '2026-10-21T09:00:00Z', resolved: false, replies: [] },
+  ];
+  await dialog.getByRole('button', { name: 'Bring back comments' }).click();
+  await expect(dialog.getByRole('status')).toContainText('2 comments brought back (1 on words that have since changed');
+  await expect(dialog.getByRole('list', { name: 'Shared copies' })).toContainText('2 comments brought back');
+  // Once only.
+  await dialog.getByRole('button', { name: 'Bring back comments' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('No new comments since you last looked.');
+  await dialog.getByRole('button', { name: 'Close' }).click();
+
+  const marked = page.locator('.note-pane [contenteditable] [data-comment]');
+  await expect(marked.filter({ hasText: 'not been lit' })).toHaveAttribute('data-author', 'Ann Reader');
+  const note = await page.evaluate(() => {
+    const store = (window as unknown as { crumpet: { getState(): { notes: { title: string; doc: { blocks: { runs: { text: string; comment?: { text: string; replies?: { text: string }[] } }[] }[] } }[] } } }).crumpet;
+    const n = store.getState().notes.find((x) => x.title === 'The Lighthouse')!;
+    return n.doc.blocks.flatMap((b) => b.runs.filter((r) => r.comment).map((r) => [r.text, r.comment!.text, r.comment!.replies?.map((x) => x.text) ?? []]));
+  });
+  expect(note).toEqual([
+    ['The', 'On “a line since cut”: Lovely.', []],
+    ['not been lit', 'Why not? Say more.', ['Agreed!']],
+  ]);
+});

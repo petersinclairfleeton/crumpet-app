@@ -34,6 +34,7 @@ import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from '
 import { type PrintPart, PrintJob } from './print';
 import { type BookOptions, bookParts, finalDoc } from '../data/wordfiles';
 import { ExportBook } from './exportbook';
+import { ShareDialog } from './share';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
 import { PlanView } from './plan';
@@ -176,6 +177,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
   const [itemAt, setItemAt] = useState<{ id: string; x: number; y: number } | null>(null);
   const [printing, setPrinting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   // Printing from the Export window can leave out the chapters marked To do.
   const [printSkipTodo, setPrintSkipTodo] = useState(false);
   // And add a title page and part pages, or leave out comments and tracked changes (BookOptions).
@@ -237,6 +239,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
           }}
         />
       )}
+      {sharing && <ShareDialog what={{ kind: 'book', id: project.id }} onClose={() => setSharing(false)} />}
       {printing && <PrintJob title={project.name} parts={printParts} page={project.page ?? manuscriptPage()} sheet={fullSheet(project.styles, 'manuscript')} chapters onDone={() => setPrinting(false)} />}
       <header className={`list-head${calm ? ' book-head' : ''}`}>
         {phone && (
@@ -314,6 +317,9 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                       }}
                     >
                       Export: Word, e-book, PDF…
+                    </button>
+                    <button type="button" className="menu-item" onClick={() => (setMenu(null), setSharing(true))}>
+                      Share with readers…
                     </button>
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                       {calm || phone ? 'Delete book…' : 'Delete project'}
@@ -854,6 +860,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
   const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords' | 'synopsis' | 'draft'>(null);
   // A phone writes without pages: Preview pages shows how the chapter falls on them.
   const [previewing, setPreviewing] = useState(false);
+  const [sharing, setSharing] = useState(false);
   // An iPad held upright (design 15): the outline button and where you are, the chapters a menu away.
   const midWidth = useMedia('(max-width: 1099px)');
   const compact = calm && midWidth && !state.query.trim();
@@ -1029,6 +1036,9 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
               <button type="button" className="menu-item" onClick={() => setChapterMenu('draft')}>
                 New draft…
               </button>
+              <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), setSharing(true))}>
+                Share with readers…
+              </button>
               {phone && (
                 <button type="button" className="menu-item" onClick={() => setChapterMenu('synopsis')}>
                   Synopsis…
@@ -1077,6 +1087,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
           onDone={() => setPreviewing(false)}
         />
       )}
+      {sharing && <ShareDialog what={{ kind: 'chapter', id: chapter.id }} onClose={() => setSharing(false)} />}
     </div>
   );
 

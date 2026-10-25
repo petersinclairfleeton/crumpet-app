@@ -66,6 +66,20 @@ function makeAuth(clientId: string): Auth {
   return desktop?.google ? new DesktopGoogleAuth(clientId, desktop.google) : new GoogleAuth(clientId);
 }
 
+let sharing: Auth | null = null;
+
+/**
+ * Signs in to Google for sharing copies (call from a click, as it may open Google's window), and returns a way
+ * to get access tokens. Asks only the first time; after that the sign-in is reused, as it is for syncing.
+ */
+export async function googleReady(): Promise<(fresh?: boolean) => Promise<string>> {
+  if (!BUILT_IN_CLIENT_ID) throw new ProviderError('Google sign-in isn’t set up in this copy of Crumpet.', 'other');
+  const auth = (sharing ??= makeAuth(BUILT_IN_CLIENT_ID));
+  if (auth instanceof GoogleAuth) await auth.getToken(false, true);
+  else await auth.getToken().catch(() => auth.signIn());
+  return (fresh?: boolean) => auth.getToken(fresh);
+}
+
 export class SyncConnection {
   private state: ConnectionState = { config: null, status: null, connecting: false, choosing: null };
   private listeners = new Set<() => void>();
