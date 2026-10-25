@@ -37,6 +37,7 @@ import { ExportBook } from './exportbook';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
 import { PlanView } from './plan';
+import { findMember, seriesBooks, seriesLine, seriesNames } from '../data/series';
 import { CastList, CastPane, CastSpotting } from './cast';
 import { FoldButton } from './fold';
 import { startTabDrag } from './tabdrag';
@@ -169,7 +170,7 @@ export function shownOutline(project: Project, chapters: Chapter[], word: string
 export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Project; onOpenChapter(id: string): void; onBack?(): void }) {
   const state = useAppState();
   const store = useAppStore();
-  const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'deadline' | 'delete' | 'draft' | 'draftnote'>(null);
+  const [menu, setMenu] = useState<null | 'menu' | 'rename' | 'goal' | 'deadline' | 'delete' | 'draft' | 'draftnote' | 'series'>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
   // A chapter or part right-clicked in the outline: its menu where the pointer is.
   const [itemAt, setItemAt] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -266,17 +267,21 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
               <h1>{project.name}</h1>
               <p>
                 {chapters.size} chapter{chapters.size === 1 ? '' : 's'}
+                {project.series && <> · {seriesLine(state.projects, project)}</>}
               </p>
             </div>
           ) : (
-            <h1>{project.name}</h1>
+            <div className="book-name">
+              <h1>{project.name}</h1>
+              {project.series && <p className="book-series">{seriesLine(state.projects, project)}</p>}
+            </div>
           )}
           <span className="grow" />
           <div className="note-actions">
             <button type="button" className="icon-btn" aria-label="Project options" aria-expanded={menu === 'menu'} onClick={() => setMenu(menu ? null : 'menu')}>
               <IconMore size={16} />
             </button>
-            {(menu === 'menu' || menu === 'delete' || menu === 'goal' || menu === 'deadline' || menu === 'draft') && (
+            {(menu === 'menu' || menu === 'delete' || menu === 'goal' || menu === 'deadline' || menu === 'draft' || menu === 'series') && (
               <Popover onClose={() => setMenu(null)} label="Project options">
                 {menu === 'menu' && (
                   <>
@@ -297,6 +302,9 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                     <button type="button" className="menu-item" onClick={() => setMenu('draft')}>
                       New draft of the book…
                     </button>
+                    <button type="button" className="menu-item" onClick={() => setMenu('series')}>
+                      {project.series ? `Series: ${project.series}…` : 'Part of a series…'}
+                    </button>
                     <button
                       type="button"
                       className="menu-item"
@@ -310,6 +318,22 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                       {calm || phone ? 'Delete book…' : 'Delete project'}
                     </button>
+                  </>
+                )}
+                {menu === 'series' && (
+                  <>
+                    <p className="menu-label">The series’ name</p>
+                    <InlineInput
+                      label="Series"
+                      placeholder="The Lighthouse Trilogy"
+                      initial={project.series ?? ''}
+                      list={seriesNames(state.projects)}
+                      onDone={(name) => {
+                        setMenu(null);
+                        if (name !== null) store.setSeries(project.id, name);
+                      }}
+                    />
+                    <p className="menu-hint">Books in the same series share their characters, places and research. Leave it empty to take this book out.</p>
                   </>
                 )}
                 {menu === 'draft' && <BookDraftForm project={project} chapters={[...chapters.values()].map((x) => x.chapter)} onDone={() => setMenu(null)} />}
@@ -763,15 +787,18 @@ export function ProjectPane({ project, narrow, onBack }: { project: Project; nar
   const state = useAppState();
   const store = useAppStore();
   const linked = !!state.researchId && !!project.linked?.includes(state.researchId);
-  const research = state.notes.find((n) => n.id === state.researchId && (n.projectId === project.id || (linked && !n.projectId)) && n.trashedAt === null);
-  const member = project.cast?.find((m) => m.id === state.castId);
+  // Research and cards from the series' other books open here too (kept, and edited, in their own book).
+  const fromSeries = seriesBooks(state.projects, project).map((p) => p.id);
+  const research = state.notes.find((n) => n.id === state.researchId && ((n.projectId && fromSeries.includes(n.projectId)) || (linked && !n.projectId)) && n.trashedAt === null);
+  const found = state.castId ? findMember(state.projects, project, state.castId) : null;
+  const member = found?.member;
   if (!research && !member) return <ProjectWriting project={project} narrow={narrow} onBack={onBack} />;
   // On a phone, closing a card or research note goes back to the book's outline.
   const close = (clear: () => void) => () => {
     clear();
     if (narrow) onBack();
   };
-  const pane = member ? <CastPane key={member.id} project={project} member={member} narrow={narrow} onClose={close(() => store.openCast(null))} /> : <ResearchPane key={research!.id} note={research!} linkedTo={linked ? project.id : undefined} onClose={close(() => store.openResearch(null))} />;
+  const pane = member ? <CastPane key={member.id} project={found!.book} member={member} narrow={narrow} onClose={close(() => store.openCast(null))} /> : <ResearchPane key={research!.id} note={research!} linkedTo={linked ? project.id : undefined} onClose={close(() => store.openResearch(null))} />;
   // Research opens beside the writing (on a phone, instead of it).
   if (narrow) return pane;
   return (

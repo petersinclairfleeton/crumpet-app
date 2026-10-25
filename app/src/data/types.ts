@@ -90,6 +90,8 @@ export interface Project {
   draft?: BookDraft;
   /** Its plan: plotlines, the story's timeline, and a structure's beats (the outline's Plan view). */
   plan?: import('./plan').BookPlan;
+  /** The series it's in (books with the same series name share their characters, places and research). */
+  series?: string;
   createdAt: number;
   updatedAt: number;
 }

@@ -61,6 +61,7 @@ export interface ProjectJson {
   deadline?: Deadline;
   draft?: BookDraft;
   plan?: BookPlan;
+  series?: string;
   created: number;
   updated: number;
 }
@@ -153,7 +154,7 @@ function cleanBookDraft(d: unknown): BookDraft | undefined {
 }
 
 export function writeProject(p: ProjectJson): string {
-  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}), ...(p.plan ? { plan: p.plan } : {}) }, null, 2)}\n`;
+  return `${JSON.stringify({ id: p.id, name: p.name, goal: p.goal, created: p.created, updated: p.updated, outline: p.outline, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}), ...(p.plan ? { plan: p.plan } : {}), ...(p.series ? { series: p.series } : {}) }, null, 2)}\n`;
 }
 
 const STATUSES = new Set<ChapterStatus>(['todo', 'draft', 'revised', 'done']);
@@ -496,6 +497,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       ...(cleanDeadline(json.deadline) ? { deadline: cleanDeadline(json.deadline) } : {}),
       ...(cleanBookDraft(json.draft) ? { draft: cleanBookDraft(json.draft) } : {}),
       ...(cleanPlan(json.plan) ? { plan: cleanPlan(json.plan) } : {}),
+      ...(typeof json.series === 'string' && json.series.trim() ? { series: json.series.trim() } : {}),
     };
     where.projects[id] = dir;
   }

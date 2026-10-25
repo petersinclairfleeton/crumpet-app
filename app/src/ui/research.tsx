@@ -16,6 +16,7 @@ import { IconChevron, IconClose, IconLink, IconMore, IconNote, IconPlus } from '
 import { tabDrag } from './tabdrag';
 import { InlineInput, Popover } from './Sidebar';
 import { Item, MenuAtPoint, Rule } from './contextmenu';
+import { seriesResearch } from '../data/series';
 import { usePanes } from './panes';
 
 type Kind = 'note' | 'picture' | 'pdf' | 'file' | 'clipping';
@@ -140,6 +141,7 @@ export function ResearchList({ project, phone = false }: { project: Project; pho
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const items = useMemo(() => state.notes.filter((n) => n.projectId === project.id && n.trashedAt === null).sort((a, b) => a.title.localeCompare(b.title)), [state.notes, project.id]);
   const linked = store.linkedNotes(project.id);
+  const fromSeries = seriesResearch(state.notes, state.projects, project);
   // A linked note drags out as the note it is.
   const row = (n: Note, glyph: React.ReactNode) => (
     <li key={n.id}>
@@ -222,6 +224,18 @@ export function ResearchList({ project, phone = false }: { project: Project; pho
               </span>,
             ),
           )}
+          {fromSeries.length > 0 && <li className="research-from">From the series</li>}
+          {fromSeries.map(({ note: n, book }) => (
+            <li key={n.id}>
+              <button type="button" className={`research-item${state.researchId === n.id ? ' selected' : ''}`} title={`From ${book.name}`} onClick={() => store.openResearch(state.researchId === n.id ? null : n.id)} {...tabDrag({ kind: 'research', id: n.id })}>
+                <span className={`research-glyph ${researchKind(n)}`} aria-label={KIND_LABEL[researchKind(n)]}>
+                  {KIND_GLYPH[researchKind(n)]}
+                </span>
+                <span className="grow ellipsis">{displayTitle(n)}</span>
+                <small className="research-book">{book.name}</small>
+              </button>
+            </li>
+          ))}
         </ul>
       )}
       {menu && <ResearchMenu project={project} id={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}

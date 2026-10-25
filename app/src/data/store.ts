@@ -697,7 +697,7 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.linked?.length ? { linked: t.linked } : {}), ...(t.deadline ? { deadline: t.deadline } : {}), ...(t.draft ? { draft: t.draft } : {}), ...(t.plan ? { plan: t.plan } : {}) };
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.linked?.length ? { linked: t.linked } : {}), ...(t.deadline ? { deadline: t.deadline } : {}), ...(t.draft ? { draft: t.draft } : {}), ...(t.plan ? { plan: t.plan } : {}), ...(t.series ? { series: t.series } : {}) };
       if (
         cur &&
         cur.name === next.name &&
@@ -711,7 +711,8 @@ export class AppStore {
         JSON.stringify(cur.linked ?? null) === JSON.stringify(next.linked ?? null) &&
         JSON.stringify(cur.deadline ?? null) === JSON.stringify(next.deadline ?? null) &&
         JSON.stringify(cur.draft ?? null) === JSON.stringify(next.draft ?? null) &&
-        JSON.stringify(cur.plan ?? null) === JSON.stringify(next.plan ?? null)
+        JSON.stringify(cur.plan ?? null) === JSON.stringify(next.plan ?? null) &&
+        (cur.series ?? '') === (next.series ?? '')
       )
         return cur;
       this.save(this.storage.putProject(next));
@@ -972,6 +973,11 @@ export class AppStore {
     if (!updated) return;
     this.set({ projects });
     this.save(this.storage.putProject(updated));
+  }
+
+  /** Puts a book in a series (by name; empty takes it out). */
+  setSeries(id: string, name: string): void {
+    this.updateProject(id, { series: name.trim() || undefined });
   }
 
   /** A book's plan (plotlines, timeline, structure), without its empty parts. */
