@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-printbook',
+    date: '26 October 2026',
+    title: 'Print-ready books',
+    points: [
+      'A book’s Export has a new way out, Print-ready book: its pages laid out as a paperback, for Amazon KDP, IngramSpark or a local printer.',
+      'Choose the trim size (5 × 8, 5.25 × 8, 5.5 × 8.5 or 6 × 9 inches), the typeface (EB Garamond, Libre Baskerville or Crimson Pro), how chapters open (Classic, Modern or Simple) with a drop cap and small capitals, and the scene break ornament for your * * * lines.',
+      'Chapters start on right-hand pages, the margin at the spine widens with the book’s length (mirrored on left and right pages), your name heads left-hand pages and the title right-hand ones. Save as PDF in the print window gives the interior file to upload. The design is kept with the book.',
+    ],
+  },
+  {
     id: '2026-10-26-share',
     date: '26 October 2026',
     title: 'Share with beta readers',

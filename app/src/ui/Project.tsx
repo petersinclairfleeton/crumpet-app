@@ -34,6 +34,7 @@ import { ChangeCard, ChangesBar, RevisionChip, TrackToggle, useTracking } from '
 import { type PrintPart, PrintJob } from './print';
 import { type BookOptions, bookParts, finalDoc } from '../data/wordfiles';
 import { ExportBook } from './exportbook';
+import { type BookDesign, chapterOpening, designDoc, estimatePages, printPage, titlePage } from '../data/bookdesign';
 import { ShareDialog } from './share';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
@@ -182,24 +183,36 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
   const [printSkipTodo, setPrintSkipTodo] = useState(false);
   // And add a title page and part pages, or leave out comments and tracked changes (BookOptions).
   const [printOpts, setPrintOpts] = useState<BookOptions>({});
+  // Or a print-ready book, in its design.
+  const [printBook, setPrintBook] = useState<BookDesign | null>(null);
   const printParts = useMemo(() => {
     if (!printing) return [];
     const chapters = printSkipTodo ? state.chapters.filter((c) => c.status !== 'todo') : state.chapters;
     const out: PrintPart[] = [];
-    if (printOpts.titlePage) out.push({ id: 'title-page', doc: bookParts({ ...state, chapters }, project, { titlePage: true })[0].doc, fields: { title: project.name, words: 0 } });
+    // A printed book's title page is its title and author; a manuscript's adds its length.
+    const author = project.page?.hf?.author || state.settings.name || '';
+    if (printOpts.titlePage) out.push({ id: 'title-page', doc: printBook ? { blocks: titlePage(project.name, author) } : bookParts({ ...state, chapters }, project, { titlePage: true })[0].doc, fields: { title: project.name, words: 0 } });
     let partNow: string | null = null;
     for (const { chapter, number, part } of projectChapters(project, chapters)) {
       if (printOpts.partHeadings && part && part.id !== partNow) out.push({ id: part.id, doc: { blocks: [makeBlock('heading1', part.title || 'Part')] }, fields: { title: project.name, part: part.title, words: 0 } });
       partNow = part?.id ?? null;
-      const doc = printOpts.notes === false ? finalDoc(chapter.doc) : chapter.doc;
+      const text = printOpts.notes === false ? finalDoc(chapter.doc) : chapter.doc;
+      const doc = printBook ? designDoc(text, printBook) : text;
       out.push({
         id: chapter.id,
-        doc: { blocks: [makeBlock('heading1', chapter.title || `Chapter ${number}`), ...doc.blocks] },
+        doc: { blocks: [...(printBook ? chapterOpening(printBook, number, chapter.title) : [makeBlock('heading1', chapter.title || `Chapter ${number}`)]), ...doc.blocks] },
         fields: { title: project.name, chapter: number, chapterTitle: chapter.title, part: part?.title, words: chapterWords(chapter) },
       });
     }
     return out;
-  }, [printing, printSkipTodo, printOpts, project, state.chapters, state.settings.name]);
+  }, [printing, printSkipTodo, printOpts, printBook, project, state.chapters, state.settings.name]);
+  // A print-ready book's pages: its trim size, margins for its length, and running heads.
+  const bookPrint = useMemo(() => {
+    if (!printBook) return null;
+    const words = printParts.reduce((n, p) => n + (p.fields.words ?? 0), 0);
+    const pages = estimatePages(words, printBook) + printParts.length;
+    return { design: printBook, pages, page: printPage(printBook, pages, project.page?.hf?.author || state.settings.name || undefined) };
+  }, [printBook, printParts, project.page, state.settings.name]);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
@@ -232,15 +245,29 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
         <ExportBook
           project={project}
           onClose={() => setExporting(false)}
-          onPrint={(skip, opts) => {
+          onPrint={(skip, opts, design) => {
             setPrintSkipTodo(skip);
             setPrintOpts(opts);
+            setPrintBook(design ?? null);
             setPrinting(true);
           }}
         />
       )}
       {sharing && <ShareDialog what={{ kind: 'book', id: project.id }} onClose={() => setSharing(false)} />}
-      {printing && <PrintJob title={project.name} parts={printParts} page={project.page ?? manuscriptPage()} sheet={fullSheet(project.styles, 'manuscript')} chapters onDone={() => setPrinting(false)} />}
+      {printing && (
+        <PrintJob
+          title={project.name}
+          parts={printParts}
+          page={bookPrint?.page ?? project.page ?? manuscriptPage()}
+          sheet={fullSheet(project.styles, 'manuscript')}
+          chapters
+          book={bookPrint ?? undefined}
+          onDone={() => {
+            setPrinting(false);
+            setPrintBook(null);
+          }}
+        />
+      )}
       <header className={`list-head${calm ? ' book-head' : ''}`}>
         {phone && (
           <div className="phone-bar">

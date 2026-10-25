@@ -132,6 +132,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       ...withValue('draft', jsonField(b?.draft, l.draft, r.draft, r.updated > l.updated ? r.draft : l.draft)),
       ...withValue('plan', mergePlan(b?.plan, l.plan, r.plan, r.updated > l.updated)),
       ...withValue('series', jsonField(b?.series, l.series, r.series, r.updated > l.updated ? r.series : l.series)),
+      ...withValue('design', jsonField(b?.design, l.design, r.design, r.updated > l.updated ? r.design : l.design)),
     }));
     if (p) tree.projects[id] = p;
   }

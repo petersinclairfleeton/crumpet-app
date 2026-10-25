@@ -13,6 +13,8 @@ import { useDocEditor } from './editing';
 import { useFootnoteStart } from './booktoc';
 import { footnotes } from '@crumpet/editor/model';
 import { useSheetClass } from './styles-ui';
+import { type BookDesign, bookOffsets, designCss, mirrorShift, trimOf } from '../data/bookdesign';
+import { loadGoogleFont } from './fonts';
 
 export interface PrintPart {
   id: string;
@@ -25,7 +27,7 @@ function Part({ part, page, sheetClass, offset, total, chapters, onPages, footno
   useFootnoteStart(editor, footnoteStart);
   const report = useCallback((n: number) => onPages(part.id, n), [onPages, part.id]);
   return (
-    <div className="print-part">
+    <div className="print-part" data-offset={offset}>
       <PageView enabled print editor={editor} page={page} sheetClass={sheetClass} fields={part.fields} place={{ offset, chapterStart: true, total }} chapters={chapters} onPages={report}>
         <div ref={host} className="note-editor" />
       </PageView>
@@ -33,20 +35,51 @@ function Part({ part, page, sheetClass, offset, total, chapters, onPages, footno
   );
 }
 
+/** A blank page (before a chapter that starts on a right-hand page): its paper alone. */
+function blankPage(sheet: HTMLElement, viewClass: string): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'print-page blank';
+  box.style.width = sheet.style.width;
+  box.style.height = sheet.style.height;
+  const pv = document.createElement('div');
+  pv.className = viewClass;
+  const inner = document.createElement('div');
+  inner.className = 'page-inner';
+  inner.style.transform = `translate(${-(parseFloat(sheet.style.left) || 0)}px, ${-(parseFloat(sheet.style.top) || 0)}px)`;
+  inner.appendChild(sheet.cloneNode(false));
+  pv.appendChild(inner);
+  box.appendChild(pv);
+  return box;
+}
+
 /**
  * Each page on a sheet of its own for the printer: a copy of that page (its
  * paper, header and footer, footnotes and text) in a box the page's size,
- * so a landscape page can go on paper turned on its side.
+ * so a landscape page can go on paper turned on its side. A printed book's
+ * (`shift`) has blank pages where its parts' offsets leave a gap, and each
+ * page's text moved sideways by `shift(page index)` pixels.
  */
-function printPages(root: HTMLElement): void {
+function printPages(root: HTMLElement, shift?: (index: number) => number): void {
   root.querySelector(':scope > .print-pages')?.remove();
   const out = document.createElement('div');
   out.className = 'print-pages';
+  let at = 0;
   for (const part of Array.from(root.querySelectorAll<HTMLElement>(':scope > .print-part'))) {
     const view = part.querySelector<HTMLElement>('.page-view');
     const editor = part.querySelector<HTMLElement>('.page-text > .note-editor, .page-text [contenteditable]');
     if (!view || !editor) continue;
-    Array.from(part.querySelectorAll<HTMLElement>('.page-inner > .sheet')).forEach((sheet, i) => {
+    const sheets = Array.from(part.querySelectorAll<HTMLElement>('.page-inner > .sheet'));
+    const start = Number(part.dataset.offset) || 0;
+    while (shift && sheets[0] && at < start) {
+      out.appendChild(blankPage(sheets[0], view.className));
+      at++;
+    }
+    sheets.forEach((sheet, i) => {
+      const dx = shift ? shift(at++) : 0;
+      const moved = (el: HTMLElement) => {
+        if (dx) el.style.translate = `${dx}px 0`;
+        return el;
+      };
       const top = parseFloat(sheet.style.top) || 0;
       const left = parseFloat(sheet.style.left) || 0;
       const landscape = sheet.classList.contains('landscape');
@@ -62,7 +95,7 @@ function printPages(root: HTMLElement): void {
       inner.appendChild(sheet.cloneNode(true));
       for (const sel of [`.hf-page[data-sheet="${i}"]`, `.page-notes-zone[data-notes-page="${i}"]`]) {
         const el = part.querySelector(sel);
-        if (el) inner.appendChild(el.cloneNode(true));
+        if (el) inner.appendChild(moved(el.cloneNode(true) as HTMLElement));
       }
       const pg = editor.querySelector<HTMLElement>(`:scope > .pg[data-page="${i}"]`);
       if (pg) {
@@ -77,7 +110,7 @@ function printPages(root: HTMLElement): void {
         copy.style.margin = '0';
         ed.appendChild(copy);
         text.appendChild(ed);
-        inner.appendChild(text);
+        inner.appendChild(moved(text));
       }
       pv.appendChild(inner);
       pageBox.appendChild(pv);
@@ -87,24 +120,43 @@ function printPages(root: HTMLElement): void {
   root.appendChild(out);
 }
 
-/** Lays the parts out on pages, opens the print window (or, with `preview`, the pages to look through), and calls `onDone` when it closes. */
-export function PrintJob({ title, parts, page, sheet, chapters = false, preview = false, onDone }: { title: string; parts: PrintPart[]; page: PageSetup; sheet: StyleSheet; chapters?: boolean; preview?: boolean; onDone(): void }) {
-  const sheetClass = useSheetClass(sheet);
+/**
+ * Lays the parts out on pages, opens the print window (or, with `preview`, the pages to look through), and calls
+ * `onDone` when it closes. With `book`, a printed book: its design's look, chapters starting on right-hand pages,
+ * and the text moved towards each page's outside edge for the spine (`pages`: the length its margins were made for).
+ */
+export function PrintJob({ title, parts, page, sheet, chapters = false, preview = false, book, onDone }: { title: string; parts: PrintPart[]; page: PageSetup; sheet: StyleSheet; chapters?: boolean; preview?: boolean; book?: { design: BookDesign; pages: number }; onDone(): void }) {
+  const ownClass = useSheetClass(sheet);
+  const sheetClass = book ? `${ownClass} book-design` : ownClass;
   const [looking, setLooking] = useState(preview);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const printed = useRef(false);
   const root = useRef<HTMLDivElement>(null);
   const onPages = useCallback((id: string, n: number) => setCounts((c) => (c[id] === n ? c : { ...c, [id]: n })), []);
-  const offsets = useMemo(() => {
-    let sum = 0;
-    return parts.map((p) => {
-      const at = sum;
-      sum += counts[p.id] ?? 1;
-      return at;
-    });
-  }, [parts, counts]);
-  const total = parts.reduce((n, p) => n + (counts[p.id] ?? 1), 0);
+  // Where each part's pages start (a book's chapters on right-hand pages, a blank page before them when needed).
+  const recto = !!book?.design.recto;
+  const { offsets, total } = useMemo(() => bookOffsets(parts.map((p) => counts[p.id] ?? 1), recto), [parts, counts, recto]);
   const ready = parts.every((p) => counts[p.id]);
+
+  // A book: its typeface (loaded first, so the pages are laid out in it) and its look.
+  const [fontsIn, setFontsIn] = useState(!book);
+  const design = book?.design;
+  useEffect(() => {
+    if (!design) return;
+    const style = document.createElement('style');
+    style.textContent = designCss(design);
+    document.head.appendChild(style);
+    loadGoogleFont(design.font, 1 | 2 | 4);
+    let on = true;
+    const wait = document.fonts?.load(`${trimOf(design).size}pt "${design.font}"`) ?? Promise.resolve();
+    void Promise.race([wait, new Promise((r) => setTimeout(r, 3000))])
+      .catch(() => undefined)
+      .then(() => on && setFontsIn(true));
+    return () => {
+      on = false;
+      style.remove();
+    };
+  }, [design]);
 
   // The paper size for the printer (landscape sections' pages are printed on their side).
   useEffect(() => {
@@ -135,7 +187,7 @@ export function PrintJob({ title, parts, page, sheet, chapters = false, preview 
       await new Promise((r) => setTimeout(r, 300));
       if (cancelled || printed.current) return;
       printed.current = true;
-      if (root.current) printPages(root.current);
+      if (root.current) printPages(root.current, book ? (i) => mirrorShift(book.pages, i) * 96 : undefined);
       setPagesReady(root.current?.querySelectorAll(':scope > .print-pages > .print-page').length ?? 0);
     };
     void go();
@@ -164,8 +216,8 @@ export function PrintJob({ title, parts, page, sheet, chapters = false, preview 
     <>
       {createPortal(
         <div ref={root} className={`print-root ${sheetClass}`} aria-hidden="true">
-          {parts.map((p, i) => (
-            <Part key={p.id} part={p} page={page} sheetClass={sheetClass} offset={offsets[i]} total={ready ? total : undefined} chapters={chapters} onPages={onPages} footnoteStart={parts.slice(0, i).reduce((n, x) => n + footnotes(x.doc).length, 0)} />
+          {fontsIn && parts.map((p, i) => (
+            <Part key={p.id} part={p} page={page} sheetClass={ownClass} offset={offsets[i]} total={ready ? total : undefined} chapters={chapters} onPages={onPages} footnoteStart={parts.slice(0, i).reduce((n, x) => n + footnotes(x.doc).length, 0)} />
           ))}
         </div>,
         document.body,

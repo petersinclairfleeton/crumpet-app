@@ -830,6 +830,20 @@ describe('a series', () => {
   });
 });
 
+describe('a book’s print design', () => {
+  it('is kept in project.json and reaches the other devices', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const p = mac.store.createProject('The Lighthouse');
+    mac.store.setBookDesign(p.id, { trim: '6x9', font: 'Crimson Pro', headings: 'modern', dropCaps: false, sceneBreak: 'asterisks', recto: false });
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(phone.store.project(p.id)?.design).toEqual({ trim: '6x9', font: 'Crimson Pro', headings: 'modern', dropCaps: false, sceneBreak: 'asterisks', recto: false });
+  });
+});
+
 describe('a book’s plan', () => {
   it('syncs in project.json: events and plotlines added on each device both kept, an edit on one reaching the other', async () => {
     const cloud = new MemoryProvider();
