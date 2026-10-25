@@ -7,6 +7,7 @@ import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useAutoHeight, useNav, useSync } from './hooks';
+import { TextSizeRow } from './iphone';
 import { recentNotes, viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
@@ -55,7 +56,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const [showMeta, setShowMeta] = useState(false);
   const [reading, setReading] = useState(false);
   const [stylesOpen, setStylesOpen] = useState<string | boolean>(false);
-  const [printing, setPrinting] = useState(false);
+  // Printing, or (a phone) looking through the pages.
+  const [printing, setPrinting] = useState<false | 'print' | 'preview'>(false);
   const [finding, setFinding] = useState(false);
   const [protecting, setProtecting] = useState(false);
   // A note with a password: its text once opened (in memory only), saved locked again as it changes.
@@ -175,7 +177,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         className="menu-item"
         onClick={() => {
           setMenu(false);
-          setPrinting(true);
+          setPrinting('print');
         }}
       >
         <IconPrint size={14} /> Print or save as PDF
@@ -263,9 +265,16 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           {viewsInMenu && (
             <>
               {!phone && <p className="menu-label">View</p>}
+              {narrow && <TextSizeRow />}
               <button type="button" className="menu-item" onClick={() => (setMenu(false), setReading(!reading))}>
                 <IconBook size={14} /> {reading ? 'Back to editing' : 'Reading view'}
               </button>
+              {/* A phone writes without pages; here's how they'll look. */}
+              {narrow && (
+                <button type="button" className="menu-item" onClick={() => (setMenu(false), setPrinting('preview'))}>
+                  <IconPage size={14} /> Preview pages
+                </button>
+              )}
               {/* A phone's screen is already the page, and already quiet. */}
               {!phone && (
                 <>
@@ -372,6 +381,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           parts={[{ id: note.id, doc: note.title.trim() ? { blocks: [makeBlock('paragraph', note.title, [], { style: 'title' }), ...(shownDoc ?? note.doc).blocks] } : (shownDoc ?? note.doc), fields: { title: displayTitle(note), words: docWords(shownDoc ?? note.doc), created: note.createdAt, updated: note.updatedAt } }]}
           page={pageSetup}
           sheet={sheet}
+          preview={printing === 'preview'}
           onDone={() => setPrinting(false)}
         />
       )}

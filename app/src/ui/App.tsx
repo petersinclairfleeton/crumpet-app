@@ -44,6 +44,7 @@ import { CombineHost } from './comparedocs';
 import { FontDialogHost } from './fontdialog';
 import { PasteOptionsHost } from './clipboard';
 import { ContextMenuHost } from './contextmenu';
+import { SyncNote } from './syncnote';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -418,6 +419,7 @@ export function App() {
       <CombineHost />
       <FontDialogHost />
       <PasteOptionsHost />
+      <SyncNote hidden={sidebarMode === 'full' && !narrow && !state.focusMode} />
       <ContextMenuHost actions={{ newNote, openFinder: () => setFinder('switch'), openCommands: () => setFinder('commands'), openSettings: () => setSettingsOpen(true) }} />
       <SimilarHost />
       {state.temporary && (

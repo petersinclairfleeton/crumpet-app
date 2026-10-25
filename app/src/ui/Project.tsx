@@ -24,6 +24,7 @@ import { useDocFontsLoaded, useFontKeys } from './fonttools';
 import { useParaKeys } from './paratools';
 import { StatusBar } from './statusbar';
 import { useAppState, useAppStore, useAutoHeight, useMedia, useNav } from './hooks';
+import { TextSizeRow } from './iphone';
 import { IconBack, IconBox, IconChevron, IconRightPanel, IconSidebar, IconFocus, IconMore, IconPeople, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
@@ -817,6 +818,8 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
   // A phone writes in flowing text (a whole page shrunk to its width is too small to write in).
   const paged = !narrow && (state.settings.pageView?.projects ?? !calm);
   const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords' | 'synopsis' | 'draft'>(null);
+  // A phone writes without pages: Preview pages shows how the chapter falls on them.
+  const [previewing, setPreviewing] = useState(false);
   // An iPad held upright (design 15): the outline button and where you are, the chapters a menu away.
   const midWidth = useMedia('(max-width: 1099px)');
   const compact = calm && midWidth && !state.query.trim();
@@ -950,6 +953,12 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
             <>
               {menuHolds && (
                 <>
+                  {narrow && <TextSizeRow />}
+                  {narrow && (
+                    <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), setPreviewing(true))}>
+                      Preview pages
+                    </button>
+                  )}
                   <div className="menu-line">
                     {statusPick}
                     <span>{chapter.goal ? `${n.toLocaleString()} of ${chapter.goal.toLocaleString()} words` : words(n)}</span>
@@ -1022,6 +1031,17 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
             </div>
           )}
         </Popover>
+      )}
+      {previewing && (
+        <PrintJob
+          title={chapter.title || `Chapter ${at + 1}`}
+          parts={[{ id: chapter.id, doc: { blocks: [makeBlock('heading1', chapter.title || `Chapter ${at + 1}`), ...shown.doc.blocks] }, fields: { title: project.name, chapter: at + 1, chapterTitle: chapter.title, part: part?.title, words: n } }]}
+          page={pageSetup}
+          sheet={sheet}
+          chapters
+          preview
+          onDone={() => setPreviewing(false)}
+        />
       )}
     </div>
   );

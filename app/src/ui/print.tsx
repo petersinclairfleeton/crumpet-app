@@ -1,7 +1,8 @@
 // Printing, and saving as PDF: the text laid out on its pages exactly as page
 // view shows them (size, margins, headers and footers, footnotes), with no
 // gaps between the pages, handed to the browser's print window, which can
-// also save a PDF.
+// also save a PDF. On a phone, Preview pages shows the same pages to look
+// through (a phone writes in flowing text, without page view).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -86,9 +87,10 @@ function printPages(root: HTMLElement): void {
   root.appendChild(out);
 }
 
-/** Lays the parts out on pages, opens the print window, and calls `onDone` when it closes. */
-export function PrintJob({ title, parts, page, sheet, chapters = false, onDone }: { title: string; parts: PrintPart[]; page: PageSetup; sheet: StyleSheet; chapters?: boolean; onDone(): void }) {
+/** Lays the parts out on pages, opens the print window (or, with `preview`, the pages to look through), and calls `onDone` when it closes. */
+export function PrintJob({ title, parts, page, sheet, chapters = false, preview = false, onDone }: { title: string; parts: PrintPart[]; page: PageSetup; sheet: StyleSheet; chapters?: boolean; preview?: boolean; onDone(): void }) {
   const sheetClass = useSheetClass(sheet);
+  const [looking, setLooking] = useState(preview);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const printed = useRef(false);
   const root = useRef<HTMLDivElement>(null);
@@ -168,8 +170,72 @@ export function PrintJob({ title, parts, page, sheet, chapters = false, onDone }
         </div>,
         document.body,
       )}
-      {createPortal(<PrintDialog title={title} count={pagesReady} root={root} sheetClass={sheetClass} onPrint={print} onCancel={onDone} />, document.body)}
+      {createPortal(looking ? <PagePreview title={title} count={pagesReady} root={root} sheetClass={sheetClass} onPrint={() => setLooking(false)} onClose={onDone} /> : <PrintDialog title={title} count={pagesReady} root={root} sheetClass={sheetClass} onPrint={print} onCancel={onDone} />, document.body)}
     </>
+  );
+}
+
+/** The pages to look through, one under another across the screen; Actual size shows them as big as on paper (scroll sideways). */
+function PagePreview({ title, count, root, sheetClass, onPrint, onClose }: { title: string; count: number; root: React.RefObject<HTMLDivElement>; sheetClass: string; onPrint(): void; onClose(): void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [actual, setActual] = useState(false);
+  const [width, setWidth] = useState(() => (typeof window === 'undefined' ? 390 : window.innerWidth));
+  useEffect(() => {
+    const on = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+  useEffect(() => {
+    const el = box.current;
+    const src = root.current?.querySelector(':scope > .print-pages');
+    if (!el || !src || !count) return;
+    el.textContent = '';
+    Array.from(src.children).forEach((pg, i) => {
+      const page = pg as HTMLElement;
+      const w = parseFloat(page.style.width) || 816;
+      const h = parseFloat(page.style.height) || 1056;
+      const scale = actual ? 1 : Math.min(1, (width - 32) / w);
+      const item = document.createElement('div');
+      item.className = 'preview-page';
+      item.style.width = `${w * scale}px`;
+      item.style.height = `${h * scale}px`;
+      const copy = page.cloneNode(true) as HTMLElement;
+      copy.style.transform = `scale(${scale})`;
+      copy.style.transformOrigin = '0 0';
+      const holder = document.createElement('div');
+      holder.className = `print-thumb-page ${sheetClass}`;
+      holder.appendChild(copy);
+      const num = document.createElement('span');
+      num.className = 'preview-num';
+      num.textContent = `${i + 1}`;
+      item.append(holder, num);
+      el.appendChild(item);
+    });
+  }, [count, root, sheetClass, actual, width]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="page-preview print-backdrop" role="dialog" aria-modal="true" aria-label="Preview pages">
+      <header className="page-preview-head">
+        <button type="button" className="btn quiet" onClick={onClose}>
+          Done
+        </button>
+        <span className="grow ellipsis page-preview-title">
+          {title}
+          <small>{count ? `${count} page${count === 1 ? '' : 's'}` : 'Laying out the pages…'}</small>
+        </span>
+        <button type="button" className="btn quiet" aria-pressed={actual} disabled={!count} onClick={() => setActual(!actual)}>
+          {actual ? 'Fit to screen' : 'Actual size'}
+        </button>
+        <button type="button" className="btn quiet" disabled={!count} onClick={onPrint}>
+          Print…
+        </button>
+      </header>
+      <div className={`page-preview-pages${actual ? ' actual' : ''}`} ref={box} aria-label="Pages" />
+    </div>
   );
 }
 

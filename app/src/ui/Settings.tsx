@@ -7,6 +7,7 @@ import { AiSettings } from './aisettings';
 import { ACCENTS, DEFAULT_NOTE_SIZE, type NoteFont } from '../data/types';
 import { DEFAULT_FONT, type FontChoice, canListAllSystemFonts, fontStack, googleFonts, loadGoogleFont, systemFonts } from './fonts';
 import { useAppState, useAppStore, useMedia } from './hooks';
+import { TEXT_SIZES } from './iphone';
 import { IconBack, IconChevron, IconChevronDown, IconClose } from './icons';
 import { openCustomise } from './customise';
 import { SyncSettings } from './SyncSettings';
@@ -129,7 +130,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               </span>
               <span className="size-pick">
                 <small aria-hidden="true">A</small>
-                <input className="range" type="range" aria-label={`Text size, ${size}px`} min={13} max={24} step={1} value={size} style={{ '--pct': `${((size - 13) / 11) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
+                <input className="range" type="range" aria-label={`Text size, ${size}px`} min={TEXT_SIZES.min} max={TEXT_SIZES.max} step={1} value={size} style={{ '--pct': `${((size - TEXT_SIZES.min) / (TEXT_SIZES.max - TEXT_SIZES.min)) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
                 <big aria-hidden="true">A</big>
               </span>
             </label>
@@ -356,7 +357,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               <FontPicker value={s.noteFont ?? DEFAULT_FONT} onChange={(f) => store.updateSettings({ noteFont: f })} />
               <label className="field">
                 <span>Text size · {size}px</span>
-                <input className="range" type="range" min={13} max={24} step={1} value={size} style={{ '--pct': `${((size - 13) / 11) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
+                <input className="range" type="range" min={TEXT_SIZES.min} max={TEXT_SIZES.max} step={1} value={size} style={{ '--pct': `${((size - TEXT_SIZES.min) / (TEXT_SIZES.max - TEXT_SIZES.min)) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
               </label>
               <SettingGroup title="Typewriter">
                 {TYPEWRITER.map(([key, label, hint]) => (

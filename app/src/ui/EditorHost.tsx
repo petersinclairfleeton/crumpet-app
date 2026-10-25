@@ -1,4 +1,5 @@
 import { useOfferHelped } from './helpers';
+import { usePinchTextSize } from './iphone';
 import { MathBlockBar, MathCard } from './mathtools';
 import { FormCard } from './formtools';
 import { InkHost } from './inktools';
@@ -135,6 +136,7 @@ export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp,
   useDocFontsLoaded(ed);
   useParaKeys(readOnly || reading ? null : ed);
   const scrollBox = useRef<HTMLDivElement>(null);
+  usePinchTextSize(scrollBox, touch && !paged);
   const statusEditors = useMemo(() => (ed ? [ed] : []), [ed]);
   useTypewriter(readOnly || reading ? null : ed);
   // While typing, the bar above the note fades away; moving the pointer brings it back.

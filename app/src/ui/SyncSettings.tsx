@@ -150,7 +150,7 @@ function GoogleMark() {
 
 export function statusText(s: SyncStatus | null): string {
   if (!s) return 'Starting…';
-  if (s.phase === 'syncing') return 'Syncing…';
+  if (s.phase === 'syncing' || s.waiting) return 'Syncing…';
   if (s.phase === 'error') return s.error?.kind === 'offline' ? 'Offline. Changes are kept here and sync when you’re back.' : (s.error?.message ?? 'Sync stopped.');
   if (!s.lastSynced) return 'Not synced yet.';
   const conflicts = s.conflicts ? ` ${s.conflicts} conflicted ${s.conflicts === 1 ? 'copy' : 'copies'} made.` : '';
