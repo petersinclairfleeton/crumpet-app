@@ -64,7 +64,8 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const sheet = useMemo(() => fullSheet(state.settings.noteStyles, 'crumpet'), [state.settings.noteStyles]);
   const styleSources = useStyleSources('notes');
   const pageSetup = state.settings.notePage ?? defaultPage();
-  const paged = !!state.settings.pageView?.notes;
+  // A phone writes in flowing text: a whole sheet of paper shrunk to its width makes the words too small to write in.
+  const paged = !narrow && !!state.settings.pageView?.notes;
 
   // Escape leaves reading view.
   useEffect(() => {
@@ -268,9 +269,11 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               {/* A phone's screen is already the page, and already quiet. */}
               {!phone && (
                 <>
-                  <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setMenu(false), togglePage())}>
-                    <IconPage size={14} /> {paged ? 'Page view: on' : 'Page view'}
-                  </button>
+                  {!narrow && (
+                    <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setMenu(false), togglePage())}>
+                      <IconPage size={14} /> {paged ? 'Page view: on' : 'Page view'}
+                    </button>
+                  )}
                   <button type="button" className="menu-item" onClick={() => (setMenu(false), store.setFocusMode(true))}>
                     <IconFocus size={14} /> Focus mode
                   </button>

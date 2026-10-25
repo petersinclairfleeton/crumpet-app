@@ -814,7 +814,8 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
   const calm = !state.settings.toolbarAll && !narrow;
   // The calm look on a phone: a chapter reads like a note, its status and goal in the ··· menu.
   const phone = !state.settings.toolbarAll && narrow;
-  const paged = state.settings.pageView?.projects ?? !(calm || phone);
+  // A phone writes in flowing text (a whole page shrunk to its width is too small to write in).
+  const paged = !narrow && (state.settings.pageView?.projects ?? !calm);
   const [chapterMenu, setChapterMenu] = useState<null | 'menu' | 'goal' | 'keywords' | 'synopsis' | 'draft'>(null);
   // An iPad held upright (design 15): the outline button and where you are, the chapters a menu away.
   const midWidth = useMedia('(max-width: 1099px)');
@@ -959,9 +960,11 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
                       <IconPeople size={14} /> {state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'}
                     </button>
                   )}
-                  <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setChapterMenu(null), store.updateSettings({ pageView: { ...state.settings.pageView, projects: !paged } }))}>
-                    {paged ? 'Page view: on' : 'Page view'}
-                  </button>
+                  {!narrow && (
+                    <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setChapterMenu(null), store.updateSettings({ pageView: { ...state.settings.pageView, projects: !paged } }))}>
+                      {paged ? 'Page view: on' : 'Page view'}
+                    </button>
+                  )}
                   <hr className="menu-sep" />
                 </>
               )}
@@ -1028,7 +1031,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
       <button type="button" className="icon-btn focus-btn" aria-label="Focus mode" data-tip={`Focus mode · ${isMac ? '⌘⇧F' : 'Ctrl+Shift+F'}`} onClick={() => store.setFocusMode(true)}>
         <IconFocus size={16} />
       </button>
-      <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
+      {!narrow && <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />}
       <button type="button" className="icon-btn" aria-label="Find and replace" data-tip={`Find and replace · ${isMac ? '⌘F' : 'Ctrl+F'}`} onClick={() => setFinding(true)}>
         <IconSearch size={16} />
       </button>
@@ -1226,7 +1229,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const styleSources = useStyleSources(project.id);
   const styles = useSheetClass(sheet);
   const pageSetup = project.page ?? manuscriptPage();
-  const paged = state.settings.pageView?.projects ?? true;
+  const paged = !narrow && (state.settings.pageView?.projects ?? true);
   const [, setTick] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   // The formatting bar floats above selected text, as in notes, unless pinned.
@@ -1312,7 +1315,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           <button type="button" className="icon-btn" aria-label="Find and replace" data-tip={`Find and replace · ${isMac ? '⌘F' : 'Ctrl+F'}`} onClick={() => setFinding(true)}>
             <IconSearch size={16} />
           </button>
-          <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />
+          {!narrow && <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />}
           {!narrow && (
             <button
               type="button"

@@ -121,7 +121,7 @@ export function ContextMenuHost({ actions }: { actions: ContextActions }) {
 }
 
 /** A menu line. Pressing it doesn't take the focus, so the text's selection stays for the command. */
-function Item({ label, keys, onPick, danger }: { label: string; keys?: string; onPick(): void; danger?: boolean }) {
+export function Item({ label, keys, onPick, danger }: { label: string; keys?: string; onPick(): void; danger?: boolean }) {
   return (
     <button type="button" role="menuitem" aria-label={label} className={`menu-item${danger ? ' danger' : ''}`} onMouseDown={(e) => e.preventDefault()} onClick={onPick}>
       <span className="grow ellipsis">{label}</span>
@@ -130,7 +130,7 @@ function Item({ label, keys, onPick, danger }: { label: string; keys?: string; o
   );
 }
 
-const Rule = () => <hr className="menu-rule" />;
+export const Rule = () => <hr className="menu-rule" />;
 
 /** A menu opened where the pointer is, kept on the screen: opened up or to the left when there isn't room below or to the right. */
 export function MenuAtPoint({ x, y, label, onClose, children }: { x: number; y: number; label: string; onClose(): void; children: React.ReactNode }) {

@@ -96,6 +96,19 @@ export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp,
     onNoteLink: (title) => nav.openTitle(title),
   });
 
+  // A tap or click in the empty space below the writing carries on at its end, as in a notebook (and brings up a phone's keyboard).
+  // Only when it was pressed there too: a click inside the text can end up on the page when the text redraws under it (a table's cell).
+  const pressedBelow = useRef(false);
+  const below = (e: React.MouseEvent) => {
+    const t = e.target as HTMLElement;
+    return !!ed && !readOnly && !reading && !paged && t.matches('.note-main, .note-scroll, .note-body') && e.clientY > ed.view.root.getBoundingClientRect().bottom;
+  };
+  const carryOn = (e: React.MouseEvent) => {
+    const go = pressedBelow.current && below(e) && !!document.getSelection()?.isCollapsed;
+    pressedBelow.current = false;
+    if (go) ed?.focusAt('end');
+  };
+
   // The right sidebar's helpers work on this editor once it's clicked or typed in.
   const paneRef = useRef<HTMLDivElement>(null);
   const callbacks = useRef({ onSheet, onEditStyles });
@@ -203,7 +216,7 @@ export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp,
       {linkOpen && ed && <LinkBar editor={ed} onClose={() => setLinkOpen(false)} />}
       {!readOnly && !reading && <ChangesBar doc={doc} editor={ed} />}
       {prot && ed && !reading && <ProtectBanner editor={ed} kind={prot} lock={p0?.plock} />}
-      <div className="note-main">
+      <div className="note-main" onMouseDown={(e) => (pressedBelow.current = below(e))} onClick={carryOn}>
       <div className="note-scroll" ref={scrollBox}>
         <article className={`note-body${paged ? ' paged' : ''}`}>
           {header}

@@ -13,7 +13,9 @@ import { useAppState, useAppStore } from './hooks';
 import { NameGenerator } from './names';
 import { IconBack, IconChevron, IconClose, IconPlus, IconTrash } from './icons';
 import { tabDrag } from './tabdrag';
-import { Popover } from './Sidebar';
+import { InlineInput, Popover } from './Sidebar';
+import { Item, MenuAtPoint, Rule } from './contextmenu';
+import { usePanes } from './panes';
 
 const KIND: Record<CastMember['kind'], string> = { character: 'Character', place: 'Place' };
 
@@ -44,6 +46,53 @@ function Avatar({ member, size = 24 }: { member: CastMember; size?: number }) {
   );
 }
 
+/** The right-click menu on a character or place: open it, rename it, make it the other kind, or delete it. */
+function CastMenu({ project, id, x, y, onClose }: { project: Project; id: string; x: number; y: number; onClose(): void }) {
+  const store = useAppStore();
+  const panes = usePanes();
+  const [renaming, setRenaming] = useState(false);
+  const m = project.cast?.find((c) => c.id === id);
+  if (!m) return null;
+  const tab = { kind: 'cast' as const, project: project.id, id };
+  const done = (fn: () => void) => () => {
+    fn();
+    onClose();
+  };
+  const other = m.kind === 'place' ? 'character' : 'place';
+  return (
+    <MenuAtPoint x={x} y={y} label={`${m.name || KIND[m.kind]}: options`} onClose={onClose}>
+      {renaming ? (
+        <InlineInput
+          label={`${KIND[m.kind]}’s name`}
+          initial={m.name}
+          placeholder="Name"
+          onDone={(name) => {
+            if (name !== null && name.trim()) store.updateCastMember(project.id, id, { name: name.trim() });
+            onClose();
+          }}
+        />
+      ) : (
+        <>
+          <Item label="Open" onPick={done(() => store.openCast(id))} />
+          <Item label="Open in a new tab" onPick={done(() => panes.open(tab, 'tab'))} />
+          <Item label="Open to the side" onPick={done(() => panes.split(tab, 'right'))} />
+          <Rule />
+          <Item label="Rename…" onPick={() => setRenaming(true)} />
+          <Item label={`Make it a ${other}`} onPick={done(() => store.updateCastMember(project.id, id, { kind: other }))} />
+          <Rule />
+          <Item
+            label="Delete"
+            danger
+            onPick={done(() => {
+              if (confirm(`Delete ${m.name || 'this card'}? Your chapters stay as they are.`)) store.deleteCastMember(project.id, id);
+            })}
+          />
+        </>
+      )}
+    </MenuAtPoint>
+  );
+}
+
 /** The characters and places under a project's outline. */
 /** `phone`: in a phone's book, under its Cast tab: a heading and rows like the library's, always open. */
 export function CastList({ project, phone = false }: { project: Project; phone?: boolean }) {
@@ -52,11 +101,12 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
   const [naming, setNaming] = useState(false);
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const cast = project.cast ?? [];
   const group = (kind: CastMember['kind']) => cast.filter((m) => m.kind === kind).sort((a, b) => a.name.localeCompare(b.name));
   const row = (m: CastMember) => (
     <li key={m.id}>
-      <button type="button" className={`research-item${state.castId === m.id ? ' selected' : ''}`} aria-current={state.castId === m.id ? 'true' : undefined} onClick={() => store.openCast(state.castId === m.id ? null : m.id)} {...tabDrag({ kind: 'cast', project: project.id, id: m.id })}>
+      <button type="button" className={`research-item${state.castId === m.id ? ' selected' : ''}`} aria-current={state.castId === m.id ? 'true' : undefined} onClick={() => store.openCast(state.castId === m.id ? null : m.id)} onContextMenu={(e) => (e.preventDefault(), setMenu({ id: m.id, x: e.clientX, y: e.clientY }))} {...tabDrag({ kind: 'cast', project: project.id, id: m.id })}>
         <Avatar member={m} size={20} />
         <span className="grow ellipsis">{m.name || `Unnamed ${KIND[m.kind].toLowerCase()}`}</span>
       </button>
@@ -127,6 +177,7 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
           {group('place').map(row)}
         </ul>
       )}
+      {menu && <CastMenu project={project} id={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
     </section>
   );
 }
