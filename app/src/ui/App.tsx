@@ -45,6 +45,7 @@ import { FontDialogHost } from './fontdialog';
 import { PasteOptionsHost } from './clipboard';
 import { ContextMenuHost } from './contextmenu';
 import { SyncNote } from './syncnote';
+import { SprintBar } from './sprint';
 import type { View } from '../data/types';
 
 /** On narrow screens only one pane shows at a time. */
@@ -409,6 +410,7 @@ export function App() {
       {guide && !signIn && <Guide onClose={() => setGuide(false)} onNewNote={newNote} onNewProject={newProject} onConnect={() => setSettingsOpen(true)} onTour={() => setTouring(true)} />}
       {touring && <Tour onDone={() => setTouring(false)} />}
       <SpeechBar />
+      <SprintBar />
       <ReminderAlerts onOpen={openNote} />
       <GoToHost />
       <PictureAltHost />

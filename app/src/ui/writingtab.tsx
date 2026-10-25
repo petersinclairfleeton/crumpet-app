@@ -9,6 +9,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import { runsText } from '@crumpet/editor/model';
 import { useAppState, useAppStore } from './hooks';
 import { goalLine, usePeriodGoals, useTodayWords } from './stats-ui';
+import { SprintStart } from './sprint';
 import { REVISIONS, hasRevisions } from '../data/revisions';
 import { FOCUS_LABELS, type Focus, findFocus, textStats, wordFrequency } from '../data/textstats';
 
@@ -148,6 +149,11 @@ export function WritingTab({ editor, docId }: { editor: Editor; docId: string })
             This month: {n(month.words)} of {n(month.goal)} · {goalLine(month)}
           </p>
         )}
+      </section>
+
+      <section aria-label="Writing sprint">
+        <h3>Sprint</h3>
+        <SprintStart />
       </section>
 
       <section aria-label="Text statistics">

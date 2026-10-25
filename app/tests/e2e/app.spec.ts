@@ -6430,3 +6430,47 @@ test('a book links notes from the notebooks into its research, and its foot menu
   });
   expect(text).toEqual({ project: null, text: 'Spring tides in March.' });
 });
+
+test('writing sprints: start one, write, pause, and see what was written when it ends', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 9, 7, 9) });
+  await open(page);
+  await newNote(page, 'Sprinting', 'Before the sprint.');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'writing' }));
+  const tab = page.locator('.writing-tab');
+  await tab.getByRole('radio', { name: '10' }).click();
+  await tab.getByRole('button', { name: 'Start a 10-minute sprint' }).click();
+  const bar = page.getByRole('status', { name: 'Writing sprint' });
+  await expect(bar).toContainText('10:00');
+  await expect(bar).toContainText('0 words');
+  // Writing during it counts (the three words before it don't).
+  await page.locator('.note-editor').click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.type(' The tide came in early and grey.');
+  await expect(bar).toContainText('7 words');
+  await page.clock.runFor(3 * 60_000);
+  await expect(bar).toContainText('7:00');
+  // A pause holds the clock.
+  await bar.getByRole('button', { name: 'Pause' }).click();
+  await page.clock.runFor(5 * 60_000);
+  await expect(bar).toContainText('7:00');
+  await bar.getByRole('button', { name: 'Resume' }).click();
+  // It carries on through a reload.
+  await page.reload();
+  await expect(page.getByRole('status', { name: 'Writing sprint' })).toContainText('7 words');
+  // The end: what was written, and it's in the log.
+  await page.clock.runFor(8 * 60_000);
+  const done = page.getByRole('status', { name: 'Sprint done' });
+  await expect(done).toContainText('Sprint done: 7 words in 10 minutes · 0.7 a minute');
+  await done.getByRole('button', { name: 'Close' }).click();
+  await expect(done).toHaveCount(0);
+  await expect(page.locator('.writing-tab .sprint-log')).toContainText('7 in 10 min');
+  // From the command palette too.
+  await page.keyboard.press('ControlOrMeta+p');
+  await page.keyboard.type('15-minute writing sprint');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status', { name: 'Writing sprint' })).toContainText('15:00');
+  await page.keyboard.press('ControlOrMeta+p');
+  await page.keyboard.type('Stop the writing sprint');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('status', { name: 'Sprint done' })).toContainText('0 words in 1 minute');
+});

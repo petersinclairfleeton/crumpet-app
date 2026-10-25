@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom';
 import { type PeriodGoal, addDays, allDailyWords, dayKey, monthOf, periodGoal, streaks, weekOf, weekday } from '../data/stats';
 import { useAppState, useAppStore } from './hooks';
 import { IconClose } from './icons';
+import { SprintStart } from './sprint';
 
 const WEEKS = 30;
 
@@ -211,6 +212,12 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
             {goal ? 'Your streak counts days you meet the daily goal.' : 'With no daily goal, any day you write counts toward your streak.'}
             {rest.length ? ' Days off don’t break it, and the week’s and month’s words a day leave them out.' : ' Days off don’t break a streak.'}
           </p>
+
+          <div className="stats-head">
+            <h3>Writing sprints</h3>
+          </div>
+          <p className="sync-hint">Write against the clock: the words you write until it runs out are counted.</p>
+          <SprintStart log={5} />
 
           <div className="stats-head">
             <h3>Last 30 days</h3>
