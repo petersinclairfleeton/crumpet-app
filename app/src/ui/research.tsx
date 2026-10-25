@@ -14,7 +14,9 @@ import { useAppState, useAppStore, useAutoHeight } from './hooks';
 import { EditorHost } from './EditorHost';
 import { IconChevron, IconClose, IconLink, IconMore, IconNote, IconPlus } from './icons';
 import { tabDrag } from './tabdrag';
-import { Popover } from './Sidebar';
+import { InlineInput, Popover } from './Sidebar';
+import { Item, MenuAtPoint, Rule } from './contextmenu';
+import { usePanes } from './panes';
 
 type Kind = 'note' | 'picture' | 'pdf' | 'file' | 'clipping';
 
@@ -88,6 +90,46 @@ function LinkPicker({ project, onDone }: { project: Project; onDone(): void }) {
   );
 }
 
+/** The right-click menu on a research note (or a note linked into the book): open it, rename it, or take it out. */
+function ResearchMenu({ project, id, x, y, onClose }: { project: Project; id: string; x: number; y: number; onClose(): void }) {
+  const store = useAppStore();
+  const panes = usePanes();
+  const [renaming, setRenaming] = useState(false);
+  const n = store.note(id);
+  if (!n) return null;
+  const own = n.projectId === project.id;
+  const tab = own ? { kind: 'research' as const, id } : { kind: 'note' as const, id };
+  const done = (fn: () => void) => () => {
+    fn();
+    onClose();
+  };
+  return (
+    <MenuAtPoint x={x} y={y} label={`${displayTitle(n)}: options`} onClose={onClose}>
+      {renaming ? (
+        <InlineInput
+          label="New title"
+          initial={n.title}
+          placeholder="Title"
+          onDone={(title) => {
+            if (title !== null) store.setTitle(id, title);
+            onClose();
+          }}
+        />
+      ) : (
+        <>
+          <Item label="Open" onPick={done(() => store.openResearch(id))} />
+          <Item label="Open in a new tab" onPick={done(() => panes.open(tab, 'tab'))} />
+          <Item label="Open to the side" onPick={done(() => panes.split(tab, 'right'))} />
+          <Rule />
+          <Item label="Rename…" onPick={() => setRenaming(true)} />
+          <Rule />
+          {own ? <Item label="Move to Trash" danger onPick={done(() => store.trashNote(id))} /> : <Item label="Unlink from this book" danger onPick={done(() => store.unlinkNote(project.id, id))} />}
+        </>
+      )}
+    </MenuAtPoint>
+  );
+}
+
 /** The research list under a project's outline. */
 /** `phone`: in a phone's book, under its Research tab: a heading and rows like the library's, always open. */
 export function ResearchList({ project, phone = false }: { project: Project; phone?: boolean }) {
@@ -95,12 +137,13 @@ export function ResearchList({ project, phone = false }: { project: Project; pho
   const store = useAppStore();
   const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState<'menu' | 'link' | null>(null);
+  const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const items = useMemo(() => state.notes.filter((n) => n.projectId === project.id && n.trashedAt === null).sort((a, b) => a.title.localeCompare(b.title)), [state.notes, project.id]);
   const linked = store.linkedNotes(project.id);
   // A linked note drags out as the note it is.
   const row = (n: Note, glyph: React.ReactNode) => (
     <li key={n.id}>
-      <button type="button" className={`research-item${state.researchId === n.id ? ' selected' : ''}`} aria-current={state.researchId === n.id ? 'true' : undefined} onClick={() => store.openResearch(state.researchId === n.id ? null : n.id)} {...tabDrag({ kind: n.projectId ? 'research' : 'note', id: n.id })}>
+      <button type="button" className={`research-item${state.researchId === n.id ? ' selected' : ''}`} aria-current={state.researchId === n.id ? 'true' : undefined} onClick={() => store.openResearch(state.researchId === n.id ? null : n.id)} onContextMenu={(e) => (e.preventDefault(), setMenu({ id: n.id, x: e.clientX, y: e.clientY }))} {...tabDrag({ kind: n.projectId ? 'research' : 'note', id: n.id })}>
         {glyph}
         <span className="grow ellipsis">{displayTitle(n)}</span>
       </button>
@@ -181,6 +224,7 @@ export function ResearchList({ project, phone = false }: { project: Project; pho
           )}
         </ul>
       )}
+      {menu && <ResearchMenu project={project} id={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
     </section>
   );
 }

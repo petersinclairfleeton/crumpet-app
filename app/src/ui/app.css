@@ -439,8 +439,8 @@ input, select { font: inherit; color: inherit; }
 .card.selected { background: var(--page); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1.5px var(--accent); }
 .card.has-thumb { position: relative; }
 /* The whole picture shows, not just its middle, and the card's text stops short of it (in every look). */
-.card-thumb { position: absolute; right: 12px; top: 12px; width: 56px; height: 56px; border-radius: 8px; background: var(--field) center / contain no-repeat; }
-.card.has-thumb > :not(.card-thumb) { margin-right: 68px; }
+.card-thumb { position: absolute; right: 12px; top: 12px; width: var(--thumb-w, 56px); height: 56px; border-radius: 8px; background: var(--field) center / contain no-repeat; }
+.card.has-thumb > :not(.card-thumb) { margin-right: calc(var(--thumb-w, 56px) + 12px); }
 .card-top { display: flex; align-items: baseline; gap: 8px; }
 .card-title { flex: 1; font-size: 14px; font-weight: 700; }
 .pin { color: var(--accent-ink); display: inline-flex; }
@@ -2932,6 +2932,9 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .chapter-line .status-pick select, .corkboard-pane.calm .cork-card footer select { -webkit-appearance: none; appearance: none; padding-right: 2px; background-image: none; }
 /* The plain view writes a chapter in the writing font, as notes are; page view shows the manuscript's own. */
 [data-look='crumpet'] .app.calm .pane[aria-label='Chapter'] .note-pane.room .note-body:not(.paged) .note-editor .blk-paragraph:not([data-style]) { font-family: var(--note-font); font-size: var(--note-size, 19px); line-height: 1.7; margin: 0; }
+/* On a phone a chapter (and the book's Read view) is written like a note too, not in the manuscript's 12pt double spacing, which is for pages on a bigger screen. */
+.app.narrow .pane[aria-label='Chapter'] .note-body:not(.paged) .note-editor .blk-paragraph:not([data-style]),
+.app.narrow .manuscript-body:not(.paged) .note-editor .blk-paragraph:not([data-style]) { font-family: var(--note-font); font-size: var(--note-size, 19px); line-height: 1.7; margin: 0; }
 .book-side .book-head .list-title > .grow { display: none; }
 .app.calm .book-modes.segmented { background: color-mix(in srgb, var(--text) 5%, transparent); }
 .app.calm .book-bar { background: color-mix(in srgb, var(--text) 8%, transparent); }

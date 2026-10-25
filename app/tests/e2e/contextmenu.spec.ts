@@ -163,3 +163,42 @@ test('right click on a chapter in a book’s outline', async ({ page }) => {
   await menu(page).getByRole('menuitem', { name: 'Move up' }).click();
   await expect(outline.locator('.outline-chapter').nth(1)).toContainText('The Lamp');
 });
+
+test('right click on a character, a place and a research note in a book', async ({ page }) => {
+  await open(page);
+  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await page.keyboard.type('The Lighthouse');
+  await page.keyboard.press('Enter');
+  const cast = page.getByRole('region', { name: 'Characters and places' });
+  await cast.getByRole('button', { name: 'Add a character or place' }).click();
+  await page.getByRole('button', { name: 'New character' }).click();
+  const castItem = cast.locator('.research-item').first();
+  await castItem.click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Rename…' }).click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('Rose');
+  await page.keyboard.press('Enter');
+  await expect(cast.locator('.research-item .grow')).toHaveText(['Rose']);
+  await cast.locator('.research-item', { hasText: 'Rose' }).click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Make it a place' }).click();
+  await expect(cast.locator('.research-item .cast-avatar.place')).toHaveCount(1);
+  await cast.locator('.research-item', { hasText: 'Rose' }).click({ button: 'right' });
+  await expect(menu(page).getByRole('menuitem', { name: 'Open to the side' })).toBeVisible();
+  page.once('dialog', (d) => d.accept());
+  await menu(page).getByRole('menuitem', { name: 'Delete' }).click();
+  await expect(cast.locator('.research-item')).toHaveCount(0);
+
+  const research = page.getByRole('region', { name: 'Research', exact: true });
+  await research.getByRole('button', { name: 'Add research' }).click();
+  await page.getByRole('button', { name: 'New research note' }).click();
+  await page.keyboard.type('Tide tables');
+  await research.locator('.research-item', { hasText: 'Tide tables' }).click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Rename…' }).click();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('Tides');
+  await page.keyboard.press('Enter');
+  await expect(research.locator('.research-item .grow')).toHaveText(['Tides']);
+  await research.locator('.research-item', { hasText: 'Tides' }).click({ button: 'right' });
+  await menu(page).getByRole('menuitem', { name: 'Move to Trash' }).click();
+  await expect(research.locator('.research-item')).toHaveCount(0);
+});

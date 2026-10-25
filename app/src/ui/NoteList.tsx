@@ -323,10 +323,13 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu,
   const text = preview(note);
   const hits = words.length ? snippet(noteText(note, store.getState().fileText), words) : null;
   const picture = note.doc.blocks.find((b) => b.type === 'image' && b.src)?.src;
+  const [shape, setShape] = useState(() => (picture ? thumbShapes.get(picture) : undefined));
+  const shapeNow = picture ? (thumbShapes.get(picture) ?? shape) : undefined;
   return (
     <button
       type="button"
       className={`card${selected ? ' selected' : ''}${picture ? ' has-thumb' : ''}`}
+      style={picture ? ({ '--thumb-w': `${thumbWidth(shapeNow)}px` } as React.CSSProperties) : undefined}
       aria-current={selected ? 'true' : undefined}
       onClick={(e) => onOpen(e)}
       onContextMenu={onMenu}
@@ -335,7 +338,7 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu,
       // A middle click opens it in a new tab.
       onAuxClick={(e) => e.button === 1 && panes.open({ kind: 'note', id: note.id }, 'tab')}
     >
-      {picture && <Thumb src={picture} />}
+      {picture && <Thumb src={picture} onShape={setShape} />}
       {calm ? (
         <>
           <span className="card-top">
@@ -471,8 +474,16 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
   );
 }
 
-/** The first picture in a note, small, on its card. */
-function Thumb({ src }: { src: string }) {
+/** Each picture's width over its height, once known (so a card doesn't change shape when the list redraws). */
+const thumbShapes = new Map<string, number>();
+
+/** How wide a card's picture is drawn (it's always 56px tall): its own shape, between a narrow 40px and a wide 100px. */
+export function thumbWidth(ratio: number | undefined): number {
+  return ratio ? Math.round(Math.min(100, Math.max(40, 56 * ratio))) : 56;
+}
+
+/** The first picture in a note, small, on its card, in its own shape. */
+function Thumb({ src, onShape }: { src: string; onShape(ratio: number): void }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
@@ -483,6 +494,21 @@ function Thumb({ src }: { src: string }) {
       live = false;
     };
   }, [src]);
+  useEffect(() => {
+    if (!url || thumbShapes.has(src)) return;
+    let live = true;
+    const img = new Image();
+    img.onload = () => {
+      if (!img.naturalWidth || !img.naturalHeight) return;
+      const ratio = img.naturalWidth / img.naturalHeight;
+      thumbShapes.set(src, ratio);
+      if (live) onShape(ratio);
+    };
+    img.src = url;
+    return () => {
+      live = false;
+    };
+  }, [url, src]); // eslint-disable-line react-hooks/exhaustive-deps
   return <span className="card-thumb" aria-hidden="true" style={url ? { backgroundImage: `url("${url.replace(/"/g, '%22')}")` } : undefined} />;
 }
 

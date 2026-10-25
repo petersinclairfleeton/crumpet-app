@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-25-phone-writing',
+    date: '25 October 2026',
+    title: 'Writing on your phone',
+    points: [
+      'On a phone, notes and chapters are always flowing text at a comfortable size, never a whole page shrunk to the screen. Page view is still there on a computer or an iPad.',
+      'Chapters on a phone are written in your writing font and size, like notes, and so is the book’s Read view.',
+      'Tap the empty space below your writing to carry on where it ends; the keyboard comes up ready.',
+      'Right-click a character, a place or a research note in a book to open it here, in a new tab or beside, rename it, or take it out (a character can become a place and back).',
+      'A note’s picture in the note list now has its own shape: wide pictures get a wider box, tall ones a narrower one.',
+    ],
+  },
+  {
     id: '2026-10-23-more-right-click',
     date: '23 October 2026',
     title: 'More in the right-click menu, and a warning before closing mid-sync',
