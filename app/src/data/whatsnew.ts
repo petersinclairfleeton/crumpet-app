@@ -10,6 +10,15 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-zotero',
+    date: '26 October 2026',
+    title: 'Sources from Zotero, Mendeley and EndNote',
+    points: [
+      'References → Manage sources… → Import from Zotero, Mendeley or EndNote… brings in your library: a BibTeX (.bib), RIS (.ris) or CSL JSON file, exported from any of them (in Zotero: right-click a collection → Export Collection… → BibTeX).',
+      'Books, journal articles, chapters and web pages come in with their authors, year, publisher, journal, volume, issue, pages and link (a DOI becomes its link), keeping the citation keys you know them by; anything else comes in as a book. Importing again adds only the new ones.',
+    ],
+  },
+  {
     id: '2026-10-26-series',
     date: '26 October 2026',
     title: 'A series bible',

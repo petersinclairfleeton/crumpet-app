@@ -5,6 +5,7 @@
 // the bar (the More menu closes as they open), shown by ReferencesHost; a
 // table of contents' ⚙ opens its options there too.
 
+import { addSources, bibFormat } from '../data/bibimport';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
@@ -319,6 +320,26 @@ function SourcesDialog({ onClose }: { onClose(): void }) {
   const sources = state.settings.sources ?? [];
   const style: CiteStyle = state.settings.citeStyle ?? 'apa';
   const [editing, setEditing] = useState<Source | null>(null);
+  const [imported, setImported] = useState('');
+  // A file from Zotero, Mendeley, EndNote or JabRef: BibTeX, RIS or CSL JSON.
+  const importFile = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.bib,.bibtex,.ris,.json,.txt';
+    input.onchange = async () => {
+      const f = input.files?.[0];
+      if (!f) return;
+      const text = await f.text();
+      if (!bibFormat(text)) {
+        setImported(`“${f.name}” isn’t BibTeX, RIS or CSL JSON. In Zotero: right-click a collection → Export Collection… → BibTeX.`);
+        return;
+      }
+      const r = addSources(store.getState().settings.sources ?? [], text);
+      store.updateSettings({ sources: r.sources });
+      setImported(r.added ? `Added ${r.added} source${r.added === 1 ? '' : 's'}${r.already ? ` (${r.already} ${r.already === 1 ? 'was' : 'were'} there already)` : ''}.` : r.already ? `All ${r.already} were in your sources already.` : 'No sources found in that file.');
+    };
+    input.click();
+  };
   if (editing)
     return (
       <Dialog
@@ -363,7 +384,18 @@ function SourcesDialog({ onClose }: { onClose(): void }) {
           ))}
         </ul>
       ) : (
-        <p className="sync-hint">No sources yet: add them with References → Insert citation….</p>
+        <p className="sync-hint">No sources yet: add them with References → Insert citation…, or import them from your reference manager.</p>
+      )}
+      <div className="import-sources">
+        <button type="button" className="btn small" onClick={importFile}>
+          Import from Zotero, Mendeley or EndNote…
+        </button>
+        <small className="sync-hint">A BibTeX (.bib), RIS (.ris) or CSL JSON file. In Zotero: right-click a collection → Export Collection… → BibTeX.</small>
+      </div>
+      {imported && (
+        <p className="share-message" role="status">
+          {imported}
+        </p>
       )}
       <p className="sync-hint">Your sources are shared by all your notes and projects (and your other devices, when syncing).</p>
     </Dialog>
