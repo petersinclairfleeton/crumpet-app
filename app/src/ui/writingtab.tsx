@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import { runsText } from '@crumpet/editor/model';
 import { useAppState, useAppStore } from './hooks';
-import { useTodayWords } from './stats-ui';
+import { goalLine, usePeriodGoals, useTodayWords } from './stats-ui';
 import { REVISIONS, hasRevisions } from '../data/revisions';
 import { FOCUS_LABELS, type Focus, findFocus, textStats, wordFrequency } from '../data/textstats';
 
@@ -103,6 +103,7 @@ export function WritingTab({ editor, docId }: { editor: Editor; docId: string })
   const state = useAppState();
   const store = useAppStore();
   const todayWords = useTodayWords();
+  const { week, month } = usePeriodGoals();
   const [focus, setFocus] = useState<Focus | null>(null);
   const [, setTick] = useState(0);
   useEffect(() => editor.onChange(() => setTick((t) => t + 1)), [editor]);
@@ -137,6 +138,16 @@ export function WritingTab({ editor, docId }: { editor: Editor; docId: string })
           Today: {n(todayWords)} word{todayWords === 1 ? '' : 's'}
           {goal ? ` of your ${n(goal)} daily goal` : ''}
         </p>
+        {week && (
+          <p className="target-today">
+            This week: {n(week.words)} of {n(week.goal)} · {goalLine(week)}
+          </p>
+        )}
+        {month && (
+          <p className="target-today">
+            This month: {n(month.words)} of {n(month.goal)} · {goalLine(month)}
+          </p>
+        )}
       </section>
 
       <section aria-label="Text statistics">

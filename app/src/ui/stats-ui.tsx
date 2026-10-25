@@ -1,9 +1,10 @@
-// Writing stats: words today against the daily goal, streaks, the last 30
-// days as bars, and a calendar of the last few months.
+// Writing stats: words today, this week and this month against their goals,
+// streaks (days off don't break them), the last 30 days as bars, and a
+// calendar of the last few months.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { addDays, allDailyWords, dayKey, streaks } from '../data/stats';
+import { type PeriodGoal, addDays, allDailyWords, dayKey, monthOf, periodGoal, streaks, weekOf, weekday } from '../data/stats';
 import { useAppState, useAppStore } from './hooks';
 import { IconClose } from './icons';
 
@@ -15,6 +16,70 @@ function shortDate(day: string, opts: Intl.DateTimeFormatOptions = { weekday: 's
 }
 
 const fmt = (n: number) => n.toLocaleString();
+
+/** Monday first, as the calendar has them. */
+const WEEKDAYS: [number, string, string][] = [
+  [1, 'M', 'Monday'],
+  [2, 'T', 'Tuesday'],
+  [3, 'W', 'Wednesday'],
+  [4, 'T', 'Thursday'],
+  [5, 'F', 'Friday'],
+  [6, 'S', 'Saturday'],
+  [0, 'S', 'Sunday'],
+];
+
+/** This week's and this month's goals, as they stand today (null when there's no goal). */
+export function usePeriodGoals(): { week: PeriodGoal | null; month: PeriodGoal | null; restToday: boolean } {
+  const state = useAppState();
+  const s = state.settings;
+  const now = Date.now();
+  const today = dayKey(now);
+  const days = allDailyWords(s.stats, s.statsElsewhere, now);
+  const rest = s.restDays ?? [];
+  return {
+    week: s.weeklyGoal ? periodGoal(days, s.weeklyGoal, weekOf(today), today, rest) : null,
+    month: s.monthlyGoal ? periodGoal(days, s.monthlyGoal, monthOf(today), today, rest) : null,
+    restToday: rest.includes(weekday(today)),
+  };
+}
+
+/** "1,200 to go · about 400 a day" or "Goal met". */
+export function goalLine(g: PeriodGoal): string {
+  if (!g.left) return 'Goal met';
+  return g.daysLeft > 1 ? `${fmt(g.left)} to go · about ${fmt(g.perDay)} a day` : `${fmt(g.left)} to go`;
+}
+
+function GoalTile({ label, words, goal, note }: { label: string; words: number; goal: PeriodGoal | null; note: string }) {
+  return (
+    <div className="stat-tile">
+      <span>{label}</span>
+      <b>{fmt(words)}</b>
+      {goal ? (
+        <>
+          <div className="stat-meter" role="progressbar" aria-label={`${label}: goal`} aria-valuemin={0} aria-valuemax={goal.goal} aria-valuenow={Math.min(goal.goal, words)}>
+            <i style={{ width: `${Math.min(100, (words / goal.goal) * 100)}%` }} />
+          </div>
+          <small>{goalLine(goal)}</small>
+        </>
+      ) : (
+        <small>{note}</small>
+      )}
+    </div>
+  );
+}
+
+/** A goal's number box: words a day, a week or a month. */
+function GoalInput({ label, unit, value, step, onChange }: { label: string; unit: string; value: number; step: number; onChange(n: number): void }) {
+  return (
+    <label className="field goal-field">
+      <span>{label}</span>
+      <span className="with-unit">
+        <input type="number" min={0} step={step} value={value || ''} placeholder="None" aria-label={`${label} in words`} onChange={(e) => onChange(Math.max(0, Math.round(Number(e.target.value) || 0)))} />
+        <small>{unit}</small>
+      </span>
+    </label>
+  );
+}
 
 /** Words written today, for the sidebar. */
 export function useTodayWords(): number {
@@ -38,12 +103,15 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
   const now = Date.now();
   const today = dayKey(now);
   const goal = state.settings.dailyGoal ?? 0;
+  const rest = state.settings.restDays ?? [];
   const days = useMemo(() => allDailyWords(state.settings.stats, state.settings.statsElsewhere, now), [state.settings.stats, state.settings.statsElsewhere, now]);
-  const { current, best } = streaks(days, goal, now);
+  const { current, best } = streaks(days, goal, now, rest);
+  const { week: weekGoal, month: monthGoal, restToday } = usePeriodGoals();
+  const thisWeek = periodGoal(days, 0, weekOf(today), today).words;
+  const thisMonth = periodGoal(days, 0, monthOf(today), today).words;
   const todayWords = days[today] ?? 0;
   const devices = Object.keys(state.settings.statsElsewhere ?? {}).length;
   const last30 = Array.from({ length: 30 }, (_, i) => addDays(today, i - 29));
-  const week = last30.slice(-7).reduce((n, d) => n + (days[d] ?? 0), 0);
   const month = last30.reduce((n, d) => n + (days[d] ?? 0), 0);
 
   // Focus once, on opening: a redraw mustn't pull the caret back.
@@ -99,7 +167,7 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
             <div className="stat-tile">
               <span>Today</span>
               <b>{fmt(todayWords)}</b>
-              {goal > 0 ? (
+              {goal > 0 && !(restToday && todayWords < goal) ? (
                 <>
                   <div className="stat-meter" role="progressbar" aria-label="Today’s goal" aria-valuemin={0} aria-valuemax={goal} aria-valuenow={Math.min(goal, todayWords)}>
                     <i style={{ width: `${Math.min(100, (todayWords / goal) * 100)}%` }} />
@@ -107,42 +175,42 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
                   <small>{todayWords >= goal ? 'Goal met' : `${fmt(goal - todayWords)} to go`}</small>
                 </>
               ) : (
-                <small>words</small>
+                <small>{restToday ? 'A day off' : 'words'}</small>
               )}
             </div>
+            <GoalTile label="This week" words={thisWeek} goal={weekGoal} note="Monday to Sunday" />
+            <GoalTile label="This month" words={thisMonth} goal={monthGoal} note={`${fmt(month)} in the last 30 days`} />
             <div className="stat-tile">
               <span>Streak</span>
               <b>{current}</b>
-              <small>{current === 1 ? 'day' : 'days'} in a row</small>
-            </div>
-            <div className="stat-tile">
-              <span>Best streak</span>
-              <b>{best}</b>
-              <small>{best === 1 ? 'day' : 'days'}</small>
-            </div>
-            <div className="stat-tile">
-              <span>Last 7 days</span>
-              <b>{fmt(week)}</b>
-              <small>{fmt(month)} in 30 days</small>
+              <small>
+                {current === 1 ? 'day' : 'days'} in a row · best {best}
+              </small>
             </div>
           </div>
 
-          <label className="field goal-field">
-            <span>Daily goal</span>
-            <span className="with-unit">
-              <input
-                type="number"
-                min={0}
-                step={50}
-                value={goal || ''}
-                placeholder="None"
-                aria-label="Daily goal in words"
-                onChange={(e) => store.updateSettings({ dailyGoal: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
-              />
-              <small>words a day</small>
-            </span>
-            <small className="sync-hint">{goal ? 'Your streak counts days you meet the goal.' : 'With no goal, any day you write counts toward your streak.'}</small>
-          </label>
+          <div className="stats-head">
+            <h3>Goals</h3>
+          </div>
+          <div className="goal-fields">
+            <GoalInput label="Daily goal" unit="words a day" step={50} value={goal} onChange={(n) => store.updateSettings({ dailyGoal: n })} />
+            <GoalInput label="Weekly goal" unit="words a week" step={500} value={state.settings.weeklyGoal ?? 0} onChange={(n) => store.updateSettings({ weeklyGoal: n })} />
+            <GoalInput label="Monthly goal" unit="words a month" step={1000} value={state.settings.monthlyGoal ?? 0} onChange={(n) => store.updateSettings({ monthlyGoal: n })} />
+          </div>
+          <div className="rest-days">
+            <span id="rest-days-label">Days off</span>
+            <div role="group" aria-labelledby="rest-days-label">
+              {WEEKDAYS.map(([n, short, name]) => (
+                <button key={n} type="button" aria-label={name} title={name} aria-pressed={rest.includes(n)} onClick={() => store.updateSettings({ restDays: rest.includes(n) ? rest.filter((x) => x !== n) : [...rest, n].sort() })}>
+                  {short}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="sync-hint">
+            {goal ? 'Your streak counts days you meet the daily goal.' : 'With no daily goal, any day you write counts toward your streak.'}
+            {rest.length ? ' Days off don’t break it, and the week’s and month’s words a day leave them out.' : ' Days off don’t break a streak.'}
+          </p>
 
           <div className="stats-head">
             <h3>Last 30 days</h3>
@@ -206,7 +274,7 @@ export function StatsDialog({ onClose }: { onClose(): void }) {
                       role="gridcell"
                       tabIndex={-1}
                       aria-label={describe(d)}
-                      className={`cal-day l${level(days[d] ?? 0)}${d === today ? ' today' : ''}`}
+                      className={`cal-day l${level(days[d] ?? 0)}${d === today ? ' today' : ''}${rest.includes(weekday(d)) ? ' rest' : ''}`}
                       onMouseEnter={(e) => show(e, describe(d))}
                       onMouseLeave={hide}
                     />

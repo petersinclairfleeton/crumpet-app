@@ -86,7 +86,13 @@ export function useAutoHeight(ref: RefObject<HTMLTextAreaElement>): void {
     watching.current?.stop();
     watching.current = el ? { el, stop: watchSize(el) } : null;
   });
-  useEffect(() => () => watching.current?.stop(), []);
+  useEffect(
+    () => () => {
+      watching.current?.stop();
+      watching.current = null;
+    },
+    [],
+  );
 }
 
 function watchSize(el: HTMLTextAreaElement): () => void {

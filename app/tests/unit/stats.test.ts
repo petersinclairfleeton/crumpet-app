@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fromMarkdown } from '@crumpet/editor/markdown';
 import { MemoryStorage } from '../../src/data/db';
 import { AppStore } from '../../src/data/store';
-import { addDays, dailyWords, dayKey, recordEdit, streaks, wordsIn } from '../../src/data/stats';
+import { addDays, dailyWords, dayKey, monthOf, periodGoal, recordEdit, streaks, weekOf, weekday, wordsIn } from '../../src/data/stats';
 
 const at = (day: string, h = 12) => {
   const [y, m, d] = day.split('-').map(Number);
@@ -35,6 +35,33 @@ describe('writing stats', () => {
     expect(streaks(days, 0, at(today))).toEqual({ current: 3, best: 3 });
     expect(streaks({ ...days, [today]: 501 }, 500, at(today))).toEqual({ current: 3, best: 3 });
     expect(dayKey(at(today))).toBe(today);
+  });
+
+  it('days off don’t break a streak, and count when written on', () => {
+    // Saturday 10 October 2026; Sunday the 4th was a day off.
+    const today = '2026-10-10';
+    expect(weekday(today)).toBe(6);
+    const days = { '2026-10-02': 500, '2026-10-03': 500, '2026-10-05': 500, '2026-10-06': 500, '2026-10-07': 500, '2026-10-08': 500, '2026-10-09': 500 };
+    expect(streaks(days, 500, at(today))).toEqual({ current: 5, best: 5 });
+    expect(streaks(days, 500, at(today), [0])).toEqual({ current: 7, best: 7 });
+    expect(streaks({ ...days, '2026-10-04': 600 }, 500, at(today), [0])).toEqual({ current: 8, best: 8 });
+    // A missed working day still breaks it.
+    expect(streaks({ ...days, '2026-10-06': 0 }, 500, at(today), [0])).toEqual({ current: 3, best: 3 });
+  });
+
+  it('weekly and monthly goals: words so far, what’s left, and words a day on the writing days left', () => {
+    expect(weekOf('2026-10-10')).toEqual({ from: '2026-10-05', to: '2026-10-11' });
+    expect(weekOf('2026-10-05')).toEqual({ from: '2026-10-05', to: '2026-10-11' });
+    expect(monthOf('2026-02-14')).toEqual({ from: '2026-02-01', to: '2026-02-28' });
+    expect(monthOf('2026-10-31')).toEqual({ from: '2026-10-01', to: '2026-10-31' });
+    const days = { '2026-10-04': 9000, '2026-10-05': 1000, '2026-10-06': 1500, '2026-10-07': 500 };
+    // Wednesday the 7th: 3,000 of 5,000 this week; Wednesday to Sunday is 5 days, or 4 with Sundays off.
+    expect(periodGoal(days, 5000, weekOf('2026-10-07'), '2026-10-07')).toEqual({ words: 3000, goal: 5000, left: 2000, daysLeft: 5, perDay: 400 });
+    expect(periodGoal(days, 5000, weekOf('2026-10-07'), '2026-10-07', [0])).toEqual({ words: 3000, goal: 5000, left: 2000, daysLeft: 4, perDay: 500 });
+    // Met: nothing left.
+    expect(periodGoal(days, 2000, weekOf('2026-10-07'), '2026-10-07').left).toBe(0);
+    // The month: the 4th counts too.
+    expect(periodGoal(days, 50000, monthOf('2026-10-07'), '2026-10-07')).toMatchObject({ words: 12000, left: 38000, daysLeft: 25, perDay: 1520 });
   });
 
   it('the store counts edits made here, not ones arriving from elsewhere', async () => {

@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-week-month-goals',
+    date: '26 October 2026',
+    title: 'Weekly and monthly goals, and days off',
+    points: [
+      'Writing stats (in the sidebar’s ⚙ menu) now has a goal for the week and for the month as well as the day: 50,000 words for November, say. Each shows what’s left and about how many words a day will get you there.',
+      'Mark your days off (Sundays, say): they don’t break your streak, and the words a day leave them out. They show dashed in the calendar.',
+      'The Writing tab beside your text shows the week’s and the month’s progress too.',
+    ],
+  },
+  {
     id: '2026-10-25-phone-size-preview-syncing',
     date: '25 October 2026',
     title: 'Text size and page preview on your phone, and “Syncing…”',

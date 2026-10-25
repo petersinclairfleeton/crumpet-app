@@ -197,6 +197,11 @@ export interface Settings {
   statsElsewhere?: StatsElsewhere;
   /** Words to write each day, for streaks; 0 or unset: any writing counts. */
   dailyGoal?: number;
+  /** Words to write each week (Monday to Sunday) and each month; 0 or unset: none. */
+  weeklyGoal?: number;
+  monthlyGoal?: number;
+  /** Days off (0 Sunday to 6 Saturday): they don't break a streak, and goals' words a day leave them out. */
+  restDays?: number[];
   /** Read aloud: speed (1 = normal) and the voice chosen (its voiceURI). */
   speech?: { rate?: number; voice?: string | null };
   /** Keep versions of notes and chapters automatically while writing (on unless turned off). */
