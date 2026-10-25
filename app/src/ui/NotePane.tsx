@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
 import { PageToggle } from './pages';
 import { ExportItems } from './exportmenu';
+import { ShareDialog } from './share';
 import { LockedNote, PasswordDialog, removePassword, useOpened } from './locked';
 import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
@@ -60,6 +61,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
   const [printing, setPrinting] = useState<false | 'print' | 'preview'>(false);
   const [finding, setFinding] = useState(false);
   const [protecting, setProtecting] = useState(false);
+  const [sharing, setSharing] = useState(false);
   // A note with a password: its text once opened (in memory only), saved locked again as it changes.
   const opened = useOpened(note?.id ?? '');
   const onFindKey = useFindKey(() => setFinding(true));
@@ -331,6 +333,11 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               }}
             >
               <IconCopy size={14} /> Save as template
+            </button>
+          )}
+          {!trashed && !locked && !note.file && (
+            <button type="button" className="menu-item" onClick={() => (setMenu(false), setSharing(true))}>
+              <IconShare size={14} /> Share with readers…
             </button>
           )}
           <hr className="menu-sep" />
@@ -619,6 +626,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         />
       )}
       {protecting && <PasswordDialog id={note.id} doc={note.doc} onClose={() => setProtecting(false)} />}
+      {sharing && <ShareDialog what={{ kind: 'note', id: note.id }} onClose={() => setSharing(false)} />}
       <EditorHost
         sheet={sheet}
         page={paged ? pageSetup : null}

@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-share',
+    date: '26 October 2026',
+    title: 'Share with beta readers',
+    points: [
+      'Share with readers…, in a note’s ··· menu, a chapter’s or the book’s, makes a link for beta readers, an editor or your writing group: a copy as a Google Doc in your Google Drive (in “Crumpet – shared copies”) that anyone with the link can read and comment on, in their browser, without Crumpet.',
+      'Bring back comments puts their comments on your text as Crumpet comments, with their replies, on the words they’re about (a book’s go to the right chapters). Only new ones each time.',
+      'Your own notes and files are never shared; each link is a copy as the text stood then. Delete it in Google Drive to stop sharing.',
+    ],
+  },
+  {
     id: '2026-10-26-zotero',
     date: '26 October 2026',
     title: 'Sources from Zotero, Mendeley and EndNote',
