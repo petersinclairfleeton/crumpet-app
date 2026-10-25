@@ -8,6 +8,7 @@ import { toMarkdown } from '@crumpet/editor/markdown';
 import type { AppState } from '../data/store';
 import { type BookDraft, type CastMember, type ChapterStatus, type Deadline, type OutlineItem, SHARED_SETTINGS, type Settings, type SharedSetting } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
+import type { BookPlan } from '../data/plan';
 
 export interface TStack {
   id: string;
@@ -56,6 +57,7 @@ export interface TProject {
   linked?: string[];
   deadline?: Deadline;
   draft?: BookDraft;
+  plan?: BookPlan;
   created: number;
   updated: number;
 }
@@ -151,7 +153,7 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
     };
   }
   for (const p of state.projects ?? []) {
-    tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}) };
+    tree.projects[p.id] = { id: p.id, name: p.name, goal: p.goal, outline: p.outline, created: p.createdAt, updated: p.updatedAt, ...(p.styles ? { styles: p.styles } : {}), ...(p.page ? { page: p.page } : {}), ...(p.cast?.length ? { cast: p.cast } : {}), ...(p.linked?.length ? { linked: p.linked } : {}), ...(p.deadline ? { deadline: p.deadline } : {}), ...(p.draft ? { draft: p.draft } : {}), ...(p.plan ? { plan: p.plan } : {}) };
   }
   for (const c of state.chapters ?? []) {
     if (!tree.projects[c.projectId]) continue;
@@ -168,7 +170,7 @@ export function sameOutline(a: OutlineItem[], b: OutlineItem[]): boolean {
 export function sameProject(a: TProject | undefined, b: TProject | undefined): boolean {
   return (
     a === b ||
-    (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline) && sameJson(a.styles, b.styles) && sameJson(a.page, b.page) && sameJson(a.cast, b.cast) && sameJson(a.linked, b.linked) && sameJson(a.deadline, b.deadline) && sameJson(a.draft, b.draft))
+    (!!a && !!b && a.name === b.name && a.goal === b.goal && a.created === b.created && a.updated === b.updated && sameOutline(a.outline, b.outline) && sameJson(a.styles, b.styles) && sameJson(a.page, b.page) && sameJson(a.cast, b.cast) && sameJson(a.linked, b.linked) && sameJson(a.deadline, b.deadline) && sameJson(a.draft, b.draft) && sameJson(a.plan, b.plan))
   );
 }
 

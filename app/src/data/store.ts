@@ -23,6 +23,7 @@ import { DAILY_NOTEBOOK, DAILY_TEMPLATE, TEMPLATES_NOTEBOOK, fillIn, longDate, t
 import { removeRevisionColors } from './revisions';
 import { type CastMember, type Chapter, type ChapterDraft, type ChapterStatus, type LayoutPrefs, type Note, type Notebook, NOTEBOOK_COLORS, type OutlineItem, SHARED_SETTINGS, type Project, type Settings, type SideOrder, type Stack, TRASH_DAYS, type View } from './types';
 import { inOrder, moveInOrder, notebookTree, projectsInOrder } from './selectors';
+import { type BookPlan, tidyPlan } from './plan';
 import { activeTab, tidyWorkspace } from './panes';
 
 export interface AppState {
@@ -42,7 +43,7 @@ export interface AppState {
   /** The chapter open in the project being viewed. */
   chapterId: string | null;
   /** In a project: one chapter at a time, the whole manuscript on one page, or chapters as index cards. */
-  projectMode: 'chapter' | 'manuscript' | 'corkboard';
+  projectMode: 'chapter' | 'manuscript' | 'corkboard' | 'plan';
   /** A research note open beside the project's writing. */
   researchId: string | null;
   /** A character's or place's card open beside the project's writing. */
@@ -690,7 +691,7 @@ export class AppStore {
     const treeChapters = tree.chapters ?? {};
     const projects: Project[] = Object.values(treeProjects).map((t) => {
       const cur = state.projects.find((x) => x.id === t.id);
-      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.linked?.length ? { linked: t.linked } : {}), ...(t.deadline ? { deadline: t.deadline } : {}), ...(t.draft ? { draft: t.draft } : {}) };
+      const next: Project = { id: t.id, name: t.name, goal: t.goal, outline: t.outline, createdAt: t.created, updatedAt: t.updated, ...(t.styles ? { styles: t.styles } : {}), ...(t.page ? { page: t.page } : {}), ...(t.cast?.length ? { cast: t.cast } : {}), ...(t.linked?.length ? { linked: t.linked } : {}), ...(t.deadline ? { deadline: t.deadline } : {}), ...(t.draft ? { draft: t.draft } : {}), ...(t.plan ? { plan: t.plan } : {}) };
       if (
         cur &&
         cur.name === next.name &&
@@ -703,7 +704,8 @@ export class AppStore {
         JSON.stringify(cur.cast ?? null) === JSON.stringify(next.cast ?? null) &&
         JSON.stringify(cur.linked ?? null) === JSON.stringify(next.linked ?? null) &&
         JSON.stringify(cur.deadline ?? null) === JSON.stringify(next.deadline ?? null) &&
-        JSON.stringify(cur.draft ?? null) === JSON.stringify(next.draft ?? null)
+        JSON.stringify(cur.draft ?? null) === JSON.stringify(next.draft ?? null) &&
+        JSON.stringify(cur.plan ?? null) === JSON.stringify(next.plan ?? null)
       )
         return cur;
       this.save(this.storage.putProject(next));
@@ -952,7 +954,7 @@ export class AppStore {
     this.set({ chapterId: id });
   }
 
-  setProjectMode(mode: 'chapter' | 'manuscript' | 'corkboard'): void {
+  setProjectMode(mode: 'chapter' | 'manuscript' | 'corkboard' | 'plan'): void {
     this.flush();
     // A character or place card closes when the view changes, giving the writing its room back.
     this.set(mode === this.state.projectMode ? { projectMode: mode } : { projectMode: mode, castId: null });
@@ -964,6 +966,11 @@ export class AppStore {
     if (!updated) return;
     this.set({ projects });
     this.save(this.storage.putProject(updated));
+  }
+
+  /** A book's plan (plotlines, timeline, structure), without its empty parts. */
+  setPlan(id: string, plan: BookPlan | undefined): void {
+    this.updateProject(id, { plan: tidyPlan(plan) });
   }
 
   renameProject(id: string, name: string): void {

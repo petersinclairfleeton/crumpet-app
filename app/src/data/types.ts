@@ -88,6 +88,8 @@ export interface Project {
   deadline?: Deadline;
   /** The draft the book is on, once one was started for the whole book ("Draft 2", what it's for). */
   draft?: BookDraft;
+  /** Its plan: plotlines, the story's timeline, and a structure's beats (the outline's Plan view). */
+  plan?: import('./plan').BookPlan;
   createdAt: number;
   updatedAt: number;
 }

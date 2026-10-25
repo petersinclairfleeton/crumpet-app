@@ -36,6 +36,7 @@ import { type BookOptions, bookParts, finalDoc } from '../data/wordfiles';
 import { ExportBook } from './exportbook';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
+import { PlanView } from './plan';
 import { CastList, CastPane, CastSpotting } from './cast';
 import { FoldButton } from './fold';
 import { startTabDrag } from './tabdrag';
@@ -211,7 +212,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
   // The calm phone (design 17): back to the library, a big title, the words against the goal,
   // then Chapters, Cast and Research side by side; chapters as cards with their synopses.
   const phone = !state.settings.toolbarAll && narrowScreen;
-  const [phoneTab, setPhoneTab] = useState<'chapters' | 'cast' | 'research'>('chapters');
+  const [phoneTab, setPhoneTab] = useState<'chapters' | 'cast' | 'research' | 'plan'>('chapters');
   const [footOpen, setFootOpen] = useState<null | 'cast' | 'research'>(null);
   const researchCount = state.notes.filter((n) => n.projectId === project.id && n.trashedAt === null).length + store.linkedNotes(project.id).length;
   const show = { synopsis: true, status: true, keywords: true, ...state.settings.cardShow };
@@ -372,6 +373,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                 [
                   ['chapter', 'Write'],
                   ['corkboard', 'Cards'],
+                  ['plan', 'Plan'],
                   ['manuscript', 'Read'],
                 ] as const
               ).map(([m, label]) => (
@@ -412,6 +414,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                   ['chapters', 'Chapters'],
                   ['cast', 'Cast'],
                   ['research', 'Research'],
+                  ['plan', 'Plan'],
                 ] as const
               ).map(([t, label]) => (
                 <button key={t} type="button" aria-pressed={phoneTab === t} onClick={() => setPhoneTab(t)}>
@@ -437,6 +440,9 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
             <button type="button" aria-pressed={mode === 'corkboard'} title="Corkboard: chapters as index cards" onClick={() => store.setProjectMode('corkboard')}>
               Cards
             </button>
+            <button type="button" aria-pressed={mode === 'plan'} title="Plan: the story's timeline, plotlines and structure" onClick={() => store.setProjectMode('plan')}>
+              Plan
+            </button>
           </div>
         </div>}
         {!calm && !phone && <Progress value={total} goal={goal} label="Project progress" />}
@@ -445,7 +451,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
       </header>
 
       {phone && phoneTab !== 'chapters' ? (
-        phoneTab === 'cast' ? <CastList project={project} phone /> : <ResearchList project={project} phone />
+        phoneTab === 'cast' ? <CastList project={project} phone /> : phoneTab === 'plan' ? <PlanView project={project} narrow inTab onBack={() => setPhoneTab('chapters')} /> : <ResearchList project={project} phone />
       ) : calm && mode === 'corkboard' ? (
         <div className="book-show" role="group" aria-label="Show on the cards">
           <p className="book-label">Show</p>
@@ -780,6 +786,7 @@ function ProjectWriting({ project, narrow, onBack }: { project: Project; narrow:
   const state = useAppState();
   if (state.projectMode === 'manuscript') return <Manuscript project={project} narrow={narrow} onBack={onBack} />;
   if (state.projectMode === 'corkboard') return <Corkboard project={project} narrow={narrow} onBack={onBack} />;
+  if (state.projectMode === 'plan') return <PlanView project={project} narrow={narrow} onBack={onBack} />;
   const chapter = state.chapters.find((c) => c.id === state.chapterId && c.projectId === project.id);
   if (!chapter) {
     return (

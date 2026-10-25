@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-plan',
+    date: '26 October 2026',
+    title: 'Plan a book: timeline, plotlines and structure',
+    points: [
+      'A book’s outline has a new view, Plan (beside Write, Cards and Read), with three tabs.',
+      'Timeline: what happens when in the story, as events at a date (1912-04-14 23:40) or a day of the story (Day 3, Day 3 14:30), each told in a chapter, on a plotline, with who’s there. See them in lanes by plotline or by character; Add the chapters starts it from your chapters; and it warns when a character is in two places at once.',
+      'Plotlines: a grid of your chapters and the threads of the story. Say in a line what each thread does in each chapter, and see how much of the book it runs through and where it goes quiet.',
+      'Structure: choose three acts, Save the Cat, the hero’s journey, seven points, the story circle or kishōtenketsu. Each beat is placed in the chapter where it falls by words written, with a note when a turn comes much earlier or later than expected. A new book can start with a chapter for each beat.',
+    ],
+  },
+  {
     id: '2026-10-26-sprints',
     date: '26 October 2026',
     title: 'Writing sprints',

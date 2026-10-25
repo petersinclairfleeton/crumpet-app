@@ -107,6 +107,32 @@ test('the guide’s pictures', async ({ page }) => {
   await outline.getByRole('button', { name: 'Cards' }).click();
   await expect(page.getByRole('region', { name: 'Corkboard' })).toBeVisible();
   await shot(page, 'cards');
+
+  // The plan: the story's timeline, by plotline.
+  await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: { getState(): { projects: { id: string; name: string; cast?: { id: string; name: string }[] }[]; chapters: { id: string; projectId: string; title: string }[] }; setPlan(id: string, plan: object): void } }).crumpet;
+    const st = c.getState();
+    const p = st.projects.find((x) => x.name === 'The Lighthouse')!;
+    const ch = (t: string) => st.chapters.find((x) => x.projectId === p.id && x.title === t)?.id;
+    const who = (n: string) => p.cast?.find((m) => m.name === n)?.id;
+    const cast = (...names: string[]) => names.map(who).filter((x): x is string => !!x);
+    c.setPlan(p.id, {
+      plotlines: [
+        { id: 'pl-mara', name: 'Mara comes home', color: '#c0703a', cells: {} },
+        { id: 'pl-light', name: 'The last light', color: '#4f7cac', cells: {} },
+      ],
+      events: [
+        { id: 'ev1', title: 'The boat leaves Mara at the steps', when: 'Day 1 16:00', chapterId: ch('Arrival'), plotlineId: 'pl-mara', cast: cast('Mara', 'Tam') },
+        { id: 'ev2', title: 'Tam shows her the lamp room', when: 'Day 1 21:00', chapterId: ch('The Keeper'), plotlineId: 'pl-light', cast: cast('Mara', 'Tam') },
+        { id: 'ev3', title: 'The storm comes in', when: 'Day 3 02:00', chapterId: ch('Storm'), plotlineId: 'pl-light', cast: cast('Tam') },
+        { id: 'ev4', title: 'Mara rows out to the wreck', when: 'Day 3 05:30', chapterId: ch('Rescue'), plotlineId: 'pl-mara', cast: cast('Mara') },
+        { id: 'ev5', title: 'The letter from the board', when: '', plotlineId: 'pl-light' },
+      ],
+    });
+  });
+  await outline.getByRole('button', { name: 'Plan', exact: true }).click();
+  await expect(page.getByRole('region', { name: 'Plan' })).toBeVisible();
+  await shot(page, 'plan');
   await outline.getByRole('button', { name: 'Write', exact: true }).click();
 
   // A character's card beside the writing.

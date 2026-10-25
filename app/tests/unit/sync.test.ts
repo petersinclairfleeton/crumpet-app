@@ -788,6 +788,32 @@ describe('characters and places', () => {
   });
 });
 
+describe('a book’s plan', () => {
+  it('syncs in project.json: events and plotlines added on each device both kept, an edit on one reaching the other', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const p = mac.store.createProject('The Lighthouse');
+    mac.store.setPlan(p.id, { events: [{ id: 'e1', title: 'The storm', when: 'Day 3' }], plotlines: [{ id: 'p1', name: 'The mystery', color: '#c0703a', cells: {} }] });
+    mac.store.flush();
+    await mac.engine.sync();
+    expect(cloud.files.get('Projects/The Lighthouse/project.json')!.text).toContain('"The storm"');
+    await phone.engine.sync();
+    expect(phone.store.project(p.id)?.plan?.events?.map((e) => e.title)).toEqual(['The storm']);
+    // On the Mac an event is moved and one added; on the phone another added and a plotline written in.
+    const plan = (s: AppStore) => s.project(p.id)!.plan!;
+    mac.store.setPlan(p.id, { ...plan(mac.store), events: [{ id: 'e1', title: 'The storm', when: 'Day 4' }, { id: 'e2', title: 'The wreck', when: 'Day 5' }] });
+    phone.store.setPlan(p.id, { ...plan(phone.store), events: [...plan(phone.store).events!, { id: 'e3', title: 'A letter', when: 'Day 1' }], plotlines: [{ id: 'p1', name: 'The mystery', color: '#c0703a', cells: { c1: 'A body' } }] });
+    await mac.engine.sync();
+    await phone.engine.sync();
+    await mac.engine.sync();
+    const events = (s: AppStore) => plan(s).events!.map((e) => `${e.title}@${e.when}`).sort();
+    expect(events(mac.store)).toEqual(['A letter@Day 1', 'The storm@Day 4', 'The wreck@Day 5']);
+    expect(events(phone.store)).toEqual(events(mac.store));
+    expect(plan(mac.store).plotlines![0].cells).toEqual({ c1: 'A body' });
+  });
+});
+
 describe('notes linked into a book', () => {
   it('sync in project.json, links made and taken away on each device both kept', async () => {
     const cloud = new MemoryProvider();
