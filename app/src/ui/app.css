@@ -3405,3 +3405,23 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .page-preview-pages.actual { align-items: flex-start; }
 .preview-page { position: relative; flex: none; background: #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18); overflow: hidden; }
 .preview-num { position: absolute; right: 6px; bottom: 4px; font-size: 11px; color: var(--muted); background: rgba(255, 255, 255, 0.85); padding: 0 4px; border-radius: 4px; }
+
+/* Writing sprints (ui/sprint.tsx): the bar while one runs, at the foot of the window; the lengths and the log. */
+.sprint-bar { position: fixed; left: 50%; bottom: 20px; translate: -50% 0; z-index: 61; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px); padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--page); color: var(--text); box-shadow: var(--shadow); font-size: 13px; }
+.sprint-bar.done { background: color-mix(in srgb, var(--accent) 10%, var(--page)); }
+.sprint-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+.sprint-dot.paused { background: var(--muted); }
+.sprint-clock { font: 600 15px var(--ui-font, inherit); font-variant-numeric: tabular-nums; min-width: 44px; }
+.sprint-words { color: var(--muted); }
+.sprint-words b { color: var(--text); }
+.speech-bar ~ .sprint-bar { bottom: 72px; }
+.app.narrow .sprint-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
+.sprint-start { display: grid; gap: 8px; }
+.sprint-lengths { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.sprint-lengths button { min-width: 34px; height: 28px; padding: 0 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--page); color: var(--text); font: 500 12px var(--ui-font, inherit); cursor: pointer; }
+.sprint-lengths button[aria-checked='true'] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.sprint-unit { font-size: 12px; color: var(--muted); }
+.sprint-start > .btn { justify-self: start; }
+.sprint-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
+.sprint-log li { display: grid; grid-template-columns: 60px 1fr auto; gap: 8px; }
+.sprint-log .muted, .sprint-best { color: var(--muted); font-size: 12px; margin: 0; }

@@ -202,6 +202,9 @@ export interface Settings {
   monthlyGoal?: number;
   /** Days off (0 Sunday to 6 Saturday): they don't break a streak, and goals' words a day leave them out. */
   restDays?: number[];
+  /** A writing sprint under way (kept through a reload), and the sprints done, newest first. */
+  sprint?: import('./sprints').Sprint | null;
+  sprints?: import('./sprints').SprintDone[];
   /** Read aloud: speed (1 = normal) and the voice chosen (its voiceURI). */
   speech?: { rate?: number; voice?: string | null };
   /** Keep versions of notes and chapters automatically while writing (on unless turned off). */

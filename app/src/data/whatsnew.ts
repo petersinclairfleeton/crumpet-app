@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-sprints',
+    date: '26 October 2026',
+    title: 'Writing sprints',
+    points: [
+      'Write against the clock: pick 10, 15, 20, 25, 30, 45 or 60 minutes in the Writing tab beside your text (or in Writing stats, or the command palette) and start. A small bar at the foot of the window counts down and counts the words you write, with Pause and Stop.',
+      'When the time’s up, a soft chime and what you wrote: “412 words in 25 minutes · 16 a minute”, with Another to go again. Your sprints are kept, with your best.',
+      'A sprint carries on if you reload, and counts the words in every note and chapter you write in while it runs.',
+    ],
+  },
+  {
     id: '2026-10-26-week-month-goals',
     date: '26 October 2026',
     title: 'Weekly and monthly goals, and days off',

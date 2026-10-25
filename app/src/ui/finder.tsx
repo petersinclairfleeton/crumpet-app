@@ -28,6 +28,8 @@ import { REVISIONS, hasRevisions } from '../data/revisions';
 import { startReading, toggleDictation } from './speech';
 import { startPainting } from './painter';
 import type { Tab } from '../data/panes';
+import { beginSprint, stopSprint } from './sprint';
+import { SPRINT_LENGTHS } from '../data/sprints';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -164,6 +166,9 @@ function useCommands(actions: Actions): Item[] {
     cmd(state.settings.ruler ? 'Hide the ruler' : 'Show the ruler', () => store.updateSettings({ ruler: !state.settings.ruler })),
     cmd(state.settings.toolbar === 'always' ? 'Formatting bar only over selected text' : 'Always show the formatting bar', () => store.updateSettings({ toolbar: state.settings.toolbar === 'always' ? 'selection' : 'always' })),
     cmd(state.settings.typewriter?.scroll ? 'Typewriter mode off' : 'Typewriter mode', () => store.updateSettings({ typewriter: { ...state.settings.typewriter, scroll: !state.settings.typewriter?.scroll, fade: !state.settings.typewriter?.scroll } })),
+    ...(state.settings.sprint
+      ? [cmd('Stop the writing sprint', () => stopSprint(store))]
+      : SPRINT_LENGTHS.map((m) => cmd(`Start a ${m}-minute writing sprint`, () => beginSprint(store, m)))),
     cmd('Settings', actions.openSettings),
     cmd('Open the guide to Crumpet', openGuide),
     cmd('What’s new in Crumpet', openWhatsNew),
