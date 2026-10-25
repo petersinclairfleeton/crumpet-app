@@ -1864,11 +1864,12 @@ test('writing stats: words today, a daily goal, streaks and a calendar', async (
   await row.click();
   const dialog = page.getByRole('dialog', { name: 'Writing stats' });
   await expect(dialog.locator('.stat-tile').first()).toContainText('10');
-  await expect(dialog.locator('.stat-tile').nth(1)).toContainText('4');
+  const streak = dialog.locator('.stat-tile', { hasText: 'Streak' });
+  await expect(streak.locator('b')).toHaveText('4');
   await dialog.getByLabel('Daily goal in words').fill('400');
   await expect(dialog.locator('.stat-tile').first()).toContainText('390 to go');
-  // With a goal of 400, only yesterday counts toward the streak (the day before had 300... no, 650): 2 days.
-  await expect(dialog.locator('.stat-tile').nth(1)).toContainText('2');
+  // With a goal of 400, yesterday and the day before count toward the streak (300 three days ago doesn't): 2 days.
+  await expect(streak.locator('b')).toHaveText('2');
   await expect(dialog.locator('.goal-line')).toContainText('Goal 400');
   await expect(dialog.locator('.bar')).toHaveCount(30);
   await expect(dialog.getByRole('gridcell').last()).toHaveAttribute('aria-label', /10 words/);
@@ -1876,6 +1877,47 @@ test('writing stats: words today, a daily goal, streaks and a calendar', async (
   await expect(page.getByRole('tooltip')).toContainText('420 words · goal met');
   await dialog.getByRole('button', { name: 'Show as table' }).click();
   await expect(dialog.getByRole('table')).toContainText('650');
+});
+
+test('weekly and monthly goals, and days off that don’t break a streak', async ({ page }) => {
+  // Wednesday 7 October 2026.
+  await page.clock.install({ time: new Date(2026, 9, 7, 12) });
+  await open(page);
+  await page.evaluate(() => {
+    const history = { '2026-09-30': 2000, '2026-10-04': 1000, '2026-10-05': 1500, '2026-10-06': 1500 };
+    (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ stats: { day: '2026-10-06', base: {}, now: {}, history } });
+  });
+  await sideMore(page);
+  await sidebar(page).getByRole('button', { name: /Writing stats/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Writing stats' });
+  const tile = (name: string) => dialog.locator('.stat-tile', { hasText: name });
+  // This week (from Monday the 5th): 3,000; this month: 4,000.
+  await expect(tile('This week').locator('b')).toHaveText('3,000');
+  await expect(tile('This month').locator('b')).toHaveText('4,000');
+  // 5,000 a week: 2,000 to go over Wednesday to Sunday, 400 a day; with Sundays off, 500.
+  await dialog.getByLabel('Weekly goal in words').fill('5000');
+  await expect(tile('This week')).toContainText('2,000 to go · about 400 a day');
+  await dialog.getByRole('button', { name: 'Sunday' }).click();
+  await expect(dialog.getByRole('button', { name: 'Sunday' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(tile('This week')).toContainText('2,000 to go · about 500 a day');
+  // 50,000 for the month: 46,000 to go over the 22 writing days left (the 7th to the 31st, less three Sundays).
+  await dialog.getByLabel('Monthly goal in words').fill('50000');
+  await expect(tile('This month')).toContainText('46,000 to go · about 2,091 a day');
+  // Nothing written today, nor on Saturday the 3rd: the streak is Sunday the 4th to Tuesday, 3 days; today not done yet keeps it.
+  await expect(tile('Streak').locator('b')).toHaveText('3');
+  // Saturdays off too: Saturday the 3rd no longer breaks it, but Friday the 2nd was missed, so still 3.
+  await dialog.getByRole('button', { name: 'Saturday' }).click();
+  await expect(tile('Streak').locator('b')).toHaveText('3');
+  // With Fridays and Thursdays off as well, it runs back to Wednesday the 30th: 4 days (the days off don't add to it).
+  await dialog.getByRole('button', { name: 'Friday' }).click();
+  await dialog.getByRole('button', { name: 'Thursday' }).click();
+  await expect(tile('Streak').locator('b')).toHaveText('4');
+  // The goals show in the Writing tab too.
+  await page.keyboard.press('Escape');
+  await newNote(page, 'Chapter', 'A few words.');
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'writing' }));
+  await expect(page.locator('.writing-tab')).toContainText('This week: 3,003 of 5,000');
+  await expect(page.locator('.writing-tab')).toContainText('This month: 4,003 of 50,000');
 });
 
 test('print or save as PDF: the pages as page view shows them, and e-books download', async ({ page }) => {

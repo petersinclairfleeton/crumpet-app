@@ -1,5 +1,6 @@
-// Writing stats: how many words were written each day, and streaks of days
-// writing (or meeting the daily goal).
+// Writing stats: how many words were written each day, streaks of days
+// writing (or meeting the daily goal; days off don't break them), and goals
+// for the week and the month.
 //
 // A day's words are counted per note or chapter: how many more words it has
 // now than when it was first touched that day (never below zero), so editing,
@@ -84,21 +85,61 @@ export function dailyWords(s: WritingStats | undefined, now: number): Record<str
 
 /**
  * Days in a row meeting the goal (or writing at all, with no goal). Today
- * not done yet doesn't break the current streak; it just doesn't add to it.
+ * not done yet doesn't break the current streak; it just doesn't add to it,
+ * and nor does a day off (`restDays`, 0 Sunday to 6 Saturday) unless written on.
  */
-export function streaks(days: Record<string, number>, goal: number, now: number): { current: number; best: number } {
+export function streaks(days: Record<string, number>, goal: number, now: number, restDays: number[] = []): { current: number; best: number } {
   const met = (d: string) => (days[d] ?? 0) >= Math.max(1, goal);
   const today = dayKey(now);
-  let current = 0;
-  for (let d = met(today) ? today : addDays(today, -1); met(d); d = addDays(d, -1)) current++;
+  const first = Object.keys(days).filter((d) => days[d] > 0 && d <= today).sort()[0];
+  let run = 0;
   let best = 0;
-  for (const d of Object.keys(days).sort()) {
-    if (!met(d) || met(addDays(d, -1))) continue;
-    let run = 0;
-    for (let x = d; met(x); x = addDays(x, 1)) run++;
+  for (let d = first ?? today; d <= today; d = addDays(d, 1)) {
+    if (met(d)) run++;
+    else if (d !== today && !restDays.includes(weekday(d))) run = 0;
     best = Math.max(best, run);
   }
-  return { current, best: Math.max(best, current) };
+  return { current: run, best };
+}
+
+/** The day of the week (0 Sunday to 6 Saturday), as JavaScript numbers them. */
+export function weekday(day: string): number {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y, m - 1, d, 12).getDay();
+}
+
+/** The week a day is in, Monday to Sunday. */
+export function weekOf(day: string): { from: string; to: string } {
+  const from = addDays(day, -((weekday(day) + 6) % 7));
+  return { from, to: addDays(from, 6) };
+}
+
+/** The month a day is in, first day to last. */
+export function monthOf(day: string): { from: string; to: string } {
+  const [y, m] = day.split('-').map(Number);
+  return { from: `${y}-${pad(m)}-01`, to: dayKey(new Date(y, m, 0, 12).getTime()) };
+}
+
+/** A goal for a stretch of days (a week, a month), and how it's going. */
+export interface PeriodGoal {
+  words: number;
+  goal: number;
+  /** Words still to write (0 once met). */
+  left: number;
+  /** Writing days left, today included (days off left out). */
+  daysLeft: number;
+  /** Words a day, over the writing days left, to meet it. */
+  perDay: number;
+}
+
+/** How a goal for the days `from` to `to` stands on `today`: words so far, what's left, and how many a day keeps it on track. */
+export function periodGoal(days: Record<string, number>, goal: number, span: { from: string; to: string }, today: string, restDays: number[] = []): PeriodGoal {
+  let words = 0;
+  for (let d = span.from; d <= span.to && d <= today; d = addDays(d, 1)) words += days[d] ?? 0;
+  let daysLeft = 0;
+  for (let d = today < span.from ? span.from : today; d <= span.to; d = addDays(d, 1)) if (!restDays.includes(weekday(d))) daysLeft++;
+  const left = Math.max(0, goal - words);
+  return { words, goal, left, daysLeft, perDay: left ? Math.ceil(left / Math.max(1, daysLeft)) : 0 };
 }
 
 /** Words written today (on this device) in some notes or chapters, such as a project's. */

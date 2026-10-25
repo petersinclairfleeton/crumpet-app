@@ -1322,6 +1322,14 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .goal-field .with-unit { display: flex; align-items: center; gap: 8px; }
 .goal-field input { width: 100px; }
 .goal-field small { font-size: 12px; color: var(--muted); }
+/* The three goals side by side (one under another on a phone), and the days off as a row of letters. */
+.goal-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .goal-fields { grid-template-columns: 1fr; } }
+.goal-fields .goal-field input { width: 90px; }
+.rest-days { display: flex; align-items: center; gap: 12px; margin-top: 10px; font-size: 13px; }
+.rest-days [role='group'] { display: flex; gap: 4px; }
+.rest-days button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--page); color: var(--text); font: 600 12px var(--ui-font, inherit); cursor: pointer; }
+.rest-days button[aria-pressed='true'] { background: var(--field); color: var(--muted); text-decoration: line-through; }
 .stats-head { display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px; }
 .stats-head h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text2, var(--text)); }
 .bars { position: relative; display: flex; align-items: flex-end; gap: 2px; border-bottom: 1px solid var(--line2, var(--line)); }
@@ -1339,6 +1347,8 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .cal-week { display: flex; flex-direction: column; gap: 3px; }
 .cal-day { display: block; width: 14px; height: 14px; border-radius: 3px; background: var(--field); border: 1px solid var(--line); box-sizing: border-box; }
 .cal-day.future { visibility: hidden; }
+/* A day off, not written on: dashed. */
+.cal-day.rest.l0 { border-style: dashed; background: transparent; }
 .cal-day.l1 { background: color-mix(in srgb, var(--accent) 30%, var(--page)); border-color: transparent; }
 .cal-day.l2 { background: color-mix(in srgb, var(--accent) 55%, var(--page)); border-color: transparent; }
 .cal-day.l3 { background: color-mix(in srgb, var(--accent) 80%, var(--page)); border-color: transparent; }

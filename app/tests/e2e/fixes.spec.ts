@@ -5,8 +5,11 @@ import { type Page, expect, test } from '@playwright/test';
 const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Notebooks' });
 const list = (page: Page) => page.getByRole('region', { name: 'Notes', exact: true });
 
-/** True when a text area shows all of its text (none hidden below its bottom edge). */
-const whole = (page: Page, label: string) => page.getByLabel(label).evaluate((el: HTMLTextAreaElement) => el.scrollHeight <= el.clientHeight + 1);
+/** True when a text area shows all of its text (none hidden below its bottom edge), once the browser has drawn (as a screen would after the window changes). */
+const whole = (page: Page, label: string) => page.getByLabel(label).evaluate(async (el: HTMLTextAreaElement) => {
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  return el.scrollHeight <= el.clientHeight + 1;
+});
 
 test('a title of several lines shows them all, even after the window narrows', async ({ page }) => {
   await page.goto('/');
