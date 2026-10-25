@@ -788,6 +788,27 @@ describe('characters and places', () => {
   });
 });
 
+describe('relationships', () => {
+  it('travel with the characters in project.json', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const p = mac.store.createProject('The Lighthouse');
+    const mara = mac.store.addCastMember(p.id, 'character', 'Mara')!;
+    const rose = mac.store.addCastMember(p.id, 'character', 'Rose')!;
+    mac.store.updateCastMember(p.id, mara.id, { ties: [{ to: rose.id, kind: 'parent' }, { to: rose.id, kind: 'other', note: 'Never forgave' }] });
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(phone.store.project(p.id)?.cast?.find((m) => m.id === mara.id)?.ties).toEqual([{ to: rose.id, kind: 'parent' }, { to: rose.id, kind: 'other', note: 'Never forgave' }]);
+    // Deleting Rose takes Mara's ties to her away, on every device.
+    phone.store.deleteCastMember(p.id, rose.id);
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect(mac.store.project(p.id)?.cast?.find((m) => m.id === mara.id)?.ties).toBeUndefined();
+  });
+});
+
 describe('a book’s plan', () => {
   it('syncs in project.json: events and plotlines added on each device both kept, an edit on one reaching the other', async () => {
     const cloud = new MemoryProvider();

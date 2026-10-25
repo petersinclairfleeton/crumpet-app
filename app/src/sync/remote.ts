@@ -17,6 +17,7 @@ import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { type BookDraft, type CastMember, type ChapterStatus, type Deadline, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 import { type BookPlan, cleanPlan } from '../data/plan';
+import { cleanTies } from '../data/family';
 import { FIRST_DRAFT } from '../data/drafts';
 import { ATTACHMENTS, DRAFTS, type Layout, META_FILE, PROJECTS, PROJECT_FILE, RESEARCH, TRASH, baseName, emptyLayout, fitsName, parentOf, safeName } from './layout';
 import { type NoteFile, parseNoteFile } from './notefile';
@@ -130,6 +131,8 @@ function cleanCast(list: unknown[]): CastMember[] {
     if (!m || typeof m.id !== 'string' || typeof m.name !== 'string') return [];
     const out: CastMember = { id: m.id, kind: m.kind === 'place' ? 'place' : 'character', name: m.name, aliases: Array.isArray(m.aliases) ? m.aliases.filter((a) => typeof a === 'string') : [], description: typeof m.description === 'string' ? m.description : '', notes: typeof m.notes === 'string' ? m.notes : '' };
     if (typeof m.picture === 'string' && m.picture) out.picture = m.picture;
+    const ties = cleanTies(m.ties);
+    if (ties.length) out.ties = ties;
     return [out];
   });
 }

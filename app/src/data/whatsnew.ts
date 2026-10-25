@@ -10,6 +10,15 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-family',
+    date: '26 October 2026',
+    title: 'Family trees and relationships',
+    points: [
+      'A character’s card has Relationships: parent of, child of, partner, sibling, friend, rival, mentor, works with, or your own words (“old flame of”). Each one shows on both cards, the right way round.',
+      'Family tree, at the top of a book’s Characters & places, draws the family from them: generations in rows, partners side by side, children under their parents. Click someone to open their card.',
+    ],
+  },
+  {
     id: '2026-10-26-plan',
     date: '26 October 2026',
     title: 'Plan a book: timeline, plotlines and structure',

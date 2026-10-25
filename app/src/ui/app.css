@@ -3493,3 +3493,24 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .plan-pane.in-tab { overflow: visible; }
 .plan-pane.in-tab .plan-body { overflow: visible; padding-bottom: 96px; }
 .plan-pane.in-tab .plan-head { padding-top: 12px; }
+
+/* Relationships on a character's card, and the family tree (ui/family.tsx). */
+.relationships { display: grid; gap: 6px; }
+.ties { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.ties li { display: flex; align-items: center; gap: 6px; }
+.tie-kind { color: var(--muted); min-width: 84px; }
+.ties small { color: var(--muted); }
+.tie-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tie-add select, .tie-add input { height: 30px; font-size: 13px; }
+.family-btn { margin-right: 4px; }
+.family-dialog { width: min(980px, 100%); }
+.family-scroll { overflow: auto; padding: 4px 18px 18px; }
+.family-tree { display: block; }
+.family-tree .tree-line, .family-tree .tree-couple { fill: none; stroke: var(--line2); stroke-width: 1.5; }
+.family-tree .tree-couple { stroke: var(--accent); stroke-width: 2; }
+.family-tree .tree-person { cursor: pointer; }
+.family-tree .tree-person rect { fill: var(--page); stroke: var(--line); }
+.family-tree .tree-person:hover rect, .family-tree .tree-person:focus rect { stroke: var(--accent); }
+.family-tree .tree-person text { fill: var(--text); font: 500 13px var(--ui-font, sans-serif); }
+.family-empty { padding: 0 18px 18px; }
+.family-hint { padding: 0 18px 16px; margin: 0; }
