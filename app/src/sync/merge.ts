@@ -20,6 +20,7 @@ import { SHARED_SETTINGS } from '../data/types';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { mergeText } from './textmerge';
 import type { CastMember, OutlineItem } from '../data/types';
+import { type BookPlan, tidyPlan } from '../data/plan';
 import { FIRST_DRAFT } from '../data/drafts';
 import { type TChapter, type TDraft, type TNote, type Tree, emptyTree, sameChapter, sameNote, sameNotebook, sameJson, sameOutline, sameProject, sameStack, sameTags } from './tree';
 
@@ -129,6 +130,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       ...withValue('linked', mergeIds(b?.linked ?? [], l.linked ?? [], r.linked ?? [])),
       ...withValue('deadline', jsonField(b?.deadline, l.deadline, r.deadline, r.updated > l.updated ? r.deadline : l.deadline)),
       ...withValue('draft', jsonField(b?.draft, l.draft, r.draft, r.updated > l.updated ? r.draft : l.draft)),
+      ...withValue('plan', mergePlan(b?.plan, l.plan, r.plan, r.updated > l.updated)),
     }));
     if (p) tree.projects[id] = p;
   }
@@ -308,6 +310,32 @@ function mergeCast(b: CastMember[], l: CastMember[], r: CastMember[]): CastMembe
     if (m) out.push(m);
   }
   // This device's order, then any added elsewhere.
+  const order = [...l.map((m) => m.id), ...r.map((m) => m.id)];
+  out.sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id));
+  return out.length ? out : undefined;
+}
+
+/** Two plans changed on both sides: plotlines and events item by item (as the cast), the structure as a whole (the newer side's when both changed it). */
+function mergePlan(b: BookPlan | undefined, l: BookPlan | undefined, r: BookPlan | undefined, remoteNewer: boolean): BookPlan | undefined {
+  if (sameJson(l, r)) return l;
+  if (sameJson(b, l)) return r;
+  if (sameJson(b, r)) return l;
+  return tidyPlan({
+    plotlines: mergeById(b?.plotlines ?? [], l?.plotlines ?? [], r?.plotlines ?? []),
+    events: mergeById(b?.events ?? [], l?.events ?? [], r?.events ?? []),
+    structure: jsonField(b?.structure, l?.structure, r?.structure, remoteNewer ? r?.structure : l?.structure),
+  });
+}
+
+/** A list of things with ids changed on both sides: each merged as a whole, kept unless one side took it away. */
+function mergeById<T extends { id: string }>(b: T[], l: T[], r: T[]): T[] | undefined {
+  const byId = (list: T[]) => new Map(list.map((m) => [m.id, m]));
+  const [B, L, R] = [byId(b), byId(l), byId(r)];
+  const out: T[] = [];
+  for (const id of new Set([...L.keys(), ...R.keys()])) {
+    const m = jsonField(B.get(id), L.get(id), R.get(id), L.get(id) ?? R.get(id));
+    if (m) out.push(m);
+  }
   const order = [...l.map((m) => m.id), ...r.map((m) => m.id)];
   out.sort((x, y) => order.indexOf(x.id) - order.indexOf(y.id));
   return out.length ? out : undefined;
