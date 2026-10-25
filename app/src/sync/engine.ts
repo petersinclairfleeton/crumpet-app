@@ -44,6 +44,8 @@ export interface SyncStatePersistence {
 
 export interface SyncStatus {
   phase: 'idle' | 'syncing' | 'error';
+  /** A change is waiting a moment before it syncs. */
+  waiting?: boolean;
   lastSynced: number | null;
   error: { message: string; kind: ProviderError['kind'] } | null;
   /** Conflicted copies made by the last sync. */
@@ -118,8 +120,10 @@ export class SyncEngine {
     if (this.timer) return;
     this.timer = setTimeout(() => {
       this.timer = null;
+      this.setStatus({ waiting: false });
       this.sync().catch(() => {});
     }, delay);
+    this.setStatus({ waiting: true });
   }
 
   /** A change is waiting to sync, or a sync is running: closing Crumpet now would leave the folder behind. */
@@ -132,6 +136,7 @@ export class SyncEngine {
     if (!this.timer) return;
     clearTimeout(this.timer);
     this.timer = null;
+    this.setStatus({ waiting: false });
     this.sync().catch(() => {});
   }
 

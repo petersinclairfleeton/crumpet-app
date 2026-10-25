@@ -3369,3 +3369,29 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .menu-status-pick { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; border: none; border-radius: 8px; background: none; color: var(--text); font-size: 13px; cursor: pointer; text-align: left; }
 .menu-status-pick:hover { background: var(--field); }
 .menu-status-pick.on { background: var(--field); font-weight: 600; }
+
+/* "Syncing…" while changes are on their way, then "Synced" for a moment (ui/syncnote.tsx). It fades in
+   after a moment, so a quick sync doesn't flash, and never takes a click. */
+.sync-note { position: fixed; z-index: 60; right: 16px; bottom: 14px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--page) 92%, transparent); border: 1px solid var(--line); color: var(--muted); font: 500 12px var(--ui-font, inherit); pointer-events: none; animation: sync-note-in 0.3s ease 0.6s both; }
+.sync-note.done { animation: none; }
+.sync-note-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: sync-note-pulse 1.2s ease-in-out infinite; }
+@keyframes sync-note-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes sync-note-pulse { 50% { opacity: 0.35; } }
+[data-motion='reduce'] .sync-note, [data-motion='reduce'] .sync-note-dot { animation: none; }
+/* A phone: at the top, between the back button and the note's buttons. */
+.app.narrow .sync-note { right: auto; left: 50%; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 14px); transform: translateX(-50%); animation-name: sync-note-in-top; }
+@keyframes sync-note-in-top { from { opacity: 0; } to { opacity: 1; } }
+/* Text size in a phone's ··· menu: A− 19 A+. */
+.text-size-row { color: var(--text); font-size: 14px; }
+.text-size-row .icon-btn { width: 36px; height: 32px; border-radius: 8px; background: var(--field); font-weight: 600; }
+.text-size-row .icon-btn small { font-size: 11px; }
+.text-size-now { min-width: 24px; text-align: center; font-variant-numeric: tabular-nums; color: var(--muted); }
+/* Preview pages (a phone): the pages one under another across the screen, or as big as on paper. */
+.page-preview { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; background: color-mix(in srgb, var(--text) 7%, var(--page)); }
+.page-preview-head { display: flex; align-items: center; gap: 4px; padding: calc(env(safe-area-inset-top, 0px) + 8px) 8px 8px; border-bottom: 1px solid var(--line); background: var(--page); }
+.page-preview-title { display: flex; flex-direction: column; align-items: center; font-weight: 600; font-size: 15px; text-align: center; }
+.page-preview-title small { font-weight: 400; font-size: 12px; color: var(--muted); }
+.page-preview-pages { flex: 1; overflow: auto; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 24px); display: flex; flex-direction: column; align-items: center; gap: 16px; -webkit-overflow-scrolling: touch; }
+.page-preview-pages.actual { align-items: flex-start; }
+.preview-page { position: relative; flex: none; background: #fff; box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18); overflow: hidden; }
+.preview-num { position: absolute; right: 6px; bottom: 4px; font-size: 11px; color: var(--muted); background: rgba(255, 255, 255, 0.85); padding: 0 4px; border-radius: 4px; }

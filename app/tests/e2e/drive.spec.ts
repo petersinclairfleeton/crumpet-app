@@ -208,3 +208,28 @@ test('closing the tab before the changes have synced asks first', async ({ brows
   await expect.poll(() => vault(drive, 'Crumpet'), { timeout: 15_000 }).toContain('Not yet synced.md');
   await expect.poll(asks, { timeout: 15_000 }).toBe(false);
 });
+
+test('“Syncing…” shows while changes are on their way, then “Synced”, when the sidebar is folded away', async ({ browser }) => {
+  const drive = new FakeDrive();
+  const page = await device(browser, drive);
+  await openSync(page);
+  await where(page).getByRole('button', { name: 'Continue with Google' }).click();
+  await where(page).getByRole('button', { name: /A new “Crumpet” folder/ }).click();
+  await expect(sidebar(page).locator('.side-foot')).toContainText('Google Drive · synced');
+  await page.keyboard.press('Escape');
+  const note = page.locator('.sync-note');
+  // With the sidebar showing, its foot says it, so the note keeps out of the way.
+  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await page.keyboard.type('On its way');
+  await expect(sidebar(page).locator('.side-foot')).toContainText('Syncing…');
+  await expect(note).toHaveCount(0);
+  await expect.poll(() => vault(drive, 'Crumpet'), { timeout: 15_000 }).toContain('On its way.md');
+  // Folded away: the note says it instead.
+  await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ sidebar: 'hidden' }));
+  await page.getByLabel('Title').click();
+  await page.keyboard.type(' again');
+  await expect(note).toHaveText('Syncing…');
+  await expect(note).toHaveText('✓ Synced', { timeout: 15_000 });
+  await expect(note).toHaveCount(0);
+  expect(vault(drive, 'Crumpet')).toContain('On its way again.md');
+});

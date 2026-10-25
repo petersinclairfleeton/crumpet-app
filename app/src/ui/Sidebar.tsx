@@ -996,7 +996,7 @@ function footText(temporary: boolean, sync: ReturnType<typeof useSync>['state'])
   if (temporary) return 'crumpet · not saving';
   if (!sync.config) return 'crumpet · saved on this device';
   const s = sync.status;
-  if (s?.phase === 'syncing') return 'Syncing…';
+  if (s?.phase === 'syncing' || s?.waiting) return 'Syncing…';
   if (s?.phase === 'error') return s.error?.kind === 'offline' ? 'Offline · saved on this device' : 'Sync needs attention';
   return statusText(s).replace(/\.$/, '').replace(/^Synced/, `${sync.config.kind === 'folder' ? 'Folder' : 'Google Drive'} · synced`);
 }

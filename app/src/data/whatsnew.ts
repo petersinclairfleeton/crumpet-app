@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-25-phone-size-preview-syncing',
+    date: '25 October 2026',
+    title: 'Text size and page preview on your phone, and “Syncing…”',
+    points: [
+      'On a phone, pinch the writing with two fingers to make the text bigger or smaller, or use Text size (A− and A+) in the ··· menu of a note or chapter. Each device keeps its own size, so your phone can be bigger than your computer.',
+      'Preview pages, in the same menu, shows how a note or chapter falls on pages: fitted to the screen, or at actual size. Print… goes on to print it or save a PDF.',
+      'While changes are on their way to Google Drive or your folder, “Syncing…” shows (at the top on a phone, at the foot of the window on a computer when the sidebar is folded away), then “Synced” for a moment, so you know when it’s safe to close.',
+    ],
+  },
+  {
     id: '2026-10-25-phone-writing',
     date: '25 October 2026',
     title: 'Writing on your phone',
