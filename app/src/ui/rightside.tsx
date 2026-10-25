@@ -2,6 +2,7 @@
 // in a tab: the headings outline, the Styles pane, the Reviewing pane
 // (changes and comments), and links.
 
+import { bookCast } from '../data/series';
 import { Popover } from './Sidebar';
 import { useEffect, useState } from 'react';
 import type { Block } from '@crumpet/editor/model';
@@ -118,8 +119,9 @@ function InThisChapter({ chapterId, calm = false }: { chapterId: string; calm?: 
   const chapter = state.chapters.find((c) => c.id === chapterId);
   const project = chapter && state.projects.find((p) => p.id === chapter.projectId);
   if (!chapter || !project) return null;
-  const found = appearances(project.cast, [chapter]);
-  const here = (project.cast ?? [])
+  const everyone = bookCast(state.projects, project);
+  const found = appearances(everyone, [chapter]);
+  const here = everyone
     .map((m) => ({ m, count: found.get(m.id)?.[0]?.count ?? 0 }))
     .filter((x) => x.count > 0)
     .sort((a, b) => b.count - a.count);

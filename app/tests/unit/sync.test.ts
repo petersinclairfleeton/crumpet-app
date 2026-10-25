@@ -809,6 +809,27 @@ describe('relationships', () => {
   });
 });
 
+describe('a series', () => {
+  it('is named in project.json, reaching the other devices; taking a book out of it too', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const one = mac.store.createProject('The Lighthouse');
+    const two = mac.store.createProject('The Storm');
+    mac.store.setSeries(one.id, ' The Gull Rock Books ');
+    mac.store.setSeries(two.id, 'The Gull Rock Books');
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect([phone.store.project(one.id)?.series, phone.store.project(two.id)?.series]).toEqual(['The Gull Rock Books', 'The Gull Rock Books']);
+    phone.store.setSeries(two.id, '');
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect(mac.store.project(two.id)?.series).toBeUndefined();
+    expect(mac.store.project(one.id)?.series).toBe('The Gull Rock Books');
+  });
+});
+
 describe('a book’s plan', () => {
   it('syncs in project.json: events and plotlines added on each device both kept, an edit on one reaching the other', async () => {
     const cloud = new MemoryProvider();

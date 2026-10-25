@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-series',
+    date: '26 October 2026',
+    title: 'A series bible',
+    points: [
+      'Put books in a series: a book’s ··· menu → Part of a series…, and give it the series’ name. Under its title: “Book 2 of 3 in The Gull Rock Books”.',
+      'Books in a series share their characters, places and research: each book lists the others’ under From the series, spots their names in its chapters, and opens their cards beside your writing. A card is kept in its own book; change it from any of them.',
+      'A character’s card shows where they appear across the whole series.',
+    ],
+  },
+  {
     id: '2026-10-26-family',
     date: '26 October 2026',
     title: 'Family trees and relationships',

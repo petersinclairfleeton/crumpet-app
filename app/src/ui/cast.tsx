@@ -17,6 +17,7 @@ import { InlineInput, Popover } from './Sidebar';
 import { Item, MenuAtPoint, Rule } from './contextmenu';
 import { usePanes } from './panes';
 import { FamilyTreeDialog, Relationships } from './family';
+import { bookCast, seriesBooks, seriesCast } from '../data/series';
 
 const KIND: Record<CastMember['kind'], string> = { character: 'Character', place: 'Place' };
 
@@ -105,6 +106,7 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [tree, setTree] = useState(false);
   const cast = project.cast ?? [];
+  const series = seriesCast(state.projects, project);
   const group = (kind: CastMember['kind']) => cast.filter((m) => m.kind === kind).sort((a, b) => a.name.localeCompare(b.name));
   const row = (m: CastMember) => (
     <li key={m.id}>
@@ -182,6 +184,16 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
           {group('character').map(row)}
           {group('place').length > 0 && group('character').length > 0 && <li className="cast-divider" aria-hidden="true" />}
           {group('place').map(row)}
+          {series.length > 0 && <li className="research-from">From the series</li>}
+          {series.map(({ member: m, book }) => (
+            <li key={m.id}>
+              <button type="button" className={`research-item${state.castId === m.id ? ' selected' : ''}`} title={`From ${book.name}`} onClick={() => store.openCast(state.castId === m.id ? null : m.id)} {...tabDrag({ kind: 'cast', project: book.id, id: m.id })}>
+                <Avatar member={m} size={20} />
+                <span className="grow ellipsis">{m.name || `Unnamed ${KIND[m.kind].toLowerCase()}`}</span>
+                <small className="research-book">{book.name}</small>
+              </button>
+            </li>
+          ))}
         </ul>
       )}
       {menu && <CastMenu project={project} id={menu.id} x={menu.x} y={menu.y} onClose={() => setMenu(null)} />}
@@ -198,9 +210,17 @@ export function CastPane({ project, member, narrow = false, onClose }: { project
   const picture = useMedia(member.picture);
   const [aliases, setAliases] = useState(member.aliases.join(', '));
   const update = (patch: Partial<Omit<CastMember, 'id'>>) => store.updateCastMember(project.id, member.id, patch);
-  const chapters = useMemo(() => projectChapters(project, state.chapters), [project, state.chapters]);
-  const seen = useMemo(() => appearances(project.cast, chapters.map((c) => c.chapter)).get(member.id) ?? [], [project.cast, chapters, member.id]);
-  const number = new Map(chapters.map((c) => [c.chapter.id, c.number]));
+  // Where they appear: in their book, and in the rest of its series.
+  const books = useMemo(() => seriesBooks(state.projects, project), [state.projects, project]);
+  const seen = useMemo(
+    () =>
+      books.flatMap((book) => {
+        const chapters = projectChapters(book, state.chapters);
+        const number = new Map(chapters.map((c) => [c.chapter.id, c.number]));
+        return (appearances(bookCast(state.projects, book), chapters.map((c) => c.chapter)).get(member.id) ?? []).map((x) => ({ ...x, book, number: number.get(x.chapter.id) }));
+      }),
+    [books, state.projects, state.chapters, member.id],
+  );
 
   useEffect(() => {
     setAliases(member.aliases.join(', '));
@@ -294,17 +314,19 @@ export function CastPane({ project, member, narrow = false, onClose }: { project
             <span>Appears in</span>
             {seen.length ? (
               <ul className="cast-seen">
-                {seen.map(({ chapter, count }) => (
+                {seen.map(({ chapter, count, book, number }) => (
                   <li key={chapter.id}>
                     <button
                       type="button"
                       className="link-btn"
                       onClick={() => {
-                        store.selectChapter(chapter.id);
+                        if (state.view.kind === 'project' && state.view.id === book.id) store.selectChapter(chapter.id);
+                        else store.openProject(book.id, chapter.id);
                         store.setProjectMode('chapter');
                       }}
                     >
-                      {number.get(chapter.id)}. {chapter.title || 'Untitled chapter'}
+                      {books.length > 1 && `${book.name}: `}
+                      {number}. {chapter.title || 'Untitled chapter'}
                     </button>
                     <small>
                       {count} mention{count === 1 ? '' : 's'}
@@ -381,7 +403,10 @@ function scan(root: HTMLElement, matcher: CastMatcher | null): { range: Range; i
 /** Underlines the cast's names in an editor and shows a card when one is hovered. */
 export function CastSpotting({ editor, project }: { editor: Editor | null; project: Project }) {
   const store = useAppStore();
-  const matcher = useMemo(() => castMatcher(project.cast), [project.cast]);
+  const state = useAppState();
+  // The series' characters and places too.
+  const everyone = useMemo(() => bookCast(state.projects, project), [state.projects, project]);
+  const matcher = useMemo(() => castMatcher(everyone), [everyone]);
   const found = useRef<{ range: Range; id: string }[]>([]);
   const [hover, setHover] = useState<{ id: string; rect: DOMRect } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -443,7 +468,7 @@ export function CastSpotting({ editor, project }: { editor: Editor | null; proje
     setAt({ top: below ? hover.rect.bottom + 6 : hover.rect.top - 6 - h, left: Math.min(window.innerWidth - w - 8, Math.max(8, hover.rect.left)) });
   }, [hover]);
 
-  const member = hover && project.cast?.find((m) => m.id === hover.id);
+  const member = hover && everyone.find((m) => m.id === hover.id);
   if (!member) return null;
   return createPortal(
     <div
