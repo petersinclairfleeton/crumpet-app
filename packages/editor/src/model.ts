@@ -230,7 +230,7 @@ export type Align = 'left' | 'center' | 'right' | 'justify';
  * be Intense. How each looks is set by the app's style sheet.
  */
 export const BLOCK_STYLES: Partial<Record<BlockType, readonly string[]>> = {
-  paragraph: ['nospacing', 'title', 'subtitle', 'epigraph', 'caption', 'scenebreak', 'toggle'],
+  paragraph: ['nospacing', 'title', 'subtitle', 'epigraph', 'caption', 'scenebreak', 'toggle', ...SCRIPT_STYLES],
   // Callouts (Notion's and Obsidian's): a quote in a coloured box with an icon.
   quote: ['intense', 'note', 'tip', 'warning', 'important'],
   // An attached file shown inside the page (Word's embedded object): a PDF's pages, a web page.
@@ -316,6 +316,7 @@ export function isList(type: BlockType): boolean {
   return LIST_TYPES.includes(type);
 }
 
+import { SCRIPT_STYLES } from './script';
 import type { PicLook } from './picture';
 import type { TableLook } from './table';
 import type { ShapeLook } from './shape';
@@ -461,6 +462,8 @@ export interface ParaLook {
   thf?: string;
   thx?: string;
   psp?: string;
+  /** The whole document is a stage play: its script elements laid out as a play's (script.ts); otherwise as a screenplay's. */
+  script?: 'stage';
   /**
    * The whole document's protection: marked as final (Word's Mark as Final:
    * read only until someone chooses to edit), and editing restricted to
@@ -519,7 +522,7 @@ export function tabsFromText(text: string): TabStop[] | undefined {
   }
   return tidyTabs(out);
 }
-export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr', 'hdr', 'ftr', 'hfirst', 'pstart', 'pfmt', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc', 'thc', 'thf', 'thx', 'psp', 'final', 'restrict', 'plock', 'sig', 'cover'];
+export const PARA_KEYS: ParaKey[] = ['line', 'before', 'after', 'left', 'right', 'first', 'pageBefore', 'colBefore', 'keepNext', 'keepLines', 'num', 'start', 'bullet', 'border', 'bstyle', 'bcolor', 'nowidow', 'numText', 'shade', 'drop', 'outline', 'tabs', 'track', 'lock', 'sect', 'cols', 'orient', 'mt', 'mb', 'ml', 'mr', 'pw', 'ph', 'hyph', 'lnum', 'lnr', 'hdr', 'ftr', 'hfirst', 'pstart', 'pfmt', 'wm', 'wmimg', 'wmc', 'wmflat', 'pgc', 'pgb', 'pgbc', 'thc', 'thf', 'thx', 'psp', 'script', 'final', 'restrict', 'plock', 'sig', 'cover'];
 
 /** Word's number library: 1. 1) A. a. I. i. and 1.1.1 (each level numbered from the one above). */
 export const NUM_FORMATS = ['decimal', 'paren', 'upper-alpha', 'lower-alpha', 'upper-roman', 'lower-roman', 'legal'] as const;
@@ -577,6 +580,7 @@ export function tidyPara(p: ParaLook | undefined): ParaLook | undefined {
   if (typeof p.plock === 'string' && /^(open|[0-9a-f]{16,128})$/.test(p.plock)) out.plock = p.plock;
   if (typeof p.sig === 'string' && /^[0-9a-f]{16}$/.test(p.sig)) out.sig = p.sig;
   for (const k of ['thc', 'thf', 'thx', 'psp'] as const) if (typeof p[k] === 'string' && /^[a-z][a-z0-9-]{0,23}$/.test(p[k]!)) out[k] = p[k];
+  if (p.script === 'stage') out.script = 'stage';
   if (p.pgb && ['single', 'double', 'dotted', 'dashed', 'thick'].includes(p.pgb)) {
     out.pgb = p.pgb;
     if (hex(p.pgbc)) out.pgbc = hex(p.pgbc);

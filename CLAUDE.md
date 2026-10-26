@@ -319,7 +319,13 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     kind's questions, `fields` on a card, `cardDetails`/`setField`; the card's `Details`
     in `ui/cast.tsx`); each chapter's point of view, goal and tension (`plan.chapters`,
     `data/story.ts`: `withStory`, `povShare`, `flatStretches`; the Plan's Point of view tab
-    `ui/story.tsx`; Cards' `cork-pov` in each point of view's colour, `povColor`).
+    `ui/story.tsx`; Cards' `cork-pov` in each point of view's colour, `povColor`);
+    screenplays and stage plays (`packages/editor/src/script.ts`: paragraph styles
+    `sc-scene`/`sc-action`/`sc-char`/`sc-paren`/`sc-dial`/`sc-trans`, Enter moves to the
+    next element (`SCRIPT_ENTER`), Tab cycles (`cycleScript`); a stage play is
+    `para.script='stage'` on the first paragraph; `ui/script.tsx`'s `ScriptBar` at the
+    window's foot; `data/fountain.ts` reads and writes Fountain; Word gets styles
+    `SCRIPT_WORD` in `data/docx.ts` and they come back).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
     download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the

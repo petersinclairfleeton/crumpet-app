@@ -5,17 +5,19 @@ import type { ExportPart } from '../data/exports';
 import { exportAs } from '../data/wordfiles';
 import { IconDownload } from './icons';
 
-const ITEMS: ['odt' | 'rtf' | 'html' | 'txt', string][] = [
+const ITEMS: ['odt' | 'rtf' | 'html' | 'txt' | 'fountain', string][] = [
   ['odt', 'OpenDocument (LibreOffice)'],
   ['rtf', 'Rich Text'],
   ['html', 'Web page'],
   ['txt', 'Plain text'],
 ];
 
-export function ExportItems({ title, parts, onDone }: { title: string; parts: () => ExportPart[]; onDone(): void }) {
+export function ExportItems({ title, parts, onDone, script = false }: { title: string; parts: () => ExportPart[]; onDone(): void; script?: boolean }) {
+  // Fountain, for a script (Highland, WriterDuet, Final Draft and Fade In open it).
+  const items: typeof ITEMS = script ? [...ITEMS, ['fountain', 'Fountain (screenplay)']] : ITEMS;
   return (
     <>
-      {ITEMS.map(([kind, name]) => (
+      {items.map(([kind, name]) => (
         <button
           key={kind}
           type="button"

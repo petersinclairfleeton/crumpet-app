@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-script',
+    date: '26 October 2026',
+    title: 'Screenplays and stage plays',
+    points: [
+      'Write a script: type /screenplay, or start a note from the Screenplay template. A scene heading, then Enter goes on to what usually comes next (action, a character’s name, their dialogue), Tab and Shift+Tab change the element, and Enter on an empty line makes it action. A bar at the foot of the page shows the element you’re in.',
+      'Laid out as scripts are: Courier at 12 points, characters and dialogue indented, scene headings and transitions in capitals. /stage play lays the same elements out as a play.',
+      'The note’s ··· menu downloads it as Fountain (.fountain), the plain-text script format Final Draft, Highland, WriterDuet and Fade In open, and uploading a .fountain file opens it as a script. Word downloads get the elements as Word’s screenplay styles (Scene Heading, Action, Character, Dialogue…).',
+    ],
+  },
+  {
     id: '2026-10-26-pov',
     date: '26 October 2026',
     title: 'Point of view and tension, chapter by chapter',

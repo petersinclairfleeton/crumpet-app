@@ -67,6 +67,7 @@ import { inlineMarkdown, parseInline } from './markdown';
 import { type PicLook, tidyPic } from './picture';
 import { docPart, withoutDoc, hasCover } from './cover';
 import { type ShapeKind, type ShapeLook, defaultShape, tidyShape } from './shape';
+import { SCRIPT_ENTER, isScript, scriptCycle } from './script';
 
 export interface EditorState {
   doc: Doc;
@@ -218,6 +219,8 @@ function nextBlockAttrs(block: Block) {
   if (isMedia(block.type) || isWidget(block.type)) return blockAttrs('paragraph');
   if (isList(block.type)) return { ...blockAttrs(block.type, false, block.indent), ...(block.align ? { align: block.align } : {}) };
   if (isHeading(block.type) || (block.style && ENDS_ON_ENTER.has(block.style))) return blockAttrs('paragraph');
+  // A script: the element that usually comes next (a character's name, then their dialogue).
+  if (block.type === 'paragraph' && isScript(block.style)) return { ...attrsOf(block), style: SCRIPT_ENTER[block.style], checked: undefined, brk: undefined };
   return { ...attrsOf(block), checked: undefined, brk: undefined };
 }
 
@@ -226,7 +229,7 @@ function splitAt(b: Builder, pos: Pos): Pos {
   const atEnd = pos.offset === runsLength(block.runs);
   // Text after the caret in a caption becomes a paragraph of its own, not another picture.
   // A new paragraph carries on the spacing and indents of the one before (not a page break, nor after a heading).
-  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, drop: undefined, track: undefined, lock: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined, wm: undefined, wmimg: undefined, wmc: undefined, wmflat: undefined, pgc: undefined, pgb: undefined, pgbc: undefined, thc: undefined, thf: undefined, thx: undefined, psp: undefined, final: undefined, restrict: undefined, plock: undefined, sig: undefined, hyph: undefined, lnum: undefined, lnr: undefined });
+  const carried = isHeading(block.type) || isMedia(block.type) ? undefined : tidyPara({ ...block.para, pageBefore: undefined, colBefore: undefined, start: undefined, drop: undefined, track: undefined, lock: undefined, sect: undefined, cols: undefined, orient: undefined, mt: undefined, mb: undefined, ml: undefined, mr: undefined, wm: undefined, wmimg: undefined, wmc: undefined, wmflat: undefined, pgc: undefined, pgb: undefined, pgbc: undefined, thc: undefined, thf: undefined, thx: undefined, psp: undefined, script: undefined, final: undefined, restrict: undefined, plock: undefined, sig: undefined, hyph: undefined, lnum: undefined, lnr: undefined });
   const newAttrs = atEnd ? { ...nextBlockAttrs(block), para: carried } : isMedia(block.type) ? blockAttrs('paragraph') : attrsOf({ ...block, checked: false, brk: undefined, para: carried });
   const newBlock = newId();
   b.step({ type: 'split', block: block.id, offset: pos.offset, newBlock, newAttrs });
@@ -247,6 +250,11 @@ export function splitBlock(state: EditorState): Transaction {
     b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: attrsOf({ ...block, folded: false }) });
     block = getBlock(b.doc, at.block);
   }
+  // Enter on an empty script element (a character with no name yet, say) makes it action instead of adding a line.
+  if (block.type === 'paragraph' && isScript(block.style) && block.style !== 'sc-action' && runsLength(block.runs) === 0) {
+    b.step({ type: 'setAttrs', block: block.id, from: attrsOf(block), to: { ...attrsOf(block), style: 'sc-action' } });
+    return tx(state, b, caret(at));
+  }
   // Enter on an empty list item moves it out one level, and out of the list at the top level.
   // On an empty quote or heading it turns back into a paragraph instead of adding another.
   if (block.type !== 'paragraph' && !isMedia(block.type) && !isWidget(block.type) && runsLength(block.runs) === 0) {
@@ -255,6 +263,15 @@ export function splitBlock(state: EditorState): Transaction {
     return tx(state, b, caret(at));
   }
   return tx(state, b, caret(splitAt(b, at)));
+}
+
+/** Tab in a script element: the next element (Shift+Tab, the one before), or null outside a script. */
+export function cycleScript(state: EditorState, dir: 1 | -1): Transaction | null {
+  const blk = getBlock(state.doc, state.selection.focus.block);
+  if (blk.type !== 'paragraph' || !isScript(blk.style)) return null;
+  const b = new Builder(state.doc);
+  b.step({ type: 'setAttrs', block: blk.id, from: attrsOf(blk), to: { ...attrsOf(blk), style: scriptCycle(blk.style, dir) } });
+  return tx(state, b, state.selection);
 }
 
 /** Backspace at the start of a block: first drop its type, then join it to the previous block. */

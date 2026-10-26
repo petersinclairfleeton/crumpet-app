@@ -52,6 +52,20 @@ export const BUILT_IN_TEMPLATES: Template[] = [
     body: '**Age:** \n\n**Role in the story:** \n\n## Looks\n\n\n\n## Wants\n\n\n\n## Fears\n\n\n\n## How they change\n\n\n',
   },
   {
+    id: 'screenplay',
+    name: 'Screenplay',
+    hint: 'Scene headings, action, characters and dialogue',
+    title: 'Untitled screenplay',
+    body: 'INT. LIGHTHOUSE LAMP ROOM - NIGHT {.sc-scene}\n\nWind at the glass. MARA (30s) climbs the last of the steps, a key in her fist. {.sc-action}\n\nMara {.sc-char}\n\n(out of breath) {.sc-paren}\n\nEleven years, and it still smells of oil. {.sc-dial}\n\nCUT TO: {.sc-trans}\n',
+  },
+  {
+    id: 'stageplay',
+    name: 'Stage play',
+    hint: 'Acts and scenes, stage directions and lines',
+    title: 'Untitled play',
+    body: 'ACT ONE, SCENE ONE {.sc-scene script=stage}\n\nThe lamp room of a lighthouse. Night. Wind. MARA enters, out of breath. {.sc-action}\n\nMara {.sc-char}\n\nEleven years, and it still smells of oil. {.sc-dial}\n',
+  },
+  {
     id: 'chapter',
     name: 'Chapter plan',
     hint: 'Goal, scenes and loose ends',
