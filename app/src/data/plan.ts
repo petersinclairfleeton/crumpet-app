@@ -3,6 +3,8 @@
 // a structure's beats (Save the Cat, the hero's journey...) placed along the
 // book. Kept in project.json as `plan`.
 
+import { cleanMaps } from './maps';
+
 /** A plot thread (the mystery, the romance): a column of the plotline grid and a lane of the timeline. */
 export interface Plotline {
   id: string;
@@ -49,6 +51,8 @@ export interface BookPlan {
   structure?: { id: string; beats: StructureBeat[] };
   /** Each chapter's point of view, goal and tension (story.ts), by chapter id. */
   chapters?: ChapterStory[];
+  /** Maps of the story's world, with pins on its places (maps.ts). */
+  maps?: import('./maps').BookMap[];
 }
 
 export const PLOTLINE_COLORS = ['#c0703a', '#4f7cac', '#6f9a5b', '#a35d8f', '#c79a2b', '#4d9a9a', '#8a6fbf', '#b5544f'];
@@ -294,6 +298,7 @@ export function tidyPlan(plan: BookPlan | undefined): BookPlan | undefined {
   if (plan.events?.length) out.events = plan.events;
   if (plan.structure) out.structure = plan.structure;
   if (plan.chapters?.length) out.chapters = plan.chapters;
+  if (plan.maps?.length) out.maps = plan.maps;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -340,5 +345,5 @@ export function cleanPlan(raw: unknown): BookPlan | undefined {
     if (typeof x.tension === 'number' && x.tension >= 1) c.tension = Math.min(5, Math.round(x.tension));
     return c;
   });
-  return tidyPlan({ plotlines, events, structure, chapters });
+  return tidyPlan({ plotlines, events, structure, chapters, maps: cleanMaps(p.maps) });
 }
