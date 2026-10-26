@@ -3,6 +3,7 @@
 // card, or to run any command. Typing > in the switcher turns it into the
 // palette. Enter opens in place, Ctrl+Enter in a new tab, Shift+Enter beside.
 
+import { kindInfo } from '../data/world';
 import { ignoreWord, useAddWord } from './spelling';
 import { goToPlace, openGoTo } from './goto';
 import { MARKUP_VIEWS } from './review';
@@ -267,7 +268,7 @@ function useTargets(): Item[] {
     for (const p of state.projects) {
       out.push({ key: `project:${p.id}`, label: p.name || 'Untitled project', where: 'Project', glyph: '▤', group: 'In your books', run: (how) => opener.project(p.id, how) });
       for (const c of state.chapters.filter((x) => x.projectId === p.id)) out.push({ key: `chapter:${c.id}`, label: c.title.trim() || 'Untitled chapter', where: p.name, glyph: '§', group: 'In your books', run: (how) => opener.chapter(c.id, how) });
-      for (const m of p.cast ?? []) out.push({ key: `cast:${m.id}`, label: m.name || 'Unnamed', where: `${m.kind === 'place' ? 'Place' : 'Character'} · ${p.name}`, glyph: m.kind === 'place' ? '⌂' : '☺', group: 'In your books', run: (how) => opener.cast(p.id, m.id, how) });
+      for (const m of p.cast ?? []) out.push({ key: `cast:${m.id}`, label: m.name || 'Unnamed', where: `${kindInfo(m.kind).name} · ${p.name}`, glyph: m.kind === 'place' ? '⌂' : '☺', group: 'In your books', run: (how) => opener.cast(p.id, m.id, how) });
     }
     for (const b of state.settings.bookmarks ?? []) {
       if (b.kind !== 'heading') continue;

@@ -314,7 +314,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `settings.grammar.live` (via `useTracking`), rules off in `settings.grammar.off`,
     and the right-click fixes; left out of the one-file build);
     echoes, long sentences and the word at the caret in the Writing tab's Highlight
-    (`echoes`, `longSentences` in `data/textstats.ts`, focus `same` in `ui/writingtab.tsx`).
+    (`echoes`, `longSentences` in `data/textstats.ts`, focus `same` in `ui/writingtab.tsx`);
+    worldbuilding cards (`data/world.ts`: `CastKind` beyond character and place, each
+    kind's questions, `fields` on a card, `cardDetails`/`setField`; the card's `Details`
+    in `ui/cast.tsx`).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
     download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the

@@ -2,6 +2,7 @@
 // in a tab: the headings outline, the Styles pane, the Reviewing pane
 // (changes and comments), and links.
 
+import { kindInfo } from '../data/world';
 import { bookCast } from '../data/series';
 import { Popover } from './Sidebar';
 import { useEffect, useState } from 'react';
@@ -135,7 +136,7 @@ function InThisChapter({ chapterId, calm = false }: { chapterId: string; calm?: 
             {calm && m.picture && <CastPicture src={m.picture} />}
             <span className="cast-card-head">
               <b>{m.name}</b>
-              <small>{m.kind === 'place' ? 'Place' : 'Character'}</small>
+              <small>{kindInfo(m.kind).name}</small>
             </span>
             {m.description && <span className="cast-card-text">{m.description}</span>}
             {!calm && <small className="cast-card-count">Named {count === 1 ? 'once' : `${count} times`}</small>}

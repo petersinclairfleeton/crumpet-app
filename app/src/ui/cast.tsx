@@ -2,7 +2,8 @@
 // (opened beside the writing), and their names spotted in the chapters with
 // a faint underline that shows the card when hovered.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { KINDS, byKind, cardDetails, kindInfo, setField } from '../data/world';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
 import { type CastMatcher, appearances, castMatcher, findMentions } from '../data/cast';
@@ -19,7 +20,7 @@ import { usePanes } from './panes';
 import { FamilyTreeDialog, Relationships } from './family';
 import { bookCast, seriesBooks, seriesCast } from '../data/series';
 
-const KIND: Record<CastMember['kind'], string> = { character: 'Character', place: 'Place' };
+const KIND = (k: CastMember['kind']) => kindInfo(k).name;
 
 /** The address of a picture kept in Attachments (or on the web). */
 export function useMedia(src: string | undefined): string | null {
@@ -43,7 +44,7 @@ function Avatar({ member, size = 24 }: { member: CastMember; size?: number }) {
   const url = useMedia(member.picture);
   return (
     <span className={`cast-avatar ${member.kind}`} style={{ width: size, height: size, fontSize: size * 0.45 }} aria-hidden="true">
-      {url ? <img src={url} alt="" /> : (member.name.trim()[0] ?? (member.kind === 'place' ? '⌖' : '?')).toUpperCase()}
+      {url ? <img src={url} alt="" /> : (member.name.trim()[0] ?? kindInfo(member.kind).glyph).toUpperCase()}
     </span>
   );
 }
@@ -60,12 +61,12 @@ function CastMenu({ project, id, x, y, onClose }: { project: Project; id: string
     fn();
     onClose();
   };
-  const other = m.kind === 'place' ? 'character' : 'place';
+  const other = m.kind === 'character' ? 'place' : 'character';
   return (
-    <MenuAtPoint x={x} y={y} label={`${m.name || KIND[m.kind]}: options`} onClose={onClose}>
+    <MenuAtPoint x={x} y={y} label={`${m.name || KIND(m.kind)}: options`} onClose={onClose}>
       {renaming ? (
         <InlineInput
-          label={`${KIND[m.kind]}’s name`}
+          label={`${KIND(m.kind)}’s name`}
           initial={m.name}
           placeholder="Name"
           onDone={(name) => {
@@ -80,7 +81,7 @@ function CastMenu({ project, id, x, y, onClose }: { project: Project; id: string
           <Item label="Open to the side" onPick={done(() => panes.split(tab, 'right'))} />
           <Rule />
           <Item label="Rename…" onPick={() => setRenaming(true)} />
-          <Item label={`Make it a ${other}`} onPick={done(() => store.updateCastMember(project.id, id, { kind: other }))} />
+          <Item label={`Make it a ${KIND(other).toLowerCase()}`} onPick={done(() => store.updateCastMember(project.id, id, { kind: other }))} />
           <Rule />
           <Item
             label="Delete"
@@ -107,12 +108,13 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
   const [tree, setTree] = useState(false);
   const cast = project.cast ?? [];
   const series = seriesCast(state.projects, project);
-  const group = (kind: CastMember['kind']) => cast.filter((m) => m.kind === kind).sort((a, b) => a.name.localeCompare(b.name));
+  const groups = byKind(cast);
+  const worldly = groups.some((g) => g.info.kind !== 'character' && g.info.kind !== 'place');
   const row = (m: CastMember) => (
     <li key={m.id}>
       <button type="button" className={`research-item${state.castId === m.id ? ' selected' : ''}`} aria-current={state.castId === m.id ? 'true' : undefined} onClick={() => store.openCast(state.castId === m.id ? null : m.id)} onContextMenu={(e) => (e.preventDefault(), setMenu({ id: m.id, x: e.clientX, y: e.clientY }))} {...tabDrag({ kind: 'cast', project: project.id, id: m.id })}>
         <Avatar member={m} size={20} />
-        <span className="grow ellipsis">{m.name || `Unnamed ${KIND[m.kind].toLowerCase()}`}</span>
+        <span className="grow ellipsis">{m.name || `Unnamed ${KIND(m.kind).toLowerCase()}`}</span>
       </button>
     </li>
   );
@@ -140,18 +142,20 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
           </button>
           {adding && (
             <Popover label="Add a character or place" onClose={() => setAdding(false)}>
-              {(['character', 'place'] as const).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  className="menu-item"
-                  onClick={() => {
-                    setAdding(false);
-                    store.addCastMember(project.id, k);
-                  }}
-                >
-                  New {KIND[k].toLowerCase()}
-                </button>
+              {KINDS.map(({ kind: k, name: label }, i) => (
+                <Fragment key={k}>
+                  {i === 2 && <p className="menu-label">Your world</p>}
+                  <button
+                    type="button"
+                    className="menu-item"
+                    onClick={() => {
+                      setAdding(false);
+                      store.addCastMember(project.id, k);
+                    }}
+                  >
+                    New {label.toLowerCase()}
+                  </button>
+                </Fragment>
               ))}
               <hr className="menu-sep" />
               <button
@@ -180,16 +184,27 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
       </div>
       {(open || phone) && (
         <ul className="research-items">
-          {cast.length === 0 && <li className="research-empty">People and places in the book. Their names are spotted in your chapters.</li>}
-          {group('character').map(row)}
-          {group('place').length > 0 && group('character').length > 0 && <li className="cast-divider" aria-hidden="true" />}
-          {group('place').map(row)}
+          {cast.length === 0 && <li className="research-empty">People, places and the rest of the book’s world. Their names are spotted in your chapters.</li>}
+          {groups.map((g, i) =>
+            // Only characters and places: a line between them; with more of the world, each kind under its name.
+            worldly ? (
+              <Fragment key={g.info.kind}>
+                <li className="cast-kind">{g.info.plural}</li>
+                {g.members.map(row)}
+              </Fragment>
+            ) : (
+              <Fragment key={g.info.kind}>
+                {i > 0 && <li className="cast-divider" aria-hidden="true" />}
+                {g.members.map(row)}
+              </Fragment>
+            ),
+          )}
           {series.length > 0 && <li className="research-from">From the series</li>}
           {series.map(({ member: m, book }) => (
             <li key={m.id}>
               <button type="button" className={`research-item${state.castId === m.id ? ' selected' : ''}`} title={`From ${book.name}`} onClick={() => store.openCast(state.castId === m.id ? null : m.id)} {...tabDrag({ kind: 'cast', project: book.id, id: m.id })}>
                 <Avatar member={m} size={20} />
-                <span className="grow ellipsis">{m.name || `Unnamed ${KIND[m.kind].toLowerCase()}`}</span>
+                <span className="grow ellipsis">{m.name || `Unnamed ${KIND(m.kind).toLowerCase()}`}</span>
                 <small className="research-book">{book.name}</small>
               </button>
             </li>
@@ -202,7 +217,49 @@ export function CastList({ project, phone = false }: { project: Project; phone?:
   );
 }
 
-/** A character's or place's card, open beside the writing. */
+/** A card's details: its kind's questions to answer, then fields of your own (add one, or take it off). */
+function Details({ member, onChange }: { member: CastMember; onChange(fields: NonNullable<CastMember['fields']>): void }) {
+  const [label, setLabel] = useState('');
+  const rows = cardDetails(member);
+  const add = () => {
+    const l = label.trim();
+    if (!l || rows.some((r) => r.label.toLowerCase() === l.toLowerCase())) return;
+    onChange([...(member.fields ?? []), { label: l, value: '' }]);
+    setLabel('');
+  };
+  return (
+    <div className="cast-field cast-details" role="group" aria-label="Details">
+      <span>Details</span>
+      {rows.map((r) => (
+        <div key={r.label} className="cast-detail">
+          <label>
+            <span>{r.label}</span>
+            <textarea rows={1} aria-label={r.label} value={r.value} placeholder={r.asked ? '…' : ''} onChange={(e) => onChange(setField(member, r.label, e.target.value))} />
+          </label>
+          {!r.asked && (
+            <button type="button" className="icon-btn" aria-label={`Remove the field ${r.label}`} onClick={() => onChange((member.fields ?? []).filter((f) => f.label !== r.label))}>
+              <IconClose size={11} />
+            </button>
+          )}
+        </div>
+      ))}
+      <form
+        className="cast-add-field"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <input aria-label="New field" placeholder="Add a field of your own (Motto, Height…)" value={label} onChange={(e) => setLabel(e.target.value)} />
+        <button type="submit" className="btn small" aria-label="Add the field" disabled={!label.trim()}>
+          Add
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/** A card, open beside the writing: a character, a place or another part of the book's world. */
 export function CastPane({ project, member, narrow = false, onClose }: { project: Project; member: CastMember; narrow?: boolean; onClose(): void }) {
   const state = useAppState();
   const store = useAppStore();
@@ -253,20 +310,22 @@ export function CastPane({ project, member, narrow = false, onClose }: { project
   };
 
   return (
-    <section className="research-pane cast-pane" aria-label={`${KIND[member.kind]} card`}>
+    <section className="research-pane cast-pane" aria-label={`${KIND(member.kind)} card`}>
       <div className="note-toolbar" role="toolbar" aria-label="Card">
         {narrow && (
           <button type="button" className="back-link" onClick={onClose}>
             <IconBack size={16} /> <span className="ellipsis">{project.name}</span>
           </button>
         )}
-        <div className="segmented small" role="group" aria-label="Kind">
-          {(['character', 'place'] as const).map((k) => (
-            <button key={k} type="button" aria-pressed={member.kind === k} onClick={() => update({ kind: k })}>
-              {KIND[k]}
-            </button>
-          ))}
-        </div>
+        <label className="cast-kind-pick">
+          <select aria-label="Kind" value={member.kind} onChange={(e) => update({ kind: e.target.value as CastMember['kind'] })}>
+            {KINDS.map((k) => (
+              <option key={k.kind} value={k.kind}>
+                {k.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="grow" />
         {!narrow && (
           <button type="button" className="icon-btn" aria-label="Close card" data-tip="Close" onClick={onClose}>
@@ -281,7 +340,7 @@ export function CastPane({ project, member, narrow = false, onClose }: { project
               {picture ? <img src={picture} alt="" /> : <span>+ Picture</span>}
             </button>
             <div className="cast-names">
-              <input ref={name} className="note-title cast-name" aria-label="Name" placeholder={member.kind === 'place' ? 'Name of the place' : 'Name'} value={member.name} onChange={(e) => update({ name: e.target.value })} />
+              <input ref={name} className="note-title cast-name" aria-label="Name" placeholder={member.kind === 'place' ? 'Name of the place' : member.kind === 'character' ? 'Name' : `Name of the ${KIND(member.kind).toLowerCase()}`} value={member.name} onChange={(e) => update({ name: e.target.value })} />
               <label className="cast-field">
                 <span>Also called</span>
                 <input
@@ -303,9 +362,10 @@ export function CastPane({ project, member, narrow = false, onClose }: { project
           </div>
           <label className="cast-field">
             <span>Description</span>
-            <textarea rows={2} aria-label="Description" placeholder={member.kind === 'place' ? 'What it’s like, in a line or two' : 'Who they are, in a line or two'} value={member.description} onChange={(e) => update({ description: e.target.value })} />
+            <textarea rows={2} aria-label="Description" placeholder={kindInfo(member.kind).hint} value={member.description} onChange={(e) => update({ description: e.target.value })} />
           </label>
           {member.kind === 'character' && <Relationships project={project} member={member} />}
+          <Details member={member} onChange={(fields) => update({ fields: fields.length ? fields : undefined })} />
           <label className="cast-field">
             <span>Notes</span>
             <textarea rows={8} aria-label="Notes" placeholder="Anything worth remembering" value={member.notes} onChange={(e) => update({ notes: e.target.value })} />
@@ -486,7 +546,7 @@ export function CastSpotting({ editor, project }: { editor: Editor | null; proje
         <Avatar member={member} size={40} />
         <div>
           <b>{member.name}</b>
-          <small>{KIND[member.kind]}</small>
+          <small>{KIND(member.kind)}</small>
         </div>
       </div>
       {member.description && <p>{member.description}</p>}

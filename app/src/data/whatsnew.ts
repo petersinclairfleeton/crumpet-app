@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-world',
+    date: '26 October 2026',
+    title: 'Worldbuilding cards',
+    points: [
+      'A book’s Characters & places holds the rest of its world too: the + adds a thing (an object, a weapon, a ship), a group (a family, a guild, an army), a culture, magic or technology, a creature, or an event or legend.',
+      'Each card asks its kind’s questions to answer (a culture: beliefs, customs, food, clothes, language, taboos; magic: how it works, who can use it, what it costs, its limits…), and Add a field gives any card details of your own.',
+      'Their names are spotted in your chapters like characters’ (hover for the card), each kind is listed under its name, and a card’s Kind changes what it is, keeping its answers.',
+    ],
+  },
+  {
     id: '2026-10-26-echoes',
     date: '26 October 2026',
     title: 'Echoes, long sentences and the same word',

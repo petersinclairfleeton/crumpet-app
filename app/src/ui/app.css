@@ -3560,3 +3560,20 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 
 /* A printed book's blank pages (before chapters that start on the right). */
 .print-page.blank .sheet { box-shadow: none; }
+
+/* Worldbuilding: each kind of card under its name, its own colour, and its details. */
+.cast-kind { padding: 10px 10px 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); list-style: none; }
+.cast-avatar.item { border-radius: 4px; background: color-mix(in srgb, #b07d2b 22%, var(--page)); }
+.cast-avatar.group { border-radius: 4px; background: color-mix(in srgb, #8a5bb5 20%, var(--page)); }
+.cast-avatar.culture { border-radius: 28%; background: color-mix(in srgb, #3f9a7d 20%, var(--page)); }
+.cast-avatar.magic { background: color-mix(in srgb, #5b6fd6 22%, var(--page)); }
+.cast-avatar.creature { background: color-mix(in srgb, #9a6b3f 22%, var(--page)); }
+.cast-avatar.lore { border-radius: 4px; background: color-mix(in srgb, #7f7f7f 20%, var(--page)); }
+.cast-kind-pick select { height: 28px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); color: var(--text); font: inherit; font-size: 13px; }
+.cast-details { display: grid; gap: 6px; }
+.cast-detail { display: flex; align-items: start; gap: 4px; }
+.cast-detail > label { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(90px, 32%) 1fr; align-items: start; gap: 8px; }
+.cast-detail > label > span { padding-top: 6px; font-size: 12.5px; color: var(--muted); font-weight: 500; }
+.cast-detail textarea { min-height: 30px; field-sizing: content; resize: none; }
+.cast-add-field { display: flex; gap: 6px; }
+.cast-add-field input { flex: 1; min-width: 0; }
