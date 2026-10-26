@@ -10,6 +10,14 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-echoes',
+    date: '26 October 2026',
+    title: 'Echoes, long sentences and the same word',
+    points: [
+      'The Writing tab’s Highlight has three more: Echoes lights up a word used again within 30 words (leaving out everyday words and names), Long sentences lights up any over 35 words, and Same word as the caret lights up every place of the word you’re on, following the caret as it moves.',
+    ],
+  },
+  {
     id: '2026-10-26-grammar',
     date: '26 October 2026',
     title: 'Grammar checking, on your device',

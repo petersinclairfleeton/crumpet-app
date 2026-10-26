@@ -4,6 +4,7 @@
 // highlighting dialogue, adverbs, filler words or passive voice (the rest of
 // the text fades) or every use of one word.
 
+import { wordAtCaret } from './thesaurus';
 import { useEffect, useMemo, useState } from 'react';
 import type { Editor } from '@crumpet/editor/editor';
 import { runsText } from '@crumpet/editor/model';
@@ -11,7 +12,7 @@ import { useAppState, useAppStore } from './hooks';
 import { goalLine, usePeriodGoals, useTodayWords } from './stats-ui';
 import { SprintStart } from './sprint';
 import { REVISIONS, hasRevisions } from '../data/revisions';
-import { FOCUS_LABELS, type Focus, findFocus, textStats, wordFrequency } from '../data/textstats';
+import { ECHO_WINDOW, FOCUS_LABELS, type Focus, LONG_SENTENCE, findFocus, textStats, wordFrequency } from '../data/textstats';
 
 // ---------------------------------------------------------------- this session
 
@@ -63,6 +64,12 @@ function focusRanges(root: HTMLElement, focus: Focus): Range[] {
   return out;
 }
 
+/** The word the caret is on (or the words selected), for Same word as the caret. */
+function caretWord(editor: Editor): string | null {
+  const w = wordAtCaret(editor)?.word.trim();
+  return w && /\p{L}/u.test(w) ? w : null;
+}
+
 /** Highlights the focus in an editor, fading the rest, until it's turned off. */
 function useFocusHighlight(editor: Editor | null, focus: Focus | null): number {
   const [count, setCount] = useState(0);
@@ -78,7 +85,9 @@ function useFocusHighlight(editor: Editor | null, focus: Focus | null): number {
     const paint = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const ranges = focusRanges(root, focus);
+        // Same word as the caret: whichever word that is now.
+        const word = focus === 'same' ? caretWord(editor) : null;
+        const ranges = focus === 'same' ? (word ? focusRanges(root, { word }) : []) : focusRanges(root, focus);
         setCount(ranges.length);
         if (ranges.length) CSS.highlights.set('crumpet-focus', new Highlight(...ranges));
         else CSS.highlights.delete('crumpet-focus');
@@ -86,8 +95,15 @@ function useFocusHighlight(editor: Editor | null, focus: Focus | null): number {
     };
     paint();
     const off = editor.onChange(paint);
+    // Following the caret as it moves.
+    const moved = () => {
+      const sel = root.ownerDocument.getSelection();
+      if (focus === 'same' && sel?.anchorNode && root.contains(sel.anchorNode)) paint();
+    };
+    root.ownerDocument.addEventListener('selectionchange', moved);
     return () => {
       off();
+      root.ownerDocument.removeEventListener('selectionchange', moved);
       cancelAnimationFrame(frame);
       root.classList.remove('ling-dim');
       CSS.highlights.delete('crumpet-focus');
@@ -109,6 +125,14 @@ export function WritingTab({ editor, docId }: { editor: Editor; docId: string })
   const [, setTick] = useState(0);
   useEffect(() => editor.onChange(() => setTick((t) => t + 1)), [editor]);
   const found = useFocusHighlight(editor, focus);
+  // Same word as the caret names the word, so the line under the buttons follows the caret too.
+  useEffect(() => {
+    if (focus !== 'same') return;
+    const on = () => setTick((t) => t + 1);
+    document.addEventListener('selectionchange', on);
+    return () => document.removeEventListener('selectionchange', on);
+  }, [focus]);
+  const caret = focus === 'same' ? caretWord(editor) : null;
   const paragraphs = editor.state.doc.blocks.filter((b) => b.type !== 'table' && b.type !== 'image' && b.type !== 'file' && b.type !== 'toc').map((b) => runsText(b.runs.filter((r) => r.change?.kind !== 'del' && !r.footnote)));
   const stats = useMemo(() => textStats(paragraphs), [paragraphs.join('\n')]); // eslint-disable-line react-hooks/exhaustive-deps
   const often = useMemo(() => wordFrequency(paragraphs, 15), [paragraphs.join('\n')]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -187,8 +211,9 @@ export function WritingTab({ editor, docId }: { editor: Editor; docId: string })
         </div>
         {focus && (
           <p className="focus-found">
-            {found ? `${n(found)} found` : 'None found'}
-            {typeof focus === 'object' ? ` of “${focus.word}”` : ''} ·{' '}
+            {focus === 'same' && !caret ? 'Put the caret on a word' : found ? `${n(found)} found` : 'None found'}
+            {typeof focus === 'object' ? ` of “${focus.word}”` : caret ? ` of “${caret}”` : ''}
+            {focus === 'echoes' ? ` (words used again within ${ECHO_WINDOW} words)` : focus === 'long' ? ` (over ${LONG_SENTENCE} words)` : ''} ·{' '}
             <button type="button" className="link-btn" onClick={() => setFocus(null)}>
               Stop highlighting
             </button>
