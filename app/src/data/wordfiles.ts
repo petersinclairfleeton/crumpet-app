@@ -9,6 +9,8 @@ import { applyOps } from '@crumpet/editor/ops';
 import { DOCX_TYPE, type DocxImport, type DocxOptions, fromDocx, toDocx } from './docx';
 import { bibliography, inText } from './citations';
 import { EPUB_TYPE, toEpub } from './epub';
+import { glossaryDoc } from './glossary';
+import { bookCast } from './series';
 import { EXPORT_TYPES, type ExportPart, toHtml, toOdt, toRtf, toText } from './exports';
 import { addFile, mediaUrl } from './files';
 import { type HFContext, type HFRun, cleanHF, fieldValue } from './headers';
@@ -169,6 +171,8 @@ export interface BookOptions {
   partHeadings?: boolean;
   /** Keep comments and tracked changes; otherwise the text reads as if every change were accepted. */
   notes?: boolean;
+  /** The book's words and terms at the end, in alphabetical order (glossary.ts). */
+  glossary?: boolean;
 }
 
 /** The text as it reads with every change accepted and no comments on it. */
@@ -210,6 +214,10 @@ export function bookParts(state: AppState, project: Project, opts: BookOptions =
     if (opts.partHeadings && p && p.id !== part) out.push({ heading: p.title || 'Part', doc: { blocks: [] } });
     part = p?.id ?? null;
     out.push({ heading: chapter.title || `Chapter ${number}`, doc: opts.notes === false ? finalDoc(chapter.doc) : chapter.doc });
+  }
+  if (opts.glossary) {
+    const glossary = glossaryDoc(bookCast(state.projects, project));
+    if (glossary.blocks.length) out.push({ heading: 'Glossary', doc: glossary });
   }
   return out;
 }

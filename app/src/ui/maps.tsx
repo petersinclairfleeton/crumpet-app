@@ -91,7 +91,7 @@ function MapView({ project, map, onChange }: { project: Project; map: BookMap; o
   const [scaleLength, setScaleLength] = useState('');
   const [scaleUnit, setScaleUnit] = useState<Unit>(map.scale?.unit ?? 'miles');
   const dragging = useRef<{ id: string; moved: boolean } | null>(null);
-  const places = (project.cast ?? []).filter((m) => m.kind !== 'character').sort((a, b) => a.name.localeCompare(b.name));
+  const places = (project.cast ?? []).filter((m) => m.kind !== 'character' && m.kind !== 'term').sort((a, b) => a.name.localeCompare(b.name));
 
   const at = (e: { clientX: number; clientY: number }): Point | null => {
     const r = box.current?.getBoundingClientRect();

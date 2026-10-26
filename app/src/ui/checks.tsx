@@ -8,6 +8,8 @@ import type { Editor } from '@crumpet/editor/editor';
 import { comments } from '@crumpet/editor/model';
 import { type Issue, accessibility, clarity, compatibility, inclusive, inspect, wordsToSpell } from '../data/checks';
 import { misspellings } from '../data/spell';
+import { nearNames } from '../data/glossary';
+import { passedWords } from './spelling';
 import { useAppState, useAppStore } from './hooks';
 import { GrammarPass } from './grammar';
 
@@ -150,9 +152,12 @@ function Inspector({ editor }: { editor: Editor }) {
 
 /** A spelling pass: each misspelt word once, with suggestions, Change, Change all, Ignore and Add to dictionary. */
 function SpellingPass({ editor }: { editor: Editor }) {
-  const { settings } = useAppState();
+  const state = useAppState();
+  const { settings } = state;
   const store = useAppStore();
   const known = settings.spelling?.words ?? [];
+  // Names and terms from the books pass too, and a near miss of one is offered it first.
+  const cast = state.projects.flatMap((p) => p.cast ?? []);
   const [found, setFound] = useState<Awaited<ReturnType<typeof misspellings>> | null>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -161,7 +166,7 @@ function SpellingPass({ editor }: { editor: Editor }) {
     setBusy(true);
     setFailed(false);
     try {
-      setFound(await misspellings(wordsToSpell(editor.state.doc), settings.spelling?.lang, known));
+      setFound(await misspellings(wordsToSpell(editor.state.doc), settings.spelling?.lang, passedWords(state), (w) => nearNames(w, cast)));
     } catch {
       setFailed(true);
     }

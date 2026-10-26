@@ -332,7 +332,13 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     (`settings.submissions`, a shared setting merged one by one in `sync/merge.ts`;
     `data/submissions.ts`: status, `daysOut`, `overdue`, `stillOutAfterOffer`, `sentBefore`,
     `submissionsCsv`; `ui/submissions.tsx`'s window, opened by `openSubmissions(of?)` from
-    the sidebar's menu, a book's or note's menu and the command palette).
+    the sidebar's menu, a book's or note's menu and the command palette); a glossary
+    (cards of kind `term`, "Word or term", in `data/world.ts`; `data/glossary.ts`:
+    `glossaryDoc` for Export's Glossary at the end (`BookOptions.glossary`, in `bookParts`
+    and the print parts), `nearNames` puts a name or term a misspelling is close to first
+    in the spelling suggestions (right-click, `contextmenu.tsx`; the Check tab's pass,
+    `misspellings`' `near`); a name written in small letters on its card is found as written,
+    `CastMatcher.lower`).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
     download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the
@@ -546,7 +552,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
 - Track changes: deletions made through some phone keyboards' word
   suggestions aren't tracked (typing is).
 - Names of characters and places match in any case, except a one-word name
-  written all in small letters (so Rose isn't found in "rose").
+  written all in small letters (so Rose isn't found in "rose"), unless the card's
+  name is itself in small letters (an invented word).
 - Comment replies go to Word as Word's own threaded replies
   (`commentsExtended.xml`); checked by tests, not yet in real Word.
 - The web clipper may still be blocked by a few sites' security settings

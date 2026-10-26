@@ -12,6 +12,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import type { Selection } from '@crumpet/editor/model';
 import type { Tab } from '../data/panes';
 import { speller } from '../data/spell';
+import { nearNames } from '../data/glossary';
 import { applyFix, grammarAt, ignoreIssue } from './grammar';
 import { useClips } from './clipboard';
 import { openFontDialog } from './fontdialog';
@@ -224,7 +225,8 @@ function ContextMenu({ at, actions, onParagraph, onClose }: { at: At; actions: C
     speller(sp?.lang || navigator.language)
       .then((s) => {
         const w = word.replace(/’/g, "'");
-        if (live && !s.correct(w)) setSpelling({ word, suggestions: s.suggest(w).slice(0, 5) });
+        const near = nearNames(word, state.projects.flatMap((p) => p.cast ?? []));
+        if (live && !s.correct(w)) setSpelling({ word, suggestions: [...new Set([...near, ...s.suggest(w)])].slice(0, 5) });
       })
       .catch(() => undefined);
     return () => {

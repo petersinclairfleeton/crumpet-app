@@ -3,6 +3,7 @@
 // a faint underline that shows the card when hovered.
 
 import { KINDS, byKind, cardDetails, kindInfo, setField } from '../data/world';
+import { pronunciation } from '../data/glossary';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
@@ -546,7 +547,7 @@ export function CastSpotting({ editor, project }: { editor: Editor | null; proje
         <Avatar member={member} size={40} />
         <div>
           <b>{member.name}</b>
-          <small>{KIND(member.kind)}</small>
+          <small>{member.kind === 'term' && pronunciation(member) ? `(${pronunciation(member)}) · ` : ''}{KIND(member.kind)}</small>
         </div>
       </div>
       {member.description && <p>{member.description}</p>}

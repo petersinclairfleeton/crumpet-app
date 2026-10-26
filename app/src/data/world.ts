@@ -1,6 +1,6 @@
 // Worldbuilding: a book's cards are characters and places, and the rest of
 // its world: things, groups, cultures, magic and technology, creatures and
-// history. Each kind has questions to answer (like Campfire's and World
+// history, and the words of its own (a glossary, glossary.ts). Each kind has questions to answer (like Campfire's and World
 // Anvil's templates), and any card can have fields of your own.
 
 import type { CastField, CastKind, CastMember } from './types';
@@ -27,6 +27,7 @@ export const KINDS: KindInfo[] = [
   { kind: 'magic', name: 'Magic or technology', plural: 'Magic and technology', glyph: '✦', questions: ['How it works', 'Who can use it', 'What it costs', 'Its limits', 'What happens when it goes wrong'], hint: 'A magic system, a technology, a power…' },
   { kind: 'creature', name: 'Creature', plural: 'Creatures', glyph: '♞', questions: ['Looks', 'Where it lives', 'How it behaves', 'How dangerous it is'], hint: 'An animal, a monster, a species…' },
   { kind: 'lore', name: 'Event or legend', plural: 'History and legends', glyph: '⌛', questions: ['When', 'What happened', 'Who was there', 'What it changed', 'What people believe now'], hint: 'An event, a war, a legend, a prophecy…' },
+  { kind: 'term', name: 'Word or term', plural: 'Glossary', glyph: 'Aa', questions: ['Pronunciation', 'Kind of word', 'Language', 'Where it comes from', 'Used like this'], hint: 'What it means: an invented word, a title, slang…' },
 ];
 
 export const KIND_IDS = KINDS.map((k) => k.kind);

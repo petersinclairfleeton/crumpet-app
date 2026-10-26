@@ -12,6 +12,8 @@ import { type BookOptions, DOCX_TYPE, EPUB_TYPE, docxName, download, exportAs, f
 import { IconClose } from './icons';
 import { BOOK_FONTS, type BookDesign, type BookFont, DEFAULT_DESIGN, HEADING_DESIGNS, OUTSIDE, SCENE_BREAKS, type SceneBreak, TRIMS, type TrimSize, estimatePages, insideMargin, trimOf } from '../data/bookdesign';
 import { loadGoogleFont } from './fonts';
+import { glossaryTerms } from '../data/glossary';
+import { bookCast } from '../data/series';
 
 type Way = 'docx' | 'epub' | 'pdf' | 'book' | 'odt' | 'rtf' | 'html' | 'txt';
 
@@ -42,6 +44,7 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
   const [opts, setOpts] = useState<BookOptions>({ titlePage: true, partHeadings: true, notes: false });
   const [more, setMore] = useState(false);
   const hasParts = project.outline.some((x) => x.type === 'part');
+  const terms = glossaryTerms(bookCast(store.getState().projects, project)).length;
   const [busy, setBusy] = useState(false);
   const state = exportState(store.getState(), skipTodo);
   const list = projectChapters(project, state.chapters);
@@ -196,6 +199,10 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
           <label className="check-row">
             <input type="checkbox" checked={!!opts.notes} onChange={(e) => setOpts({ ...opts, notes: e.target.checked })} />
             Comments and tracked changes
+          </label>
+          <label className="check-row">
+            <input type="checkbox" checked={terms > 0 && !!opts.glossary} disabled={!terms} onChange={(e) => setOpts({ ...opts, glossary: e.target.checked })} />
+            Glossary at the end{terms ? ` (${terms} word${terms === 1 ? '' : 's'})` : ' (no words or terms on the book’s cards)'}
           </label>
           <button type="button" className="link-btn export-more" aria-expanded={more} onClick={() => setMore(!more)}>
             More options: fonts, paper size, scene breaks
