@@ -325,7 +325,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     next element (`SCRIPT_ENTER`), Tab cycles (`cycleScript`); a stage play is
     `para.script='stage'` on the first paragraph; `ui/script.tsx`'s `ScriptBar` at the
     window's foot; `data/fountain.ts` reads and writes Fountain; Word gets styles
-    `SCRIPT_WORD` in `data/docx.ts` and they come back).
+    `SCRIPT_WORD` in `data/docx.ts` and they come back); maps (`plan.maps`, `data/maps.ts`:
+    pins at shares of the picture's width and height, `castId` or a label, a scale
+    `perWidth` in miles/km/leagues/days, `measure` with travel times on foot, horseback
+    and by car; the Plan's Map tab `ui/maps.tsx`, merged by `mergeById`).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
     download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the

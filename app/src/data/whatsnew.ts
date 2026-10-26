@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-maps',
+    date: '26 October 2026',
+    title: 'Maps of your world',
+    points: [
+      'A book’s Plan has a Map tab: add a picture of your world (drawn, scanned, or made in Inkarnate or Wonderdraft) and put pins on it. A pin marks one of your places (or things, groups…) and opens its card, or has a label of its own; drag it to move it.',
+      'Set the scale (click the ends of a distance you know, and say how far it is), then Measure: click two points to see how far apart they are and how long the journey takes on foot, on horseback or by car, so travel in the story stays believable.',
+      'A book can have several maps (a country, a city), kept with the book.',
+    ],
+  },
+  {
     id: '2026-10-26-script',
     date: '26 October 2026',
     title: 'Screenplays and stage plays',

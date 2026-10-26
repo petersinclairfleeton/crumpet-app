@@ -3,7 +3,7 @@
 // someone is in two places at once), its Plotlines (a grid of chapters and
 // plot threads, saying what each thread does where), and its Structure (a
 // beat sheet such as Save the Cat, each beat matched to its chapter), and each
-// chapter's Point of view, goal and tension (story.tsx).
+// chapter's Point of view, goal and tension (story.tsx), and Maps of its world (maps.tsx).
 
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -13,9 +13,10 @@ import { newId } from '../data/store';
 import type { CastMember, Chapter, Project } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
 import { StoryTab } from './story';
+import { MapTab } from './maps';
 import { IconBack, IconClose, IconPlus, IconTrash } from './icons';
 
-type Tab = 'timeline' | 'plotlines' | 'structure' | 'pov';
+type Tab = 'timeline' | 'plotlines' | 'structure' | 'pov' | 'map';
 
 /** `inTab`: under a phone's book, as its Plan tab (which says where it is already). */
 export function PlanView({ project, narrow, onBack, inTab = false }: { project: Project; narrow: boolean; onBack(): void; inTab?: boolean }) {
@@ -36,6 +37,7 @@ export function PlanView({ project, narrow, onBack, inTab = false }: { project: 
               ['plotlines', 'Plotlines'],
               ['structure', 'Structure'],
               ['pov', 'Point of view'],
+              ['map', 'Map'],
             ] as const
           ).map(([t, label]) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
@@ -49,6 +51,7 @@ export function PlanView({ project, narrow, onBack, inTab = false }: { project: 
         {tab === 'plotlines' && <Plotlines project={project} />}
         {tab === 'structure' && <StructureTab project={project} />}
         {tab === 'pov' && <StoryTab project={project} />}
+        {tab === 'map' && <MapTab project={project} />}
       </div>
     </section>
   );
