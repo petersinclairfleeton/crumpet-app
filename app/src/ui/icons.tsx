@@ -155,3 +155,5 @@ export const IconHelp = icon(
   </>,
 );
 export const IconShare = icon(<path d="M12 15V4M8 8l4-4 4 4M6 11H5v9h14v-9h-1" />);
+// An envelope: Submissions, where writing has been sent.
+export const IconSend = icon(<path d="M4 6h16v12H4zM4.5 6.5 12 12.5l7.5-6" />);

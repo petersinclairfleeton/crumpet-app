@@ -5801,9 +5801,10 @@ test('the calm right sidebar: three tabs, the rest under More', async ({ page })
   await expect(right.getByRole('tab', { name: 'Thesaurus' })).toHaveCount(0);
   await right.getByRole('button', { name: 'More helpers' }).click();
   await page.getByRole('dialog', { name: 'More helpers' }).getByRole('button', { name: 'Thesaurus' }).click();
-  // The tab chosen from More shows beside the three while it's open.
+  // The tab chosen from More takes the third's place while it's open, so the row still fits.
   await expect(right.getByRole('tab', { name: 'Thesaurus' })).toHaveAttribute('aria-selected', 'true');
-  await expect(right.getByRole('tab')).toHaveCount(4);
+  await expect(right.getByRole('tab')).toHaveCount(3);
+  await expect(right.getByRole('tab', { name: 'Links' })).toHaveCount(0);
 });
 
 test('calm room: no list before the first note, and a note in page view has the width to itself', async ({ page }) => {
@@ -6437,8 +6438,8 @@ test('writing sprints: start one, write, pause, and see what was written when it
   await newNote(page, 'Sprinting', 'Before the sprint.');
   await page.evaluate(() => (window as unknown as { crumpet: { updateLayout(p: object): void } }).crumpet.updateLayout({ right: true, rightTab: 'writing' }));
   const tab = page.locator('.writing-tab');
-  await tab.getByRole('radio', { name: '10' }).click();
-  await tab.getByRole('button', { name: 'Start a 10-minute sprint' }).click();
+  await tab.getByLabel('Sprint length').selectOption('10');
+  await tab.getByRole('button', { name: 'Start a sprint of 10 minutes' }).click();
   const bar = page.getByRole('status', { name: 'Writing sprint' });
   await expect(bar).toContainText('10:00');
   await expect(bar).toContainText('0 words');

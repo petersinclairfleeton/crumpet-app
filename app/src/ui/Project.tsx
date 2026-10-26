@@ -327,18 +327,21 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                         Add a part
                       </button>
                     )}
+                    <hr className="menu-sep" />
                     <button type="button" className="menu-item" onClick={() => setMenu('goal')}>
                       Word goal…
                     </button>
                     <button type="button" className="menu-item" onClick={() => setMenu('deadline')}>
                       Deadline…
                     </button>
+                    <hr className="menu-sep" />
                     <button type="button" className="menu-item" onClick={() => setMenu('draft')}>
                       New draft of the book…
                     </button>
                     <button type="button" className="menu-item" onClick={() => setMenu('series')}>
                       {project.series ? `Series: ${project.series}…` : 'Part of a series…'}
                     </button>
+                    <hr className="menu-sep" />
                     <button
                       type="button"
                       className="menu-item"
@@ -355,6 +358,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                     <button type="button" className="menu-item" onClick={() => (setMenu(null), openSubmissions({ kind: 'project', id: project.id }))}>
                       Submissions…
                     </button>
+                    <hr className="menu-sep" />
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                       {calm || phone ? 'Delete book…' : 'Delete project'}
                     </button>

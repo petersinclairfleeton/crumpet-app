@@ -386,8 +386,9 @@ input, select { font: inherit; color: inherit; }
 .font-picker { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
 .font-search { height: 32px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
-.chip { height: 24px; padding: 0 9px; border: 1px solid var(--line2); border-radius: 999px; background: transparent; font-size: 12px; cursor: pointer; }
-.chip[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+/* Choices as small pills (a check, a highlight, a revision round, a font group): the chosen one is washed in honey, not ringed. */
+.chip { height: 26px; padding: 0 10px; border: 1px solid var(--line2); border-radius: 999px; background: transparent; color: var(--text); font-size: 12px; cursor: pointer; }
+.chip[aria-pressed='true'] { background: var(--accent-soft); border-color: transparent; color: var(--accent-ink); font-weight: 600; }
 .font-list { display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; margin: 0 -4px; }
 .font-option { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 36px; padding: 4px 8px; border: none; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; }
 .font-option:hover { background: var(--field); }
@@ -431,7 +432,7 @@ input, select { font: inherit; color: inherit; }
 .list-sub > span:first-child { white-space: nowrap; }
 .list-note { margin: 0; font-size: 12px; color: var(--muted); }
 .jumps { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 6px; }
-.chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border: none; border-radius: 4px; background: var(--chip); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; }
+.jumps .chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border: none; border-radius: 4px; background: var(--chip); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; }
 .cards { padding: 0 8px 16px; }
 .group-label { margin: 0; padding: 10px 8px 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .card { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 10px; margin-bottom: 2px; border: none; border-radius: 8px; background: transparent; color: var(--text); text-align: left; cursor: pointer; }
@@ -548,7 +549,7 @@ input, select { font: inherit; color: inherit; }
 .chapter-rule { display: block; flex: none; height: 2px; margin: -4px 0 4px; background: linear-gradient(var(--accent), var(--accent)) 0 0 / 40px 2px no-repeat content-box; }
 .status-pick { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 8px; border-radius: 4px; background: var(--chip); font-size: 12px; }
 .status-pick select { border: none; background: transparent; font-weight: 600; color: var(--text2); cursor: pointer; }
-.chapter-words { color: var(--muted); font-variant-numeric: tabular-nums; }
+.chapter-words { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .synopsis { width: 100%; border: none; outline: none; resize: none; overflow: hidden; padding: 8px 10px; border-radius: 8px; background: var(--field); color: var(--text2); font: inherit; font-size: 13px; line-height: 1.5; }
 .synopsis::placeholder { color: var(--muted); }
 .goal-form { display: flex; align-items: flex-end; gap: 6px; padding: 6px; }
@@ -1458,7 +1459,7 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .cast-name { width: 100%; border: none; background: none; outline: none; padding: 0; font-size: 28px; }
 .cast-field { display: flex; flex-direction: column; gap: 4px; }
 .cast-field > span { font-size: 12px; font-weight: 700; color: var(--text2, var(--muted)); }
-.cast-field input, .cast-field textarea { font: inherit; font-size: 14px; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; resize: vertical; }
+.cast-field input, .cast-field textarea { box-sizing: border-box; width: 100%; min-width: 0; font: inherit; font-size: 14px; color: var(--text); background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; resize: vertical; }
 .cast-field input:focus, .cast-field textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .cast-seen { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .cast-seen li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
@@ -1473,6 +1474,7 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .cast-pane .note-toolbar { flex-wrap: nowrap; }
 .cast-pane .cast-name { font-size: 22px; }
 @media (max-width: 1100px) { .cast-top { flex-direction: column; } }
+
 /* On a phone the list is its own screen, so no card looks open. */
 .app.narrow[data-pane='list'] .card.selected { background: transparent; box-shadow: none; }
 [data-look='paper'] .app.narrow[data-pane='list'] .card.selected { border-bottom-color: var(--line); }
@@ -1917,8 +1919,8 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .text-stats dt { color: var(--muted); }
 .text-stats dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .focus-choices { display: flex; flex-wrap: wrap; gap: 5px; }
-.focus-choices button { padding: 4px 9px; border: 1px solid var(--line); border-radius: 12px; background: var(--page); color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; }
-.focus-choices button[aria-pressed='true'] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.focus-choices button { padding: 4px 10px; border: 1px solid var(--line2); border-radius: 999px; background: transparent; color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; }
+.focus-choices button[aria-pressed='true'] { background: var(--accent-soft); border-color: transparent; color: var(--accent-ink); font-weight: 600; }
 .focus-found { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
 .word-freq { list-style: none; margin: 0; padding: 0; }
 .word-freq button { position: relative; display: flex; width: 100%; gap: 8px; padding: 3px 6px; border: none; border-radius: 4px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-align: left; cursor: pointer; overflow: hidden; }
@@ -2393,7 +2395,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .reader-meaning { margin: 0; }
 /* The right sidebar's Check tab. */
 .check-kinds { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px 4px; }
-.check-kinds button { border: 1px solid var(--line2); background: transparent; color: var(--text2); border-radius: 999px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
+.check-kinds button { border: 1px solid var(--line2); background: transparent; color: var(--text); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; }
 .check-kinds button.on { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
 .check-list { padding: 0 10px 12px; display: grid; gap: 6px; }
 .check-list ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
@@ -2954,7 +2956,11 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .app.calm .book-foot { border-top-color: color-mix(in srgb, var(--text) 8%, transparent); }
 .book-foot .research-toggle { display: none; }
 .book-foot .research-head { justify-content: flex-end; min-height: 0; padding: 0 4px; }
-.book-foot .research { padding: 0; }
+.book-foot .research { padding: 0; border-top: none; margin-top: 0; }
+/* Family tree on the left, + on the right, like the outline's other rows. */
+.book-foot .research-head .grow { display: none; }
+.book-foot .research-head .note-actions { flex: 1; display: flex; align-items: center; justify-content: flex-end; }
+.book-foot .research-head .family-btn { margin-right: auto; }
 
 /* ---- Quiet Paper: Settings (design 13) ----
    A sheet with its sections down a warm column on the left, Advanced at its foot; each section's
@@ -3415,16 +3421,13 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .sprint-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
 .sprint-dot.paused { background: var(--muted); }
 .sprint-clock { font: 600 15px var(--ui-font, inherit); font-variant-numeric: tabular-nums; min-width: 44px; }
-.sprint-words { color: var(--muted); }
+.sprint-words { color: var(--muted); white-space: nowrap; }
 .sprint-words b { color: var(--text); }
 .speech-bar ~ .sprint-bar { bottom: 72px; }
 .app.narrow .sprint-bar { bottom: calc(env(safe-area-inset-bottom, 0px) + 84px); }
 .sprint-start { display: grid; gap: 8px; }
-.sprint-lengths { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.sprint-lengths button { min-width: 34px; height: 28px; padding: 0 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--page); color: var(--text); font: 500 12px var(--ui-font, inherit); cursor: pointer; }
-.sprint-lengths button[aria-checked='true'] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.sprint-unit { font-size: 12px; color: var(--muted); }
-.sprint-start > .btn { justify-self: start; }
+.sprint-row { display: flex; align-items: center; gap: 8px; }
+.sprint-row select { height: 30px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); color: var(--text); font-size: 13px; }
 .sprint-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
 .sprint-log li { display: grid; grid-template-columns: 60px 1fr auto; gap: 8px; }
 .sprint-log .muted, .sprint-best { color: var(--muted); font-size: 12px; margin: 0; }
@@ -3454,9 +3457,6 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .event-dialog .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .event-cast-pick { border: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .event-cast-pick legend { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--page); color: var(--text); font-size: 12px; cursor: pointer; }
-.chip[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .dialog-actions { display: flex; align-items: center; gap: 8px; }
 /* Plotlines: chapters down, threads across. */
 .plot-grid { display: grid; gap: 0; min-width: max-content; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -3504,8 +3504,8 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .tie-kind { color: var(--muted); min-width: 84px; }
 .ties small { color: var(--muted); }
 .tie-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.tie-add select, .tie-add input { height: 30px; font-size: 13px; }
-.family-btn { margin-right: 4px; }
+.tie-add select, .tie-add input { height: 30px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); color: var(--text); font-size: 13px; }
+.family-btn { margin-right: 4px; white-space: nowrap; }
 .family-dialog { width: min(980px, 100%); }
 .family-scroll { overflow: auto; padding: 4px 18px 18px; }
 .family-tree { display: block; }
@@ -3562,7 +3562,7 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .print-page.blank .sheet { box-shadow: none; }
 
 /* Worldbuilding: each kind of card under its name, its own colour, and its details. */
-.cast-kind { padding: 10px 10px 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); list-style: none; }
+.cast-kind { padding: 10px 10px 2px; font-size: 12px; font-weight: 600; color: var(--muted); list-style: none; }
 .cast-avatar.item { border-radius: 4px; background: color-mix(in srgb, #b07d2b 22%, var(--page)); }
 .cast-avatar.group { border-radius: 4px; background: color-mix(in srgb, #8a5bb5 20%, var(--page)); }
 .cast-avatar.culture { border-radius: 28%; background: color-mix(in srgb, #3f9a7d 20%, var(--page)); }
@@ -3572,12 +3572,21 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .cast-kind-pick select { height: 28px; padding: 0 8px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); color: var(--text); font: inherit; font-size: 13px; }
 .cast-details { display: grid; gap: 6px; }
 .cast-detail { display: flex; align-items: start; gap: 4px; }
-.cast-detail > label { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(90px, 32%) 1fr; align-items: start; gap: 8px; }
+.cast-detail > label { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(90px, 32%) minmax(0, 1fr); align-items: start; gap: 8px; }
 .cast-detail > label > span { padding-top: 6px; font-size: 12.5px; color: var(--muted); font-weight: 500; }
 .cast-detail textarea { min-height: 30px; field-sizing: content; resize: none; }
 .cast-add-field { display: flex; gap: 6px; }
 .cast-add-field input { flex: 1; min-width: 0; }
-
+/* A card squeezed beside a chapter and the inspector: the picture above the names, details' labels above their boxes. */
+.cast-pane { container-type: inline-size; }
+@container (max-width: 400px) {
+  .cast-detail > label { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .cast-detail > label > span { padding-top: 0; }
+}
+@container (max-width: 360px) {
+  .cast-top { flex-direction: column; }
+  .cast-card { padding: 16px 16px 32px; }
+}
 /* The Plan's Point of view tab, and each card's point of view in its colour. */
 .story-tab { display: grid; gap: 18px; }
 .story-grid { display: grid; gap: 4px; }
@@ -3624,10 +3633,8 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .script-bar { position: fixed; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: max-content; max-width: calc(100vw - 16px); padding: 5px 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--page); box-shadow: var(--shadow); transform: translateX(-50%); }
 .script-bar button { height: 28px; padding: 0 10px; border: none; border-radius: 8px; background: none; color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer; }
 .script-bar button:hover { background: var(--hover); }
-.script-bar button[aria-pressed='true'] { background: color-mix(in srgb, var(--accent) 18%, var(--page)); font-weight: 600; }
+.script-bar button[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .script-bar select { height: 28px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); color: var(--text); font: inherit; font-size: 12.5px; }
-.script-bar small { padding: 0 6px; color: var(--muted); font-size: 11.5px; }
-@media (max-width: 759px) { .script-bar small { display: none; } }
 
 /* The Plan's Map tab: the picture, its pins, the ruler. */
 .map-tab { display: grid; gap: 12px; }

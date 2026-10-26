@@ -37,7 +37,7 @@ export function StoryTab({ project }: { project: Project }) {
 
   return (
     <div className="story-tab">
-      <p className="plan-intro">Whose point of view each chapter is told from, what they want in it, and how tense it is. Cards (beside Write) show each chapter’s point of view in its colour.</p>
+      {!anyPov && !anyTension && <p className="plan-intro">Whose point of view each chapter is told from, what they want in it, and how tense it is (the dots). The tension’s rise and fall and each point of view’s share of the book show below once you set them.</p>}
       {people.length === 0 && <p className="sync-hint">Add characters (Characters &amp; places, under the outline) to choose whose point of view a chapter is.</p>}
       <div className="story-grid" role="grid" aria-label="Chapters’ point of view and tension">
         <div role="row" className="story-row head">
@@ -77,11 +77,9 @@ export function StoryTab({ project }: { project: Project }) {
         })}
       </div>
 
-      <section className="story-section" aria-label="Tension across the book">
-        <h3>Tension across the book</h3>
-        {!anyTension ? (
-          <p className="plan-empty">Give chapters a tension (the dots above) to see it rise and fall across the book.</p>
-        ) : (
+      {anyTension && (
+        <section className="story-section" aria-label="Tension across the book">
+          <h3>Tension across the book</h3>
           <div className="story-chart-scroll">
             <svg className="story-chart" width={W} height={H} role="img" aria-label={`Tension by chapter: ${points.map((p) => `${chapters[p.i].number}: ${p.t}`).join(', ')}`}>
               {[1, 2, 3, 4, 5].map((t) => (
@@ -101,19 +99,17 @@ export function StoryTab({ project }: { project: Project }) {
               ))}
             </svg>
           </div>
-        )}
-        {flat.map((f) => (
-          <p key={f.from} className="story-note">
-            Chapters {f.from}–{f.to} stay calm (tension 2 or less) for {f.to - f.from + 1} chapters in a row. Is that on purpose?
-          </p>
-        ))}
-      </section>
+          {flat.map((f) => (
+            <p key={f.from} className="story-note">
+              Chapters {f.from}–{f.to} stay calm (tension 2 or less) for {f.to - f.from + 1} chapters in a row. Is that on purpose?
+            </p>
+          ))}
+        </section>
+      )}
 
-      <section className="story-section" aria-label="Points of view">
-        <h3>Points of view</h3>
-        {!anyPov ? (
-          <p className="plan-empty">Choose a point of view for each chapter to see how much of the book each one has.</p>
-        ) : (
+      {anyPov && (
+        <section className="story-section" aria-label="Points of view">
+          <h3>Points of view</h3>
           <ul className="pov-share">
             {share.map((s) => (
               <li key={s.id ?? 'none'} style={{ '--pov': povColor(cast, s.id ?? undefined) ?? 'var(--line2)' } as React.CSSProperties}>
@@ -125,10 +121,10 @@ export function StoryTab({ project }: { project: Project }) {
               </li>
             ))}
           </ul>
-        )}
-        {anyPov && gaps.noPov.length > 0 && <p className="story-note">No point of view yet: chapter{gaps.noPov.length === 1 ? '' : 's'} {numberList(gaps.noPov)}.</p>}
-        {anyPov && gaps.noAim.length > 0 && gaps.noAim.length < chapters.length && <p className="story-note">No goal yet: chapter{gaps.noAim.length === 1 ? '' : 's'} {numberList(gaps.noAim)}. A point-of-view character who wants nothing makes a chapter slack.</p>}
-      </section>
+          {gaps.noPov.length > 0 && <p className="story-note">No point of view yet: chapter{gaps.noPov.length === 1 ? '' : 's'} {numberList(gaps.noPov)}.</p>}
+          {gaps.noAim.length > 0 && gaps.noAim.length < chapters.length && <p className="story-note">No goal yet: chapter{gaps.noAim.length === 1 ? '' : 's'} {numberList(gaps.noAim)}. A point-of-view character who wants nothing makes a chapter slack.</p>}
+        </section>
+      )}
     </div>
   );
 }

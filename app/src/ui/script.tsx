@@ -57,7 +57,7 @@ export function ScriptBar({ editor, host }: { editor: Editor | null; host: React
   }, [at, style]);
   if (!editor || !style || !at) return null;
   return createPortal(
-    <div ref={bar} className="script-bar" role="toolbar" aria-label="Script" style={{ left: at.left, top: at.top }} onMouseDown={(e) => e.target instanceof HTMLButtonElement && e.preventDefault()}>
+    <div ref={bar} className="script-bar" role="toolbar" aria-label="Script" title="Enter: what comes next · Tab: change" style={{ left: at.left, top: at.top }} onMouseDown={(e) => e.target instanceof HTMLButtonElement && e.preventDefault()}>
       {SCRIPT_STYLES.map((s) => (
         <button key={s} type="button" aria-pressed={s === style} onClick={() => editor.setBlockStyle('paragraph', s)}>
           {SCRIPT_NAMES[s]}
@@ -75,7 +75,6 @@ export function ScriptBar({ editor, host }: { editor: Editor | null; host: React
         <option value="screen">Screenplay</option>
         <option value="stage">Stage play</option>
       </select>
-      <small>Enter: what comes next · Tab: change</small>
     </div>,
     document.body,
   );
