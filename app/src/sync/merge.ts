@@ -326,6 +326,7 @@ function mergePlan(b: BookPlan | undefined, l: BookPlan | undefined, r: BookPlan
     plotlines: mergeById(b?.plotlines ?? [], l?.plotlines ?? [], r?.plotlines ?? []),
     events: mergeById(b?.events ?? [], l?.events ?? [], r?.events ?? []),
     structure: jsonField(b?.structure, l?.structure, r?.structure, remoteNewer ? r?.structure : l?.structure),
+    chapters: mergeById(b?.chapters ?? [], l?.chapters ?? [], r?.chapters ?? []),
   });
 }
 

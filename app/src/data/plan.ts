@@ -34,11 +34,21 @@ export interface StructureBeat {
   chapterId?: string;
 }
 
+/** A chapter's story: whose point of view it's told from (a character's id), what they want in it, and how tense it is (1 to 5). */
+export interface ChapterStory {
+  id: string;
+  pov?: string;
+  aim?: string;
+  tension?: number;
+}
+
 export interface BookPlan {
   plotlines?: Plotline[];
   events?: StoryEvent[];
   /** The structure chosen (a STRUCTURES id) and its beats. */
   structure?: { id: string; beats: StructureBeat[] };
+  /** Each chapter's point of view, goal and tension (story.ts), by chapter id. */
+  chapters?: ChapterStory[];
 }
 
 export const PLOTLINE_COLORS = ['#c0703a', '#4f7cac', '#6f9a5b', '#a35d8f', '#c79a2b', '#4d9a9a', '#8a6fbf', '#b5544f'];
@@ -283,6 +293,7 @@ export function tidyPlan(plan: BookPlan | undefined): BookPlan | undefined {
   if (plan.plotlines?.length) out.plotlines = plan.plotlines;
   if (plan.events?.length) out.events = plan.events;
   if (plan.structure) out.structure = plan.structure;
+  if (plan.chapters?.length) out.chapters = plan.chapters;
   return Object.keys(out).length ? out : undefined;
 }
 
@@ -322,5 +333,12 @@ export function cleanPlan(raw: unknown): BookPlan | undefined {
           }),
         }
       : undefined;
-  return tidyPlan({ plotlines, events, structure });
+  const chapters: ChapterStory[] = list(p.chapters).map((x) => {
+    const c: ChapterStory = { id: x.id as string };
+    if (str(x.pov)) c.pov = str(x.pov);
+    if (str(x.aim)) c.aim = str(x.aim);
+    if (typeof x.tension === 'number' && x.tension >= 1) c.tension = Math.min(5, Math.round(x.tension));
+    return c;
+  });
+  return tidyPlan({ plotlines, events, structure, chapters });
 }

@@ -9,6 +9,7 @@ import { useAppState, useAppStore } from './hooks';
 import { IconBack, IconPlus } from './icons';
 import { STATUSES, shownOutline } from './Project';
 import { KeywordChips } from './keywords';
+import { povColor, storyOf } from '../data/story';
 
 export function Corkboard({ project, narrow, onBack }: { project: Project; narrow: boolean; onBack(): void }) {
   const state = useAppState();
@@ -115,13 +116,18 @@ export function Corkboard({ project, narrow, onBack }: { project: Project; narro
           if (!entry) return null;
           const { chapter: c, number } = entry;
           const n = chapterWords(c);
+          // Its point of view, in that character's colour (the Plan's Point of view tab).
+          const pov = storyOf(project.plan, c.id).pov;
+          const who = pov ? project.cast?.find((m) => m.id === pov) : undefined;
+          const color = who ? povColor(project.cast ?? [], who.id) : undefined;
           return (
-            <article key={c.id} className={`cork-card status-${c.status}${dragging === c.id ? ' dragging' : ''}${dropClass}`} aria-label={`Chapter ${number}: ${c.title || 'Untitled'}`} {...drag}>
+            <article key={c.id} className={`cork-card status-${c.status}${color ? ' has-pov' : ''}${dragging === c.id ? ' dragging' : ''}${dropClass}`} style={color ? ({ '--pov': color } as React.CSSProperties) : undefined} aria-label={`Chapter ${number}: ${c.title || 'Untitled'}`} {...drag}>
               <header>
                 <span className="cork-num">{number}</span>
                 <button type="button" className="cork-title" onClick={() => open(c.id)} title="Open this chapter">
                   {c.title || 'Untitled chapter'}
                 </button>
+                {who && <span className="cork-pov" title="Point of view">{who.name || 'Unnamed'}</span>}
               </header>
               {show.synopsis && <textarea className="cork-synopsis" aria-label={`Synopsis of chapter ${number}`} placeholder="What happens…" value={c.synopsis} onChange={(e) => store.setChapterSynopsis(c.id, e.target.value)} />}
               {show.keywords && <KeywordChips chapter={c} />}

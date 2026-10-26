@@ -2,7 +2,8 @@
 // story times, in lanes by plotline or by character, with a warning when
 // someone is in two places at once), its Plotlines (a grid of chapters and
 // plot threads, saying what each thread does where), and its Structure (a
-// beat sheet such as Save the Cat, each beat matched to its chapter).
+// beat sheet such as Save the Cat, each beat matched to its chapter), and each
+// chapter's Point of view, goal and tension (story.tsx).
 
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -11,9 +12,10 @@ import { chapterWords, projectChapters } from '../data/selectors';
 import { newId } from '../data/store';
 import type { CastMember, Chapter, Project } from '../data/types';
 import { useAppState, useAppStore } from './hooks';
+import { StoryTab } from './story';
 import { IconBack, IconClose, IconPlus, IconTrash } from './icons';
 
-type Tab = 'timeline' | 'plotlines' | 'structure';
+type Tab = 'timeline' | 'plotlines' | 'structure' | 'pov';
 
 /** `inTab`: under a phone's book, as its Plan tab (which says where it is already). */
 export function PlanView({ project, narrow, onBack, inTab = false }: { project: Project; narrow: boolean; onBack(): void; inTab?: boolean }) {
@@ -33,6 +35,7 @@ export function PlanView({ project, narrow, onBack, inTab = false }: { project: 
               ['timeline', 'Timeline'],
               ['plotlines', 'Plotlines'],
               ['structure', 'Structure'],
+              ['pov', 'Point of view'],
             ] as const
           ).map(([t, label]) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
@@ -45,6 +48,7 @@ export function PlanView({ project, narrow, onBack, inTab = false }: { project: 
         {tab === 'timeline' && <Timeline project={project} narrow={narrow} />}
         {tab === 'plotlines' && <Plotlines project={project} />}
         {tab === 'structure' && <StructureTab project={project} />}
+        {tab === 'pov' && <StoryTab project={project} />}
       </div>
     </section>
   );
