@@ -133,17 +133,18 @@ export function SprintStart({ log = 3 }: { log?: number }) {
   const { best } = sprintBest(state.settings.sprints);
   return (
     <div className="sprint-start">
-      <div className="sprint-lengths" role="radiogroup" aria-label="Sprint length">
-        {SPRINT_LENGTHS.map((m) => (
-          <button key={m} type="button" role="radio" aria-checked={minutes === m} onClick={() => setMinutes(m)}>
-            {m}
-          </button>
-        ))}
-        <span className="sprint-unit">min</span>
+      <div className="sprint-row">
+        <select aria-label="Sprint length" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+          {SPRINT_LENGTHS.map((m) => (
+            <option key={m} value={m}>
+              {m} minutes
+            </option>
+          ))}
+        </select>
+        <button type="button" className="btn small" disabled={running} aria-label={running ? 'Sprint under way' : `Start a sprint of ${minutes} minutes`} onClick={() => beginSprint(store, minutes)}>
+          {running ? 'Under way' : 'Start a sprint'}
+        </button>
       </div>
-      <button type="button" className="btn primary small" disabled={running} onClick={() => beginSprint(store, minutes)}>
-        {running ? 'Sprint under way' : `Start a ${minutes}-minute sprint`}
-      </button>
       {recent.length > 0 && (
         <ul className="sprint-log" aria-label="Recent sprints">
           {recent.map((s) => (

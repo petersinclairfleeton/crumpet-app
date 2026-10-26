@@ -45,7 +45,7 @@ export function MapTab({ project }: { project: Project }) {
 
   return (
     <div className="map-tab">
-      <p className="plan-intro">A map of the story’s world: put pins on its places, set its scale, and measure how far apart they are and how long the journey takes.</p>
+      {!map && <p className="plan-empty">A map of the story’s world: add a picture of it (drawn, scanned, or made in Inkarnate or Wonderdraft), put pins on its places, set its scale, and measure how far apart they are and how long the journey takes.</p>}
       <div className="map-head">
         {maps.length > 1 && (
           <select aria-label="Map" value={map?.id} onChange={(e) => setShown(e.target.value)}>
@@ -57,7 +57,7 @@ export function MapTab({ project }: { project: Project }) {
           </select>
         )}
         {map && <input className="map-name" aria-label="Map’s name" value={map.name} placeholder="Name of the map" onChange={(e) => change({ name: e.target.value })} />}
-        <span className="grow" />
+        {map && <span className="grow" />}
         <button type="button" className="btn small" onClick={add}>
           <IconPlus size={12} /> {maps.length ? 'Another map…' : 'Add a map…'}
         </button>
@@ -76,7 +76,7 @@ export function MapTab({ project }: { project: Project }) {
           </button>
         )}
       </div>
-      {map ? <MapView key={map.id} project={project} map={map} onChange={change} /> : <p className="plan-empty">Add a picture of your world (drawn, scanned, or made in Inkarnate or Wonderdraft) to pin its places on it.</p>}
+      {map && <MapView key={map.id} project={project} map={map} onChange={change} />}
     </div>
   );
 }

@@ -20,7 +20,7 @@ import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
 import { boardDoc, emptyBoard } from '../data/board';
-import { IconBell, IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconCrumpet, IconSettings, IconShare, Logo, NotebookIcon } from './icons';
+import { IconBell, IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconCrumpet, IconSettings, IconSend, Logo, NotebookIcon } from './icons';
 import { openFinder } from './finder';
 import { HelpItems } from './help';
 import { openSubmissions } from './submissions';
@@ -485,7 +485,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           <>
             <SideRow icon={<IconChart size={13} />} label="Writing stats" count={todayWords || undefined} countLabel="words today" active={false} onClick={() => setStatsOpen(true)} strong />
             <SideRow icon={<IconGraph size={13} />} label="Graph" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
-            <SideRow icon={<IconShare size={13} />} label="Submissions" active={false} onClick={() => openSubmissions()} strong />
+            <SideRow icon={<IconSend size={13} />} label="Submissions" active={false} onClick={() => openSubmissions()} strong />
             {recent.length > 0 && (
               <section className="side-section" aria-label="Recent notes">
                 <h2 className="side-label">Recent notes</h2>

@@ -23,7 +23,7 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
-import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconLock, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconRightPanel, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconLock, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconRightPanel, IconSend, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
 import { BoardView } from './board';
 import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
@@ -148,7 +148,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
     if (navigator.share) await navigator.share({ title: displayTitle(note), text }).catch(() => {});
     else await navigator.clipboard?.writeText(text).catch(() => {});
   };
-  // Word, e-book, the other formats and printing: in the menu on a computer, behind Download a copy… on a phone.
+  // Word, e-book, the other formats and printing: behind one row in the calm look (Download a copy… on a phone), in the menu with every tool.
   const downloadItems = () => (
     <>
       <button
@@ -245,10 +245,10 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
       </button>
       {menu && (
         <Popover onClose={() => setMenu(false)} label="Note options">
-          {phone && downloads ? (
+          {calm && downloads ? (
             <>
               <button type="button" className="menu-item menu-back" onClick={() => setDownloads(false)}>
-                <IconBack size={14} /> Download a copy
+                <IconBack size={14} /> {phone ? 'Download a copy' : 'Download or print'}
               </button>
               <hr className="menu-sep" />
               {downloadItems()}
@@ -344,7 +344,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           )}
           {!trashed && !note.file && (
             <button type="button" className="menu-item" onClick={() => (setMenu(false), openSubmissions({ kind: 'note', id: note.id }))}>
-              <IconBook size={14} /> Submissions…
+              <IconSend size={14} /> Submissions…
             </button>
           )}
           <hr className="menu-sep" />
@@ -363,9 +363,9 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               </button>
             </>
           )}
-          {phone ? (
+          {calm ? (
             <button type="button" className="menu-item keep-open" onClick={() => setDownloads(true)}>
-              <IconDownload size={14} /> Download a copy…
+              <IconDownload size={14} /> {phone ? 'Download a copy…' : 'Download or print…'}
             </button>
           ) : (
             <>

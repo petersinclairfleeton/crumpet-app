@@ -315,7 +315,7 @@ function Plotlines({ project }: { project: Project }) {
   if (!chapters.length) return <p className="plan-empty">Add a chapter to the book first.</p>;
   return (
     <div className="plotlines">
-      <p className="plan-intro">Each column is a thread of the story; say in a line what it does in each chapter, and see where it carries on or goes quiet.</p>
+      {plotlines.length === 0 && <p className="plan-intro">Each column is a thread of the story; say in a line what it does in each chapter, and see where it carries on or goes quiet.</p>}
       <div className="plot-grid" role="grid" aria-label="Plotlines" style={{ gridTemplateColumns: `minmax(140px, 200px) repeat(${plotlines.length}, minmax(170px, 1fr)) 120px` }}>
         <div role="row" className="plot-row head">
           <span role="columnheader">Chapter</span>
@@ -418,7 +418,7 @@ function StructureTab({ project }: { project: Project }) {
               <p>{s.about}</p>
               <small>{s.beats.map((b) => b.name).join(' · ')}</small>
               <div className="structure-use">
-                <button type="button" className="btn small primary" onClick={() => use(s.id, false)}>
+                <button type="button" className="btn small" onClick={() => use(s.id, false)}>
                   Use this
                 </button>
                 {empty && (

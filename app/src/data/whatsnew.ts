@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-tidy',
+    date: '26 October 2026',
+    title: 'Tidier, after all the new tools',
+    points: [
+      'A note’s ··· menu is half as long: Word, e-book, the other formats and printing are under Download or print…. A book’s menu is in groups.',
+      'Choices look the same everywhere: the one you’ve picked (a check, a highlight, a revision round, a font group) has a soft honey wash.',
+      'A sprint is one drop-down and Start a sprint. The Plan’s structures and the sprint use plain buttons, so honey marks only the one thing to do on a screen.',
+      'The inspector’s tabs always fit: one opened from ··· takes the third tab’s place. A character’s card fits beside a chapter, and the screenplay bar stays within the page.',
+      'The Plan explains a tab only until you’ve started it.',
+    ],
+  },
+  {
     id: '2026-10-26-glossary',
     date: '26 October 2026',
     title: 'A glossary of your words',

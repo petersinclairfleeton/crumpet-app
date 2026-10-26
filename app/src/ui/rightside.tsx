@@ -69,12 +69,13 @@ export function RightSidebar() {
   const tabs = (chapter ? TABS : TABS.filter((t) => t.key !== 'chapter')).filter((t) => t.key !== 'notes' || calmBook);
   const chosen: RightTab = state.settings.layout?.rightTab ?? (chapter ? 'chapter' : 'outline');
   const tab: RightTab = chosen === 'chapter' && !chapter ? 'outline' : chosen;
-  // The calm look shows three tabs (and the one open); the rest wait under More.
+  // The calm look shows three tabs; one opened from More takes the third's place, so the row always fits.
   const calm = !state.settings.toolbarAll;
-  const main: RightTab[] = chapter ? (calm ? ['chapter', 'notes', 'comments'] : ['chapter', 'outline', 'comments']) : ['outline', 'comments', 'links'];
+  const first: RightTab[] = chapter ? (calm ? ['chapter', 'notes', 'comments'] : ['chapter', 'outline', 'comments']) : ['outline', 'comments', 'links'];
+  const main: RightTab[] = first.includes(tab) ? first : [...first.slice(0, 2), tab];
   // Beside a chapter the calm inspector calls Review "Comments", as the design does.
   const label = (t: { key: RightTab; label: string }) => (calmBook && t.key === 'comments' ? 'Comments' : t.label);
-  const shownTabs = calm ? tabs.filter((t) => main.includes(t.key) || t.key === tab) : tabs;
+  const shownTabs = calm ? tabs.filter((t) => main.includes(t.key)) : tabs;
   const moreTabs = tabs.filter((t) => !shownTabs.includes(t));
   const [more, setMore] = useState(false);
   useEdits(helped?.editor ?? null);

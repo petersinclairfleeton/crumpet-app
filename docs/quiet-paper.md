@@ -55,3 +55,15 @@ The same pass on an iPhone: what a phone needs, shaped the way an iPhone app is.
 - [x] The library and lists: the same groups as the computer, tags as chips, no More, back buttons that say where they go, a list menu without desktop choices (Sort by only, always cards), plain Cancel, the + out of the way while searching (#174)
 - [x] Settings like an iPhone's: a list of sections (with the theme and your name beside them), each a page of its own with ‹ Settings and Done; what a phone can't use left out; controls under their words (#175)
 - [x] A book: Cast and Research as rows under a heading with its +, the round + only under Chapters, the switch even, "book" not "project" in its menu (#176)
+
+## Calmer still: after the writers' tools
+The October tools (sprints, the Plan, family trees, worldbuilding, scripts,
+maps, submissions, sharing) checked screen by screen against the rules above.
+
+- [x] Shorter menus: a note's ··· downloads behind Download or print… (calm look; every format still in the menu with every tool on), Submissions with an envelope of its own; a book's ··· in groups
+- [x] The inspector's tabs always fit: one opened from ··· takes the third tab's place (a fourth tab pushed ··· and the page sideways)
+- [x] One look for a chosen pill (`.chip`, the Check tab's checks, Highlight, revision rounds): a honey wash, no ring; `.chip` was defined three times, the Plan's copy overriding the rest
+- [x] Honey once: the Plan's structures say Use this in plain buttons; a sprint is one drop-down and a plain Start a sprint (seven round buttons wrapped)
+- [x] The Plan explains a tab only until it's started (Plotlines, Point of view, Map had two explanations each)
+- [x] A card beside a chapter and the inspector: the picture above the name and labels above their boxes when narrow (boxes ran past the card), relationship drop-downs in the app's look; the cast list's kinds in normal case, Family tree on the left
+- [x] The screenplay bar within the page (its hint is the bar's tooltip), its chosen element in the same honey wash; a sprint's words and a chapter's word count never wrap
