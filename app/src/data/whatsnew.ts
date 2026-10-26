@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-submissions',
+    date: '26 October 2026',
+    title: 'Submissions',
+    points: [
+      'Keep track of where your writing has been sent: Submissions, in the sidebar’s menu (or a book’s or a note’s menu, for just that one). Add the agent, magazine, contest or publisher, the date, and how long they say they take to reply.',
+      'Change the status when they reply (asked for pages, asked for the full manuscript, shortlisted, an offer, declined, no reply): Crumpet dates the reply, flags what’s past their reply time, and says how long a place took before.',
+      'Sending the same piece to several places at once? When one makes an offer, Crumpet lists the others that still have it, so you can let them know. And it warns you before sending a piece somewhere it’s already been.',
+      'Download the list as a spreadsheet; it’s kept on every device you sync.',
+    ],
+  },
+  {
     id: '2026-10-26-maps',
     date: '26 October 2026',
     title: 'Maps of your world',

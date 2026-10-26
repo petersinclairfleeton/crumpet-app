@@ -45,6 +45,13 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
     const newer = (r?.updated ?? 0) > (l?.updated ?? 0) ? r : l;
     const shared: Record<string, unknown> = {};
     for (const k of SHARED_SETTINGS) Object.assign(shared, withValue(k, jsonField<unknown>(b?.[k], l?.[k], r?.[k], newer?.[k])));
+    // Submissions one at a time, so replies logged on two devices both stay.
+    const list = (x: unknown) => (Array.isArray(x) ? (x as { id: string }[]).filter((s) => s && typeof s.id === 'string') : []);
+    if (!sameJson(l?.submissions, r?.submissions) && !sameJson(b?.submissions, l?.submissions) && !sameJson(b?.submissions, r?.submissions)) {
+      const merged = mergeById(list(b?.submissions), list(l?.submissions), list(r?.submissions));
+      if (merged) shared.submissions = merged;
+      else delete shared.submissions;
+    }
     if (Object.keys(shared).length) tree.settings = { ...shared, updated: Math.max(l?.updated ?? 0, r?.updated ?? 0) };
   }
 

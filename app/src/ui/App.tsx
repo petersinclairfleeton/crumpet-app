@@ -39,6 +39,7 @@ import { PictureAltHost } from './picture';
 import { ReaderHost } from './reader';
 import { MacroHost } from './macros';
 import { HelpHost } from './help';
+import { SubmissionsHost } from './submissions';
 import { SyncScroll } from './viewtools';
 import { CombineHost } from './comparedocs';
 import { FontDialogHost } from './fontdialog';
@@ -417,6 +418,7 @@ export function App() {
       <ReaderHost />
       <MacroHost />
       <HelpHost />
+      <SubmissionsHost />
       <SyncScroll />
       <CombineHost />
       <FontDialogHost />

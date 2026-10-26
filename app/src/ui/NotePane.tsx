@@ -4,6 +4,7 @@ import { PageToggle } from './pages';
 import { ExportItems } from './exportmenu';
 import { isScriptDoc } from '../data/fountain';
 import { ShareDialog } from './share';
+import { openSubmissions } from './submissions';
 import { LockedNote, PasswordDialog, removePassword, useOpened } from './locked';
 import { isLocked } from '../data/lock';
 import { StylesDialog, useStyleSources } from './styles-ui';
@@ -339,6 +340,11 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           {!trashed && !locked && !note.file && (
             <button type="button" className="menu-item" onClick={() => (setMenu(false), setSharing(true))}>
               <IconShare size={14} /> Share with readers…
+            </button>
+          )}
+          {!trashed && !note.file && (
+            <button type="button" className="menu-item" onClick={() => (setMenu(false), openSubmissions({ kind: 'note', id: note.id }))}>
+              <IconBook size={14} /> Submissions…
             </button>
           )}
           <hr className="menu-sep" />
