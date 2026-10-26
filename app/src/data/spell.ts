@@ -28,8 +28,8 @@ export function speller(lang = 'en-GB'): Promise<Speller> {
   return job;
 }
 
-/** Misspelt words, once each, with their places and suggestions (words in `known` are fine, in any case). */
-export async function misspellings(words: { block: string; from: number; to: number; word: string }[], lang: string | undefined, known: string[]): Promise<{ word: string; places: { block: string; from: number; to: number }[]; suggestions: string[] }[]> {
+/** Misspelt words, once each, with their places and suggestions (words in `known` are fine, in any case; `near` puts the book's names a word is close to first). */
+export async function misspellings(words: { block: string; from: number; to: number; word: string }[], lang: string | undefined, known: string[], near: (word: string) => string[] = () => []): Promise<{ word: string; places: { block: string; from: number; to: number }[]; suggestions: string[] }[]> {
   const sp = await speller(lang);
   const ok = new Set(known.map((w) => w.toLowerCase()));
   const found = new Map<string, { word: string; places: { block: string; from: number; to: number }[]; suggestions: string[] }>();
@@ -42,6 +42,6 @@ export async function misspellings(words: { block: string; from: number; to: num
     if (hit) hit.places.push(w);
     else found.set(word, { word: w.word, places: [w], suggestions: [] });
   }
-  for (const f of found.values()) f.suggestions = sp.suggest(f.word.replace(/’/g, "'")).slice(0, 5);
+  for (const f of found.values()) f.suggestions = [...new Set([...near(f.word), ...sp.suggest(f.word.replace(/’/g, "'"))])].slice(0, 5);
   return [...found.values()];
 }

@@ -99,7 +99,7 @@ export interface Project {
 }
 
 /** What a card is: a character, a place, or the rest of the book's world (world.ts). */
-export type CastKind = 'character' | 'place' | 'item' | 'group' | 'culture' | 'magic' | 'creature' | 'lore';
+export type CastKind = 'character' | 'place' | 'item' | 'group' | 'culture' | 'magic' | 'creature' | 'lore' | 'term';
 
 /** A card's detail: one of its kind's questions answered, or a field of your own. */
 export interface CastField {

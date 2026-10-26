@@ -40,7 +40,8 @@ import { openSubmissions } from './submissions';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
 import { PlanView } from './plan';
-import { findMember, seriesBooks, seriesLine, seriesNames } from '../data/series';
+import { bookCast, findMember, seriesBooks, seriesLine, seriesNames } from '../data/series';
+import { glossaryDoc } from '../data/glossary';
 import { CastList, CastPane, CastSpotting } from './cast';
 import { FoldButton } from './fold';
 import { startTabDrag } from './tabdrag';
@@ -205,8 +206,10 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
         fields: { title: project.name, chapter: number, chapterTitle: chapter.title, part: part?.title, words: chapterWords(chapter) },
       });
     }
+    const glossary = printOpts.glossary ? glossaryDoc(bookCast(state.projects, project)) : null;
+    if (glossary?.blocks.length) out.push({ id: 'glossary', doc: { blocks: [makeBlock('heading1', 'Glossary'), ...glossary.blocks] }, fields: { title: project.name, chapterTitle: 'Glossary', words: 0 } });
     return out;
-  }, [printing, printSkipTodo, printOpts, printBook, project, state.chapters, state.settings.name]);
+  }, [printing, printSkipTodo, printOpts, printBook, project, state.chapters, state.projects, state.settings.name]);
   // A print-ready book's pages: its trim size, margins for its length, and running heads.
   const bookPrint = useMemo(() => {
     if (!printBook) return null;

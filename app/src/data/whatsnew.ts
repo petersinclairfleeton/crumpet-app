@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-glossary',
+    date: '26 October 2026',
+    title: 'A glossary of your words',
+    points: [
+      'A book’s cards can be a word or term: an invented word, a title, slang. Say what it means, how it’s said, and what kind of word it is; hover over it in the text to see.',
+      'The spelling check knows your words and names, and when one is a letter or two out (“Elvaryn” for Elvarin), the right spelling comes first among its suggestions (right-click it, or the Check tab’s spelling).',
+      'Export → Glossary at the end puts your words, in alphabetical order with their meanings, at the back of the book (Word, e-book, PDF and print-ready).',
+    ],
+  },
+  {
     id: '2026-10-26-submissions',
     date: '26 October 2026',
     title: 'Submissions',
