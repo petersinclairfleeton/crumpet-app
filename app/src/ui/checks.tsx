@@ -1,6 +1,6 @@
 // The right sidebar's Check tab, like Word's Review tools: accessibility,
 // compatibility with Word, Inspect Document (comments, changes, people,
-// hidden text), a spelling pass with suggestions, clarity and inclusive
+// hidden text), a spelling pass with suggestions, grammar (grammar.tsx), clarity and inclusive
 // language. Each issue can be gone to, and fixed when there's a better word.
 
 import { useEffect, useState } from 'react';
@@ -9,13 +9,15 @@ import { comments } from '@crumpet/editor/model';
 import { type Issue, accessibility, clarity, compatibility, inclusive, inspect, wordsToSpell } from '../data/checks';
 import { misspellings } from '../data/spell';
 import { useAppState, useAppStore } from './hooks';
+import { GrammarPass } from './grammar';
 
-type Kind = 'access' | 'compat' | 'inspect' | 'spelling' | 'clarity' | 'inclusive';
+type Kind = 'access' | 'compat' | 'inspect' | 'spelling' | 'grammar' | 'clarity' | 'inclusive';
 const KINDS: [Kind, string][] = [
   ['access', 'Accessibility'],
   ['compat', 'Word'],
   ['inspect', 'Inspect'],
   ['spelling', 'Spelling'],
+  ['grammar', 'Grammar'],
   ['clarity', 'Clarity'],
   ['inclusive', 'Inclusive'],
 ];
@@ -50,7 +52,7 @@ export function CheckTab({ editor }: { editor: Editor }) {
           </button>
         ))}
       </div>
-      {kind === 'inspect' ? <Inspector editor={editor} /> : kind === 'spelling' ? <SpellingPass editor={editor} /> : <IssueList editor={editor} kind={kind} />}
+      {kind === 'inspect' ? <Inspector editor={editor} /> : kind === 'spelling' ? <SpellingPass editor={editor} /> : kind === 'grammar' ? <GrammarPass editor={editor} /> : <IssueList editor={editor} kind={kind} />}
     </div>
   );
 }

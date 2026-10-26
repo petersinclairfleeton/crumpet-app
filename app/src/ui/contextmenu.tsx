@@ -12,6 +12,7 @@ import type { Editor } from '@crumpet/editor/editor';
 import type { Selection } from '@crumpet/editor/model';
 import type { Tab } from '../data/panes';
 import { speller } from '../data/spell';
+import { applyFix, grammarAt, ignoreIssue } from './grammar';
 import { useClips } from './clipboard';
 import { openFontDialog } from './fontdialog';
 import { isMac } from './editing';
@@ -270,8 +271,20 @@ function ContextMenu({ at, actions, onParagraph, onClose }: { at: At; actions: C
       ed.paste({ text: got.text, md, html: got.html }, mode);
       onClose();
     };
+    // A grammar finding where the caret is: its fixes at the top too.
+    const gram = !ro && !spelling ? grammarAt(ed, sel.focus) : null;
     body = (
       <>
+        {gram && (
+          <>
+            <p className="menu-grammar">{gram.message}</p>
+            {gram.fixes.map((f) => (
+              <Item key={`${f.from}:${f.text}`} label={f.label} onPick={done(() => applyFix(ed, gram, f))} />
+            ))}
+            <Item label="Ignore" onPick={done(() => ignoreIssue(gram))} />
+            <Rule />
+          </>
+        )}
         {spelling && !ro && (
           <>
             {spelling.suggestions.length ? (
