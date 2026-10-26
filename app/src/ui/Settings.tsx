@@ -15,6 +15,7 @@ import { THEMES, themeInfo } from './themes';
 import { PaperSwatches } from './paper';
 import { AutoCorrectSettings } from './autocorrect';
 import { SpellingSettings } from './spelling';
+import { GrammarSettings } from './grammar';
 import { SettingGroup, SettingRow, Switch } from './settingrows';
 
 const SECTIONS = [
@@ -151,6 +152,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
             </SettingGroup>
             <AutoCorrectSettings />
             <SpellingSettings />
+            <GrammarSettings />
           </>
         )}
         {shown === 'bar' && (
@@ -366,6 +368,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               </SettingGroup>
               <AutoCorrectSettings />
               <SpellingSettings />
+              <GrammarSettings />
             </>
           )}
 

@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-grammar',
+    date: '26 October 2026',
+    title: 'Grammar checking, on your device',
+    points: [
+      'The right sidebar’s Check tab has Grammar: Check grammar goes through the text for grammar, punctuation and word choice (“an test”, “the the”, “he go”), each with its fix in one click, Go to, Ignore, or Turn off this rule.',
+      'Settings → Writing → Check grammar as you write puts blue wavy lines under what it finds while you write, in every note and chapter; right-click one for its fix.',
+      'It’s Harper, an open-source checker that runs inside Crumpet: your writing never leaves your device. The first check fetches it (about 8 MB), then it works offline. American or British English follows your spelling language.',
+    ],
+  },
+  {
     id: '2026-10-26-printbook',
     date: '26 October 2026',
     title: 'Print-ready books',

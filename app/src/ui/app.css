@@ -1927,6 +1927,9 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .word-count { color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Highlighting: the rest of the text fades. */
 .ling-dim [data-block] > .text { color: color-mix(in srgb, var(--text) 38%, transparent); }
+::highlight(crumpet-grammar) { text-decoration: underline wavy #3b7dd8; text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+.menu-grammar { margin: 0; padding: 6px 12px 4px; max-width: 280px; font-size: 12.5px; line-height: 1.4; color: var(--muted); white-space: normal; }
+.grammar-issue q { font-style: italic; }
 ::highlight(crumpet-focus) { color: var(--text); background-color: color-mix(in srgb, var(--accent) 30%, transparent); }
 .rev-swatch { display: inline-block; width: 9px; height: 9px; margin-right: 5px; border-radius: 50%; vertical-align: 0; }
 .rev-remove { display: block; margin-top: 8px; font-size: 12.5px; }

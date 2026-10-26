@@ -15,6 +15,7 @@ import { useAppState, useAppStore } from './hooks';
 import { MarkupSelect } from './review';
 import { Popover } from './Sidebar';
 import { useSpelling } from './spelling';
+import { useLiveGrammar } from './grammar';
 import { usePictureActions } from './picture';
 import { useClipboard } from './clipboard';
 
@@ -52,6 +53,7 @@ export function useTracking(editor: Editor | null): void {
     if (editor) editor.revisionColor = color;
   }, [editor, color]);
   useSpelling(editor);
+  useLiveGrammar(editor);
   useTocOptions(editor);
   useCitations(editor);
   useSnippets(editor);

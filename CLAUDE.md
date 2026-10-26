@@ -306,6 +306,13 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `chapterOpening`, `designDoc` scene breaks, `designCss`; `PrintJob`'s `book`
     adds blank pages so chapters start on the right, `bookOffsets`, and moves each
     page's text for the spine, `mirrorShift`).
+  - Writers' tools, second round (October 2026): grammar checking with Harper
+    (`harper.js`, open source, on the device: `ui/grammarengine.ts` loads its
+    WebAssembly (about 8 MB) in a worker the first time; `data/grammar.ts` turns
+    a document into its text and findings back into places; `ui/grammar.tsx` is the
+    Check tab's Grammar pass, the `crumpet-grammar` highlight, live checking with
+    `settings.grammar.live` (via `useTracking`), rules off in `settings.grammar.off`,
+    and the right-click fixes; left out of the one-file build).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
     download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the

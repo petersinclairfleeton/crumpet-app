@@ -269,6 +269,8 @@ export interface Settings {
   paper?: string;
   /** Spelling: the browser's check on (unless `off`), its language, and words of your own it passes over. */
   spelling?: { off?: boolean; lang?: string; words?: string[] };
+  /** Grammar checking (Harper, on this device): lines under findings as you write, and rules turned off. */
+  grammar?: { live?: boolean; off?: string[] };
   /** How tracked changes and comments are shown (Word's Display for Review): all markup (unset), simple, none, or the original. */
   markup?: 'all' | 'simple' | 'none' | 'original';
   /** Show Markup: kinds of markup hidden (changes, comments), and people whose markup is hidden. */
