@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-pov',
+    date: '26 October 2026',
+    title: 'Point of view and tension, chapter by chapter',
+    points: [
+      'A book’s Plan has a fourth tab, Point of view: for each chapter, whose point of view it’s told from, what they want in it, and how tense it is (five dots, calm to as tense as it gets).',
+      'Below them: the tension across the book as a line, with a note where it stays calm three chapters in a row; how much of the book each point of view has (its chapters and share of the words); and the chapters with no point of view or goal yet.',
+      'Cards show each chapter’s point of view, in that character’s colour.',
+    ],
+  },
+  {
     id: '2026-10-26-world',
     date: '26 October 2026',
     title: 'Worldbuilding cards',
