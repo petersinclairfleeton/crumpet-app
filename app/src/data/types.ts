@@ -98,10 +98,19 @@ export interface Project {
   updatedAt: number;
 }
 
-/** A character or place in a book: spotted by name in its chapters. */
+/** What a card is: a character, a place, or the rest of the book's world (world.ts). */
+export type CastKind = 'character' | 'place' | 'item' | 'group' | 'culture' | 'magic' | 'creature' | 'lore';
+
+/** A card's detail: one of its kind's questions answered, or a field of your own. */
+export interface CastField {
+  label: string;
+  value: string;
+}
+
+/** A character, place or other part of a book's world: spotted by name in its chapters. */
 export interface CastMember {
   id: string;
-  kind: 'character' | 'place';
+  kind: CastKind;
   name: string;
   /** Other names it goes by ("Tam", "the keeper"). */
   aliases: string[];
@@ -112,6 +121,8 @@ export interface CastMember {
   notes: string;
   /** How a character is connected to others (parent of, partner of, friend of...), read from either side. */
   ties?: import('./family').Tie[];
+  /** Details: its kind's questions answered, and fields of your own. */
+  fields?: CastField[];
 }
 
 export interface Chapter {

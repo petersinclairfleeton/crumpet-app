@@ -809,6 +809,21 @@ describe('relationships', () => {
   });
 });
 
+describe('worldbuilding cards', () => {
+  it('keep their kind and details in project.json', async () => {
+    const cloud = new MemoryProvider();
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const p = mac.store.createProject('The Lighthouse');
+    const lens = mac.store.addCastMember(p.id, 'item', 'Clockwork Lens')!;
+    mac.store.updateCastMember(p.id, lens.id, { fields: [{ label: 'What it does', value: 'Turns the beam' }, { label: 'Weight', value: 'Three tons' }] });
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    expect(phone.store.project(p.id)?.cast?.find((m) => m.id === lens.id)).toMatchObject({ kind: 'item', fields: [{ label: 'What it does', value: 'Turns the beam' }, { label: 'Weight', value: 'Three tons' }] });
+  });
+});
+
 describe('a series', () => {
   it('is named in project.json, reaching the other devices; taking a book out of it too', async () => {
     const cloud = new MemoryProvider();

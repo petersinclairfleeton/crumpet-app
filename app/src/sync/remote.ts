@@ -13,6 +13,7 @@
 //   files are chapters (in the order project.json gives), not notes; those in
 //   its Drafts folder are chapters' other drafts.
 
+import { cleanFields, cleanKind } from '../data/world';
 import { fromMarkdown, toMarkdown } from '@crumpet/editor/markdown';
 import { type BookDraft, type CastMember, type ChapterStatus, type Deadline, NOTEBOOK_COLORS, type OutlineItem } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
@@ -132,10 +133,12 @@ function cleanCast(list: unknown[]): CastMember[] {
   return list.flatMap((x) => {
     const m = x as Partial<CastMember>;
     if (!m || typeof m.id !== 'string' || typeof m.name !== 'string') return [];
-    const out: CastMember = { id: m.id, kind: m.kind === 'place' ? 'place' : 'character', name: m.name, aliases: Array.isArray(m.aliases) ? m.aliases.filter((a) => typeof a === 'string') : [], description: typeof m.description === 'string' ? m.description : '', notes: typeof m.notes === 'string' ? m.notes : '' };
+    const out: CastMember = { id: m.id, kind: cleanKind(m.kind), name: m.name, aliases: Array.isArray(m.aliases) ? m.aliases.filter((a) => typeof a === 'string') : [], description: typeof m.description === 'string' ? m.description : '', notes: typeof m.notes === 'string' ? m.notes : '' };
     if (typeof m.picture === 'string' && m.picture) out.picture = m.picture;
     const ties = cleanTies(m.ties);
     if (ties.length) out.ties = ties;
+    const fields = cleanFields(m.fields);
+    if (fields.length) out.fields = fields;
     return [out];
   });
 }

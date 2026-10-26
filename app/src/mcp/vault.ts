@@ -85,7 +85,7 @@ export async function readIndex(folder: Folder): Promise<Index> {
       goal: typeof json.goal === 'number' ? json.goal : null,
       partOf,
       cast: (Array.isArray(json.cast) ? (json.cast as Record<string, unknown>[]) : []).map((c) => ({
-        kind: c.kind === 'place' ? 'place' : 'character',
+        kind: typeof c.kind === 'string' && c.kind ? c.kind : 'character',
         name: String(c.name ?? ''),
         aliases: Array.isArray(c.aliases) ? c.aliases.map(String) : [],
         description: String(c.description ?? ''),
