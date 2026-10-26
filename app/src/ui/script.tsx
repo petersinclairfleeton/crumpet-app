@@ -55,6 +55,13 @@ export function ScriptBar({ editor, host }: { editor: Editor | null; host: React
     const left = Math.min(window.innerWidth - w / 2 - 8, Math.max(w / 2 + 8, at.left));
     if (Math.abs(left - at.left) > 1) setAt({ ...at, left });
   }, [at, style]);
+  // While it shows, the sprint bar sits above it (app.css).
+  const shown = !!(editor && style && at);
+  useEffect(() => {
+    if (!shown) return;
+    document.documentElement.setAttribute('data-script-bar', '1');
+    return () => document.documentElement.removeAttribute('data-script-bar');
+  }, [shown]);
   if (!editor || !style || !at) return null;
   return createPortal(
     <div ref={bar} className="script-bar" role="toolbar" aria-label="Script" title="Enter: what comes next · Tab: change" style={{ left: at.left, top: at.top }} onMouseDown={(e) => e.target instanceof HTMLButtonElement && e.preventDefault()}>

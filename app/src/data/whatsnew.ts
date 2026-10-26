@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-10-26-dark-phone',
+    date: '26 October 2026',
+    title: 'Dark mode and the phone, put right',
+    points: [
+      'In dark mode a book’s Cards were white with pale writing; they’re dark now, like the rest. The Submissions list’s offers, and the switches above a book and on a phone, show in dark mode too.',
+      'On a phone, a book’s Plan fills the screen like its other tabs, its own tabs fit on one line (slide them sideways), and Plotlines slides sideways on its own. A book’s name no longer stops halfway.',
+      'Export’s Cancel and Export stay in sight on a phone while you scroll its options.',
+      'A sprint’s bar sits above the screenplay bar on a computer, and above the round + on a phone, so neither covers the other.',
+    ],
+  },
+  {
     id: '2026-10-26-tidy',
     date: '26 October 2026',
     title: 'Tidier, after all the new tools',

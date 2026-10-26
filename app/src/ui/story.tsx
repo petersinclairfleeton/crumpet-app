@@ -65,7 +65,7 @@ export function StoryTab({ project }: { project: Project }) {
                 </select>
               </span>
               <span role="gridcell">
-                <input aria-label={`What they want in chapter ${c.number}`} placeholder="Their goal in this chapter" value={s.aim ?? ''} onChange={(e) => set(c.chapter.id, { aim: e.target.value })} />
+                <input aria-label={`What they want in chapter ${c.number}`} placeholder="Their goal here" value={s.aim ?? ''} onChange={(e) => set(c.chapter.id, { aim: e.target.value })} />
               </span>
               <span role="gridcell" className="tension-pick" aria-label={`Tension of chapter ${c.number}`}>
                 {TENSION.map((label, i) => (

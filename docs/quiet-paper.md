@@ -67,3 +67,6 @@ maps, submissions, sharing) checked screen by screen against the rules above.
 - [x] The Plan explains a tab only until it's started (Plotlines, Point of view, Map had two explanations each)
 - [x] A card beside a chapter and the inspector: the picture above the name and labels above their boxes when narrow (boxes ran past the card), relationship drop-downs in the app's look; the cast list's kinds in normal case, Family tree on the left
 - [x] The screenplay bar within the page (its hint is the bar's tooltip), its chosen element in the same honey wash; a sprint's words and a chapter's word count never wrap
+- [x] Dark mode: a book's Cards were hard-coded white (`#fff` on `.cork-card`), now `--calm-card`; the offer status, the book's and phone's switch tracks in colours that follow the theme; the sprint bar rises over the screenplay bar (`html[data-script-bar]`); a card open from the outline's foot is lifted like a chapter
+- [x] The phone: a book's Plan tab grows with what it holds, on the wash (it was squeezed to a fixed height with its content running past); its tabs in one scrolling row, Plotlines scrolls on its own; the book's name uses the whole width; Export's buttons stay in view; the sprint bar clears the round +; the Point of view tab's box says "Their goal here"
+- [x] Newer screens' corners brought to the three sizes (8px, 12px, round)
