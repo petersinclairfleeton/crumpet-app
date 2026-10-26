@@ -38,4 +38,18 @@ describe('linguistic focus', () => {
   it('finds one word, whatever its case', () => {
     expect(pick('Lamp, lamp! The lamplight.', { word: 'lamp' })).toEqual(['Lamp', 'lamp']);
   });
+
+  it('finds echoes: a word used again soon after, but not everyday words, names or a word used again much later', () => {
+    expect(pick('The lamp flickered. She trimmed the lamp and the wick, and the wick caught.', 'echoes')).toEqual(['lamp', 'lamp', 'wick', 'wick']);
+    expect(pick('Mara looked. Mara waited, and then she waited again.', 'echoes')).toEqual(['waited', 'waited']);
+    const filler = 'gulls wheeled above rocks while boats rocked gently beside weathered piers; fishermen mended nets, children chased dogs, smoke curled from chimneys, bells rang somewhere inland, carts rattled along cobbles toward market stalls selling bread, cheese, apples';
+    const far = `The harbour was quiet. ${filler}. The harbour slept.`;
+    expect(pick(far, 'echoes')).toEqual([]);
+  });
+
+  it('finds sentences over 35 words', () => {
+    const long = `She walked ${'and walked '.repeat(20)}until the lighthouse rose out of the fog at last.`;
+    expect(pick(`Short one. ${long} Another short one.`, 'long')).toEqual([long]);
+  });
 });
+

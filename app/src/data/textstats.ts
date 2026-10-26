@@ -56,14 +56,56 @@ export function wordFrequency(paragraphs: string[], limit = 20): { word: string;
     .map(([word, count]) => ({ word, count }));
 }
 
-export type Focus = 'dialogue' | 'adverbs' | 'filler' | 'passive' | { word: string };
+export type Focus = 'dialogue' | 'adverbs' | 'filler' | 'passive' | 'echoes' | 'long' | 'same' | { word: string };
 
 export const FOCUS_LABELS: Record<Exclude<Focus, { word: string }>, string> = {
   dialogue: 'Dialogue',
   adverbs: '-ly adverbs',
   filler: 'Filler words',
   passive: 'Passive voice',
+  echoes: 'Echoes',
+  long: 'Long sentences',
+  same: 'Same word as the caret',
 };
+
+/** How near (in words) a word's next use makes it an echo. */
+export const ECHO_WINDOW = 30;
+/** A sentence of more words than this is long. */
+export const LONG_SENTENCE = 35;
+
+/** A word as echoes compare it, or null for everyday words, short ones and names (which come back on purpose). */
+function echoKey(w: string): string | null {
+  if (/^\p{Lu}/u.test(w)) return null;
+  const k = w.toLowerCase().replace(/’/g, "'").replace(/'s$/, '');
+  return k.length < 4 || COMMON.has(k) ? null : k;
+}
+
+/** Words used again soon after (within `window` words of each other): both places, as Scrivener's users and ProWritingAid's Echoes ask. */
+export function echoes(text: string, window = ECHO_WINDOW): { from: number; to: number }[] {
+  const words = [...text.matchAll(/\p{L}+(?:['’]\p{L}+)*/gu)];
+  const last = new Map<string, number>();
+  const marked = new Set<number>();
+  words.forEach((m, i) => {
+    const k = echoKey(m[0]);
+    if (!k) return;
+    const prev = last.get(k);
+    if (prev !== undefined && i - prev <= window) marked.add(prev).add(i);
+    last.set(k, i);
+  });
+  return [...marked].sort((a, b) => a - b).map((i) => ({ from: words[i].index!, to: words[i].index! + words[i][0].length }));
+}
+
+/** Sentences of more than `limit` words. */
+export function longSentences(text: string, limit = LONG_SENTENCE): { from: number; to: number }[] {
+  const out: { from: number; to: number }[] = [];
+  for (const m of text.matchAll(/[^.!?…]+(?:[.!?…]+["”’)\]]*|$)/g)) {
+    const words = wordsOf(m[0]).length;
+    if (words <= limit) continue;
+    const lead = m[0].length - m[0].trimStart().length;
+    out.push({ from: m.index! + lead, to: m.index! + m[0].trimEnd().length });
+  }
+  return out;
+}
 
 /** Words ending in -ly that aren't adverbs. */
 const NOT_ADVERBS = new Set('only family early reply holy ugly supply apply july italy fly belly rely ally bully jelly lily silly friendly lonely lovely likely daily weekly monthly yearly hourly elderly costly deadly lively ghostly orderly kindly curly hilly chilly woolly comply anomaly emily molly sally holly polly billy willy dolly folly rally tally gully bully wily oily ply sly unruly burly surly melancholy assembly butterfly dragonfly firefly'.split(' '));
@@ -87,6 +129,10 @@ export function findFocus(text: string, focus: Focus): { from: number; to: numbe
     all(/\b[\p{L}]+ly\b/giu, (m) => !NOT_ADVERBS.has(m[0].toLowerCase()) && m[0].length > 4);
   } else if (focus === 'filler') {
     all(new RegExp(`\\b(?:${FILLER.map((f) => f.replace(/ /g, '\\s+')).join('|')})\\b`, 'gi'));
+  } else if (focus === 'echoes') {
+    out.push(...echoes(text));
+  } else if (focus === 'long') {
+    out.push(...longSentences(text));
   } else if (focus === 'passive') {
     all(PASSIVE, (m) => !/^(?:get|got|gets|getting)\s+(?:even|seven|heaven|garden|kitten|token|often|open|oven|eleven)\b/i.test(m[0]));
   }

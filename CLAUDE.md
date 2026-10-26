@@ -312,7 +312,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     a document into its text and findings back into places; `ui/grammar.tsx` is the
     Check tab's Grammar pass, the `crumpet-grammar` highlight, live checking with
     `settings.grammar.live` (via `useTracking`), rules off in `settings.grammar.off`,
-    and the right-click fixes; left out of the one-file build).
+    and the right-click fixes; left out of the one-file build);
+    echoes, long sentences and the word at the caret in the Writing tab's Highlight
+    (`echoes`, `longSentences` in `data/textstats.ts`, focus `same` in `ui/writingtab.tsx`).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
     download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the
