@@ -108,6 +108,7 @@ import {
   type CaseChange,
   setPara,
   setDocPara,
+  cycleScript,
   paraValue,
   stepIndent,
   insertPageBreak,
@@ -2148,7 +2149,7 @@ export class Editor {
 
   /** Columns and orientation for the section the caret is in. */
   /** The whole document's hyphenation and line numbers (kept on its first paragraph). */
-  setDocPara(patch: Partial<Pick<ParaLook, 'hyph' | 'lnum' | 'lnr' | 'wm' | 'wmimg' | 'wmc' | 'wmflat' | 'pgc' | 'pgb' | 'pgbc' | 'thc' | 'thf' | 'thx' | 'psp'>>): void {
+  setDocPara(patch: Partial<Pick<ParaLook, 'hyph' | 'lnum' | 'lnr' | 'wm' | 'wmimg' | 'wmc' | 'wmflat' | 'pgc' | 'pgb' | 'pgbc' | 'thc' | 'thf' | 'thx' | 'psp' | 'script'>>): void {
     if (this.isReadOnly) return;
     this.dispatch(setDocPara(this.state, patch), 'command');
   }
@@ -3138,6 +3139,12 @@ export class Editor {
       // Tab nests list items (Shift+Tab un-nests); elsewhere it types a tab, which goes to the next tab stop (as in Word).
       e.preventDefault();
       this.syncSelectionFromDom();
+      // In a script, Tab changes the element instead.
+      const script = this.isReadOnly ? null : cycleScript(this.state, e.shiftKey ? -1 : 1);
+      if (script) {
+        this.dispatch(script, 'command');
+        return;
+      }
       const nest = indent(this.state, e.shiftKey ? -1 : 1);
       if (nest) this.dispatch(nest, 'command');
       else if (!e.shiftKey && this.restoreFirstIndent()) return;

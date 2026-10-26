@@ -102,7 +102,7 @@ export class View {
     this.root.classList.toggle('hyphenate', !!doc.blocks[0]?.para?.hyph);
     // The document's design (theme colours, fonts, effects, paragraph spacing): the app's styles draw them.
     const p0 = doc.blocks[0]?.para;
-    for (const [k, attr] of [['thc', 'thc'], ['thf', 'thf'], ['thx', 'thx'], ['psp', 'psp']] as const) {
+    for (const [k, attr] of [['thc', 'thc'], ['thf', 'thf'], ['thx', 'thx'], ['psp', 'psp'], ['script', 'script']] as const) {
       if (p0?.[k]) this.root.dataset[attr] = p0[k];
       else delete this.root.dataset[attr];
     }

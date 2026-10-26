@@ -408,6 +408,7 @@ class Writer {
 
   /** A block's Word style: its own style's, when it has one Word is told about, else `usual`. */
   styleOf(b: Block, usual: string | null): string | null {
+    if (b.type === 'paragraph' && b.style && SCRIPT_WORD[b.style]) return SCRIPT_WORD[b.style][0];
     return b.style?.startsWith('c-') && this.opts.custom?.some((c) => c.id === b.style) ? customWordId(b.style) : usual;
   }
 
@@ -921,6 +922,20 @@ function themeStyles(xml: string, p: ParaLook | undefined): string {
   return xml;
 }
 
+/** A script's elements as Word styles (the names screenplay templates for Word use), with a screenplay's indents. */
+const SCRIPT_WORD: Record<string, [string, string, string]> = {
+  'sc-scene': ['SceneHeading', 'Scene Heading', '<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="0"/></w:pPr><w:rPr><w:caps/></w:rPr>'],
+  'sc-action': ['Action', 'Action', '<w:pPr><w:spacing w:before="240" w:after="0"/></w:pPr>'],
+  'sc-char': ['Character', 'Character', '<w:pPr><w:keepNext/><w:spacing w:before="240" w:after="0"/><w:ind w:left="3168"/></w:pPr><w:rPr><w:caps/></w:rPr>'],
+  'sc-paren': ['Parenthetical', 'Parenthetical', '<w:pPr><w:keepNext/><w:spacing w:before="0" w:after="0"/><w:ind w:left="2304" w:right="2880"/></w:pPr>'],
+  'sc-dial': ['Dialogue', 'Dialogue', '<w:pPr><w:spacing w:before="0" w:after="0"/><w:ind w:left="1440" w:right="2160"/></w:pPr>'],
+  'sc-trans': ['Transition', 'Transition', '<w:pPr><w:spacing w:before="240" w:after="0"/><w:jc w:val="right"/></w:pPr><w:rPr><w:caps/></w:rPr>'],
+};
+const SCRIPT_FROM_WORD: Record<string, string> = Object.fromEntries(Object.entries(SCRIPT_WORD).map(([style, [, name]]) => [name.toLowerCase(), style]));
+const scriptStylesXml = Object.values(SCRIPT_WORD)
+  .map(([id, name, look]) => `<w:style w:type="paragraph" w:customStyle="1" w:styleId="${id}"><w:name w:val="${name}"/><w:basedOn w:val="Normal"/><w:next w:val="${id === 'SceneHeading' ? 'Action' : id === 'Character' || id === 'Parenthetical' ? 'Dialogue' : 'Action'}"/><w:qFormat/>${look.replace('</w:rPr>', '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/><w:sz w:val="24"/></w:rPr>').replace(/^(<w:pPr>.*<\/w:pPr>)$/, '$1<w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/><w:sz w:val="24"/></w:rPr>')}</w:style>`)
+  .join('');
+
 function stylesXml(font: string, size: number): string {
   const hp = Math.round(size * 2);
   const para = (id: string, name: string, ppr: string, rpr: string, extra = '') =>
@@ -1259,7 +1274,7 @@ export async function toDocx(parts: DocxPart[], opts: DocxOptions): Promise<Uint
     ...(final ? [{ name: 'docProps/custom.xml', data: utf8(custom) }] : []),
     { name: 'word/document.xml', data: utf8(documentXml) },
     { name: 'word/_rels/document.xml.rels', data: utf8(docRels) },
-    { name: 'word/styles.xml', data: utf8(themeStyles(stylesXml(opts.font || 'Georgia', opts.size || 12), p0).replace('</w:styles>', `${customStylesXml(opts.custom ?? [])}</w:styles>`)) },
+    { name: 'word/styles.xml', data: utf8(themeStyles(stylesXml(opts.font || 'Georgia', opts.size || 12), p0).replace('</w:styles>', `${customStylesXml(opts.custom ?? [])}${scriptStylesXml}</w:styles>`)) },
     { name: 'word/numbering.xml', data: utf8(numberingXml(w.lists)) },
     { name: 'word/footnotes.xml', data: utf8(footnotesXml(w.footnotes)) },
     { name: 'word/endnotes.xml', data: utf8(endnotesXml(w.endnotes)) },
@@ -2096,6 +2111,8 @@ export async function fromDocx(bytes: Uint8Array, opts: ReadOptions = {}): Promi
       }
       b = makeBlock('paragraph', '', [], { style: 'caption' });
     }
+    // A screenplay's elements (from Crumpet, or a screenplay template for Word).
+    else if (SCRIPT_FROM_WORD[name]) b = makeBlock('paragraph', '', [], { style: SCRIPT_FROM_WORD[name] });
     else b = makeBlock('paragraph');
     // A paragraph in one of the document's own styles keeps it.
     const own = ownStyles.get(styleId);

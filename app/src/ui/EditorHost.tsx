@@ -1,6 +1,7 @@
 import { useOfferHelped } from './helpers';
 import { usePinchTextSize } from './iphone';
 import { MathBlockBar, MathCard } from './mathtools';
+import { ScriptBar } from './script';
 import { FormCard } from './formtools';
 import { InkHost } from './inktools';
 import { ProtectBanner } from './protecttools';
@@ -207,6 +208,7 @@ export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp,
       {!readOnly && !reading && <InkHost editor={ed} />}
       {(!readOnly || prot === 'forms') && !reading && <FormCard editor={ed} design={!readOnly} />}
       {!readOnly && !reading && <MathBlockBar host={host} />}
+      {!readOnly && !reading && <ScriptBar editor={ed} host={host} />}
       {floating && ed && (
         <SelectionBar host={host}>
           <FormatTools compact attach={false} editor={ed} readOnly={readOnly} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={onEditStyles} page={page} onPage={onPage} chapters={chapters} />

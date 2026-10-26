@@ -293,6 +293,13 @@ p.subtitle { font-size: 1.3em; text-align: center; text-indent: 0; font-style: i
 p.epigraph { margin: 1em 0 1em 30%; font-style: italic; text-indent: 0; }
 p.caption, figcaption { font-size: 0.85em; font-style: italic; text-align: center; text-indent: 0; }
 p.scenebreak { text-align: center; text-indent: 0; margin: 1em 0; }
+p.sc-scene, p.sc-action, p.sc-char, p.sc-paren, p.sc-dial, p.sc-trans { font-family: 'Courier Prime', 'Courier New', monospace; text-indent: 0; margin: 0; }
+p.sc-scene, p.sc-char, p.sc-trans { text-transform: uppercase; }
+p.sc-scene, p.sc-action, p.sc-char, p.sc-trans { margin-top: 1em; }
+p.sc-char { margin-left: 37%; }
+p.sc-paren { margin-left: 27%; margin-right: 30%; }
+p.sc-dial { margin-left: 17%; margin-right: 25%; }
+p.sc-trans { text-align: right; }
 blockquote { margin: 1em 2em; font-style: italic; } blockquote.intense { font-weight: bold; } blockquote.note, blockquote.tip, blockquote.warning, blockquote.important { margin: 1em 0; padding: 0.4em 1em; font-style: normal; border-left: 4px solid #2f6fd1; background: #e9f0fb; } blockquote.tip { border-color: #2e8b57; background: #e8f4ec; } blockquote.warning { border-color: #d08a00; background: #fbf2df; } blockquote.important { border-color: #c0392b; background: #f9e6e4; } p.toggle { font-weight: bold; }
 blockquote p { text-indent: 0; }
 figure { margin: 1em 0; text-align: center; } img { max-width: 100%; }

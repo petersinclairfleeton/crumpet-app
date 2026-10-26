@@ -12,6 +12,7 @@
 
 import { type Doc, makeBlock } from '@crumpet/editor/model';
 import { fromMarkdown } from '@crumpet/editor/markdown';
+import { fromFountain } from './fountain';
 import { DOCX_TYPE, toDocx } from './docx';
 import { addFile, fileBlob, isImage, replaceFile } from './files';
 import { type WordStyles, mediaBytes, readWordFile } from './wordfiles';
@@ -29,7 +30,7 @@ export function fileKind(name: string, type = ''): FileKind {
   if (isImage(type, name) || ['ico', 'jfif', 'pjpeg'].includes(ext)) return 'image';
   if (/^video\//.test(type) || ['mp4', 'm4v', 'webm', 'mov', 'ogv'].includes(ext)) return 'video';
   if (/^audio\//.test(type) || ['mp3', 'm4a', 'wav', 'ogg', 'oga', 'aac', 'flac', 'opus'].includes(ext)) return 'audio';
-  if (['md', 'markdown', 'txt', 'text'].includes(ext) || type === 'text/markdown' || type === 'text/plain') return 'text';
+  if (['md', 'markdown', 'txt', 'text', 'fountain', 'spmd'].includes(ext) || type === 'text/markdown' || type === 'text/plain') return 'text';
   return 'other';
 }
 
@@ -55,6 +56,11 @@ export async function readUpload(f: File): Promise<Upload> {
   const title = f.name.replace(/\.[^.]+$/, '');
   if (kind === 'text') {
     const text = await f.text();
+    // A screenplay in Fountain: its scene headings, action, characters and dialogue.
+    if (/\.(fountain|spmd)$/i.test(f.name)) {
+      const script = fromFountain(text);
+      return { title: script.title || title, doc: { blocks: script.blocks } };
+    }
     const md = /\.(md|markdown)$/i.test(f.name) || f.type === 'text/markdown';
     return { title, doc: md ? fromMarkdown(text) : { blocks: text.split(/\r\n?|\n/).map((line) => makeBlock('paragraph', line)) } };
   }

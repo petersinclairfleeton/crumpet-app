@@ -2,6 +2,7 @@
 // as new notes: the app's side of docx.ts (pictures, fonts, page setup,
 // header and footer fields, and the download itself).
 
+import { toFountain } from './fountain';
 import { type Doc, caret, makeBlock } from '@crumpet/editor/model';
 import { resolveChanges } from '@crumpet/editor/commands';
 import { applyOps } from '@crumpet/editor/ops';
@@ -151,7 +152,7 @@ export { DOCX_TYPE, EPUB_TYPE };
 /** A note's or project's text in another format (Word's Save As types). */
 export async function exportAs(kind: keyof typeof EXPORT_TYPES, title: string, parts: ExportPart[]): Promise<void> {
   const t = title || 'Untitled';
-  const data = kind === 'txt' ? toText(t, parts) : kind === 'html' ? await toHtml(t, parts, mediaBytes) : kind === 'rtf' ? toRtf(t, parts) : await toOdt(t, parts, mediaBytes);
+  const data = kind === 'fountain' ? toFountain(t, parts) : kind === 'txt' ? toText(t, parts) : kind === 'html' ? await toHtml(t, parts, mediaBytes) : kind === 'rtf' ? toRtf(t, parts) : await toOdt(t, parts, mediaBytes);
   download(typeof data === 'string' ? new TextEncoder().encode(data) : data, fileName(t, kind), EXPORT_TYPES[kind].type);
 }
 

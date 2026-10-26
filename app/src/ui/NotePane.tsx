@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
 import { PageToggle } from './pages';
 import { ExportItems } from './exportmenu';
+import { isScriptDoc } from '../data/fountain';
 import { ShareDialog } from './share';
 import { LockedNote, PasswordDialog, removePassword, useOpened } from './locked';
 import { isLocked } from '../data/lock';
@@ -173,7 +174,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
       >
         <IconDownload size={14} /> E-book <small className="menu-hint">.epub</small>
       </button>
-      <ExportItems title={note.title} parts={() => [{ doc: shownDoc ?? note.doc }]} onDone={() => setMenu(false)} />
+      <ExportItems title={note.title} parts={() => [{ doc: shownDoc ?? note.doc }]} onDone={() => setMenu(false)} script={isScriptDoc(note.doc)} />
       <button
         type="button"
         className="menu-item"

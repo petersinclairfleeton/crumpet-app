@@ -410,4 +410,5 @@ export const EXPORT_TYPES = {
   html: { type: 'text/html;charset=utf-8', name: 'Web page' },
   rtf: { type: 'application/rtf', name: 'Rich Text' },
   odt: { type: 'application/vnd.oasis.opendocument.text', name: 'OpenDocument Text' },
+  fountain: { type: 'text/plain;charset=utf-8', name: 'Fountain (screenplay)' },
 } as const;
