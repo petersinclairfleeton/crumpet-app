@@ -36,6 +36,7 @@ import { type BookOptions, bookParts, finalDoc } from '../data/wordfiles';
 import { ExportBook } from './exportbook';
 import { type BookDesign, chapterOpening, designDoc, estimatePages, printPage, titlePage } from '../data/bookdesign';
 import { ShareDialog } from './share';
+import { openSubmissions } from './submissions';
 import { ResearchList, ResearchPane } from './research';
 import { Corkboard } from './corkboard';
 import { PlanView } from './plan';
@@ -347,6 +348,9 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                     </button>
                     <button type="button" className="menu-item" onClick={() => (setMenu(null), setSharing(true))}>
                       Share with readers…
+                    </button>
+                    <button type="button" className="menu-item" onClick={() => (setMenu(null), openSubmissions({ kind: 'project', id: project.id }))}>
+                      Submissions…
                     </button>
                     <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                       {calm || phone ? 'Delete book…' : 'Delete project'}

@@ -328,7 +328,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
     `SCRIPT_WORD` in `data/docx.ts` and they come back); maps (`plan.maps`, `data/maps.ts`:
     pins at shares of the picture's width and height, `castId` or a label, a scale
     `perWidth` in miles/km/leagues/days, `measure` with travel times on foot, horseback
-    and by car; the Plan's Map tab `ui/maps.tsx`, merged by `mergeById`).
+    and by car; the Plan's Map tab `ui/maps.tsx`, merged by `mergeById`); submissions
+    (`settings.submissions`, a shared setting merged one by one in `sync/merge.ts`;
+    `data/submissions.ts`: status, `daysOut`, `overdue`, `stillOutAfterOffer`, `sentBefore`,
+    `submissionsCsv`; `ui/submissions.tsx`'s window, opened by `openSubmissions(of?)` from
+    the sidebar's menu, a book's or note's menu and the command palette).
   - `src/data/`: Word files (`docx.ts`, `zip.ts`), e-books (`epub.ts`), other
     download types (`exports.ts`: .odt, .rtf, .html, .txt; `ui/exportmenu.tsx`), the
     web clipper (`clip.ts`: the bookmark tidies the page and sends it in the

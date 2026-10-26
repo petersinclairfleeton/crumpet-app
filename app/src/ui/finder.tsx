@@ -31,6 +31,7 @@ import { startPainting } from './painter';
 import type { Tab } from '../data/panes';
 import { beginSprint, stopSprint } from './sprint';
 import { SPRINT_LENGTHS } from '../data/sprints';
+import { openSubmissions } from './submissions';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const mod = isMac ? '⌘' : 'Ctrl+';
@@ -170,6 +171,7 @@ function useCommands(actions: Actions): Item[] {
     ...(state.settings.sprint
       ? [cmd('Stop the writing sprint', () => stopSprint(store))]
       : SPRINT_LENGTHS.map((m) => cmd(`Start a ${m}-minute writing sprint`, () => beginSprint(store, m)))),
+    cmd('Submissions: where your writing has been sent', () => openSubmissions()),
     cmd('Settings', actions.openSettings),
     cmd('Open the guide to Crumpet', openGuide),
     cmd('What’s new in Crumpet', openWhatsNew),
