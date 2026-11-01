@@ -157,8 +157,19 @@ jobs:
         working-directory: desktop/release
         run: |
           Start-Process -FilePath .\Crumpet-Windows.exe -ArgumentList '/S' -Wait
-          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Crumpet\Crumpet.exe'
-          if (-not (Test-Path $exe)) { Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Programs') -Recurse -Depth 1 | Select-Object FullName; throw "Not installed at $exe" }
+          # Per person, under %LOCALAPPDATA%\Programs (in a folder named after the package).
+          # (Waits up to a minute, in case the installer hands over to a second process.)
+          $where = @((Join-Path $env:LOCALAPPDATA 'Programs'), $env:ProgramFiles)
+          $found = $null
+          for ($i = 0; $i -lt 30 -and -not $found; $i++) {
+            $found = Get-ChildItem $where -Recurse -Depth 2 -Filter Crumpet.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $found) { Start-Sleep -Seconds 2 }
+          }
+          if (-not $found) { Get-ChildItem $where -Depth 0 -ErrorAction SilentlyContinue | Format-Table FullName | Out-String | Write-Host; throw 'Crumpet.exe was not installed' }
+          $exe = $found.FullName
+          "Installed: $exe"
+          $links = @('Microsoft\Windows\Start Menu\Programs\Crumpet.lnk') | ForEach-Object { Join-Path $env:APPDATA $_ }
+          foreach ($l in $links) { if (Test-Path $l) { "Start menu shortcut: $l" } else { "::warning::No Start menu shortcut at $l" } }
           (Get-Item $exe).VersionInfo | Format-List ProductName, ProductVersion, FileDescription
           Get-Process Crumpet -ErrorAction SilentlyContinue | Stop-Process -Force
           Start-Process -FilePath $exe
