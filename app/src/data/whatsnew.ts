@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-01-nothing-kept',
+    date: '1 November 2026',
+    title: 'Nothing to sign up for',
+    points: [
+      'Crumpet no longer has accounts, and no longer asks for your name: it keeps nothing about you. The only sign-in is Google Drive’s, if you choose to sync there; a folder needs none.',
+      'Comments and tracked changes you make are signed “Author” (as Word does when it removes personal details). A book’s author for its title page and running heads is set in the book: Page setup → Headers and footers → Author name.',
+      'If you had an account, there’s nothing to do: your notes were never in it, and they stay exactly where they are.',
+    ],
+  },
+  {
     id: '2026-11-01-report',
     date: '1 November 2026',
     title: 'Report a problem',

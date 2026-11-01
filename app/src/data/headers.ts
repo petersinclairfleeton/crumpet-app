@@ -61,7 +61,7 @@ export const FIELDS: { id: HFField; name: string; hint: string }[] = [
   { id: 'chapter', name: 'Chapter number', hint: 'The chapter’s number' },
   { id: 'chapterTitle', name: 'Chapter title', hint: 'The title of the chapter on this page' },
   { id: 'part', name: 'Part', hint: 'The part the chapter is in' },
-  { id: 'author', name: 'Author', hint: 'Your name, from Settings, or the one set here' },
+  { id: 'author', name: 'Author', hint: 'The Author name set here (Crumpet keeps no name of its own)' },
   { id: 'date', name: 'Date', hint: 'Today’s date' },
   { id: 'time', name: 'Time', hint: 'The time now' },
   { id: 'words', name: 'Word count', hint: 'How many words there are' },

@@ -8,7 +8,6 @@ import type { Editor } from '@crumpet/editor/editor';
 import { Popover } from './Sidebar';
 import { type ToolItem, closeMore } from './toolbar';
 import { makeLock, opensLock } from './changes';
-import { useAppState } from './hooks';
 import { formatDate } from '../data/headers';
 
 const svg = (d: string) => (
@@ -60,8 +59,7 @@ function ProtectMenu({ ed, close }: { ed: Editor; close(): void }) {
 }
 
 function SignMenu({ ed, close }: { ed: Editor; close(): void }) {
-  const { settings } = useAppState();
-  const [name, setName] = useState(settings.name ?? '');
+  const [name, setName] = useState('');
   const [title, setTitle] = useState('');
   return (
     <form

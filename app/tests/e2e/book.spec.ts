@@ -7,12 +7,16 @@ import { expect, test } from '@playwright/test';
 test('a print-ready book: trim size, chapter openings, right-hand chapter starts and margins mirrored for the spine', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.app')).toBeVisible();
-  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true, name: 'Ann Writer' }));
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
   const id = await page.evaluate(async () => {
     const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
-    type C = { createProject(n: string): { id: string }; getState(): { chapters: { id: string; projectId: string }[] }; addChapter(p: string): { id: string }; setChapterTitle(id: string, t: string): void; setChapterDoc(id: string, d: unknown): void; openProject(id: string): void };
+    type C = { createProject(n: string): { id: string }; getState(): { chapters: { id: string; projectId: string }[] }; addChapter(p: string): { id: string }; setChapterTitle(id: string, t: string): void; setChapterDoc(id: string, d: unknown): void; openProject(id: string): void; setProjectPage(id: string, page: object): void };
     const c = (window as unknown as { crumpet: C }).crumpet;
     const p = c.createProject('The Lighthouse');
+    // The book's own Author name (Page setup → Headers and footers), for its title page and running heads.
+    const { manuscriptPage } = await import('/src/data/styles.ts' as string);
+    const page0 = manuscriptPage();
+    c.setProjectPage(p.id, { ...page0, hf: { ...page0.hf, author: 'Ann Writer' } });
     const first = c.getState().chapters.find((x) => x.projectId === p.id)!;
     c.setChapterTitle(first.id, 'Arrival');
     const para = 'The boat left her at the foot of the steps, and the keeper came down to meet her with a lamp held high. ';

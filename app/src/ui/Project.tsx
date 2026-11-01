@@ -11,6 +11,7 @@ import { chapterWords, docWords, numberInWords, projectChapters, projectGoal, pr
 import { dayKey, wordsToday } from '../data/stats';
 import { pace } from '../data/deadline';
 import type { Chapter, ChapterStatus, Project } from '../data/types';
+import { AUTHOR } from '../data/types';
 import type { PageSetup, StyleSheet } from '../data/styles';
 import { useOfferHelped } from './helpers';
 import { bookEntries, footnotesBefore, goToLater, useBookToc, useFootnoteStart } from './booktoc';
@@ -192,7 +193,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
     const chapters = printSkipTodo ? state.chapters.filter((c) => c.status !== 'todo') : state.chapters;
     const out: PrintPart[] = [];
     // A printed book's title page is its title and author; a manuscript's adds its length.
-    const author = project.page?.hf?.author || state.settings.name || '';
+    const author = project.page?.hf?.author || '';
     if (printOpts.titlePage) out.push({ id: 'title-page', doc: printBook ? { blocks: titlePage(project.name, author) } : bookParts({ ...state, chapters }, project, { titlePage: true })[0].doc, fields: { title: project.name, words: 0 } });
     let partNow: string | null = null;
     for (const { chapter, number, part } of projectChapters(project, chapters)) {
@@ -209,14 +210,14 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
     const glossary = printOpts.glossary ? glossaryDoc(bookCast(state.projects, project)) : null;
     if (glossary?.blocks.length) out.push({ id: 'glossary', doc: { blocks: [makeBlock('heading1', 'Glossary'), ...glossary.blocks] }, fields: { title: project.name, chapterTitle: 'Glossary', words: 0 } });
     return out;
-  }, [printing, printSkipTodo, printOpts, printBook, project, state.chapters, state.projects, state.settings.name]);
+  }, [printing, printSkipTodo, printOpts, printBook, project, state.chapters, state.projects]);
   // A print-ready book's pages: its trim size, margins for its length, and running heads.
   const bookPrint = useMemo(() => {
     if (!printBook) return null;
     const words = printParts.reduce((n, p) => n + (p.fields.words ?? 0), 0);
     const pages = estimatePages(words, printBook) + printParts.length;
-    return { design: printBook, pages, page: printPage(printBook, pages, project.page?.hf?.author || state.settings.name || undefined) };
-  }, [printBook, printParts, project.page, state.settings.name]);
+    return { design: printBook, pages, page: printPage(printBook, pages, project.page?.hf?.author || undefined) };
+  }, [printBook, printParts, project.page]);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
@@ -1244,7 +1245,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
           targets={findScope === 'book' ? bookTargets : bookTargets.filter((t) => t.id === chapter.id)}
           onReplaceDoc={(id, doc) => (id === chapter.id ? onDoc(doc) : store.setChapterDoc(id, doc))}
           onGoTo={(id) => store.selectChapter(id)}
-          author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
+          author={state.settings.trackChanges ? AUTHOR : null}
           scopes={[
             { id: 'chapter', label: 'This chapter' },
             { id: 'book', label: 'Whole book' },
@@ -1273,7 +1274,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
         sheet={sheet}
         page={paged ? pageSetup : null}
         onPage={(page) => store.setProjectPage(project.id, page)}
-        pageFields={{ title: project.name, chapter: at + 1, chapterTitle: chapter.title, part: part?.title, words: total, created: project.createdAt, updated: project.updatedAt }}
+        pageFields={{ title: project.name, chapter: at + 1, chapterTitle: chapter.title, part: part?.title, words: total, created: project.createdAt, updated: project.updatedAt, author: project.page?.hf?.author }}
         pagePlace={{ offset, chapterStart: true, total: offset + (pages || 1) + after }}
         chapters
         onPages={onPages}
@@ -1383,7 +1384,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
         <FindBar
           targets={order.map((c) => ({ id: c.id, doc: c.doc, editor: editors[c.id] ?? null, label: c.title || 'Untitled chapter' }))}
           onReplaceDoc={(id, doc) => store.setChapterDoc(id, doc)}
-          author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
+          author={state.settings.trackChanges ? AUTHOR : null}
           sheet={sheet}
           onClose={() => setFinding(false)}
         />
@@ -1472,7 +1473,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
                   page={paged ? pageSetup : null}
                   sheetClass={styles}
                   onPage={(page) => store.setProjectPage(project.id, page)}
-                  fields={{ title: project.name, chapter: number, chapterTitle: c.title, part, words: total, created: project.createdAt, updated: project.updatedAt }}
+                  fields={{ title: project.name, chapter: number, chapterTitle: c.title, part, words: total, created: project.createdAt, updated: project.updatedAt, author: project.page?.hf?.author }}
                   offset={before}
                   total={allPages}
                   onPages={onPages}

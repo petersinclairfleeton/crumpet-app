@@ -8,8 +8,9 @@ import { bookParts, finalDoc } from '../../src/data/wordfiles';
 async function book() {
   const store = new AppStore(new MemoryStorage(), () => 1_700_000_000_000);
   await store.load();
-  store.updateSettings({ name: 'Alex Rowan' });
   const p = store.createProject('The Lighthouse');
+  // The book's own Author name (Page setup → Headers and footers).
+  store.setProjectPage(p.id, { ...store.project(p.id)!.page, hf: { author: 'Alex Rowan' } } as never);
   const first = store.getState().chapters.find((c) => c.projectId === p.id)!;
   store.setChapterTitle(first.id, 'Arrival');
   store.setChapterDoc(first.id, fromMarkdown('The boat {++left++}{--went--} her {==there==}{>>Sam (2026-01-01): which steps?<<}.\n'));

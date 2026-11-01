@@ -73,11 +73,10 @@ export async function noteDocx(state: AppState, note: Note): Promise<Uint8Array>
   const s = state.settings;
   const page = s.notePage ?? defaultPage();
   const hf = cleanHF(page.hf, page.pageNumbers);
-  const ctx: HFContext = { title: note.title || 'Untitled', author: s.name || '', words: docWords(note.doc), created: note.createdAt, updated: note.updatedAt, pages: 1, chapterPages: 1, now: Date.now() };
+  const ctx: HFContext = { title: note.title || 'Untitled', author: '', words: docWords(note.doc), created: note.createdAt, updated: note.updatedAt, pages: 1, chapterPages: 1, now: Date.now() };
   const family = s.noteFont && s.noteFont.source !== 'default' ? s.noteFont.family : 'Georgia';
   return toDocx([{ doc: note.doc }], {
     title: note.title || 'Untitled',
-    author: s.name || undefined,
     page,
     hf,
     field: fieldFiller(ctx, hf),
@@ -98,7 +97,7 @@ export async function projectDocx(state: AppState, project: Project, opts: BookO
   const parts = bookParts(state, project, opts);
   const ctx: HFContext = {
     title: project.name,
-    author: hf.author || state.settings.name || '',
+    author: hf.author || '',
     words: list.reduce((n, x) => n + docWords(x.chapter.doc), 0),
     created: project.createdAt,
     updated: project.updatedAt,
@@ -130,7 +129,7 @@ export async function readWordFile(file: File): Promise<{ title: string; doc: Do
 /** A project as an e-book: a title page, contents, and each chapter. */
 export async function projectEpub(state: AppState, project: Project, opts: BookOptions = {}): Promise<Uint8Array> {
   const page = project.page ?? manuscriptPage();
-  const author = cleanHF(page.hf, page.pageNumbers).author || state.settings.name || undefined;
+  const author = cleanHF(page.hf, page.pageNumbers).author || undefined;
   // An e-book always has its own title page.
   return toEpub(
     bookParts(state, project, { ...opts, titlePage: false }).map((p) => ({ title: p.heading || '', doc: p.doc })),
@@ -139,9 +138,9 @@ export async function projectEpub(state: AppState, project: Project, opts: BookO
 }
 
 /** A note as a little e-book of one chapter. */
-export async function noteEpub(state: AppState, note: Note): Promise<Uint8Array> {
+export async function noteEpub(_state: AppState, note: Note): Promise<Uint8Array> {
   const title = note.title || 'Untitled';
-  return toEpub([{ title, doc: note.doc }], { title, author: state.settings.name || undefined, language: navigator.language, id: note.id, media: mediaBytes });
+  return toEpub([{ title, doc: note.doc }], { title, language: navigator.language, id: note.id, media: mediaBytes });
 }
 
 /** A name for a downloaded file. */
@@ -193,7 +192,7 @@ export function bookParts(state: AppState, project: Project, opts: BookOptions =
   const out: { heading?: string; doc: Doc }[] = [];
   if (opts.titlePage) {
     const page = project.page ?? manuscriptPage();
-    const author = cleanHF(page.hf, page.pageNumbers).author || state.settings.name || '';
+    const author = cleanHF(page.hf, page.pageNumbers).author || '';
     const words = list.reduce((n, x) => n + docWords(x.chapter.doc), 0);
     const about = words >= 1000 ? Math.round(words / 1000) * 1000 : Math.max(100, Math.round(words / 100) * 100);
     const centre = { align: 'center' as const };

@@ -47,7 +47,7 @@ export function CompareDocs({ a, b, onSwap, onClose }: { a: string; b: string; o
             className="btn small"
             title="A new note with the differences as tracked changes, to accept or reject one by one"
             onClick={() => {
-              const n = store.createNote({ title: `${from.title} → ${to.title} (compared)`, doc: trackedComparison(from.doc, to.doc, state.settings.name.trim() || 'Compare') });
+              const n = store.createNote({ title: `${from.title} → ${to.title} (compared)`, doc: trackedComparison(from.doc, to.doc, 'Compare') });
               panes.open({ kind: 'note', id: n.id });
               onClose();
             }}

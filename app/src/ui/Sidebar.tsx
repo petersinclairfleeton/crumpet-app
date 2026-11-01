@@ -400,8 +400,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
     <nav className="sidebar" aria-label="Notebooks">
       <div className="side-top">
         <button type="button" className="account" onClick={() => setSettingsOpen((o) => !o)} aria-expanded={settingsOpen}>
-          <span className="avatar">{initials(state.settings.name)}</span>
-          <span className="account-name">{state.settings.name || 'Your notes'}</span>
+          <span className="avatar">✎</span>
+          <span className="account-name">Your notes</span>
           <IconChevron size={10} className="rot90" />
         </button>
         <FoldButton what="sidebar" />
@@ -591,12 +591,6 @@ function pick2<T>(onOpen: (m: null) => void, f: (x: T) => void) {
     onOpen(null);
     f(x);
   };
-}
-
-export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return '✎';
-  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
 /** Tags as a tree: tags nested in another ("book/characters") fold away under it. */

@@ -51,7 +51,7 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
   const words = list.reduce((n, x) => n + chapterWords(x.chapter), 0);
   const todo = projectChapters(project, store.getState().chapters).filter((x) => x.chapter.status === 'todo').length;
   const first = list[0];
-  const author = (state.settings.name || '').trim();
+  const author = (project.page?.hf?.author ?? '').trim();
   const action = WAYS.find((w) => w.id === way)?.action ?? `Download as ${OTHERS.find((o) => o.id === way)?.name}`;
   // A print-ready book's design, kept with the book.
   const [design, setDesign] = useState<BookDesign>(project.design ?? DEFAULT_DESIGN);
@@ -179,7 +179,7 @@ export function ExportBook({ project, onClose, onPrint }: { project: Project; on
                 Chapters start on a right-hand page
               </label>
               <p className="export-more-note">
-                {trim.name} pages, about {pages.toLocaleString()} of them: {insideMargin(pages)} in at the spine, {OUTSIDE} in at the outside edge; your name over left-hand pages and the title over right-hand ones. Scene breaks are lines of {'*\u00a0*\u00a0*'} (or the Scene Break style). In the print window, choose Save as PDF: that’s the interior file to upload (on KDP, Paperback content → Manuscript, with the same trim size).
+                {trim.name} pages, about {pages.toLocaleString()} of them: {insideMargin(pages)} in at the spine, {OUTSIDE} in at the outside edge; the author’s name (the book’s Author name, in Page setup → Headers and footers) over left-hand pages and the title over right-hand ones. Scene breaks are lines of {'*\u00a0*\u00a0*'} (or the Scene Break style). In the print window, choose Save as PDF: that’s the interior file to upload (on KDP, Paperback content → Manuscript, with the same trim size).
               </p>
             </div>
           )}

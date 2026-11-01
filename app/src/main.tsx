@@ -15,6 +15,13 @@ import { desktop } from './data/desktop';
 import { stopFocusZoom } from './ui/iphone';
 import { startErrorLog } from './data/errorlog';
 
+// Crumpet no longer has accounts: anything an older version kept about one goes.
+try {
+  localStorage.removeItem('crumpet.account');
+  localStorage.removeItem('crumpet.account.skipped');
+} catch {
+  // Storage may be off; nothing to remove then.
+}
 // Remembers the last few errors, for bug reports (Help → Report a problem).
 startErrorLog();
 // In the desktop app: the window fits itself to it (see data/desktop.ts).

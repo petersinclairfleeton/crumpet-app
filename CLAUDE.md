@@ -4,7 +4,8 @@ Read this first in every session. `PLAN.md` has the product plan and visual
 design; this file is how we work and where things are.
 
 **Current work: the launch plan.** `docs/launch-plan.md` takes Crumpet from
-here to a paid launch with no money spent first: stages in order, each item a
+here to a free public launch with no money spent (Crumpet is free and holds no
+user data: no Pro, no accounts, no names; Peter's calls, 1 November 2026): stages in order, each item a
 checkbox with where in the code to start, Peter's calls (🎬) with options to
 ask him, and the few steps only he can do (🙋). "Continue the launch plan" (or
 "continue the plan") means follow its "How Claude works through this plan"
@@ -538,17 +539,13 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx
   installer can't be finished here (NSIS needs Wine), but `--win dir` packs the app. Try it here with
   `cd app && npx vite build`, then `cd desktop && npx electron-builder --linux dir`
   and run the result under `xvfb-run` (Playwright's `_electron` can drive it).
-- Accounts (optional): `app/src/data/account.ts` talks to Firebase
-  Authentication's REST API directly (no Firebase library): email and
-  password, password reset, confirming the email, Google (an access token
-  for `openid email profile` from Google's sign-in window, `googleIdentity`
-  in `sync/google-auth.ts`, swapped with `signInWithIdp`), and deleting the
-  account. The account is kept in `localStorage` (`crumpet.account`) and
-  only says who you are: notes never go to it. `ui/account.tsx` is the
-  sign-in screen (on a device's first visit, before the guide, unless
-  skipped or under automation) and Settings → Account. Off unless
-  `VITE_FIREBASE_API_KEY` is set (`docs/accounts-setup.md`); browser tests
-  fake the service (`tests/e2e/account.spec.ts`).
+- No accounts, and no name (Peter's call, 1 November 2026: Crumpet holds no user
+  data). The only sign-in is Google Drive's, for syncing. Comments and tracked
+  changes made here are by `AUTHOR` ("Author", `data/types.ts`, as Word does when
+  it removes personal details); a book's author for title pages and running heads
+  is its own `page.hf.author` (Page setup → Headers and footers). Old settings'
+  `name` and the old account's `localStorage` keys are dropped on load. Don't add
+  anything that keeps data about people without asking Peter.
 - MCP (Claude and other AIs, `docs/mcp.md`): `app/src/mcp/` is an MCP server over the
   synced folder (`vault.ts` reads notes, notebooks and books from the files, `tools.ts`:
   search, list_notes, list_notebooks, list_books, read_book, read, create_note; it never
@@ -593,8 +590,6 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx
   is untested on Windows. The Mac app's Google sign-in needs `VITE_GOOGLE_MAC_CLIENT_ID` (docs step 4b),
   and was tested on Linux with a stand-in for Google, not on a real Mac; its
   fonts come from the internet (the Mac's own font is used offline).
-- Accounts are on (Firebase key in `app/.env`, `docs/accounts-setup.md`); the Mac app
-  offers email sign-in only (no Google there yet).
 - Share with readers was tested against a fake Google Drive, not the real one
   yet. Print-ready books were checked as PDFs here (trim size, pages, margins),
   not yet in KDP's or IngramSpark's previewer; their typefaces come from Google

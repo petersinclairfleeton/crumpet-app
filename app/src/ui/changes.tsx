@@ -5,6 +5,7 @@
 // with a password so it can't be turned off, nor changes accepted or rejected.
 
 import { useCitations, useTocOptions } from './references';
+import { AUTHOR } from '../data/types';
 import { useSnippets } from './snippets';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -36,7 +37,7 @@ export function useTracking(editor: Editor | null): void {
   const state = useAppState();
   const forAll = useDocTracking(editor).all;
   const on = !!state.settings.trackChanges || forAll;
-  const author = state.settings.name.trim() || 'You';
+  const author = AUTHOR;
   useEffect(() => {
     editor?.setTracking(on ? author : null);
   }, [editor, on, author]);

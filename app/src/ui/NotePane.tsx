@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
+import { AUTHOR } from '../data/types';
 import { PageToggle } from './pages';
 import { ExportItems } from './exportmenu';
 import { isScriptDoc } from '../data/fountain';
@@ -614,7 +615,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         <FindBar
           targets={[{ id: note.id, doc: shownDoc ?? note.doc, editor: editorRef.current }]}
           onReplaceDoc={(id, doc) => (locked ? opened.save(doc) : store.setDoc(id, doc))}
-          author={state.settings.trackChanges ? state.settings.name.trim() || 'You' : null}
+          author={state.settings.trackChanges ? AUTHOR : null}
           sheet={sheet}
           onClose={() => setFinding(false)}
         />

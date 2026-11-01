@@ -122,8 +122,8 @@ export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp,
   useOfferHelped(helped, paneRef);
 
   useTracking(readOnly || reading ? null : ed);
-  // Fields the app fills in: the title, author and dates.
-  const author = state.settings.name;
+  // Fields the app fills in: the title and dates (the author comes from a book's own Author name).
+  const author = pageFields?.author ?? '';
   // Restrict editing → Filling in forms: the form controls stay usable.
   useEffect(() => {
     if (ed) ed.formsOnly = formsOnly;

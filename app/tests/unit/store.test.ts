@@ -204,7 +204,8 @@ describe('upgrading notes saved by the first version', () => {
       legacyNote('m', 'mine', 'Soda bread', false, true),
     ])
       storage.notes.set(n.id, n);
-    storage.settings = { name: 'Peter', accent: '#D4A257', theme: 'dark', listStyle: 'cards' };
+    // Settings saved by an older Crumpet, which kept a name.
+    storage.settings = { name: 'Peter', accent: '#D4A257', theme: 'dark', listStyle: 'cards' } as unknown as typeof storage.settings;
 
     const store = new AppStore(storage);
     await store.load();
@@ -215,12 +216,14 @@ describe('upgrading notes saved by the first version', () => {
     expect(store.stack(store.notebook('mine')!.stackId)?.name).toBe('2 Areas');
     expect(store.note('m')?.favorite).toBe(true);
     expect('pinned' in store.note('m')!).toBe(false);
-    expect(s.settings).toMatchObject({ name: 'Peter', theme: 'dark', dataVersion: DATA_VERSION });
+    expect(s.settings).toMatchObject({ theme: 'dark', dataVersion: DATA_VERSION });
+    expect('name' in s.settings).toBe(false);
     await tick();
     // It's saved, so the next load doesn't need to do it again.
     expect(storage.notes.has('w')).toBe(false);
     expect(storage.notebooks.has('inbox')).toBe(false);
     expect(storage.settings?.dataVersion).toBe(DATA_VERSION);
+    expect(storage.settings && 'name' in storage.settings).toBe(false);
     const again = new AppStore(storage);
     await again.load();
     expect(again.getState().notes).toHaveLength(2);

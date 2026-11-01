@@ -12,8 +12,8 @@ This is a clean restart: nothing is carried over from the previous Crumpet codeb
 | Organising notes | Notebooks grouped into stacks (nested), plus tags |
 | Documents | Fiction and non-fiction first. Must feel as seamless as Word: page view, rich formatting, .docx import/export, comments and tracked changes. Blog formatting later |
 | Feel | Classic three-pane notebook (Evernote-like structure) with modern, softly rounded details. See [Visual design](#visual-design) |
-| Platforms | Mac, iPad, iPhone, web |
-| Sync | Seamless cloud sync with accounts |
+| Platforms | Mac, Windows, iPad, iPhone, web |
+| Sync | Seamless cloud sync through the person's own Google Drive or folder; no Crumpet accounts, and Crumpet holds no user data |
 | Audience | Personal first, built so it can be released later |
 | AI | Not in v1 |
 | Codebase | One web codebase (React + TypeScript), wrapped for Apple platforms |
