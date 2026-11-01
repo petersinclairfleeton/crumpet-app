@@ -396,6 +396,8 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx
     `public/guide/*.jpg`, taken from the real app by
     `tests/shots/guide.shots.ts`: retake them after the look changes with
     `CHROMIUM_PATH=… npx playwright test -c playwright.shots.config.ts`.
+    The home page's pictures (PNG, made-up book) come the same way from
+    `tests/shots/landing.shots.ts` into `docs/marketing/screenshots/`.
     The formatting bar is one row (`toolbar.tsx`, extras under More) built
     in `editing.tsx` from `fonttools.tsx` (Font group), `paratools.tsx`
     (Paragraph group and window), `listtools.tsx` (bullet and numbering
