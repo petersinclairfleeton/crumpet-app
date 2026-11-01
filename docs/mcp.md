@@ -28,7 +28,7 @@ won't show in Crumpet: Google only lets Crumpet see files Crumpet made.
 ## Claude for desktop
 
 1. Download **[Crumpet.mcpb](https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet.mcpb)**
-   (also in Crumpet: Settings → Clipper & app, or Clipper and Mac app → Add to Claude).
+   (also in Crumpet: Settings → Clipper & app → Add to Claude).
 2. Open it: Claude for desktop asks to install Crumpet.
 3. Choose your Crumpet folder when it asks, and turn it on.
 4. Ask Claude, for example: “What have I written about Rome?”, “Summarise
@@ -70,8 +70,8 @@ policy.
   `server.ts` the protocol (JSON-RPC over stdin/stdout).
 - `app/mcp/main.mjs`: the Node side (the folder, stdin and stdout).
 - `cd app && node mcp/build.mjs` makes `dist-mcp/crumpet-mcp.mjs` and
-  `dist-mcp/Crumpet.mcpb`; `.github/workflows/mac.yml` publishes both with
-  the Mac app's release. `npx @anthropic-ai/mcpb validate dist-mcp/bundle/manifest.json`
+  `dist-mcp/Crumpet.mcpb`; `.github/workflows/desktop.yml` publishes both with
+  the desktop apps' release. `npx @anthropic-ai/mcpb validate dist-mcp/bundle/manifest.json`
   checks the extension.
 - Tests: `tests/unit/mcp.test.ts` (including a note written by the server
   being synced into Crumpet).

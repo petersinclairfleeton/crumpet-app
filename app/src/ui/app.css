@@ -1083,8 +1083,8 @@ body.pane-resizing iframe { pointer-events: none; }
    (the window's vibrancy), with room at the top for the red, yellow and
    green buttons; the rest is solid. The top edge drags the window. */
 .titlebar-drag { display: none; }
-[data-shell] .titlebar-drag { display: block; position: fixed; z-index: 100; top: 0; left: 0; right: 0; height: 38px; -webkit-app-region: drag; pointer-events: none; }
-[data-shell] :is(button, input, select, textarea, a, [contenteditable='true'], [role='button'], [role='tab'], .resizer, .pane-resizer, .pane-tab-wrap, .search) { -webkit-app-region: no-drag; }
+[data-shell='mac'] .titlebar-drag { display: block; position: fixed; z-index: 100; top: 0; left: 0; right: 0; height: 38px; -webkit-app-region: drag; pointer-events: none; }
+[data-shell='mac'] :is(button, input, select, textarea, a, [contenteditable='true'], [role='button'], [role='tab'], .resizer, .pane-resizer, .pane-tab-wrap, .search) { -webkit-app-region: no-drag; }
 [data-shell='mac'] body, [data-shell='mac'][data-look='crumpet'] body { background: transparent; }
 [data-shell='mac'][data-look='crumpet'] .app { padding: 0; }
 [data-shell='mac'][data-look='crumpet'] .frame { border-radius: 0; box-shadow: none; }

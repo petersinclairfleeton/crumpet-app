@@ -31,7 +31,7 @@ const CALM_SECTIONS = [
   { id: 'bar', label: 'Formatting bar' },
   { id: 'sync', label: 'Sync and storage' },
   { id: 'profile', label: 'Account' },
-  { id: 'app', label: 'Clipper and Mac app' },
+  { id: 'app', label: 'Clipper & app' },
 ] as const;
 export type SettingsSection = (typeof SECTIONS)[number]['id'] | (typeof CALM_SECTIONS)[number]['id'] | 'advanced';
 /** The calm look's four themes, named as the design names them. */

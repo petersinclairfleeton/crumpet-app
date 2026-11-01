@@ -7,10 +7,13 @@
 
 # Crumpet
 
-A calm, organised note-taking app that grows into a full document editor, for Mac, iPad, iPhone and the web.
+A calm, organised note-taking app that grows into a full document editor, for Mac, Windows, iPad, iPhone and the web.
+
+Free downloads: [Crumpet for Mac](https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Mac.dmg) · [Crumpet for Windows](https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Windows.exe) ([how to install](https://github.com/petersinclairfleeton/crumpet-app/releases/latest)).
 
 - `PLAN.md`: the plan and the visual design.
 - `app/`: the notes app (v1), React + TypeScript.
+- `desktop/`: Crumpet for Mac and Windows (Electron), built and released by `.github/workflows/desktop.yml`.
 - `packages/editor/`: our own rich-text editor engine, with undo and sync.
 - `prototypes/editor/`: test pages for the editor: device testing and a two-device sync demo.
 - `docs/google-drive-setup.md`: one-time Google setup for publishing Crumpet (people using it just click "Continue with Google").

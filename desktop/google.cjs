@@ -1,10 +1,10 @@
-// Signing in to Google from the Mac app, the way Google asks Mac and iPhone
+// Signing in to Google from the Mac (and Windows) app, the way Google asks Mac and iPhone
 // apps to: Google's sign-in page opens in the person's own browser (never
 // inside the app), and Google sends them back to the app through its own
 // address, com.googleusercontent.apps.<id>:/oauth2redirect, with a one-time
 // code. The app trades the code for access (PKCE: no client secret exists for
 // this kind of client). Google's "stay signed in" token is kept encrypted with
-// the Mac's keychain (safeStorage), so the app stays connected.
+// the Mac's keychain, or Windows' own protection (safeStorage), so the app stays connected.
 //
 // The page asks for access tokens through the preload (getToken), and uses
 // them with Drive exactly as the website does, so the files it makes belong

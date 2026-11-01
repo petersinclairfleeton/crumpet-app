@@ -249,13 +249,17 @@ the top risk.
       Make them refresh in the background (hashed `/assets/` files stay as
       they are) and check the app still starts offline. Where:
       `app/public/sw.js` (the fetch handler, `CACHE`, `keepPage()`).
-- [ ] The Mac app released on purpose: `mac.yml` runs only when started
+- [x] The Mac app released on purpose: `mac.yml` runs only when started
       (`workflow_dispatch`; Claude starts it with `actions_run_trigger` on
       `main`), with release notes from `data/whatsnew.ts`. The Mac app says
       when a newer version is out (it doesn't update itself). Releases happen
       after changes that matter to the Mac app (the D3 move doesn't; Pro
       does). Where: `.github/workflows/mac.yml`, `desktop/main.cjs`,
       `desktop/preload.cjs`, `app/src/data/desktop.ts`.
+      Done 1 Nov, together with **Crumpet for Windows** (Peter asked for a free
+      download on both): `mac.yml` became `desktop.yml` ("Desktop apps"), which
+      builds both and publishes one release `v1.1.<run>`; the newer-version
+      check is `desktop/updates.cjs`; notes from `desktop/release-notes.mjs`.
 - [ ] 🙋 Google sign-in open to everyone: in sitting 1 (stage 2).
 
 ## Stage 2. The shop window (19 Oct – 8 Nov)
@@ -307,8 +311,8 @@ at the current address yet, and nothing has been posted that points to it.
       still point at the old address). Update every place the address
       appears: `desktop/main.cjs` (the "Crumpet on the web" menu link),
       `.github/workflows/pages.yml`, README, CLAUDE.md, PLAN.md,
-      `docs/google-drive-setup.md`, `docs/accounts-setup.md`, and `mac.yml`'s
-      notes. 🙋 Peter's part is in sitting 1.
+      `docs/google-drive-setup.md`, `docs/accounts-setup.md`, and the desktop
+      release notes (`desktop/release-notes.mjs`). 🙋 Peter's part is in sitting 1.
 - [ ] The ops repo (C2): `crumpet-ops`, private, made by Claude
       (`create_repository`), with `social/` (one file per week), `email/`
       (issues and welcome emails), `outreach/`, `scoreboard/`,

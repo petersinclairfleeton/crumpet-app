@@ -60,7 +60,7 @@ the record of what Crumpet has, but no new Word features unless Peter asks.
 ```sh
 cd app && npx tsc --noEmit -p . && npx vitest run          # app types + unit tests
 cd packages/editor && npx tsc --noEmit -p . && npx vitest run   # editor
-cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx playwright test  # browser tests
+cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx playwright test  # browser tests
 ```
 
 - Browser tests start their own dev server on port 5181. If one is left
@@ -495,10 +495,11 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   less is `.compact-book` (App): no outline unless `layout.list === true`, a breadcrumb
   with a chapter menu (ChapterPane's `compact`), the inspector a drawer.
   Note: the Home Screen app keeps its own notes, apart from Safari's.
-- `desktop/`: Crumpet for Mac (Electron). `main.cjs` serves the built web app
+- `desktop/`: Crumpet for Mac and Windows (Electron). `main.cjs` serves the built web app
   (`app/dist`, packed inside as `resources/web`) from `app://crumpet/`, with a
   Mac window (hidden title bar, the window buttons over the sidebar, the
-  sidebar's `vibrancy`); links to other sites open in the browser. It makes its own right-click
+  sidebar's `vibrancy`; on Windows an ordinary window with its menu bar hidden
+  until Alt, `data-shell='desktop'`, no drag strip); links to other sites open in the browser. It makes its own right-click
   menu (spelling suggestions, cut/copy/paste) and takes `crumpet://clip`
   links from the web clipper (passed to the page by `preload.cjs`'s `onClip`).
   `preload.cjs` tells the page (`window.crumpetDesktop`, read by
@@ -515,10 +516,21 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   Google only lets Crumpet see files a Crumpet sign-in made: files that reach
   its Drive folder another way (Google Drive for desktop, uploads) are hidden
   from it.
-  `.github/workflows/mac.yml` builds it on GitHub's Macs on every change
-  (one app for Apple silicon and Intel, signed ad hoc, no Apple Developer ID
-  yet) and publishes it as the latest release; Settings → Clipper & app
-  links to `releases/latest/download/Crumpet-Mac.dmg`. Try it here with
+  `.github/workflows/desktop.yml` ("Desktop apps") builds both on GitHub's
+  Macs and Windows machines and publishes them together as the latest release
+  `v1.1.<run>`, only when started (`workflow_dispatch`: Claude runs it with
+  `actions_run_trigger` on `main` after a merge that matters to the apps; a pull
+  request touching `desktop/` builds both as a check, and installs and opens the
+  Windows one, without publishing). Release notes: the install steps plus the
+  newest What's new entries (`desktop/release-notes.mjs`). Mac: one app for Apple
+  silicon and Intel, signed ad hoc, no Apple Developer ID yet. Windows: an NSIS
+  installer for 64-bit Windows (`Crumpet-Windows.exe`, per person, no admin),
+  unsigned (SmartScreen's "More info" → "Run anyway"). Neither updates itself:
+  `desktop/updates.cjs` asks GitHub for the latest release once a day and offers
+  Download / Later / Skip This Version (also Help → Check for a Newer Version).
+  Settings → Clipper & app offers `releases/latest/download/Crumpet-Mac.dmg` on
+  a Mac and `Crumpet-Windows.exe` on Windows (`data/desktop.ts`). The Windows
+  installer can't be finished here (NSIS needs Wine), but `--win dir` packs the app. Try it here with
   `cd app && npx vite build`, then `cd desktop && npx electron-builder --linux dir`
   and run the result under `xvfb-run` (Playwright's `_electron` can drive it).
 - Accounts (optional): `app/src/data/account.ts` talks to Firebase
@@ -537,7 +549,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   search, list_notes, list_notebooks, list_books, read_book, read, create_note; it never
   changes or deletes a file; `server.ts`: JSON-RPC over stdio). `app/mcp/main.mjs` is its
   Node side; `node mcp/build.mjs` (in app/) makes `dist-mcp/crumpet-mcp.mjs` and the Claude
-  extension `Crumpet.mcpb`, published with the Mac app's release (`mac.yml`);
+  extension `Crumpet.mcpb`, published with the desktop apps' release (`desktop.yml`);
   `ui/aisettings.tsx` is Settings → Clipper & app's Add to Claude. Notes it writes reach
   Crumpet through a folder sync (not Google Drive: drive.file hides them).
 - `docs/google-drive-setup.md`: one-off Google setup. The Google client id
@@ -570,7 +582,10 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx p
   guesses the pages of headings in chapters not laid out yet (from their
   words) until they have been.
 - The Mac app isn't signed with an Apple Developer ID (macOS asks to confirm it
-  once); its Google sign-in needs `VITE_GOOGLE_MAC_CLIENT_ID` (docs step 4b),
+  once), nor the Windows app with a code-signing certificate (SmartScreen asks
+  once); the Windows app was built and started on GitHub's Windows machines, not
+  tried by hand, and its Google sign-in (the same browser round trip as the Mac's)
+  is untested on Windows. The Mac app's Google sign-in needs `VITE_GOOGLE_MAC_CLIENT_ID` (docs step 4b),
   and was tested on Linux with a stand-in for Google, not on a real Mac; its
   fonts come from the internet (the Mac's own font is used offline).
 - Accounts are on (Firebase key in `app/.env`, `docs/accounts-setup.md`); the Mac app

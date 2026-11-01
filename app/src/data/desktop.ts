@@ -1,4 +1,4 @@
-// Crumpet as a desktop app (the Mac app in `desktop/`): its preload script
+// Crumpet as a desktop app (the Mac and Windows app in `desktop/`): its preload script
 // tells the page, which then fits the window (room for the Mac's window
 // buttons, a native see-through sidebar) and leaves out what only the web
 // has (installing; Google's folder picker). Google Drive sign-in goes through
@@ -20,5 +20,6 @@ export const desktop: DesktopInfo | null = typeof window !== 'undefined' ? ((win
 /** Running as the Mac app. */
 export const isMacApp = desktop?.platform === 'darwin';
 
-/** The newest Mac app, built from this code by GitHub (see .github/workflows/mac.yml). */
+/** The newest Mac and Windows apps, built from this code by GitHub (see .github/workflows/desktop.yml). */
 export const MAC_DOWNLOAD = 'https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Mac.dmg';
+export const WINDOWS_DOWNLOAD = 'https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Windows.exe';

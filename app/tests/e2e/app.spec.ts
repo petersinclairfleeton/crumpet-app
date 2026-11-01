@@ -1604,6 +1604,18 @@ test('settings offer Crumpet to Claude and other AI apps', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'How to set it up' })).toHaveAttribute('href', /docs\/mcp\.md$/);
 });
 
+test.describe('on a Windows computer', () => {
+  test.use({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36' });
+  test('settings offer the free Windows app, not the Mac one', async ({ page }) => {
+    await open(page);
+    await sidebar(page).locator('.account').click();
+    await page.getByRole('tab', { name: 'Clipper & app' }).click();
+    await expect(page.getByText('Crumpet for Windows')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Download for Windows' })).toHaveAttribute('href', /releases\/latest\/download\/Crumpet-Windows\.exe$/);
+    await expect(page.getByRole('link', { name: 'Download for Mac' })).toHaveCount(0);
+  });
+});
+
 test('web clipper: the bookmark on another site opens Crumpet with the page, to save as a note', async ({ page, context }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
@@ -5959,7 +5971,7 @@ test('calm Settings, Find and a first visit, as designed', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings…' }).click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await expect(settings.getByRole('heading', { name: 'Appearance' })).toBeVisible();
-  for (const t of ['Appearance', 'Writing', 'Formatting bar', 'Sync and storage', 'Account', 'Clipper and Mac app', 'Advanced']) await expect(settings.getByRole('tab', { name: t, exact: true })).toBeVisible();
+  for (const t of ['Appearance', 'Writing', 'Formatting bar', 'Sync and storage', 'Account', 'Clipper & app', 'Advanced']) await expect(settings.getByRole('tab', { name: t, exact: true })).toBeVisible();
   await settings.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await settings.getByRole('button', { name: 'Light', exact: true }).click();

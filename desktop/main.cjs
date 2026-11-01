@@ -1,13 +1,15 @@
-// Crumpet for Mac: the web app in a window of its own (Electron, so it runs
-// on the same engine as Chrome and every feature works the same). The app's
-// files ship inside it and are served from app://crumpet/, so notes are kept
-// on the Mac like any app's, and it works without the internet.
+// Crumpet for Mac and Windows: the web app in a window of its own (Electron,
+// so it runs on the same engine as Chrome and every feature works the same).
+// The app's files ship inside it and are served from app://crumpet/, so notes
+// are kept on the computer like any app's, and it works without the internet.
 //
-// The window is Mac-native: the sidebar shows the real see-through blur of
-// the desktop behind it, and the red, yellow and green buttons sit in it.
+// On a Mac the window is Mac-native: the sidebar shows the real see-through
+// blur of the desktop behind it, and the red, yellow and green buttons sit in
+// it. On Windows it's an ordinary window with its menu tucked away (Alt shows it).
 
 const { app, BrowserWindow, Menu, clipboard, dialog, ipcMain, net, protocol, session, shell } = require('electron');
 const google = require('./google.cjs');
+const updates = require('./updates.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
@@ -16,6 +18,9 @@ const ORIGIN = 'app://crumpet';
 // The built web app: inside the app when packaged, else the app folder's build.
 const WEB = app.isPackaged ? path.join(process.resourcesPath, 'web') : path.join(__dirname, '..', 'app', 'dist');
 const isMac = process.platform === 'darwin';
+const isWindows = process.platform === 'win32';
+/** What to call the computer in messages. */
+const COMPUTER = isMac ? 'Mac' : 'computer';
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true, codeCache: true } },
@@ -36,7 +41,7 @@ let win = null;
 let loaded = false;
 
 // The web clipper's bookmark opens crumpet://clip#clip=… (the page, in the
-// address); macOS hands that to the app, which shows it, ready to save.
+// address); macOS or Windows hands that to the app, which shows it, ready to save.
 const SCHEME = 'crumpet';
 let pendingClip = null;
 function openClip(url) {
@@ -94,6 +99,8 @@ function createWindow() {
     vibrancy: isMac ? 'sidebar' : undefined,
     visualEffectState: 'followWindow',
     backgroundColor: isMac ? '#00000000' : '#e7eaf0',
+    // Windows: File, Edit, View… show when Alt is pressed, as in many Windows apps.
+    autoHideMenuBar: !isMac,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -134,7 +141,7 @@ function createWindow() {
       defaultId: 0,
       cancelId: 0,
       message: 'Crumpet is still syncing',
-      detail: 'Your latest changes are saved on this Mac but haven’t reached your folder yet. Wait a moment for them to sync, or close anyway and they’ll sync next time.',
+      detail: `Your latest changes are saved on this ${COMPUTER} but haven’t reached your folder yet. Wait a moment for them to sync, or close anyway and they’ll sync next time.`,
     });
     if (choice === 1) e.preventDefault();
   });
@@ -192,11 +199,42 @@ function menu() {
       role: 'help',
       submenu: [
         { label: 'Crumpet on the web', click: () => void shell.openExternal('https://petersinclairfleeton.github.io/crumpet-app/') },
-        { label: 'Newer versions', click: () => void shell.openExternal('https://github.com/petersinclairfleeton/crumpet-app/releases/latest') },
+        { label: 'Check for a Newer Version…', click: () => void checkForUpdates(true) },
+        { label: 'All Versions', click: () => void shell.openExternal(`https://github.com/${updates.REPO}/releases`) },
       ],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+/**
+ * Says when a newer Crumpet is out (see updates.cjs): by itself once a day,
+ * or when asked from the Help menu (`force`), which also says when it's up to date.
+ */
+function checkForUpdates(force) {
+  if (!app.isPackaged && !process.env.CRUMPET_RELEASES_URL) return;
+  return updates.checkForUpdates({
+    app,
+    shell,
+    force,
+    ask: async ({ version }) => {
+      const opts = {
+        type: 'info',
+        buttons: ['Download', 'Later', 'Skip This Version'],
+        defaultId: 0,
+        cancelId: 1,
+        message: `Crumpet ${version} is out`,
+        detail: `You have ${app.getVersion()}. Download the new one and install it over this one: your notes stay as they are.`,
+      };
+      const { response } = win ? await dialog.showMessageBox(win, opts) : await dialog.showMessageBox(opts);
+      return ['download', 'later', 'skip'][response];
+    },
+    none: () => {
+      const opts = { type: 'info', buttons: ['OK'], message: 'You have the newest Crumpet', detail: `Version ${app.getVersion()}.` };
+      if (win) void dialog.showMessageBox(win, opts);
+      else void dialog.showMessageBox(opts);
+    },
+  });
 }
 
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -208,7 +246,11 @@ else {
     win.focus();
   });
 
-  app.setAsDefaultProtocolClient(SCHEME);
+  // Windows: groups the app's windows and notifications under its own name (the installer's shortcut uses the same id).
+  if (isWindows) app.setAppUserModelId('app.crumpet.notes');
+  // Run from the code (not installed), Windows needs to be told how to start the app for a crumpet:// link.
+  if (!app.isPackaged && process.defaultApp && process.argv.length >= 2) app.setAsDefaultProtocolClient(SCHEME, process.execPath, [path.resolve(process.argv[1])]);
+  else app.setAsDefaultProtocolClient(SCHEME);
   app.whenReady().then(() => {
     // The app's own files; any other path is the app itself (it finds its way from the address).
     protocol.handle('app', (req) => {
@@ -229,6 +271,8 @@ else {
     });
     menu();
     createWindow();
+    // A few seconds in, so it never slows the app's start.
+    setTimeout(() => void checkForUpdates(false), 8000);
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
