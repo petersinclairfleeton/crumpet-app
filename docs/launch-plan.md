@@ -399,7 +399,11 @@ of every newsletter, and a CVR registration (D18) is public.
 - [ ] Feedback and support switched on: `VITE_FEEDBACK_EMAIL` and
       `VITE_SUPPORT_URL` in `app/.env` (the support link goes to the home
       page's help section). The menu items are already built
-      (`app/src/ui/help.tsx`).
+      (`app/src/ui/help.tsx`). Feedback done 1 Nov (Peter asked for bug
+      reports to info.crumpetapp@gmail.com): Report a problem, with device
+      details and recent errors (`data/bugreport.ts`, `data/errorlog.ts`), also
+      on the desktop apps' Help menu and a phone's library. The support link
+      still waits for the home page.
 
 ### Counting what matters
 

@@ -13,7 +13,10 @@ import { startPwa } from './data/pwa';
 import './ui/app.css';
 import { desktop } from './data/desktop';
 import { stopFocusZoom } from './ui/iphone';
+import { startErrorLog } from './data/errorlog';
 
+// Remembers the last few errors, for bug reports (Help → Report a problem).
+startErrorLog();
 // In the desktop app: the window fits itself to it (see data/desktop.ts).
 if (desktop) document.documentElement.dataset.shell = desktop.platform === 'darwin' ? 'mac' : 'desktop';
 // On an iPhone: no zooming in when a box is tapped.

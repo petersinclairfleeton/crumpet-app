@@ -6,6 +6,12 @@
 
 export interface DesktopInfo {
   platform: string;
+  /** The app's version, like "1.1.5" (older apps lack it). */
+  version?: string;
+  /** The app's own Help menu → Report a Problem… (older apps lack it). */
+  onFeedback?(fn: () => void): void;
+  /** Opens a mailto: address in the computer's email app (older apps lack it). */
+  openMail?(url: string): Promise<void>;
   /** Google Drive: signing in through the browser, and access tokens (desktop/google.cjs). */
   google?: {
     signIn(clientId: string): Promise<{ token: string; expires: number }>;

@@ -40,7 +40,7 @@ At the end there's a suggested order for building what's missing.
 | Transform to Sway | ➖ | Being retired. |
 | Close | ✅ | Close tab. |
 | Account | ✅ | Optional sign-in with email or Google. |
-| Feedback | 🟡 | Help → Send feedback: writes an email with the feedback in it. Shown once `VITE_FEEDBACK_EMAIL` (where it goes) is set in `app/.env`: ask Peter. |
+| Feedback | ✅ | Help → Report a problem / Send an idea or thanks: writes an email to info.crumpetapp@gmail.com (`VITE_FEEDBACK_EMAIL`) with device details and recent errors, from the email app or Gmail. |
 | Options: AutoCorrect | ✅ | Curly quotes, em and en dashes, … and © ® ™ → ⇒, a typo list (teh → the) plus your own replacements, capitals at a sentence's start; each can be turned off (Settings → Writing). Plus Markdown shortcuts ("# " makes a heading). |
 | Options: proofing | 🟡 | The browser's spell check (and right-click suggestions in the Mac app); no settings for it. |
 | Options: save settings | 🟡 | Automatic versions can be turned off; that's all there is to set. |
@@ -309,7 +309,7 @@ At the end there's a suggested order for building what's missing.
 |---|---|---|
 | Help, Show Training | ✅ | The welcome guide (with pictures and workflows) and the first-visit tour, from the Help (?) menu. |
 | What's New | ✅ | Help → What's new: the latest changes, with a dot on the ? button until they've been seen. |
-| Contact Support, Feedback | 🟡 | Help → Send feedback and Contact support, once their address (`VITE_FEEDBACK_EMAIL`, `VITE_SUPPORT_URL`) is set: ask Peter where they should go. |
+| Contact Support, Feedback | 🟡 | Help → Report a problem and Send an idea or thanks (to `VITE_FEEDBACK_EMAIL`, set); Contact support waits for `VITE_SUPPORT_URL` (the home page's help section). |
 
 ## Contextual tabs
 
