@@ -1,0 +1,218 @@
+# Builds Crumpet for Mac and Crumpet for Windows (desktop/) on GitHub's own
+# Macs and Windows machines, and publishes them together as the latest
+# release (with Crumpet's MCP server for Claude and other AIs, app/mcp/), so
+# these links always get the newest ones:
+# https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Mac.dmg
+# https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Windows.exe
+#
+# Released on purpose: it publishes only when started (Actions → Desktop apps
+# → Run workflow, or Claude with actions_run_trigger on main). A pull request
+# that changes desktop/ or this file builds both apps as a check, without
+# publishing (the builds are kept on the run's page for a week).
+#
+# Mac: one app for every Mac (Apple silicon and Intel), signed "ad hoc", not
+# with an Apple Developer ID, so the first time macOS asks to confirm it in
+# System Settings → Privacy & Security ("Open Anyway").
+# Windows: an installer for 64-bit Windows 10 and 11 (Windows on Arm runs it
+# too) that installs for the person alone, no administrator needed. Unsigned,
+# so SmartScreen asks once ("More info" → "Run anyway").
+
+name: Desktop apps
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['desktop/**', '.github/workflows/desktop.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-apps-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERSION: 1.1.${{ github.run_number }}
+
+jobs:
+  web:
+    name: Web app and AI connection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Build the web app
+        working-directory: app
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx vite build
+
+      - name: Build the AI connection (MCP server and Claude extension)
+        working-directory: app
+        run: node mcp/build.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: app/dist
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcp
+          path: |
+            app/dist-mcp/Crumpet.mcpb
+            app/dist-mcp/crumpet-mcp.mjs
+          retention-days: 1
+
+  mac:
+    name: Mac app
+    needs: web
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: app/dist
+
+      - name: Build the Mac app
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm ci
+          npm version "$VERSION" --no-git-tag-version
+          npx electron-builder -c electron-builder.config.cjs --mac dir --universal --publish never
+
+      - name: Sign it (ad hoc) and make the download
+        working-directory: desktop/release
+        run: |
+          APP=mac-universal/Crumpet.app
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
+          mkdir dmg
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname Crumpet -srcfolder dmg -ov -format UDZO Crumpet-Mac.dmg
+          ditto -c -k --keepParent "$APP" Crumpet-Mac.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            desktop/release/Crumpet-Mac.dmg
+            desktop/release/Crumpet-Mac.zip
+          retention-days: 7
+
+  windows:
+    name: Windows app
+    needs: web
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: web
+          path: app/dist
+
+      - name: Build the Windows app
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          npm ci
+          npm version "$VERSION" --no-git-tag-version
+          npx electron-builder -c electron-builder.config.cjs --win nsis --x64 --publish never
+
+      - name: Check the installer
+        working-directory: desktop/release
+        run: |
+          ls -la
+          test -s Crumpet-Windows.exe
+          test -f win-unpacked/Crumpet.exe
+
+      # Installs it the way a person would (silently here), opens it, and
+      # checks it's still running a few seconds later.
+      - name: Install it and open it
+        shell: pwsh
+        working-directory: desktop/release
+        run: |
+          Start-Process -FilePath .\Crumpet-Windows.exe -ArgumentList '/S' -Wait
+          # Per person, under %LOCALAPPDATA%\Programs (in a folder named after the package).
+          # (Waits up to a minute, in case the installer hands over to a second process.)
+          $where = @((Join-Path $env:LOCALAPPDATA 'Programs'), $env:ProgramFiles)
+          $found = $null
+          for ($i = 0; $i -lt 30 -and -not $found; $i++) {
+            $found = Get-ChildItem $where -Recurse -Depth 2 -Filter Crumpet.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $found) { Start-Sleep -Seconds 2 }
+          }
+          if (-not $found) { Get-ChildItem $where -Depth 0 -ErrorAction SilentlyContinue | Format-Table FullName | Out-String | Write-Host; throw 'Crumpet.exe was not installed' }
+          $exe = $found.FullName
+          "Installed: $exe"
+          $links = @('Microsoft\Windows\Start Menu\Programs\Crumpet.lnk') | ForEach-Object { Join-Path $env:APPDATA $_ }
+          foreach ($l in $links) { if (Test-Path $l) { "Start menu shortcut: $l" } else { "::warning::No Start menu shortcut at $l" } }
+          (Get-Item $exe).VersionInfo | Format-List ProductName, ProductVersion, FileDescription
+          Get-Process Crumpet -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Process -FilePath $exe
+          Start-Sleep -Seconds 15
+          $running = Get-Process Crumpet -ErrorAction SilentlyContinue
+          if (-not $running) { throw 'Crumpet closed by itself' }
+          "Running: $($running.Count) processes"
+          $running | Stop-Process -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: desktop/release/Crumpet-Windows.exe
+          retention-days: 7
+
+  release:
+    name: Publish the release
+    if: github.event_name == 'workflow_dispatch'
+    needs: [web, mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - name: Write the release notes
+        run: node --experimental-strip-types desktop/release-notes.mjs "$VERSION" > notes.md
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Crumpet ${{ env.VERSION }} for Mac and Windows
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body_path: notes.md
+          files: |
+            out/Crumpet-Mac.dmg
+            out/Crumpet-Mac.zip
+            out/Crumpet-Windows.exe
+            out/Crumpet.mcpb
+            out/crumpet-mcp.mjs

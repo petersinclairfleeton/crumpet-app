@@ -2,13 +2,14 @@
   "name": "crumpet-desktop",
   "productName": "Crumpet",
   "version": "1.0.0",
-  "description": "Crumpet: notes and writing, as a Mac app.",
+  "description": "Crumpet: notes and writing, as an app for Mac and Windows.",
   "private": true,
   "main": "main.cjs",
   "author": "Peter Sinclair-Fleeton",
   "scripts": {
     "start": "electron .",
-    "pack:mac": "electron-builder -c electron-builder.config.cjs --mac dir --universal --publish never"
+    "pack:mac": "electron-builder -c electron-builder.config.cjs --mac dir --universal --publish never",
+    "pack:win": "electron-builder -c electron-builder.config.cjs --win nsis --x64 --publish never"
   },
   "devDependencies": {
     "electron": "^44.7.0",
@@ -27,6 +28,7 @@
       "preload.cjs",
       "google.cjs",
       "google-scheme.cjs",
+      "updates.cjs",
       "package.json"
     ],
     "extraResources": [
@@ -53,6 +55,29 @@
         "NSMicrophoneUsageDescription": "Crumpet uses the microphone for dictation.",
         "NSHumanReadableCopyright": "Crumpet"
       }
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Crumpet-Windows.exe",
+      "legalTrademarks": "Crumpet"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "shortcutName": "Crumpet",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "Crumpet-Windows.exe"
     }
   },
   "repository": {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { canInstall, install, isInstalled, onInstallChange, platform } from '../data/pwa';
-import { MAC_DOWNLOAD, desktop } from '../data/desktop';
+import { MAC_DOWNLOAD, WINDOWS_DOWNLOAD, desktop } from '../data/desktop';
 import { SettingGroup, SettingRow } from './settingrows';
 
 export function InstallSettings() {
@@ -11,18 +11,26 @@ export function InstallSettings() {
   if (desktop)
     return (
       <SettingGroup title="The app">
-        <SettingRow title="You’re using the Crumpet app" hint="Newer versions are on its Help menu." />
+        <SettingRow title="You’re using the Crumpet app" hint="It says when a newer version is out, or check on its Help menu: Check for a Newer Version." />
       </SettingGroup>
     );
   if (location.protocol === 'file:') return null;
   const where = platform();
   const mac = /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints <= 1;
+  const windows = /Windows/.test(navigator.userAgent);
   return (
     <SettingGroup title="The app">
       {mac && (
         <SettingRow title="Crumpet for Mac" hint="Its own window, in your Dock, and working without the internet. Drag it into Applications; the first time, allow it in System Settings → Privacy & Security (“Open Anyway”).">
           <a className="btn" href={MAC_DOWNLOAD}>
             Download for Mac
+          </a>
+        </SettingRow>
+      )}
+      {windows && (
+        <SettingRow title="Crumpet for Windows" hint="Its own window, on your Start menu and taskbar, and working without the internet. The first time, Windows may say it protected your PC: click More info, then Run anyway.">
+          <a className="btn" href={WINDOWS_DOWNLOAD}>
+            Download for Windows
           </a>
         </SettingRow>
       )}

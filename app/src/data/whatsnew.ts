@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-01-windows',
+    date: '1 November 2026',
+    title: 'Crumpet for Windows',
+    points: [
+      'Crumpet is now a free download for Windows as well as for the Mac: its own window, on your Start menu and taskbar, working without the internet. Get it in Settings → Clipper & app on a Windows computer.',
+      'The Windows installer needs no administrator. The first time, Windows may say it protected your PC: click More info, then Run anyway.',
+      'Both apps now say when a newer version is out (or check on the Help menu: Check for a Newer Version). Install the new one over the old: your notes stay as they are.',
+    ],
+  },
+  {
     id: '2026-10-26-dark-phone',
     date: '26 October 2026',
     title: 'Dark mode and the phone, put right',
