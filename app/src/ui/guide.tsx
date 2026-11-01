@@ -403,7 +403,7 @@ export function Guide({ onClose, onNewNote, onNewProject, onConnect, onTour }: {
                   </button>
                 </div>
                 <p className="guide-again">
-                  Open this guide again any time from the <b>?</b> (Help) menu at the top, which also lists what’s new, or{' '}
+                  Open this guide again any time from the <b>⚙</b> menu at the foot of the sidebar (the <b>?</b> at the top with every formatting tool, Help in a phone’s library), which also lists what’s new and lets you report a problem, or{' '}
                   <button type="button" className="link-btn" onClick={go(onTour)}>
                     take a 30-second tour
                   </button>{' '}

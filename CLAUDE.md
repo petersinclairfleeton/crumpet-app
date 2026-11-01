@@ -150,8 +150,13 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx
     `ui/customise.tsx`: Customise the bar (`settings.toolbarCustom` hide/pin;
     pinned items get priority 9). `ui/settingrows.tsx`: what every page of Settings is
     built from (`SettingGroup`, `SettingRow`, `Switch`), so they all look alike. `ui/help.tsx`: the top bar's Help menu (guide,
-    What's new from `data/whatsnew.ts` with `settings.whatsNewSeen`, feedback and
-    support only when `VITE_FEEDBACK_EMAIL` / `VITE_SUPPORT_URL` are set).
+    What's new from `data/whatsnew.ts` with `settings.whatsNewSeen`, Report a problem /
+    Send an idea or thanks (`openFeedback`) to `VITE_FEEDBACK_EMAIL` (info.crumpetapp@gmail.com,
+    set in `app/.env`) as a mailto: email, with Gmail and Copy as fallbacks; the email's device
+    details and the last few errors come from `data/bugreport.ts` and `data/errorlog.ts` (errors
+    kept in memory only, started in `main.tsx`); the desktop apps' Help menu sends
+    `crumpet-feedback`, and `crumpetDesktop.openMail` opens the email app there; support only when
+    `VITE_SUPPORT_URL` is set).
   - `table.ts`: table formatting (merged cells, shading, column alignment
     and widths, heading row, banding, lines, and the gallery's styles,
     `TABLE_STYLES`, which go to Word as table styles "Crumpet Blue" and so on) and keeping it in step as rows and

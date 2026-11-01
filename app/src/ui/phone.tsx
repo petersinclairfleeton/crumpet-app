@@ -10,7 +10,9 @@ import { type TagNode, projectWords, sameView, tagTree } from '../data/selectors
 import type { View } from '../data/types';
 import { SettingsDialog } from './Settings';
 import { statusText } from './SyncSettings';
-import { IconBook, IconChevron, IconGraph, IconInbox, IconNote, IconPlus, IconSettings, IconStar, IconSun, IconTrash } from './icons';
+import { IconBook, IconChevron, IconGraph, IconHelp, IconInbox, IconNote, IconPlus, IconSettings, IconStar, IconSun, IconTrash } from './icons';
+import { openGuide } from './guide';
+import { canSendFeedback, openFeedback } from './help';
 import { usePanes } from './panes';
 
 export function PhoneLibrary({ onOpenView, onToday }: { onOpenView(v: View): void; onToday(): void }) {
@@ -107,6 +109,14 @@ export function PhoneLibrary({ onOpenView, onToday }: { onOpenView(v: View): voi
         <ul className="phone-group">
           {row('graph', <IconGraph size={20} />, 'Graph of links', undefined, () => panes.open({ kind: 'graph', id: 'graph' }))}
           {row('trash', <IconTrash size={20} />, 'Trash', state.notes.filter((n) => n.trashedAt !== null).length || undefined, () => onOpenView({ kind: 'trash' }))}
+        </ul>
+      </section>
+
+      <section aria-label="Help">
+        <h2 className="phone-label">Help</h2>
+        <ul className="phone-group">
+          {row('guide', <IconHelp size={20} />, 'Guide to Crumpet', undefined, openGuide)}
+          {canSendFeedback && row('report', <IconHelp size={20} />, 'Report a problem', undefined, () => openFeedback())}
         </ul>
       </section>
     </nav>

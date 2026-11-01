@@ -21,7 +21,7 @@ import { goToLater } from './booktoc';
 import { SLASH_ITEMS } from './slash';
 import { THEMES } from './themes';
 import { openGuide } from './guide';
-import { openWhatsNew } from './help';
+import { canSendFeedback, openFeedback, openWhatsNew } from './help';
 import { openCustomise } from './customise';
 import { currentHelped } from './helpers';
 import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub } from '../data/wordfiles';
@@ -175,6 +175,7 @@ function useCommands(actions: Actions): Item[] {
     cmd('Settings', actions.openSettings),
     cmd('Open the guide to Crumpet', openGuide),
     cmd('What’s new in Crumpet', openWhatsNew),
+    ...(canSendFeedback ? [cmd('Report a problem (bug report)', () => openFeedback()), cmd('Send an idea or thanks', () => openFeedback('An idea'))] : []),
     cmd('Customise the formatting bar', openCustomise),
     ...(state.settings.macros ?? []).map((m) => cmd(`Run macro: ${m.name}`, () => {
       const ed = currentHelped()?.editor;

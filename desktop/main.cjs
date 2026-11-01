@@ -81,6 +81,10 @@ process.argv.forEach(openUrl);
 ipcMain.handle('google-sign-in', (_e, clientId) => google.signIn(String(clientId)));
 ipcMain.handle('google-token', (_e, clientId, fresh) => google.getToken(String(clientId), !!fresh));
 ipcMain.handle('google-sign-out', () => google.signOut());
+// A bug report or feedback (Help → Report a problem): only email addresses, opened in the computer's email app.
+ipcMain.handle('open-mail', (_e, url) => {
+  if (typeof url === 'string' && url.startsWith('mailto:')) return shell.openExternal(url);
+});
 
 function createWindow() {
   const bounds = savedBounds();
@@ -106,6 +110,7 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       spellcheck: true,
+      additionalArguments: [`--crumpet-version=${app.getVersion()}`],
     },
   });
   if (bounds?.maximized) win.maximize();
@@ -123,13 +128,13 @@ function createWindow() {
 
   // Links to other sites open in the person's browser; the app stays the app.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url)) void shell.openExternal(url);
+    if (/^(https?|mailto):/.test(url)) void shell.openExternal(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => {
     if (url.startsWith(ORIGIN)) return;
     e.preventDefault();
-    if (/^https?:/.test(url)) void shell.openExternal(url);
+    if (/^(https?|mailto):/.test(url)) void shell.openExternal(url);
   });
 
   win.webContents.on('context-menu', (_e, params) => contextMenu(params));
@@ -199,6 +204,8 @@ function menu() {
       role: 'help',
       submenu: [
         { label: 'Crumpet on the web', click: () => void shell.openExternal('https://petersinclairfleeton.github.io/crumpet-app/') },
+        { label: 'Report a Problem…', click: () => win?.webContents.send('crumpet-feedback') },
+        { type: 'separator' },
         { label: 'Check for a Newer Version…', click: () => void checkForUpdates(true) },
         { label: 'All Versions', click: () => void shell.openExternal(`https://github.com/${updates.REPO}/releases`) },
       ],

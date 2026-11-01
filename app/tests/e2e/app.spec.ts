@@ -1604,6 +1604,44 @@ test('settings offer Crumpet to Claude and other AI apps', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'How to set it up' })).toHaveAttribute('href', /docs\/mcp\.md$/);
 });
 
+test('Help → Report a problem: an email to Crumpet with what went wrong, the device and recent errors, and Gmail or Copy if no email opens', async ({ page }) => {
+  await open(page);
+  // Something goes wrong in the background first.
+  await page.evaluate(() => setTimeout(() => { throw new Error('Test boom in layout'); }));
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await page.getByRole('button', { name: 'Report a problem…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Report a problem' });
+  await expect(dialog.getByRole('button', { name: 'Something’s wrong' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(dialog).toContainText('to info.crumpetapp@gmail.com');
+  await expect(dialog.getByRole('button', { name: 'Send…' })).toBeDisabled();
+  await dialog.getByLabel('What went wrong').fill('The page jumped when I pressed Enter.');
+  await dialog.getByText('What’s included').click();
+  const details = dialog.locator('.feedback-details pre');
+  await expect(details).toContainText('Crumpet: Website');
+  await expect(details).toContainText('Sync: not connected (only on this device)');
+  await expect(details).toContainText('Error: Test boom in layout');
+  await dialog.getByRole('button', { name: 'Send…' }).click();
+  const sent = page.getByRole('dialog', { name: 'Send it by email' });
+  const report = sent.getByLabel('Your report');
+  await expect(report).toHaveValue(/^To: info\.crumpetapp@gmail\.com\nSubject: Crumpet problem report\n\nThe page jumped when I pressed Enter\.\n\n—\nAbout this device/);
+  await expect(report).toHaveValue(/Error: Test boom in layout/);
+  const gmail = new URL((await sent.getByRole('link', { name: 'Write it in Gmail ↗' }).getAttribute('href'))!);
+  expect(gmail.searchParams.get('to')).toBe('info.crumpetapp@gmail.com');
+  expect(gmail.searchParams.get('body')).toContain('The page jumped when I pressed Enter.');
+  await sent.getByRole('button', { name: 'Done' }).click();
+  await expect(sent).toHaveCount(0);
+
+  // An idea, without the device's details.
+  await page.getByRole('button', { name: 'Help', exact: true }).click();
+  await page.getByRole('button', { name: 'Send an idea or thanks…' }).click();
+  const idea = page.getByRole('dialog', { name: 'Send feedback' });
+  await expect(idea.getByRole('button', { name: 'An idea' })).toHaveAttribute('aria-pressed', 'true');
+  await idea.getByLabel('Your feedback').fill('More paper colours.');
+  await idea.getByLabel('Include details about this device and recent errors').uncheck();
+  await idea.getByRole('button', { name: 'Send…' }).click();
+  await expect(page.getByRole('dialog', { name: 'Send it by email' }).getByLabel('Your report')).toHaveValue('To: info.crumpetapp@gmail.com\nSubject: Crumpet idea\n\nMore paper colours.');
+});
+
 test.describe('on a Windows computer', () => {
   test.use({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36' });
   test('settings offer the free Windows app, not the Mac one', async ({ page }) => {

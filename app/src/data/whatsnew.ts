@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-01-report',
+    date: '1 November 2026',
+    title: 'Report a problem',
+    points: [
+      'Something not working? Choose Report a problem in the ⚙ menu at the foot of the sidebar (Help in a phone’s library, the Help menu in the Mac and Windows apps). Say what happened, and Crumpet writes it into an email to info.crumpetapp@gmail.com for you to send.',
+      'It adds details that help find the problem (which Crumpet and browser, how it syncs, the last few error messages), shown before you send and easy to leave out. The text of your notes is never included.',
+      'No email app? Write it in Gmail, or copy it, from the same window. Ideas and thank-yous are welcome the same way.',
+    ],
+  },
+  {
     id: '2026-11-01-windows',
     date: '1 November 2026',
     title: 'Crumpet for Windows',
