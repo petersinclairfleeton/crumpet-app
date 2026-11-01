@@ -24,6 +24,8 @@ export interface PageFields {
   words: number;
   created?: number;
   updated?: number;
+  /** A book's own Author name (Page setup → Headers and footers). */
+  author?: string;
 }
 
 /** Where these pages sit in the whole document. */
@@ -172,7 +174,7 @@ export function PageView({ enabled, editor, page, sheetClass, children, onPage, 
   const offset = place?.offset ?? 0;
   const ctx: HFContext = {
     title: fields?.title ?? '',
-    author: settings.name || '',
+    author: hf.author || '',
     chapter: fields?.chapter,
     chapterTitle: fields?.chapterTitle,
     part: fields?.part,

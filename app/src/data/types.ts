@@ -189,8 +189,14 @@ export interface Snippet {
 export const SHARED_SETTINGS = ['noteStyles', 'notePage', 'sideOrder', 'defaultStyles', 'sources', 'citeStyle', 'snippets', 'shares', 'submissions'] as const;
 export type SharedSetting = (typeof SHARED_SETTINGS)[number];
 
+/**
+ * Who comments and tracked changes made in this copy of Crumpet are by. Crumpet
+ * keeps no name for the person (Word does the same when it removes personal
+ * details); readers' comments brought back keep their own names.
+ */
+export const AUTHOR = 'Author';
+
 export interface Settings {
-  name: string;
   accent: string;
   theme: Theme;
   listStyle: 'cards' | 'table';

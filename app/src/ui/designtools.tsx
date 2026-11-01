@@ -9,7 +9,6 @@ import { COVER_DESIGNS, type CoverDesign } from '@crumpet/editor/cover';
 import { Popover } from './Sidebar';
 import { type ToolItem, closeMore } from './toolbar';
 import { addFile, isImage } from '../data/files';
-import { useAppState } from './hooks';
 import { formatDate } from '../data/headers';
 import { COLOUR_SETS, DOC_THEMES, EFFECTS, FONT_PAIRS, SPACINGS, colourSet, fontPair, themeCss, themeOf } from '../data/doctheme';
 import { loadGoogleFont } from './fonts';
@@ -189,11 +188,10 @@ function guessTitle(ed: Editor): string {
 }
 
 function CoverMenu({ ed, close }: { ed: Editor; close(): void }) {
-  const { settings } = useAppState();
   const [design, setDesign] = useState<CoverDesign>('classic');
   const [title, setTitle] = useState(() => guessTitle(ed));
   const [subtitle, setSubtitle] = useState('');
-  const [author, setAuthor] = useState(settings.name ?? '');
+  const [author, setAuthor] = useState('');
   const [date, setDate] = useState(() => formatDate(Date.now(), 'long'));
   return (
     <form

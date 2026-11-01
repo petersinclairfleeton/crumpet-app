@@ -9,7 +9,7 @@ import { useAppState, useAppStore } from './hooks';
 import { openFinder } from './finder';
 import { IconGraph, IconCrumpet, IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash } from './icons';
 import { SettingsDialog } from './Settings';
-import { Popover, initials } from './Sidebar';
+import { Popover } from './Sidebar';
 import { useActiveTab, usePanes } from './panes';
 
 export const SIDEBAR = { min: 180, max: 420, normal: 236 };
@@ -182,7 +182,7 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
       <span className="grow" />
       {item({ kind: 'trash' }, 'Trash', <IconTrash size={18} />)}
       <button type="button" className="rail-btn" aria-label="Settings" title="Settings" aria-expanded={settings} onClick={() => setSettings(true)}>
-        <span className="avatar">{initials(state.settings.name)}</span>
+        <span className="avatar">✎</span>
       </button>
       {settings && <SettingsDialog onClose={() => setSettings(false)} />}
     </nav>

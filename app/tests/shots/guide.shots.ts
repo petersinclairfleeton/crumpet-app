@@ -20,7 +20,7 @@ async function library(page: Page) {
     const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
     const c = (window as unknown as { crumpet: Crumpet }).crumpet;
     const doc = (s: string) => md.fromMarkdown(s);
-    c.updateSettings({ name: 'Alex Rowan', toolbar: 'always', guideSeen: true });
+    c.updateSettings({ toolbar: 'always', guideSeen: true });
     const writing = c.createStack('Writing') as { id: string };
     const ideas = c.createNotebook('Ideas', writing.id) as { id: string };
     const journal = c.createNotebook('Journal') as { id: string };
@@ -33,6 +33,10 @@ async function library(page: Page) {
     const ideaNote = c.createNote({ title: 'Story ideas', notebookId: ideas.id, tags: ['idea'], favorite: true, doc: doc('## A lighthouse that remembers\n\nA keeper’s granddaughter comes back to **Gull Rock** to close it down, and finds the light *still being lit* every night.\n\n## Threads to pull\n\n- Who lights the lamp?\n- The logbook with one page torn out\n- A storm that arrives on the same date every year\n\n## Tone\n\nQuiet, salt-worn, a little uncanny. See [[The keeper’s logbook]].\n') }) as { id: string };
     // The book.
     const p = c.createProject('The Lighthouse') as { id: string };
+    // The book's own Author name (Page setup → Headers and footers), for its title page and running heads.
+    const { manuscriptPage } = await import('/src/data/styles.ts' as string);
+    const page0 = manuscriptPage();
+    c.setProjectPage(p.id, { ...page0, hf: { ...page0.hf, author: 'Alex Rowan' } });
     const st = c.getState() as { chapters: { id: string; projectId: string }[] };
     const first = st.chapters.find((x) => x.projectId === p.id)!;
     const chapters: [string, string, string, string][] = [

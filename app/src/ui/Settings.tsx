@@ -1,4 +1,3 @@
-import { AccountSettings } from './account';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ClipperSettings } from './clipper';
@@ -19,18 +18,17 @@ import { GrammarSettings } from './grammar';
 import { SettingGroup, SettingRow, Switch } from './settingrows';
 
 const SECTIONS = [
-  { id: 'account', label: 'Account & sync' },
+  { id: 'account', label: 'Sync' },
   { id: 'look', label: 'Appearance' },
   { id: 'writing', label: 'Writing' },
   { id: 'app', label: 'Clipper & app' },
 ] as const;
-/** The calm look's sections (design 13): Appearance first, sync and the account apart, Advanced at the foot. */
+/** The calm look's sections (design 13): Appearance first, Advanced at the foot. */
 const CALM_SECTIONS = [
   { id: 'look', label: 'Appearance' },
   { id: 'writing', label: 'Writing' },
   { id: 'bar', label: 'Formatting bar' },
   { id: 'sync', label: 'Sync and storage' },
-  { id: 'profile', label: 'Account' },
   { id: 'app', label: 'Clipper & app' },
 ] as const;
 export type SettingsSection = (typeof SECTIONS)[number]['id'] | (typeof CALM_SECTIONS)[number]['id'] | 'advanced';
@@ -60,7 +58,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
   const size = s.noteSize ?? DEFAULT_NOTE_SIZE;
 
   // The window takes the focus once, when it opens: the app redraws on every
-  // change (each letter of your name), and taking it again would pull the
+  // change (each letter typed in a box), and taking it again would pull the
   // caret out of the box being typed in.
   const close = useRef(onClose);
   close.current = onClose;
@@ -77,7 +75,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
     // A phone has no Mac app to offer, only its Home Screen.
     const label = (x: (typeof CALM_SECTIONS)[number]) => (phone && x.id === 'app' ? 'Clipper and app' : x.label);
     const title = section === 'advanced' ? 'Advanced' : label(CALM_SECTIONS.find((x) => x.id === section) ?? CALM_SECTIONS[0]);
-    const shown: SettingsSection = section === 'account' ? 'profile' : section;
+    const shown: SettingsSection = section === 'account' ? 'sync' : section;
     const content = (
       <>
         {shown === 'look' && (
@@ -172,18 +170,6 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
           </>
         )}
         {shown === 'sync' && <SyncSettings />}
-        {shown === 'profile' && (
-          <>
-            <label className="settings-row">
-              <span>
-                <b>Your name</b>
-                <small>On manuscripts, comments and tracked changes.</small>
-              </span>
-              <input className="settings-input" value={s.name} placeholder="Your name" onChange={(e) => store.updateSettings({ name: e.target.value })} />
-            </label>
-            <AccountSettings />
-          </>
-        )}
         {shown === 'app' && (
           <>
             <ClipperSettings touch={phone} />
@@ -229,7 +215,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
             </div>
           ) : (
             <nav className="phone-settings-list" aria-label="Sections">
-              <ul className="phone-group">{CALM_SECTIONS.map((x) => row(x.id, label(x), x.id === 'look' ? (CALM_THEMES.find(([id]) => id === s.theme)?.[1] ?? themeInfo(s.theme).name) : x.id === 'profile' ? s.name || undefined : undefined))}</ul>
+              <ul className="phone-group">{CALM_SECTIONS.map((x) => row(x.id, label(x), x.id === 'look' ? (CALM_THEMES.find(([id]) => id === s.theme)?.[1] ?? themeInfo(s.theme).name) : undefined))}</ul>
               <ul className="phone-group">{row('advanced', 'Advanced')}</ul>
             </nav>
           )}
@@ -289,16 +275,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
           ))}
         </div>
         <div className="settings" role="tabpanel" id="settings-panel" aria-labelledby={`settings-${section}`}>
-          {section === 'account' && (
-            <>
-              <label className="field">
-                <span>Your name</span>
-                <input value={s.name} placeholder="Shown at the top of the sidebar, and on manuscripts" onChange={(e) => store.updateSettings({ name: e.target.value })} />
-              </label>
-              <AccountSettings />
-              <SyncSettings />
-            </>
-          )}
+          {section === 'account' && <SyncSettings />}
 
           {section === 'look' && (
             <>

@@ -418,7 +418,7 @@ export function HFOptions({ hf, chapters, onChange }: { hf: HeadersFooters; chap
       {check('footerLine', 'Line above the footer')}
       <label className="field">
         <span>Author name</span>
-        <input value={hf.author ?? ''} placeholder="Your name from Settings" onChange={(e) => onChange({ ...hf, author: e.target.value || undefined })} />
+        <input value={hf.author ?? ''} placeholder="On title pages and where a header says Author" onChange={(e) => onChange({ ...hf, author: e.target.value || undefined })} />
       </label>
     </div>
   );

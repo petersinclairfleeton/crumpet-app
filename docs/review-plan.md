@@ -188,14 +188,14 @@ Where: `app/src/main.tsx`, `ui/SyncSettings.tsx`, `sync/layout.ts`,
       are a few: "Only on this device · Keep a copy", leading to Sync. No pop-ups.
 
 **4. A gentler first visit** (decided: the recommended option)
-Where: `ui/account.tsx` (`shouldOpenSignIn`), `ui/App.tsx` (~line 283),
-`ui/guide.tsx` (`shouldOpenGuide`), `sync/google-auth.ts`, `ui/SyncSettings.tsx`.
+Where: `ui/App.tsx`, `ui/guide.tsx` (`shouldOpenGuide`).
 - [ ] The first visit opens on "A clean page." with the cursor ready; no
       sign-in screen and no guide opening by itself (the page already offers
-      "Take the two-minute tour").
-- [ ] One Google step: connecting Google Drive also signs in the account (same
-      Google identity), so there's one "Continue with Google", in Sync.
-- [ ] Account stays in Settings for those who want their name on every device.
+      "Take the two-minute tour"). The sign-in screen went with accounts on
+      1 Nov; the guide still opens by itself.
+- [x] ~~One Google step~~ and ~~the account in Settings~~: dropped 1 Nov, when
+      Peter removed accounts and the name altogether (Crumpet holds no user
+      data). Google Drive's is the only sign-in.
 
 **5. One window, tested as people use it** (several PRs)
 Where: `app/tests/e2e/app.spec.ts` (`open()`), every file with `calm` checks

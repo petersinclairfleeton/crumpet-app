@@ -387,13 +387,6 @@ test('settings: dark appearance and a different accent', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Blueberry' }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
-  await page.getByRole('tab', { name: 'Account & sync' }).click();
-  // Typed a letter at a time: the box keeps the caret while the app saves each one.
-  await page.getByLabel('Your name').click();
-  await page.keyboard.type('Peter Sinclair-Fleeton');
-  await expect(page.getByLabel('Your name')).toHaveValue('Peter Sinclair-Fleeton');
-  await expect(page.getByLabel('Your name')).toBeFocused();
-  await expect(sidebar(page).locator('.avatar')).toHaveText('PS');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 });
@@ -875,7 +868,7 @@ test('page view: typing and deleting right at a page break', async ({ page }) =>
 
 test('headers and footers: page numbers, editing on the page, fields, and different first pages', async ({ page }) => {
   await open(page);
-  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ noteSize: 28, name: 'Mara Quinn' }));
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ noteSize: 28 }));
   await newNote(page, 'Long one', 'Intro.');
   await page.keyboard.press('Enter');
   await page.keyboard.insertText(Array.from({ length: 12 }, (_, i) => `Paragraph ${i + 1} has quite a few words in it so that it wraps over several lines on the page.`).join('\n'));
@@ -923,10 +916,16 @@ test('headers and footers: page numbers, editing on the page, fields, and differ
 
 test('headers and footers in a project: manuscript format, and page numbers running through the chapters', async ({ page }) => {
   await open(page);
-  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ name: 'Mara Quinn' }));
   await sidebar(page).getByRole('button', { name: 'New project' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
+  // The book's own Author name (Page setup → Headers and footers): Crumpet keeps no name of its own.
+  await page.evaluate(async () => {
+    const { manuscriptPage } = await import('/src/data/styles.ts' as string);
+    const s = (window as unknown as { crumpet: { getState(): { projects: { id: string }[] }; setProjectPage(id: string, page: object): void } }).crumpet;
+    const page = manuscriptPage();
+    s.setProjectPage(s.getState().projects[0].id, { ...page, hf: { ...page.hf, author: 'Mara Quinn' } });
+  });
   const long = (n: number) => Array.from({ length: n }, (_, i) => `Paragraph ${i + 1} has quite a few words in it so that it wraps over several lines on the page, and then some more.`).join('\n');
   await page.getByLabel('Chapter title').fill('The Keeper');
   await page.keyboard.press('Enter');
@@ -1058,8 +1057,6 @@ test('the guide: opens by itself on a first visit, chapter by chapter with pictu
   // (The guide waits for automated browsers like this one to ask; here it behaves as for a person.)
   await page.addInitScript(() => Object.defineProperty(navigator, 'webdriver', { get: () => false }));
   await page.goto('/');
-  // First the sign-in screen (accounts are on in the tests' build); the guide comes after it.
-  await page.getByRole('dialog', { name: 'Sign in to Crumpet' }).getByRole('button', { name: 'Continue without an account' }).click();
   const guide = page.getByRole('dialog', { name: /the guide/ });
   await expect(guide.getByRole('heading', { name: 'Welcome to Crumpet' })).toBeVisible();
   // Its pictures are real files that load.
@@ -1085,10 +1082,9 @@ test('the guide: opens by itself on a first visit, chapter by chapter with pictu
   await guide.getByRole('button', { name: /Keep a journal/ }).click();
   await expect(guide).toContainText('Click Today in the sidebar');
   await expect(guide).not.toContainText('Click + next to Writing in the sidebar');
-  // Ready: a name, then a first note.
+  // Ready: a first note (no sign-in and no name asked for).
   await guide.getByRole('button', { name: /^Next/ }).click();
-  await guide.getByLabel('Your name').fill('Alex Rowan');
-  await expect.poll(() => page.evaluate(() => (window as unknown as { crumpet: { getState(): { settings: { name: string } } } }).crumpet.getState().settings.name)).toBe('Alex Rowan');
+  await expect(guide.getByLabel('Your name')).toHaveCount(0);
   await guide.getByRole('button', { name: /Write a note/ }).click();
   await expect(guide).toHaveCount(0);
   await expect(page.getByLabel('Title')).toBeFocused();
@@ -1499,7 +1495,6 @@ test('uploading files: each opens as what it is, from the Upload button or dropp
 
 test('comments: select text, comment, reply, see them listed, and resolve', async ({ page }) => {
   await open(page);
-  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ name: 'Robin' }));
   await newNote(page, 'Draft', 'The castle stood on the hill.');
   // Select "stood on the hill".
   await page.keyboard.press('ArrowLeft');
@@ -1514,7 +1509,7 @@ test('comments: select text, comment, reply, see them listed, and resolve', asyn
   await expect(body.locator('mark.cmt')).toHaveText('stood on the hill');
   const listed = page.getByRole('region', { name: 'Comments' });
   await expect(listed).toContainText('“stood on the hill”');
-  await expect(listed).toContainText('Robin: Which hill?');
+  await expect(listed).toContainText('Author: Which hill?');
   // Click the highlighted text to reply.
   await body.locator('mark.cmt').click();
   const thread = page.getByRole('dialog', { name: 'Comment' });
@@ -1529,7 +1524,7 @@ test('comments: select text, comment, reply, see them listed, and resolve', asyn
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
-  await expect.poll(md).toMatch(/^The castle \{==stood on the hill==\}\{>>Robin \(\d{4}-\d\d-\d\d \d\d:\d\dZ\): Which hill\?<<\}\{>>Robin \(.*?\): The one by the river\.<<\}\.\n$/);
+  await expect.poll(md).toMatch(/^The castle \{==stood on the hill==\}\{>>Author \(\d{4}-\d\d-\d\d \d\d:\d\dZ\): Which hill\?<<\}\{>>Author \(.*?\): The one by the river\.<<\}\.\n$/);
   // Still there after a reload; the toolbar button works too.
   await page.reload();
   await expect(body.locator('mark.cmt')).toHaveText('stood on the hill');
@@ -1552,7 +1547,6 @@ test('comments: select text, comment, reply, see them listed, and resolve', asyn
 
 test('track changes: typing is marked added, deleting strikes through, and changes are accepted or rejected', async ({ page }) => {
   await open(page);
-  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ name: 'Robin' }));
   await newNote(page, 'Edit me', 'The big sea.');
   await page.getByRole('button', { name: 'Track changes' }).click();
   await expect(page.getByRole('button', { name: 'Tracking changes' })).toHaveAttribute('aria-pressed', 'true');
@@ -1566,7 +1560,7 @@ test('track changes: typing is marked added, deleting strikes through, and chang
   const body = page.locator('.note-editor');
   await expect(body.locator('del.trk')).toHaveText('big');
   await expect(body.locator('ins.trk')).toHaveText('huge');
-  await expect(body.locator('del.trk')).toHaveAttribute('title', /Deleted by Robin/);
+  await expect(body.locator('del.trk')).toHaveAttribute('title', /Deleted by Author/);
   // Backspace at the end deletes the full stop, struck through.
   await page.keyboard.press('End');
   await page.keyboard.press('Backspace');
@@ -1579,7 +1573,7 @@ test('track changes: typing is marked added, deleting strikes through, and chang
       const s = (window as unknown as { crumpet: { getState(): { selectedId: string; notes: { id: string; doc: unknown }[] } } }).crumpet.getState();
       return toMarkdown(s.notes.find((n) => n.id === s.selectedId)!.doc);
     });
-  await expect.poll(md).toMatch(/^The \{--big--\}\{>>Robin \(.*?\)<<\}\{\+\+huge\+\+\}\{>>Robin \(.*?\)<<\} sea\{--\.--\}\{>>Robin \(.*?\)<<\}\n$/);
+  await expect.poll(md).toMatch(/^The \{--big--\}\{>>Author \(.*?\)<<\}\{\+\+huge\+\+\}\{>>Author \(.*?\)<<\} sea\{--\.--\}\{>>Author \(.*?\)<<\}\n$/);
   // Reject the deleted full stop from its card, then accept the rest.
   await body.locator('del.trk').nth(1).click();
   await page.getByRole('dialog', { name: 'Deleted text' }).getByRole('button', { name: 'Reject' }).click();
@@ -5039,7 +5033,6 @@ test('reviewing pane: every change and comment with who and when, previous and n
 test('track changes for everyone, locked with a password; show markup by person; @ names in comments', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 1500, height: 900 });
-  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(s: object): void } }).crumpet.updateSettings({ name: 'Robin' }));
   await page.evaluate(async () => {
     const m = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
     const s = (window as unknown as { crumpet: { createNote(p: object): { id: string }; select(id: string): void } }).crumpet;
@@ -5069,7 +5062,7 @@ test('track changes for everyone, locked with a password; show markup by person;
   await editor.locator('.blk').nth(1).click();
   await page.keyboard.press('End');
   await page.keyboard.type(' Late.');
-  await expect(editor.locator('ins.trk[data-author="Robin"]')).toHaveText(' Late.');
+  await expect(editor.locator('ins.trk[data-author="Author"]')).toHaveText(' Late.');
   page.once('dialog', (d) => void d.accept());
   await page.getByRole('region', { name: 'Tracked changes' }).getByRole('button', { name: 'Accept all' }).click();
   await expect(editor.locator('ins.trk')).toHaveCount(3);
@@ -5101,7 +5094,7 @@ test('track changes for everyone, locked with a password; show markup by person;
   await page.keyboard.type('it was.');
   await thread.getByRole('button', { name: 'Reply' }).click();
   await expect(thread.locator('.mention')).toHaveText('@Ann');
-  await expect.poll(md).toContain('Robin (');
+  await expect.poll(md).toContain('Author (');
   await expect.poll(md).toContain('Yes, @Ann it was.');
 });
 
@@ -6009,7 +6002,7 @@ test('calm Settings, Find and a first visit, as designed', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings…' }).click();
   const settings = page.getByRole('dialog', { name: 'Settings' });
   await expect(settings.getByRole('heading', { name: 'Appearance' })).toBeVisible();
-  for (const t of ['Appearance', 'Writing', 'Formatting bar', 'Sync and storage', 'Account', 'Clipper & app', 'Advanced']) await expect(settings.getByRole('tab', { name: t, exact: true })).toBeVisible();
+  for (const t of ['Appearance', 'Writing', 'Formatting bar', 'Sync and storage', 'Clipper & app', 'Advanced']) await expect(settings.getByRole('tab', { name: t, exact: true })).toBeVisible();
   await settings.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await settings.getByRole('button', { name: 'Light', exact: true }).click();

@@ -6,10 +6,10 @@
 // to anyone).
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AUTHOR } from '../data/types';
 import { createPortal } from 'react-dom';
 import type { Editor } from '@crumpet/editor/editor';
 import { type Comment, type Doc, type Selection, changes, comments, makeComment } from '@crumpet/editor/model';
-import { useAppState } from './hooks';
 
 type Open = { kind: 'new'; sel: Selection; rect: DOMRect } | { kind: 'thread'; id: string; el: HTMLElement };
 
@@ -69,8 +69,7 @@ export function openComment(editor: Editor, id: string): void {
 
 /** The card for writing a comment, or reading and answering one. */
 export function CommentCard({ editor }: { editor: Editor | null }) {
-  const state = useAppState();
-  const author = state.settings.name.trim() || 'You';
+  const author = AUTHOR;
   const [open, setOpen] = useState<Open | null>(null);
   const [value, setValue] = useState('');
   const [caret, setCaret] = useState(0);

@@ -4,10 +4,9 @@
 // first time Crumpet is opened on a device, and again from the ? button in
 // the top bar or "Open the guide" in the command palette.
 
-import { accountsReady } from '../data/account';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useAppState, useAppStore } from './hooks';
+import { useAppStore } from './hooks';
 import { IconBook, IconChevron, IconClose, IconNote, IconPen, IconSearch, IconSun, Logo } from './icons';
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -143,8 +142,6 @@ const CHAPTERS: Chapter[] = [
     lede: 'Connect once, and your notes and books follow you, kept as files in your own Google Drive.',
     points: [
       { title: 'Google Drive', text: 'Settings → Sync and storage → Continue with Google, then choose a folder (or a new “Crumpet” one). Do the same on each device.' },
-      // Only when this copy of Crumpet offers accounts (docs/accounts-setup.md).
-      ...(accountsReady ? [{ title: 'An account, if you like', text: 'Sign in with Google or an email and password (Settings → Account) to have your name on every device. It’s optional, and your notes never go to it.' }] : []),
       { title: 'Mac, Windows, iPhone and iPad', text: 'Crumpet for Mac and Crumpet for Windows are free downloads in Settings → Clipper & app (each offered on its own kind of computer); they tell you when a newer version is out. On iPhone and iPad, open Crumpet in Safari and add it to the Home Screen. On an iPhone it opens on your library, in the same groups as on a computer (Inbox and Today, your notes, notebooks, books, then tags); tap a row or a tag for its notes, the round + for a new note (from the library it goes to the Inbox), and Share or ··· at the top of a note. Notes and chapters flow at a comfortable size to write in (page view is for bigger screens): pinch the writing, or use Text size in the ··· menu, to make it bigger or smaller, and Preview pages there shows how it falls on pages, ready to print. Tapping the space below your writing carries on where it ends, and “Syncing…” at the top says when changes are still on their way to your folder. On an iPad the formatting tools float at the foot of the page; held upright, a chapter has the whole screen, and tapping its name at the top jumps to another.' },
       { title: 'Or a folder', text: 'Prefer Dropbox, OneDrive or iCloud Drive? In Settings → Sync and storage, beside A folder on this computer, choose a folder they keep in step.' },
       { title: 'Claude and other AIs', text: 'Let Claude (or another AI app that supports MCP) search and read your notes and books, and write new notes, from the folder Crumpet syncs to: Add to Claude is in Settings → Clipper & app. It never changes or deletes what you’ve written.' },
@@ -239,7 +236,6 @@ export function shouldOpenGuide(state: { settings: { guideSeen?: boolean }; note
 }
 
 export function Guide({ onClose, onNewNote, onNewProject, onConnect, onTour }: { onClose(): void; onNewNote(): void; onNewProject(): void; onConnect(): void; onTour(): void }) {
-  const state = useAppState();
   const store = useAppStore();
   const [i, setI] = useState(0);
   const [shown, setShown] = useState(0);
@@ -378,11 +374,7 @@ export function Guide({ onClose, onNewNote, onNewProject, onConnect, onTour }: {
                   {i + 1} of {PAGES.length}
                 </p>
                 <h2 id="guide-title">Ready when you are</h2>
-                <p className="guide-lede">Tell Crumpet your name (it goes at the top of the sidebar and on manuscripts), then pick a way to start.</p>
-                <label className="field guide-name">
-                  <span>Your name</span>
-                  <input value={state.settings.name} placeholder="Your name" onChange={(e) => store.updateSettings({ name: e.target.value })} />
-                </label>
+                <p className="guide-lede">Pick a way to start.</p>
                 <div className="guide-starts">
                   <button type="button" className="guide-start" onClick={go(onNewNote)}>
                     <IconNote size={20} />
