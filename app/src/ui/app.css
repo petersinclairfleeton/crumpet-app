@@ -1418,7 +1418,8 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 /* The corkboard: chapters as index cards on a soft board. */
 .corkboard-pane { min-height: 0; }
 .corkboard-hint { font-size: 12px; color: var(--muted); padding: 0 6px; }
-.corkboard { flex: 1; overflow: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; align-content: start; background: var(--list-bg); }
+/* Rows as tall as their cards (max-content): the board is a fixed-height scroll box, and once the cards overflow it, auto rows stay at their minimum and a card with a two-line title spills out. */
+.corkboard { flex: 1; overflow: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-rows: max-content; gap: 16px; align-content: start; background: var(--list-bg); }
 .cork-part { grid-column: 1 / -1; margin: 8px 0 -4px; font-family: var(--title-font, inherit); font-size: 18px; font-weight: 500; color: var(--text2, var(--text)); cursor: grab; position: relative; }
 .cork-card { position: relative; display: flex; flex-direction: column; min-height: 170px; background: var(--page); border: 1px solid var(--line); border-top: 4px solid var(--status, #b9b2a6); border-radius: 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.05); cursor: grab; }
 .cork-card.status-draft { --status: #d9a441; }
@@ -1568,7 +1569,8 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 .names-item:hover { border-color: var(--accent); background: var(--accent-soft); }
 .names-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 /* Typewriter mode: room to keep the last line mid-screen; other paragraphs fade while writing. */
-.note-scroll.tw-scroll .note-body { padding-bottom: 55vh; }
+/* Room under the last line so it can come up to the middle (above every look's own padding). */
+:root .app .note-scroll.tw-scroll .note-body { padding-bottom: 55vh; }
 .tw-fade:focus .blk { opacity: 0.3; transition: opacity 0.25s ease; }
 .tw-fade:focus .blk.tw-current { opacity: 1; }
 .ac-words { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
