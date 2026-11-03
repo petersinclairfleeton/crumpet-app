@@ -1,5 +1,5 @@
 import { type Browser, type Page, devices, expect, test } from '@playwright/test';
-import { type Crumpet, book, crumpet, openChapter, scrollTo, shotWithCaret } from './book';
+import { book, crumpet, inBook, openChapter, outline, scrollTo, shotWithCaret, start } from './book';
 
 // Pictures for social posts, taken from the real app with the made-up book the
 // home page uses (The Lighthouse: no one's real name or writing). PNG at device
@@ -15,32 +15,6 @@ test.use({ deviceScaleFactor: 2, viewport: { width: 1600, height: 900 } });
 async function shot(page: Page, name: string) {
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/${name}.png`, type: 'png' });
-}
-
-/** The book, with the page reloaded so the session starts fresh, and a chapter open. */
-async function start(page: Page, chapter = 'The logbook') {
-  await book(page);
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
-  await openChapter(page, chapter);
-  await expect(page.locator('.note-editor').first()).toBeVisible();
-}
-
-const outline = (page: Page) => page.getByRole('region', { name: 'Outline' });
-
-/** Runs `fn(c, ids)` in the page, with the book's chapters by title. */
-async function inBook(page: Page, fn: string, arg?: unknown) {
-  await page.evaluate(
-    ([body, a]) => {
-      const c = (window as unknown as { crumpet: Crumpet }).crumpet;
-      const st = c.getState() as { projects: { id: string; name: string }[]; chapters: { id: string; projectId: string; title: string }[] };
-      const p = st.projects.find((x) => x.name === 'The Lighthouse')!;
-      const ids = Object.fromEntries(st.chapters.filter((x) => x.projectId === p.id).map((x) => [x.title, x.id]));
-      return new Function('c', 'p', 'ids', 'arg', body as string)(c, p, ids, a);
-    },
-    [fn, arg] as const,
-  );
 }
 
 test('1 · the writing room, nothing writing for you', async ({ page }) => {

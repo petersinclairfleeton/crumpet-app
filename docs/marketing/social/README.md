@@ -27,3 +27,15 @@ CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx playwrigh
 ```
 
 The script is `app/tests/shots/social.shots.ts`; the book is in `app/tests/shots/book.ts`.
+
+## Videos
+
+`app/tests/shots/video.shots.ts` records each of the ten being used (typed,
+clicked, dragged) with Chrome's screen capture, draws a pointer and short
+captions so they make sense muted, and makes MP4s with ffmpeg (H.264, 30 fps,
+1920 × 1080; the iPhone one 1080 × 2338), 10 to 25 seconds each. They go to
+`app/marketing-out/videos/`, which isn't kept in git:
+
+```sh
+CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx playwright test -c playwright.shots.config.ts video
+```

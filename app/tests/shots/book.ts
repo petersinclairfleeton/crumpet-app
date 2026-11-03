@@ -192,3 +192,29 @@ export async function shotWithCaret(page: Page, path: string) {
   const fs = (await import('node:' + 'fs')) as { writeFileSync(path: string, data: Uint8Array): void };
   fs.writeFileSync(path, best!.png);
 }
+
+/** The book, with the page reloaded so the session starts fresh, and a chapter open. */
+export async function start(page: Page, chapter = 'The logbook') {
+  await book(page);
+  await page.waitForTimeout(1000);
+  await page.reload();
+  await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
+  await openChapter(page, chapter);
+  await expect(page.locator('.note-editor').first()).toBeVisible();
+}
+
+export const outline = (page: Page) => page.getByRole('region', { name: 'Outline' });
+
+/** Runs `fn` (a function body) in the page with `c` (the store), `p` (the book), `ids` (its chapters by title) and `arg`. */
+export async function inBook(page: Page, fn: string, arg?: unknown) {
+  await page.evaluate(
+    ([body, a]) => {
+      const c = (window as unknown as { crumpet: Crumpet }).crumpet;
+      const st = c.getState() as { projects: { id: string; name: string }[]; chapters: { id: string; projectId: string; title: string }[] };
+      const p = st.projects.find((x) => x.name === 'The Lighthouse')!;
+      const ids = Object.fromEntries(st.chapters.filter((x) => x.projectId === p.id).map((x) => [x.title, x.id]));
+      return new Function('c', 'p', 'ids', 'arg', body as string)(c, p, ids, a);
+    },
+    [fn, arg] as const,
+  );
+}
