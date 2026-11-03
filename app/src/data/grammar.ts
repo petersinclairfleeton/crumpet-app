@@ -127,12 +127,25 @@ export function grammarIssues(source: { text: string; places: (Place | null)[] }
     if (!first || !last || first.block !== last.block) continue;
     const from = first.offset;
     const to = z > a ? last.offset + 1 : from;
-    const fixes = l.suggestions.slice(0, 4).map((s) => {
-      if (s.kind === 'remove') return { label: 'Remove it', from, to, text: '' };
-      if (s.kind === 'insert') return { label: `Add “${s.text.trim() || s.text}”`, from: to, to, text: s.text };
-      return { label: s.text, from, to, text: s.text };
-    });
-    out.push({ block: first.block, from, to, text: source.text.slice(a, z), message: l.message, kind: l.kind, rule: l.rule, fixes });
+    // Harper may offer the same word twice, once with a straight apostrophe and once
+    // with a curly one: offer it once, the way the writing already writes them.
+    const curly = source.text.includes('’');
+    const seen = new Set<string>();
+    const fixes = l.suggestions
+      .map((s) => (s.kind === 'remove' ? s : { ...s, text: curly ? s.text.replace(/'/g, '’') : s.text.replace(/’/g, "'") }))
+      .filter((s) => {
+        const key = `${s.kind}:${s.text}`;
+        return !seen.has(key) && !!seen.add(key);
+      })
+      .slice(0, 4)
+      .map((s) => {
+        if (s.kind === 'remove') return { label: 'Remove it', from, to, text: '' };
+        if (s.kind === 'insert') return { label: `Add “${s.text.trim() || s.text}”`, from: to, to, text: s.text };
+        return { label: s.text, from, to, text: s.text };
+      });
+    // Harper quotes words in its messages with `backticks`; people read “quotes”.
+    const message = l.message.replace(/`([^`]*)`/g, '“$1”');
+    out.push({ block: first.block, from, to, text: source.text.slice(a, z), message, kind: l.kind, rule: l.rule, fixes });
   }
   return out;
 }
