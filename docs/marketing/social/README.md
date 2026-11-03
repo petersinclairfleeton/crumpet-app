@@ -33,7 +33,9 @@ The script is `app/tests/shots/social.shots.ts`; the book is in `app/tests/shots
 `app/tests/shots/video.shots.ts` records each of the ten being used (typed,
 clicked, dragged) with Chrome's screen capture, draws a pointer and short
 captions so they make sense muted, and makes MP4s with ffmpeg (H.264, 30 fps,
-1920 × 1080; the iPhone one 1080 × 2338), 10 to 25 seconds each. They go to
+1920 × 1080; the iPhone one 1080 × 2338), 10 to 25 seconds each, plus
+`00-pinned.mp4`, a 33-second tour for the pinned post (writing, the corkboard, a
+new draft, a session target, the print-ready book, then Crumpet's logo). They go to
 `app/marketing-out/videos/`, which isn't kept in git:
 
 ```sh
