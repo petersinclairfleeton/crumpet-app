@@ -29,6 +29,16 @@ describe('grammar checking', () => {
     ]);
   });
 
+  it('offers a word once, with the writing’s own apostrophes, and quotes words in messages', () => {
+    const curly = grammarText(fromMarkdown('Their was a smell of paraffin. She didn’t say.'));
+    const [issue] = grammarIssues(curly, [lint(0, 5, { message: 'Did you mean `there`?', suggestions: [{ kind: 'replace', text: 'There' }, { kind: 'replace', text: "There's" }, { kind: 'replace', text: 'There’s' }] })]);
+    expect(issue.fixes.map((f) => f.label)).toEqual(['There', 'There’s']);
+    expect(issue.message).toBe('Did you mean “there”?');
+    const straight = grammarText(fromMarkdown("Their was a smell. She didn't say."));
+    const [again] = grammarIssues(straight, [lint(0, 5, { suggestions: [{ kind: 'replace', text: 'There’s' }, { kind: 'replace', text: "There's" }] })]);
+    expect(again.fixes.map((f) => f.label)).toEqual(["There's"]);
+  });
+
   it('counts whole letters as Harper does, so text after an emoji still lines up', () => {
     const doc = fromMarkdown('Hi 😀 the the end.');
     const src = grammarText(doc);
