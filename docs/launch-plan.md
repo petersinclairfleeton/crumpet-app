@@ -170,6 +170,10 @@ page; Word is done; the classic window retires; one name, "book".
   project).
 - 1 Nov 2026: **no Crumpet Pro and no Polar: Crumpet is free.** Stages 4 and 5
   are dropped, with D14–D18 and D20; D19 (the code's licence) moved to stage 2.
+- 3 Nov 2026: D9 · voice: **Crumpet as a brand** (@Crumpetwriting on X), never
+  personal posts or Peter's own stories; second person, about quitting and
+  finishing, for someone who has never finished a book (the voice is kept in
+  Peter's Eden). Rule 10's "I make Crumpet" applies only to his own accounts.
 
 ## Claude's calls (you can overrule any)
 
@@ -494,7 +498,7 @@ which posts to X, Bluesky and Threads at no cost. The ops workflow puts each
 week's approved posts into Buffer ahead of time (the free plan holds 10
 waiting posts per network, so it tops them up daily).
 
-🎬 **D9 · The accounts**
+🎬 **D9 · The accounts** (decided 3 Nov: Crumpet as a brand, @Crumpetwriting on X; other networks still open)
 - Handle: Claude suggests four (the same on all three networks); you pick
   one and check it's free when signing up.
 - Voice: **you, the maker, in the first person ("I'm building a calm writing

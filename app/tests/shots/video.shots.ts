@@ -99,12 +99,31 @@ async function tap(page: Page, target: Locator, at?: { x: number; y: number }) {
   await page.waitForTimeout(350);
 }
 
-/** Types as a person does: not every key at the same speed, a pause after a full stop. */
-async function typeLike(page: Page, text: string) {
+/** Types as a person does: not every key at the same speed, a pause after a full stop (`pace` < 1 is quicker). */
+async function typeLike(page: Page, text: string, pace = 1) {
   for (const ch of text) {
     await page.keyboard.type(ch);
-    await page.waitForTimeout(ch === ' ' ? 55 + Math.random() * 60 : /[.,;?!”]/.test(ch) ? 220 + Math.random() * 120 : 28 + Math.random() * 55);
+    await page.waitForTimeout(pace * (ch === ' ' ? 55 + Math.random() * 60 : /[.,;?!”]/.test(ch) ? 220 + Math.random() * 120 : 28 + Math.random() * 55));
   }
+}
+
+/** The closing card: Crumpet's wordmark and a line, over the app's own wash. */
+async function endCard(page: Page, line: string) {
+  await page.evaluate((text) => {
+    document.getElementById('vid-cap')?.classList.remove('on');
+    const card = document.createElement('div');
+    card.style.cssText = 'position:fixed;inset:0;z-index:2147483647;display:grid;place-content:center;justify-items:center;gap:34px;opacity:0;transition:opacity .6s;' +
+      'background:radial-gradient(circle at 4% 0%, rgba(212,162,87,.34) 0, transparent 46%), radial-gradient(circle at 96% 100%, rgba(170,190,222,.5) 0, transparent 46%), #efede8;';
+    const logo = document.createElement('img');
+    logo.src = '/brand/wordmark.png';
+    logo.style.cssText = 'width:300px;height:auto';
+    const words = document.createElement('p');
+    words.textContent = text;
+    words.style.cssText = 'margin:0;font:400 40px/1.25 Newsreader, Georgia, serif;color:#1f2328;text-align:center;max-width:900px';
+    card.append(logo, words);
+    document.body.append(card);
+    requestAnimationFrame(() => requestAnimationFrame(() => (card.style.opacity = '1')));
+  }, line);
 }
 
 /** Records what `fn` does, then makes it an MP4. */
@@ -165,7 +184,7 @@ test('1 · the writing room', async ({ page }) => {
     await caption(page, 'No button that writes for you.');
     await typeLike(page, 'Whatever had happened on the fifteenth of October, Tam had written it down first.');
     await page.waitForTimeout(900);
-    await caption(page, 'Crumpet. Free, made by one writer.');
+    await caption(page, 'Crumpet. A free writing app.');
     await page.waitForTimeout(2200);
   });
 });
@@ -410,5 +429,63 @@ test('10 · where the book has been sent', async ({ page }) => {
     await glide(page, status);
     await status.selectOption('offer');
     await page.waitForTimeout(3000);
+  });
+});
+
+test('the pinned post · 30 seconds of Crumpet', async ({ page }) => {
+  await ready(page);
+  const editor = page.locator('.note-editor').first();
+  await crumpet(page, 'updateLayout', { list: false, right: false });
+  await crumpet(page, 'updateSettings', { typewriter: { scroll: true } });
+  await editor.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.press('Enter');
+  await scrollTo(page, '“Your grandmother asked me', 2);
+  await page.mouse.move(1450, 760);
+  await record(page, '00-pinned', HD, async () => {
+    // Writing.
+    await caption(page, 'A writing app for finishing your book.');
+    await typeLike(page, 'She turned back to the gap where the page had been, and ran her thumb along the cut edge.', 0.7);
+    await page.waitForTimeout(500);
+    // Planning: the book as cards.
+    await crumpet(page, 'updateSettings', { typewriter: {} });
+    await crumpet(page, 'updateLayout', { list: true });
+    await caption(page, 'Every chapter on a card. Move them until it fits.');
+    await tap(page, outline(page).getByRole('button', { name: 'Cards' }));
+    const board = page.getByRole('region', { name: 'Corkboard' });
+    await expect(board).toBeVisible();
+    await page.waitForTimeout(500);
+    await glide(page, board.locator('.cork-card').filter({ hasText: 'Paraffin and salt' }).first(), { x: 120, y: 60 });
+    await page.mouse.down();
+    const to = (await board.locator('.cork-card').filter({ hasText: 'The logbook' }).first().boundingBox())!;
+    await page.mouse.move(to.x + 30, to.y + 60, { steps: 30 });
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+    // Rewriting: a new draft, the first kept.
+    await caption(page, 'Rewrite a chapter. The first draft stays.');
+    await tap(page, board.locator('.cork-card').filter({ hasText: 'The boat leaves' }).first().locator('.cork-title'));
+    await page.waitForTimeout(500);
+    await tap(page, page.getByRole('button', { name: 'Chapter options' }));
+    await tap(page, page.getByRole('button', { name: 'New draft…' }));
+    await tap(page, page.getByRole('button', { name: /Copy of Draft 1/ }));
+    await page.waitForTimeout(900);
+    // A target for the day, filling as you write.
+    await caption(page, 'Set a target for today. Then meet it.');
+    await crumpet(page, 'updateLayout', { right: true, rightTab: 'writing' });
+    await page.waitForTimeout(400);
+    await tap(page, page.locator('.note-editor').first().locator('[data-block]').last(), { x: 4, y: 12 });
+    await page.keyboard.press('Control+End');
+    await page.keyboard.press('Enter');
+    await typeLike(page, 'Tam was already at the top of the steps.', 0.7);
+    await page.waitForTimeout(700);
+    // Finished: the paperback.
+    await caption(page, 'When it’s done, make the paperback.');
+    await tap(page, outline(page).getByRole('button', { name: 'Project options' }));
+    await tap(page, page.getByRole('button', { name: /^Export/ }));
+    await tap(page, page.getByRole('dialog', { name: /^Export/ }).getByRole('radio', { name: /Print-ready book/ }));
+    await expect(page.getByRole('group', { name: 'Book design' })).toBeVisible();
+    await page.waitForTimeout(2200);
+    await endCard(page, 'Free. No account. Nothing writes it for you.');
+    await page.waitForTimeout(2800);
   });
 });

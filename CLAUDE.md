@@ -402,7 +402,9 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx
     social posts' from `tests/shots/social.shots.ts` into `docs/marketing/social/`
     (the book and helpers both use are in `tests/shots/book.ts`); their short videos
     from `tests/shots/video.shots.ts` (Chrome's screencast, a drawn pointer and
-    captions, ffmpeg to MP4) into the gitignored `app/marketing-out/videos/`.
+    captions, ffmpeg to MP4; also the pinned post's 30-second tour, `00-pinned`)
+    into the gitignored `app/marketing-out/videos/`. Social posts speak as Crumpet,
+    never as Peter (launch plan, 3 Nov).
     The formatting bar is one row (`toolbar.tsx`, extras under More) built
     in `editing.tsx` from `fonttools.tsx` (Font group), `paratools.tsx`
     (Paragraph group and window), `listtools.tsx` (bullet and numbering
