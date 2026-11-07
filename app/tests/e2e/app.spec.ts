@@ -6364,7 +6364,7 @@ test.describe('on a phone, in Paper and ink', () => {
       c.addChapter(p.id);
       c.setView({ kind: 'all' });
     });
-    await expect(page.locator('html')).toHaveAttribute('data-look', 'paper');
+    await expect(page.locator('html')).toHaveAttribute('data-look', 'crumpet');
     const library = page.getByRole('navigation', { name: 'Notebooks' });
     await library.getByRole('button', { name: /^The Lighthouse/ }).click();
     const outline = page.getByRole('region', { name: 'Outline' });

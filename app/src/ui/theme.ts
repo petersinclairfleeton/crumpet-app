@@ -16,11 +16,9 @@ export function applyTheme(settings: Settings): void {
   const root = document.documentElement;
   if (settings.theme === 'system') root.removeAttribute('data-theme');
   else root.setAttribute('data-theme', settings.theme);
-  // Crumpet's own themes have a frame of their own: a frosted window floating
-  // over a soft wash (Crumpet), or paper around a floating sheet (Paper and ink).
-  if (['system', 'light', 'dark'].includes(settings.theme)) root.setAttribute('data-look', 'crumpet');
-  else if (settings.theme === 'paper') root.setAttribute('data-look', 'paper');
-  else root.removeAttribute('data-look');
+  // Every theme has Crumpet's own layout (sheets over a soft wash, its fonts,
+  // spacing and corners); a theme changes only the colours.
+  root.setAttribute('data-look', 'crumpet');
   // Some themes come with their own accent; the rest use the one chosen in Settings.
   const own = themeInfo(settings.theme).accent;
   const chosen = /^#[0-9a-f]{6}$/i.test(settings.accent) ? settings.accent : ACCENTS[0].hex;

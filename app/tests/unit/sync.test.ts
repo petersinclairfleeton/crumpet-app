@@ -662,6 +662,23 @@ describe('syncing projects', () => {
     expect(mac.store.getState().projects).toEqual([]);
     expect([...cloud.files.keys()]).toEqual(['.crumpet/vault.json']);
   });
+
+  it('stays deleted when its folder can’t be removed (a .DS_Store left in it)', async () => {
+    const { cloud, mac, phone } = await pair();
+    const p = mac.store.createProject('Test Novel');
+    mac.store.flush();
+    await mac.engine.sync();
+    await phone.engine.sync();
+    await cloud.write('Projects/Test Novel/.DS_Store', 'Finder');
+    mac.store.deleteProject(p.id);
+    for (let i = 0; i < 3; i++) {
+      await mac.engine.sync();
+      await phone.engine.sync();
+    }
+    expect(mac.store.getState().projects).toEqual([]);
+    expect(phone.store.getState().projects).toEqual([]);
+    expect(fileList(cloud)).toEqual(['.crumpet/vault.json', 'Projects/Test Novel/.DS_Store']);
+  });
 });
 
 describe('shared settings', () => {
