@@ -19,13 +19,20 @@ async function calm(page: Page) {
   await expect(page.locator('.sidebar.calm')).toBeVisible();
 }
 
-test('the calm sidebar: Favourites on top, then Capture, Organise, Distill and Express, each folding away', async ({ page }) => {
+test('the calm sidebar: New, Search, Favourites and the graph in one list, then Capture, Organise, Distill and Express, each folding away', async ({ page }) => {
   await calm(page);
   const side = sidebar(page);
   // The app's own logo at the top.
   await expect(side.locator('.brand img.logo')).toBeVisible();
-  const order = await side.locator('.side-scroll > :is(.side-row, .side-section)').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent?.trim().split(/\d/)[0]));
-  expect(order).toEqual(['Favourites', 'Capture', 'Organise', 'Distill', 'Express']);
+  const top = await side.locator('.side-start > *').evaluateAll((els) => els.map((e) => e.textContent?.trim().replace(/(Ctrl K|⌘K|\d+)$/, '')));
+  expect(top).toEqual(['New', 'Search', 'Favourites', 'Graph of links']);
+  // One under the other, with no gaps.
+  const boxes = await side.locator('.side-start > :not(.new-wrap)').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.top, r.bottom]));
+  for (let i = 1; i < boxes.length; i++) expect(boxes[i][0] - boxes[i - 1][1]).toBeLessThan(4);
+  // New keeps the honey colour.
+  expect(await side.getByRole('button', { name: 'New', exact: true }).evaluate((b) => getComputedStyle(b).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+  const order = await side.locator('.side-scroll > .side-section').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+  expect(order).toEqual(['Capture', 'Organise', 'Distill', 'Express']);
   const capture = side.getByRole('region', { name: 'Capture' });
   await expect(capture.getByRole('button', { name: /^Inbox/ })).toBeVisible();
   await capture.getByRole('button', { name: 'Capture' }).click();
@@ -130,4 +137,43 @@ test('the note list and a book’s outline fold away with a button of their own'
   await expect(outline).toHaveCount(0);
   await page.getByRole('button', { name: 'Open the sidebar' }).click();
   await expect(outline).toBeVisible();
+});
+
+test('Distill holds notebooks and stacks of your own thinking; Organise what you gather', async ({ page }) => {
+  await calm(page);
+  const side = sidebar(page);
+  const organise = side.getByRole('region', { name: 'Organise' });
+  const distill = side.getByRole('region', { name: 'Distill' });
+  await expect(distill).not.toContainText('Boards');
+  await expect(distill).not.toContainText('Graph');
+  await side.getByRole('button', { name: 'New', exact: true }).click();
+  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: 'Distill notebook', exact: true }).click();
+  await page.keyboard.type('Reflections');
+  await page.keyboard.press('Enter');
+  await expect(distill.locator('.nb-row', { hasText: 'Reflections' })).toBeVisible();
+  await page.evaluate(() => (window as unknown as { crumpet: Crumpet }).crumpet.createNotebook('Clippings'));
+  await expect(organise.locator('.nb-row', { hasText: 'Clippings' })).toBeVisible();
+  // Its menu moves it across.
+  await organise.getByRole('button', { name: 'Clippings options' }).click();
+  await page.getByRole('button', { name: 'Move to Distill' }).click();
+  await expect(distill.locator('.nb-row', { hasText: 'Clippings' })).toBeVisible();
+  await expect(organise.locator('.nb-row', { hasText: 'Clippings' })).toHaveCount(0);
+  // Dragged onto Organise's heading, back it goes.
+  await distill.locator('.nb-row', { hasText: 'Clippings' }).dragTo(organise.locator('.fold-head'));
+  await expect(organise.locator('.nb-row', { hasText: 'Clippings' })).toBeVisible();
+});
+
+test('Read in a book is for reading: nothing can be typed, and it looks like a printed book', async ({ page }) => {
+  await calm(page);
+  await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: Crumpet }).crumpet;
+    c.setView({ kind: 'project', id: c.createProject('The Lighthouse').id });
+  });
+  await page.getByRole('group', { name: 'Writing view' }).getByRole('button', { name: 'Read' }).click();
+  const ms = page.getByRole('region', { name: 'Manuscript' });
+  await expect(ms.locator('.note-pane.reading')).toBeVisible();
+  await expect(ms.locator('[contenteditable="true"]')).toHaveCount(0);
+  await expect(ms.locator('textarea, input')).toHaveCount(0);
+  await expect(ms.getByRole('button', { name: /Add a chapter/ })).toHaveCount(0);
+  await expect(ms.getByRole('toolbar', { name: 'Formatting' }).getByRole('button', { name: 'Bold', exact: true })).toHaveCount(0);
 });

@@ -15,6 +15,7 @@ export interface TStack {
   id: string;
   name: string;
   created: number;
+  distill?: boolean;
 }
 
 export interface TNotebook {
@@ -23,6 +24,7 @@ export interface TNotebook {
   color: string;
   stackId: string | null;
   created: number;
+  distill?: boolean;
 }
 
 export interface TNote {
@@ -135,9 +137,9 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
     for (const k of SHARED_SETTINGS) if (st[k] !== undefined) (shared as Record<string, unknown>)[k] = st[k];
     tree.settings = shared;
   }
-  for (const s of state.stacks) tree.stacks[s.id] = { id: s.id, name: s.name, created: s.createdAt };
+  for (const s of state.stacks) tree.stacks[s.id] = { id: s.id, name: s.name, created: s.createdAt, ...(s.distill ? { distill: true } : {}) };
   for (const nb of state.notebooks) {
-    tree.notebooks[nb.id] = { id: nb.id, name: nb.name, color: nb.color, stackId: nb.stackId && tree.stacks[nb.stackId] ? nb.stackId : null, created: nb.createdAt };
+    tree.notebooks[nb.id] = { id: nb.id, name: nb.name, color: nb.color, stackId: nb.stackId && tree.stacks[nb.stackId] ? nb.stackId : null, created: nb.createdAt, ...(nb.distill ? { distill: true } : {}) };
   }
   for (const n of state.notes) {
     tree.notes[n.id] = {
@@ -211,11 +213,11 @@ export function sameDraft(a: TDraft | undefined, b: TDraft | undefined): boolean
 }
 
 export function sameStack(a: TStack | undefined, b: TStack | undefined): boolean {
-  return a === b || (!!a && !!b && a.name === b.name && a.created === b.created);
+  return a === b || (!!a && !!b && a.name === b.name && a.created === b.created && !!a.distill === !!b.distill);
 }
 
 export function sameNotebook(a: TNotebook | undefined, b: TNotebook | undefined): boolean {
-  return a === b || (!!a && !!b && a.name === b.name && a.color === b.color && a.stackId === b.stackId && a.created === b.created);
+  return a === b || (!!a && !!b && a.name === b.name && a.color === b.color && a.stackId === b.stackId && a.created === b.created && !!a.distill === !!b.distill);
 }
 
 export function sameNote(a: TNote | undefined, b: TNote | undefined): boolean {

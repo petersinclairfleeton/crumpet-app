@@ -60,8 +60,9 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       ...l,
       name: field(b?.name, l.name, r.name),
       created: Math.min(l.created, r.created),
+      ...(field(b ? !!b.distill : undefined, !!l.distill, !!r.distill) ? { distill: true } : { distill: undefined }),
     }));
-    if (s) tree.stacks[id] = s;
+    if (s) tree.stacks[id] = tidyDistill(s);
   }
 
   for (const id of keys(base.notebooks, local.notebooks, remote.notebooks)) {
@@ -71,8 +72,9 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
       color: field(b?.color, l.color, r.color),
       stackId: field(b?.stackId, l.stackId, r.stackId),
       created: Math.min(l.created, r.created),
+      ...(field(b ? !!b.distill : undefined, !!l.distill, !!r.distill) ? { distill: true } : { distill: undefined }),
     }));
-    if (nb) tree.notebooks[id] = nb;
+    if (nb) tree.notebooks[id] = tidyDistill(nb);
   }
 
   for (const id of keys(base.notes, local.notes, remote.notes)) {
@@ -380,6 +382,13 @@ function keys(...maps: Record<string, unknown>[]): string[] {
  * The merged value of one item. `both` combines two edited versions; it gets
  * the base too, which is missing when both sides created the same id.
  */
+/** No distill key unless it's on (so it compares the same as one never set). */
+function tidyDistill<T extends { distill?: boolean }>(x: T): T {
+  if (x.distill) return x;
+  const { distill: _off, ...rest } = x;
+  return rest as T;
+}
+
 function pick<T>(b: T | undefined, l: T | undefined, r: T | undefined, same: (x: T | undefined, y: T | undefined) => boolean, both: (b: T | undefined, l: T, r: T) => T): T | undefined {
   if (l && r) {
     if (same(l, r)) return l;

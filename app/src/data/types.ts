@@ -14,6 +14,8 @@ export interface Stack {
   id: string;
   name: string;
   createdAt: number;
+  /** Kept under Distill (your own thinking) in the sidebar, rather than Organise (what you gather). */
+  distill?: boolean;
 }
 
 export interface Notebook {
@@ -24,6 +26,8 @@ export interface Notebook {
   /** The stack this notebook sits in, or null for none. */
   stackId: string | null;
   createdAt: number;
+  /** Kept under Distill (your own thinking) in the sidebar, rather than Organise (what you gather). */
+  distill?: boolean;
 }
 
 export interface Note {

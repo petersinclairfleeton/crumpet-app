@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-07-distill',
+    date: '7 November 2026',
+    title: 'Distill for your own thinking, and Read like a book',
+    points: [
+      'New, Search, Favourites and the Graph of links now sit together at the top of the sidebar, one under the other, and New has its honey colour back.',
+      'Organise is for what you take notes on or save; Distill is for your own thoughts. Both hold notebooks and stacks: make one with New → Distill notebook or Distill stack, or move one across from its ··· menu (Move to Distill, Move to Organise) or by dragging it onto the section’s heading. Boards are no longer listed in the sidebar (they’re in your notes, and New → Board makes one).',
+      'Read, in a book, is for reading: nothing can be changed there, and the book looks printed, with a book typeface, justified lines and indented paragraphs, and no marks of comments or tracked changes. Switch to Write to change it.',
+    ],
+  },
+  {
     id: '2026-11-07-code-sidebar',
     date: '7 November 2026',
     title: 'A tidier sidebar, built on CODE',
