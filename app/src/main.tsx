@@ -26,6 +26,11 @@ try {
 startErrorLog();
 // In the desktop app: the window fits itself to it (see data/desktop.ts).
 if (desktop) document.documentElement.dataset.shell = desktop.platform === 'darwin' ? 'mac' : 'desktop';
+// Full screen hides the Mac's window buttons, so the room kept for them goes too.
+desktop?.onFullScreen?.((on) => {
+  if (on) document.documentElement.dataset.fullscreen = '';
+  else delete document.documentElement.dataset.fullscreen;
+});
 // On an iPhone: no zooming in when a box is tapped.
 stopFocusZoom();
 // Opened by the web clipper: start listening before anything else, so its page isn't missed.
