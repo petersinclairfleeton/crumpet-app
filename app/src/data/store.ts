@@ -552,7 +552,7 @@ export class AppStore {
 
   // ---------- notebooks ----------
 
-  createNotebook(name: string, stackId: string | null = null): Notebook {
+  createNotebook(name: string, stackId: string | null = null, distill = false): Notebook {
     const used = new Set(this.state.notebooks.map((n) => n.color));
     const nb: Notebook = {
       id: newId(),
@@ -560,6 +560,7 @@ export class AppStore {
       color: NOTEBOOK_COLORS.find((c) => !used.has(c)) ?? NOTEBOOK_COLORS[this.state.notebooks.length % NOTEBOOK_COLORS.length],
       stackId: this.stack(stackId) ? stackId : null,
       createdAt: this.now(),
+      ...(distill ? { distill: true } : {}),
     };
     this.set({ notebooks: [...this.state.notebooks, nb] });
     this.save(this.storage.putNotebook(nb));
@@ -580,6 +581,20 @@ export class AppStore {
 
   setNotebookColor(id: string, color: string): void {
     this.updateNotebook(id, { color });
+  }
+
+  /** Moves a notebook or a stack to the sidebar's Distill (your own thinking) or back to Organise (what you gather). A stack's notebooks go with it. */
+  setDistill(kind: 'notebook' | 'stack', id: string, distill: boolean): void {
+    if (kind === 'notebook') return this.updateNotebook(id, { distill: distill || undefined });
+    let updated: Stack | undefined;
+    const stacks = this.state.stacks.map((s) => {
+      if (s.id !== id) return s;
+      const { distill: _old, ...rest } = s;
+      return (updated = distill ? { ...rest, distill: true } : rest);
+    });
+    if (!updated) return;
+    this.set({ stacks });
+    this.save(this.storage.putStack(updated));
   }
 
   /** Puts a notebook in a stack, or takes it out with null. */
@@ -631,8 +646,8 @@ export class AppStore {
 
   // ---------- stacks ----------
 
-  createStack(name: string): Stack {
-    const st: Stack = { id: newId(), name: name.trim() || 'Untitled stack', createdAt: this.now() };
+  createStack(name: string, distill = false): Stack {
+    const st: Stack = { id: newId(), name: name.trim() || 'Untitled stack', createdAt: this.now(), ...(distill ? { distill: true } : {}) };
     this.set({ stacks: [...this.state.stacks, st] });
     this.save(this.storage.putStack(st));
     return st;
@@ -675,15 +690,15 @@ export class AppStore {
     }
     const stacks: Stack[] = Object.values(tree.stacks).map((t) => {
       const cur = state.stacks.find((s) => s.id === t.id);
-      if (cur && cur.name === t.name && cur.createdAt === t.created) return cur;
-      const next: Stack = { id: t.id, name: t.name, createdAt: t.created };
+      if (cur && cur.name === t.name && cur.createdAt === t.created && !!cur.distill === !!t.distill) return cur;
+      const next: Stack = { id: t.id, name: t.name, createdAt: t.created, ...(t.distill ? { distill: true } : {}) };
       this.save(this.storage.putStack(next));
       return next;
     });
     const notebooks: Notebook[] = Object.values(tree.notebooks).map((t) => {
       const cur = state.notebooks.find((n) => n.id === t.id);
-      if (cur && cur.name === t.name && cur.color === t.color && cur.stackId === t.stackId && cur.createdAt === t.created) return cur;
-      const next: Notebook = { id: t.id, name: t.name, color: t.color, stackId: t.stackId, createdAt: t.created };
+      if (cur && cur.name === t.name && cur.color === t.color && cur.stackId === t.stackId && cur.createdAt === t.created && !!cur.distill === !!t.distill) return cur;
+      const next: Notebook = { id: t.id, name: t.name, color: t.color, stackId: t.stackId, createdAt: t.created, ...(t.distill ? { distill: true } : {}) };
       this.save(this.storage.putNotebook(next));
       return next;
     });

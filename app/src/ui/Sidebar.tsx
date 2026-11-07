@@ -19,7 +19,7 @@ import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
-import { boardDoc, emptyBoard, isBoard } from '../data/board';
+import { boardDoc, emptyBoard } from '../data/board';
 import { IconBell, IconBoard, IconBook, IconChart, IconGraph, IconHash, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconSettings, IconSend, Logo, NotebookIcon } from './icons';
 import { openFinder } from './finder';
 import { HelpItems } from './help';
@@ -47,7 +47,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const [tagsOpen, setTagsOpen] = useState<boolean>(() => remember('tagsOpen', false));
   // Recent notes, Writing stats and the Graph fold away under Explore.
   const [moreOpen, setMoreOpen] = useState<boolean>(() => remember('sideMore', false));
-  const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack' | 'project'>(null);
+  const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack' | 'dnotebook' | 'dstack' | 'project'>(null);
   // The calm sidebar's sections (Capture, Organise, Distill, Express) each fold away.
   const [folded, setFolded] = useState<string[]>(() => remember('sideFolded', []));
   const toggleSection = (name: string) => {
@@ -74,10 +74,14 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const { loose, stacks } = notebookTree(state.stacks, state.notebooks, order);
   const projects = projectsInOrder(state.projects, order);
   // Notebooks, stacks and projects dropped on their heading go to the top (a notebook out of its stack).
-  const notebooksHead = useFolderDrop(
-    (f) => (f.kind === 'notebook' || f.kind === 'stack' ? 'into' : null),
-    (f) => (f.kind === 'notebook' ? store.moveNotebook(f.id, null, loose.find((n) => n.id !== f.id)?.id ?? null) : store.moveStack(f.id, stacks[0]?.stack.id ?? null)),
-  );
+  // Dropped on Organise's or Distill's heading, a notebook (out of its stack) or a stack moves to that section.
+  const toSection = (distill: boolean) => (f: Folder) => {
+    if (f.kind === 'notebook') store.moveNotebook(f.id, null, loose.find((n) => n.id !== f.id)?.id ?? null);
+    else if (f.kind === 'stack') store.moveStack(f.id, stacks[0]?.stack.id ?? null);
+    if (f.kind === 'notebook' || f.kind === 'stack') store.setDistill(f.kind, f.id, distill);
+  };
+  const notebooksHead = useFolderDrop((f) => (f.kind === 'notebook' || f.kind === 'stack' ? 'into' : null), toSection(false));
+  const distillHead = useFolderDrop((f) => (f.kind === 'notebook' || f.kind === 'stack' ? 'into' : null), toSection(true));
   const projectsHead = useFolderDrop(
     (f) => (f.kind === 'project' ? 'into' : null),
     (f) => store.moveProject(f.id, projects[0]?.id ?? null),
@@ -166,7 +170,13 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         }}
       />
     ) : null;
-  const notebookRows = (
+  /** Notebooks and stacks: all of them (the full sidebar), or one section's (Organise: what you gather; Distill: your own thinking). */
+  const notebookRows = (area?: 'organise' | 'distill') => {
+    const distill = area === 'distill';
+    const mine = (x: { distill?: boolean }) => !area || !!x.distill === distill;
+    const nbKind = distill ? 'dnotebook' : 'notebook';
+    const stKind = distill ? 'dstack' : 'stack';
+    return (
     <>
       {creating === 'menu' && (
         <Popover onClose={() => setCreating(null)} label="Create">
@@ -178,27 +188,27 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           </button>
         </Popover>
       )}
-      {creating === 'notebook' && (
+      {creating === nbKind && (
         <InlineInput
-          label="Notebook name"
+          label={distill ? 'Distill notebook name' : 'Notebook name'}
           placeholder="Notebook name"
           onDone={(name) => {
             setCreating(null);
-            if (name) onOpenView({ kind: 'notebook', id: store.createNotebook(name).id });
+            if (name) onOpenView({ kind: 'notebook', id: store.createNotebook(name, null, distill).id });
           }}
         />
       )}
-      {creating === 'stack' && (
+      {creating === stKind && (
         <InlineInput
-          label="Stack name"
+          label={distill ? 'Distill stack name' : 'Stack name'}
           placeholder="Stack name"
           onDone={(name) => {
             setCreating(null);
-            if (name) store.createStack(name);
+            if (name) store.createStack(name, distill);
           }}
         />
       )}
-      {nothingYet && !creating && (
+      {!distill && nothingYet && !creating && (
         <div className="side-empty">
           <p>Notebooks group your notes; stacks group notebooks.</p>
           <button type="button" className="side-link" onClick={() => setCreating('notebook')}>
@@ -206,14 +216,18 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           </button>
         </div>
       )}
-      {loose.map((nb) => (
-        <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={0} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
+      {distill && !loose.some(mine) && !stacks.some((x) => mine(x.stack)) && creating !== nbKind && creating !== stKind && (
+        <p className="side-empty indent">Notebooks for your own thinking. Make one from New, or drag a notebook here.</p>
+      )}
+      {loose.filter(mine).map((nb) => (
+        <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={0} calm={calm} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
       ))}
-      {stacks.map(({ stack, notebooks }) => (
+      {stacks.filter((x) => mine(x.stack)).map(({ stack, notebooks }) => (
         <StackGroup key={stack.id} calm={calm} stack={stack} notebooks={notebooks} counts={counts} open={!collapsed.includes(stack.id)} onToggle={() => toggleStack(stack.id)} active={active} onOpenView={onOpenView} />
       ))}
     </>
-  );
+    );
+  };
   const tagsRow = (
     <>
       <button
@@ -274,7 +288,6 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
   // A first visit (design 6): nothing to find yet, so just New and All notes, and a word about the rest.
   const fresh = !state.notes.length && !state.notebooks.length && !state.stacks.length && !state.projects.length && !sync.config;
-  const boardCount = state.notes.filter((n) => n.trashedAt === null && !n.projectId && isBoard(n)).length;
   const todayCount = state.notes.filter((n) => n.trashedAt === null && !n.projectId && !n.notebookId && n.daily).length;
   /** Makes something new from the New menu; names are typed in place, in the section it goes in. */
   const make = (what: NewKind) => {
@@ -284,7 +297,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
     else if (what === 'upload') chooseUploads(upload({}));
     else if (what === 'template') window.dispatchEvent(new Event(NEW_TEMPLATE));
     else {
-      const section = what === 'project' ? 'Express' : 'Organise';
+      const section = what === 'project' ? 'Express' : what === 'dnotebook' || what === 'dstack' ? 'Distill' : 'Organise';
       if (folded.includes(section)) toggleSection(section);
       setCreating(what);
     }
@@ -299,6 +312,13 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
       maker = null;
     };
   }, [calm]);
+  // Under New and Search (on an iPad, where New sits at the foot, at the top of the list).
+  const topRows = !fresh && (
+    <>
+      <SideRow icon={<IconStar size={18} />} label="Favourites" count={favCount || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong drop={toFavorites} />
+      <SideRow icon={<IconGraph size={18} />} label="Graph of links" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
+    </>
+  );
   if (calm)
     return (
       <nav className={`sidebar calm${fresh ? ' fresh' : ''}`} aria-label="Notebooks">
@@ -316,12 +336,15 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         {statsOpen && <StatsDialog onClose={() => setStatsOpen(false)} />}
         {menuAt && <NoteMenu at={menuAt} onClose={() => setMenuAt(null)} />}
 
+        {/* The top list: New, Search, Favourites and the graph, one under the other. */}
         <div className={`side-start${touch ? ' touch' : ''}`}>
           <NewMenu onPick={make} onTemplate={onTemplate} onImport={onImport} onUpload={() => chooseUploads(upload({}))} />
           {!fresh && !touch && <SearchRow />}
+          {!touch && topRows}
         </div>
 
         <div className="side-scroll">
+        {touch && <div className="side-top-list">{topRows}</div>}
         <Bookmarks />
 
         {fresh ? (
@@ -330,23 +353,20 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           </section>
         ) : (
         <>
-        <SideRow icon={<IconStar size={18} />} label="Favourites" count={favCount || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong drop={toFavorites} />
-
         <SideSection name="Capture" hint="Get things in quickly: notes not filed yet, and each day’s note" folded={folded} onToggle={toggleSection}>
           <SideRow icon={<IconInbox size={18} />} label="Inbox" count={inboxCount || undefined} active={active({ kind: 'inbox' })} onClick={() => onOpenView({ kind: 'inbox' })} strong files={upload({ notebookId: null })} drop={toInbox} />
           <SideRow icon={<IconSun size={18} />} label="Today" count={todayCount || undefined} active={active({ kind: 'today' })} onClick={onToday} strong />
           {reminders}
         </SideSection>
 
-        <SideSection name="Organise" hint="Your notes, filed in notebooks and stacks" folded={folded} onToggle={toggleSection} drop={notebooksHead}>
+        <SideSection name="Organise" hint="What you take notes on or save: notebooks and stacks of things you gather" folded={folded} onToggle={toggleSection} drop={notebooksHead}>
           <SideRow icon={<IconNote size={18} />} label="All notes" count={allCount} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong files={upload({ notebookId: null })} />
-          {notebookRows}
+          {notebookRows('organise')}
           {savedSearches}
         </SideSection>
 
-        <SideSection name="Distill" hint="Draw out what matters: boards of ideas and how your notes link up" folded={folded} onToggle={toggleSection}>
-          <SideRow icon={<IconBoard size={18} />} label="Boards" count={boardCount || undefined} active={active({ kind: 'boards' })} onClick={() => onOpenView({ kind: 'boards' })} strong />
-          <SideRow icon={<IconGraph size={18} />} label="Graph of links" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
+        <SideSection name="Distill" hint="Your own thoughts: notebooks and stacks of your own thinking" folded={folded} onToggle={toggleSection} drop={distillHead}>
+          {notebookRows('distill')}
         </SideSection>
 
         <SideSection name="Express" hint="Your manuscripts, and where you’ve sent them" folded={folded} onToggle={toggleSection} drop={projectsHead}>
@@ -446,7 +466,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             <IconPlus size={13} />
           </button>
         </div>
-        {notebookRows}
+        {notebookRows()}
         {tagsRow}
         <SideRow icon={<IconTrash size={13} />} label="Trash" count={trashCount || undefined} active={active({ kind: 'trash' })} onClick={() => onOpenView({ kind: 'trash' })} strong drop={toTrash} />
       </section>
@@ -574,7 +594,7 @@ function TagsMenu({ count, active, onOpenView, onDropTag }: { count: number; act
   );
 }
 
-type NewKind = 'note' | 'daily' | 'notebook' | 'stack' | 'project' | 'board' | 'upload' | 'template';
+type NewKind = 'note' | 'daily' | 'notebook' | 'stack' | 'dnotebook' | 'dstack' | 'project' | 'board' | 'upload' | 'template';
 let maker: ((k: NewKind) => void) | null = null;
 const NEW_TEMPLATE = 'crumpet-new-template';
 
@@ -618,6 +638,8 @@ function NewMenu({ onPick, onTemplate, onImport, onUpload }: { onPick(k: NewKind
               {item('daily', <IconSun size={14} />, 'Daily note')}
               {item('notebook', <IconNotebook size={14} />, 'Notebook')}
               {item('stack', <IconStack size={14} />, 'Notebook stack')}
+              {item('dnotebook', <IconNotebook size={14} />, 'Distill notebook')}
+              {item('dstack', <IconStack size={14} />, 'Distill stack')}
               {item('project', <IconBook size={14} />, 'Manuscript')}
               {item('board', <IconBoard size={14} />, 'Board')}
               <hr className="menu-sep" />
@@ -837,6 +859,18 @@ function StackGroup({
               <button type="button" className="menu-item" onClick={() => setMenu('rename')}>
                 Rename stack…
               </button>
+              {calm && (
+                <button
+                  type="button"
+                  className="menu-item"
+                  onClick={() => {
+                    store.setDistill('stack', stack.id, !stack.distill);
+                    close();
+                  }}
+                >
+                  {stack.distill ? 'Move to Organise' : 'Move to Distill'}
+                </button>
+              )}
               <button type="button" className="menu-item danger" onClick={() => setMenu('delete')}>
                 Delete stack…
               </button>
@@ -890,7 +924,7 @@ function StackGroup({
             </div>
           )}
           {notebooks.map((nb) => (
-            <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={1} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
+            <NotebookRow key={nb.id} calm={calm} nb={nb} count={counts.get(nb.id) ?? 0} depth={1} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
           ))}
           {!notebooks.length && !adding && (
             <button type="button" className="side-link indent" onClick={() => setAdding(true)}>
@@ -903,7 +937,7 @@ function StackGroup({
   );
 }
 
-function NotebookRow({ nb, count, depth, active, onOpen }: { nb: Notebook; count: number; depth: number; active: boolean; onOpen(): void }) {
+function NotebookRow({ nb, count, depth, active, onOpen, calm = false }: { nb: Notebook; count: number; depth: number; active: boolean; onOpen(): void; calm?: boolean }) {
   const store = useAppStore();
   const state = useAppState();
   const [menu, setMenu] = useState(false);
@@ -977,6 +1011,20 @@ function NotebookRow({ nb, count, depth, active, onOpen }: { nb: Notebook; count
                   }}
                 >
                   Take out of “{current.name}”
+                </button>
+              )}
+              {calm && (
+                <button
+                  type="button"
+                  className="menu-item"
+                  onClick={() => {
+                    // Out of its stack, which keeps to its own section.
+                    if (current) store.setStack(nb.id, null);
+                    store.setDistill('notebook', nb.id, !(current ? current.distill : nb.distill));
+                    close();
+                  }}
+                >
+                  {(current ? current.distill : nb.distill) ? 'Move to Organise' : 'Move to Distill'}
                 </button>
               )}
               <div className="menu-colours" role="group" aria-label="Colour">

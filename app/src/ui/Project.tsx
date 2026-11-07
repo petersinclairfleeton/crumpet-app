@@ -1333,7 +1333,9 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
   const styleSources = useStyleSources(project.id);
   const styles = useSheetClass(sheet);
   const pageSetup = project.page ?? manuscriptPage();
-  const paged = !narrow && (state.settings.pageView?.projects ?? true);
+  // The calm look's Read: the book to read, like a printed one, not to edit (Write is for that).
+  const reading = !state.settings.toolbarAll;
+  const paged = !reading && !narrow && (state.settings.pageView?.projects ?? true);
   const [, setTick] = useState(0);
   const scroll = useRef<HTMLDivElement>(null);
   // The formatting bar floats above selected text, as in notes, unless pinned.
@@ -1403,7 +1405,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           onDefault={() => store.updateSettings({ defaultStyles: sheet })}
         />
       )}
-      <div className={`note-pane manuscript ${styles}`}>
+      <div className={`note-pane manuscript ${styles}${reading ? ' reading' : ''}`}>
         <div className="note-toolbar" role="toolbar" aria-label="Formatting">
           {narrow && (
             <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
@@ -1411,16 +1413,16 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
               <span className="back-label">Outline</span>
             </button>
           )}
-          {!floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
+          {!reading && !floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
           <span className="grow" />
           <span className="manuscript-count">{words(total)}</span>
-          <RevisionChip />
-          <TrackToggle editor={active} />
+          {!reading && <RevisionChip />}
+          {!reading && <TrackToggle editor={active} />}
           <button type="button" className="icon-btn" aria-label="Find and replace" data-tip={`Find and replace · ${isMac ? '⌘F' : 'Ctrl+F'}`} onClick={() => setFinding(true)}>
             <IconSearch size={16} />
           </button>
-          {!narrow && <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />}
-          {!narrow && (
+          {!reading && !narrow && <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />}
+          {!reading && !narrow && (
             <button
               type="button"
               className={`icon-btn pin-tools${floating ? '' : ' on'}`}
@@ -1433,12 +1435,12 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
             </button>
           )}
         </div>
-        {narrow && active && (
+        {!reading && narrow && active && (
           <KeyboardBar host={scroll}>
             <FormatTools compact editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
           </KeyboardBar>
         )}
-        {floating && active && (
+        {!reading && floating && active && (
           <SelectionBar host={scroll}>
             <FormatTools compact attach={false} editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />
           </SelectionBar>
@@ -1487,12 +1489,15 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
                   toc={bookEntries(numbered, c.id, startOf, pagesOf)}
                   footnoteStart={footnotesBefore(numbered, c.id)}
                   onTocTarget={onTocTarget}
+                  reading={reading}
                 />
               );
             })}
-            <button type="button" className="btn quiet ms-add" onClick={() => store.addChapter(project.id)}>
-              <IconPlus size={13} /> Add a chapter
-            </button>
+            {!reading && (
+              <button type="button" className="btn quiet ms-add" onClick={() => store.addChapter(project.id)}>
+                <IconPlus size={13} /> Add a chapter
+              </button>
+            )}
           </article>
         </div>
         </div>
@@ -1521,9 +1526,11 @@ interface ManuscriptChapterProps {
   offset: number;
   total: number;
   onPages(chapterId: string, n: number): void;
+  /** Read: shown as a book to read, not edited. */
+  reading?: boolean;
 }
 
-function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEditor, onLinkKey, onPage, fields, offset, total, onPages, toc, onTocTarget, footnoteStart }: ManuscriptChapterProps) {
+function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEditor, onLinkKey, onPage, fields, offset, total, onPages, toc, onTocTarget, footnoteStart, reading = false }: ManuscriptChapterProps) {
   const store = useAppStore();
   const reportPages = useCallback((n: number) => onPages(chapter.id, n), [onPages, chapter.id]);
   const nav = useNav();
@@ -1531,7 +1538,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
   const { host, editor } = useDocEditor({
     docId: chapter.id,
     doc: chapter.doc,
-    readOnly: false,
+    readOnly: reading,
     onDoc: (doc) => store.setChapterDoc(chapter.id, doc),
     onActive,
     onLinkKey,
@@ -1552,14 +1559,18 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
   }, [editor, chapter.id, onEditor]);
   return (
     <section className="ms-chapter" data-chapter={chapter.id} aria-label={chapter.title || `Chapter ${number}`}>
-      <SlashMenu editor={editor} host={host} notes={store.getState().notes} />
+      {!reading && <SlashMenu editor={editor} host={host} notes={store.getState().notes} />}
       {owner && <CastSpotting editor={editor} project={owner} />}
       <FootnoteCard editor={editor} />
-      <CommentCard editor={editor} />
-      <ChangeCard editor={editor} />
-      <ChangesBar doc={chapter.doc} editor={editor} />
+      {!reading && <CommentCard editor={editor} />}
+      {!reading && <ChangeCard editor={editor} />}
+      {!reading && <ChangesBar doc={chapter.doc} editor={editor} />}
       <p className="chapter-kicker">Chapter {numberInWords(number)}</p>
-      <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
+      {reading ? (
+        <h2 className="note-title ms-title">{chapter.title || `Chapter ${number}`}</h2>
+      ) : (
+        <AutoTextarea className="note-title ms-title" aria-label={`Title of chapter ${number}`} placeholder="Chapter title" value={chapter.title} onChange={(e) => store.setChapterTitle(chapter.id, e.target.value.replace(/\n/g, ' '))} />
+      )}
       <span className="chapter-rule" aria-hidden="true" />
       <PageView
         enabled={!!page}
@@ -1577,7 +1588,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
       </PageView>
       {!page && <FootnoteList doc={chapter.doc} editor={editor} />}
       <EndnoteList doc={chapter.doc} editor={editor} />
-      <CommentList doc={chapter.doc} editor={editor} />
+      {!reading && <CommentList doc={chapter.doc} editor={editor} />}
     </section>
   );
 }

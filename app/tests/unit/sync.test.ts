@@ -100,6 +100,25 @@ describe('syncing two devices through files', () => {
     expect(mac.store.note(day.id)?.notebookId).toBe(nb.id);
   });
 
+  it('keeps notebooks and stacks under Distill on every device, and moving one back to Organise reaches them too', async () => {
+    const cloud = new MemoryProvider(now);
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const st = mac.store.createStack('Thinking', true);
+    const nb = mac.store.createNotebook('Reflections', null, true);
+    mac.store.createNote({ title: 'A thought', notebookId: nb.id });
+    await mac.engine.sync();
+    expect(cloud.files.get('.crumpet/vault.json')!.text).toContain('"distill": true');
+    await phone.engine.sync();
+    expect(phone.store.stack(st.id)?.distill).toBe(true);
+    expect(phone.store.notebook(nb.id)?.distill).toBe(true);
+    phone.store.setDistill('notebook', nb.id, false);
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect(mac.store.notebook(nb.id)?.distill).toBeFalsy();
+    expect(mac.store.stack(st.id)?.distill).toBe(true);
+  });
+
   it('does nothing when nothing changed', async () => {
     const cloud = new MemoryProvider(now);
     const mac = await device(cloud);

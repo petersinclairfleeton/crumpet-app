@@ -30,8 +30,8 @@ export interface VaultMeta {
   version: 1;
   /** Settings every device shares (note styles, page setup). */
   settings?: TSettings;
-  stacks: { id: string; name: string; folder: string; created: number }[];
-  notebooks: { id: string; name: string; color: string; folder: string; created: number }[];
+  stacks: { id: string; name: string; folder: string; created: number; distill?: boolean }[];
+  notebooks: { id: string; name: string; color: string; folder: string; created: number; distill?: boolean }[];
 }
 
 /** A note file as last read, by path. Bodies are already in Crumpet's own Markdown form. */
@@ -189,10 +189,10 @@ export function writeMeta(tree: Tree, l: Layout): string {
     version: 1,
     ...(tree.settings ? { settings: tree.settings } : {}),
     stacks: Object.values(tree.stacks)
-      .map((s) => ({ id: s.id, name: s.name, folder: l.stacks[s.id], created: s.created }))
+      .map((s) => ({ id: s.id, name: s.name, folder: l.stacks[s.id], created: s.created, ...(s.distill ? { distill: true } : {}) }))
       .sort((a, b) => (a.folder < b.folder ? -1 : 1)),
     notebooks: Object.values(tree.notebooks)
-      .map((n) => ({ id: n.id, name: n.name, color: n.color, folder: l.notebooks[n.id], created: n.created }))
+      .map((n) => ({ id: n.id, name: n.name, color: n.color, folder: l.notebooks[n.id], created: n.created, ...(n.distill ? { distill: true } : {}) }))
       .sort((a, b) => (a.folder < b.folder ? -1 : 1)),
   };
   return `${JSON.stringify(meta, null, 2)}\n`;
@@ -348,7 +348,8 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
     const m = metaStack.get(p);
     const was = base.tree.stacks[id];
     const name = nameFor(baseName(p), m?.id === id ? m.name : was?.name);
-    tree.stacks[id] = { id, name, created: (m?.id === id ? m.created : was?.created) ?? 0 };
+    const sd = m?.id === id ? m.distill === true : !!was?.distill;
+    tree.stacks[id] = { id, name, created: (m?.id === id ? m.created : was?.created) ?? 0, ...(sd ? { distill: true } : {}) };
     where.stacks[id] = p;
   }
   for (const [p, id] of notebookIdOf) {
@@ -363,6 +364,7 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
       color: typeof color === 'string' ? color : NOTEBOOK_COLORS[0],
       stackId: stackPath && stackIdOf.has(stackPath) ? stackIdOf.get(stackPath)! : null,
       created: (m?.id === id ? m.created : was?.created) ?? 0,
+      ...((m?.id === id ? m.distill === true : !!was?.distill) ? { distill: true } : {}),
     };
     where.notebooks[id] = p;
   }
