@@ -10,6 +10,15 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-07-mac-buttons',
+    date: '7 November 2026',
+    title: 'Room for the Mac’s window buttons',
+    points: [
+      'In the Mac app the red, yellow and green buttons sat on the sidebar’s top edge, crowding the Crumpet logo. They now have a strip of their own above everything, which also drags the window. In full screen, where the buttons hide, the strip goes too.',
+      'The same in a narrow Mac window and with the sidebar folded to its strip.',
+    ],
+  },
+  {
     id: '2026-11-01-nothing-kept',
     date: '1 November 2026',
     title: 'Nothing to sign up for',

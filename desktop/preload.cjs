@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('crumpetDesktop', {
   openMail: (url) => ipcRenderer.invoke('open-mail', String(url)),
   /** A web page clipped with the bookmark while the app is open (as it travels in the address). */
   onClip: (fn) => ipcRenderer.on('crumpet-clip', (_e, data) => fn(String(data))),
+  /** The window going in or out of full screen (the Mac's window buttons hide there). */
+  onFullScreen: (fn) => ipcRenderer.on('crumpet-fullscreen', (_e, on) => fn(!!on)),
   /** Google Drive: sign in through the browser, and access tokens from the kept sign-in (see google.cjs). */
   google: {
     signIn: (clientId) => ipcRenderer.invoke('google-sign-in', clientId),

@@ -99,7 +99,8 @@ function createWindow() {
     show: false,
     // Mac: no title bar; the window buttons sit over the sidebar, which lets the desktop's blur through.
     titleBarStyle: isMac ? 'hiddenInset' : 'default',
-    trafficLightPosition: { x: 18, y: 20 },
+    // Centred in the 44px strip at the top (app.css, "The Mac app"), in line with the sheets' left edge.
+    trafficLightPosition: { x: 16, y: 15 },
     vibrancy: isMac ? 'sidebar' : undefined,
     visualEffectState: 'followWindow',
     backgroundColor: isMac ? '#00000000' : '#e7eaf0',
@@ -125,6 +126,9 @@ function createWindow() {
     }
   };
   win.on('close', remember);
+  // Full screen hides the window buttons: the page drops the room it keeps for them.
+  win.on('enter-full-screen', () => win.webContents.send('crumpet-fullscreen', true));
+  win.on('leave-full-screen', () => win.webContents.send('crumpet-fullscreen', false));
 
   // Links to other sites open in the person's browser; the app stays the app.
   win.webContents.setWindowOpenHandler(({ url }) => {

@@ -1083,7 +1083,8 @@ body.pane-resizing iframe { pointer-events: none; }
    (the window's vibrancy), with room at the top for the red, yellow and
    green buttons; the rest is solid. The top edge drags the window. */
 .titlebar-drag { display: none; }
-[data-shell='mac'] .titlebar-drag { display: block; position: fixed; z-index: 100; top: 0; left: 0; right: 0; height: 38px; -webkit-app-region: drag; pointer-events: none; }
+[data-shell='mac'] .titlebar-drag { display: block; position: fixed; z-index: 100; top: 0; left: 0; right: 0; height: 44px; -webkit-app-region: drag; pointer-events: none; }
+[data-shell='mac'][data-fullscreen] .titlebar-drag { display: none; }
 [data-shell='mac'] :is(button, input, select, textarea, a, [contenteditable='true'], [role='button'], [role='tab'], .resizer, .pane-resizer, .pane-tab-wrap, .search) { -webkit-app-region: no-drag; }
 [data-shell='mac'] body, [data-shell='mac'][data-look='crumpet'] body { background: transparent; }
 [data-shell='mac'][data-look='crumpet'] .app { padding: 0; }
@@ -1096,6 +1097,15 @@ body.pane-resizing iframe { pointer-events: none; }
 [data-shell='mac']:not([data-look='crumpet']) body { background: var(--shell, var(--page)); }
 /* With the sidebar folded away, the top bar leaves room for the window buttons. */
 [data-shell='mac'] .frame:not(:has(> .sidebar, > .rail)) .topbar { padding-left: 84px; }
+/* Quiet Paper in the Mac app: its sheets float on the wash, so the window buttons get a strip of
+   wash of their own above them (which also drags the window), rather than sitting on the
+   sidebar's edge. Full screen hides the buttons, and the strip goes too. */
+[data-shell='mac'][data-look='crumpet'] .app.calm { padding-top: 44px; }
+[data-shell='mac'][data-look='crumpet'][data-fullscreen] .app.calm { padding-top: 16px; }
+/* A narrow Mac window shows one thing at a time, as a phone does: the buttons keep their strip above it. */
+@media (max-width: 759px) {
+  :root[data-shell='mac']:not([data-fullscreen]) .app { padding-top: 44px; }
+}
 
 /* Crumpet on phones: one thing at a time, filling the screen. */
 @media (max-width: 759px) {

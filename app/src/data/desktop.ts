@@ -12,6 +12,8 @@ export interface DesktopInfo {
   onFeedback?(fn: () => void): void;
   /** Opens a mailto: address in the computer's email app (older apps lack it). */
   openMail?(url: string): Promise<void>;
+  /** Told when the window goes in or out of full screen (older apps don't offer it). */
+  onFullScreen?(fn: (on: boolean) => void): void;
   /** Google Drive: signing in through the browser, and access tokens (desktop/google.cjs). */
   google?: {
     signIn(clientId: string): Promise<{ token: string; expires: number }>;
