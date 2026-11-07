@@ -6,8 +6,7 @@
    (sidebar, list) and warm paper for writing. One honey accent, three corner
    sizes (8px controls, 12px cards and sheets, round chips), spacing in steps of
    4/8/12/16/24/32, Onest for the interface and Newsreader for titles.
-   "Paper and ink" (warm paper around a white sheet) is a theme of its own; the
-   other themes keep the classic frame. */
+   Every other theme keeps all of this and changes only the colours. */
 :root {
   --ui-font: Onest, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --title-font: Onest, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -97,8 +96,7 @@
   color-scheme: dark;
 }
 :root[data-theme='paper'] {
-  --ui-font: Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --shell: #faf7f1;
+  --shell: #f3eee5;
   --side-bg: #faf7f1;
   --side-text: #2a2623;
   --side-muted: #776e66;
@@ -153,13 +151,13 @@
    Each sets the same tokens as above. Dark ones also set color-scheme so
    form controls and scrollbars match. The accent comes from theme.ts. */
 :root[data-theme='classic'] {
-  --ui-font: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --shell: #e3e5e6;
   --side-bg: #2b2e30; --side-text: #e9ebec; --side-muted: #9da3a6; --side-sel: #3f4447; --side-hover: #35393b;
   --page: #ffffff; --list-bg: #f4f4f4; --field: #ececec; --chip: #ececec;
   --text: #333333; --text2: #4d4d4d; --muted: #737373; --line: #e2e2e2; --line2: #cccccc;
 }
 :root[data-theme='vapor'] {
-  --ui-font: Arial, Helvetica, sans-serif;
+  --shell: #10151c;
   --side-bg: #171a21; --side-text: #dcdedf; --side-muted: #8f98a0; --side-sel: #2a475e; --side-hover: #1f2a37;
   --page: #1e2a36; --list-bg: #1b2838; --field: #2a3f54; --chip: #2a3f54;
   --text: #c7d5e0; --text2: #b0bec9; --muted: #8f98a0; --line: #2a3f5a; --line2: #3d5a78;
@@ -167,7 +165,7 @@
   color-scheme: dark;
 }
 :root[data-theme='console'] {
-  --ui-font: 'Segoe UI', system-ui, sans-serif;
+  --shell: #050505;
   --side-bg: #0b0b0b; --side-text: #f2f2f2; --side-muted: #9a9a9a; --side-sel: #1f3d1f; --side-hover: #191919;
   --page: #1a1a1a; --list-bg: #141414; --field: #262626; --chip: #262626;
   --text: #f2f2f2; --text2: #d0d0d0; --muted: #a0a0a0; --line: #2b2b2b; --line2: #404040;
@@ -175,13 +173,14 @@
   color-scheme: dark;
 }
 :root[data-theme='mac'] {
-  --ui-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', system-ui, sans-serif;
+  --shell: #ececec;
   --side-bg: #e6e4e5; --side-text: #1d1d1f; --side-muted: #6e6e73; --side-sel: #d0cecf; --side-hover: #dad8d9;
   --page: #ffffff; --list-bg: #fafafa; --field: #f0f0f2; --chip: #f0f0f2;
   --text: #1d1d1f; --text2: #3a3a3c; --muted: #6e6e73; --line: #e5e5ea; --line2: #c7c7cc;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme='mac'] {
+    --shell: #1c1c1e;
     --side-bg: #2a2a2c; --side-text: #f5f5f7; --side-muted: #98989d; --side-sel: #464649; --side-hover: #38383a;
     --page: #1e1e1e; --list-bg: #232323; --field: #323234; --chip: #323234;
     --text: #f5f5f7; --text2: #d1d1d6; --muted: #98989d; --line: #38383a; --line2: #48484a;
@@ -190,14 +189,14 @@
   }
 }
 :root[data-theme='sepia'] {
-  --ui-font: Figtree, system-ui, sans-serif;
+  --shell: #e3d5b4;
   --side-bg: #3e3226; --side-text: #efe3cf; --side-muted: #b9a68c; --side-sel: #574636; --side-hover: #4a3c2e;
   --page: #f4ecd8; --list-bg: #efe5cc; --field: #e6d9bb; --chip: #e6d9bb;
   --text: #5b4636; --text2: #6b5442; --muted: #8a735f; --line: #e0d2b2; --line2: #cbb893;
   --code-bg: #e6d9bb;
 }
 :root[data-theme='midnight'] {
-  --ui-font: Figtree, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --shell: #000000;
   --side-bg: #000000; --side-text: #e6e6e6; --side-muted: #8c8c8c; --side-sel: #1c1c1e; --side-hover: #121212;
   --page: #000000; --list-bg: #050505; --field: #151515; --chip: #151515;
   --text: #e8e8e8; --text2: #c4c4c4; --muted: #8c8c8c; --line: #1f1f1f; --line2: #333333;
@@ -206,7 +205,7 @@
 }
 /* Glass: frosted, see-through panels over a soft colour wash. */
 :root[data-theme='glass'] {
-  --ui-font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --shell: #efeaf7;
   --wash: radial-gradient(at 15% 10%, #b9c8ff 0, transparent 55%), radial-gradient(at 85% 20%, #ffd1e8 0, transparent 50%), radial-gradient(at 60% 90%, #c8f2e4 0, transparent 55%), #efeaf7;
   --side-bg: rgba(255, 255, 255, 0.38); --side-text: #1d1d1f; --side-muted: #5f5f66; --side-sel: rgba(255, 255, 255, 0.7); --side-hover: rgba(255, 255, 255, 0.5);
   --page: rgba(255, 255, 255, 0.62); --list-bg: rgba(255, 255, 255, 0.45); --field: rgba(255, 255, 255, 0.6); --chip: rgba(255, 255, 255, 0.7);
@@ -215,6 +214,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root[data-theme='glass'] {
+    --shell: #121218;
     --wash: radial-gradient(at 15% 10%, #2b3a7a 0, transparent 55%), radial-gradient(at 85% 20%, #5a2448 0, transparent 50%), radial-gradient(at 60% 90%, #164a3e 0, transparent 55%), #121218;
     --side-bg: rgba(30, 30, 36, 0.45); --side-text: #f5f5f7; --side-muted: #a1a1aa; --side-sel: rgba(255, 255, 255, 0.16); --side-hover: rgba(255, 255, 255, 0.09);
     --page: rgba(28, 28, 34, 0.55); --list-bg: rgba(28, 28, 34, 0.4); --field: rgba(255, 255, 255, 0.1); --chip: rgba(255, 255, 255, 0.12);
@@ -223,12 +223,6 @@
     --glass-edge: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     color-scheme: dark;
   }
-}
-:root[data-theme='glass'] body { background: var(--wash); background-attachment: fixed; }
-:root[data-theme='glass'] :is(.sidebar, .list, .pane, .pane-empty, .topbar, .popover, .linkbar) {
-  -webkit-backdrop-filter: blur(28px) saturate(1.7);
-  backdrop-filter: blur(28px) saturate(1.7);
-  box-shadow: var(--glass-edge);
 }
 :root[data-theme='glass'] .popover { background: rgba(255, 255, 255, 0.82); }
 @media (prefers-color-scheme: dark) {
@@ -679,46 +673,6 @@ input, select { font: inherit; color: inherit; }
 .note-pane.reading .reading-meta { display: block; }
 .note-foot { margin: 16px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 
-/* ---- Paper and ink: Crumpet's own frame ----
-   Everything sits on warm paper; the note is a white sheet floating on it.
-   Titles and labels are in the serif (Newsreader), menus in Figtree. */
-[data-look='paper'] { --title-font: Newsreader, Georgia, 'Iowan Old Style', serif; }
-[data-look='paper'] .sidebar { padding: 18px 12px 14px 16px; gap: 16px; }
-[data-look='paper'] .side-row, [data-look='paper'] .side-row .row-main { min-height: 32px; font-size: 13.5px; }
-[data-look='paper'] .side-row { border-radius: 8px; padding: 0 10px; }
-[data-look='paper'] .side-row.indent { padding-left: 30px; }
-[data-look='paper'] .side-row.active { font-weight: 600; }
-[data-look='paper'] .side-heading, [data-look='paper'] .side-label { font-family: var(--title-font); font-style: italic; font-weight: 400; font-size: 15px; padding-left: 10px; }
-[data-look='paper'] .account { min-height: 38px; border-radius: 8px; }
-[data-look='paper'] .account-name { font-family: var(--title-font); font-size: 17px; font-weight: 500; }
-[data-look='paper'] .avatar { background: var(--accent); color: var(--on-accent); }
-[data-look='paper'] .new-note { min-height: 38px; border-radius: 8px; padding: 0 10px; font-size: 14px; }
-[data-look='paper'] .side-foot { font-size: 12px; }
-[data-look='paper'] .topbar { background: transparent; border-bottom: none; min-height: 56px; padding: 0 20px; }
-[data-look='paper'] .search { background: var(--page); border: 1px solid var(--line); border-radius: 8px; height: 36px; }
-[data-look='paper'] .search kbd { background: var(--field); border-color: transparent; }
-[data-look='paper'] .list { background: transparent; border-right: none; }
-[data-look='paper'] .list-head { padding: 4px 22px 10px; }
-[data-look='paper'] .list-title h1 { font-family: var(--title-font); font-size: 28px; font-weight: 500; letter-spacing: -0.3px; }
-[data-look='paper'] .cards { padding: 0 12px 24px; }
-[data-look='paper'] .group-label { font-family: var(--title-font); font-style: italic; font-weight: 400; font-size: 14px; letter-spacing: 0; text-transform: none; padding: 14px 10px 6px; }
-[data-look='paper'] .card { gap: 4px; padding: 14px 12px; margin-bottom: 0; border-radius: 12px; border-bottom: 1px solid var(--line); }
-[data-look='paper'] .card:hover { background: var(--side-hover); }
-[data-look='paper'] .card.selected { background: var(--side-sel); box-shadow: none; border-bottom-color: transparent; }
-[data-look='paper'] .card-title { font-family: var(--title-font); font-size: 18px; font-weight: 500; }
-[data-look='paper'] .card-preview { font-size: 13px; line-height: 1.5; color: var(--muted); }
-[data-look='paper'] .pane, [data-look='paper'] .pane-empty { margin: 0 14px 14px 0; border-radius: 12px; box-shadow: var(--sheet-shadow); overflow: hidden; }
-[data-look='paper'] .note-toolbar { padding: 10px 18px; border-bottom-color: transparent; }
-[data-look='paper'] .note-body { max-width: 720px; padding: 36px 48px 80px; gap: 16px; }
-[data-look='paper'] .note-title { font-family: var(--title-font); font-size: 42px; font-weight: 400; letter-spacing: -0.5px; line-height: 1.12; }
-[data-look='paper'] .note-foot { border-top-color: var(--line); }
-[data-look='paper'] .nb-picker, [data-look='paper'] .tag-chip, [data-look='paper'] .add-tag { border-radius: 999px; }
-[data-look='paper'] .note-scroll:has(.paged), [data-look='paper'] .pane:has(.page-view) .note-scroll { background: var(--shell); }
-[data-look='paper'] .outline-title { font-family: var(--title-font); font-size: 16px; font-weight: 500; }
-[data-look='paper'] .manuscript-title, [data-look='paper'] .ms-part { font-family: var(--title-font); font-weight: 400; }
-[data-look='paper'] .dialog { border-radius: 12px; }
-[data-look='paper'] .dialog-head h2 { font-family: var(--title-font); font-size: 22px; font-weight: 500; }
-[data-look='paper'] .popover { border-radius: 12px; }
 
 /* ---- Crumpet's own look, Quiet Paper: a frosted window over a soft wash ----
    The sidebar and list are see-through and blurred; notes sit on warm paper
@@ -931,15 +885,11 @@ body.pane-resizing iframe { pointer-events: none; }
 .pane-drop.right { right: 8px; top: 8px; bottom: 8px; width: calc(50% - 12px); }
 .pane-drop.top { left: 8px; right: 8px; top: 8px; height: calc(50% - 12px); }
 .pane-drop.bottom { left: 8px; right: 8px; bottom: 8px; height: calc(50% - 12px); }
-[data-look='paper'] .pane-tabs { border-bottom: none; padding-left: 16px; }
-[data-look='paper'] .pane-tab.on { border-color: transparent; margin-bottom: 0; }
-[data-look='paper'] .pane-group:not(.only) .pane-body > .pane, [data-look='paper'] .pane-group:not(.only) .pane-body > .pane-empty { border-top-left-radius: 0; }
 [draggable='true'].card, [draggable='true'].side-row, [draggable='true'].research-item { -webkit-user-drag: element; }
 .layout-menu { position: relative; display: inline-flex; }
 .layout-menu .popover { left: auto; right: 0; top: 36px; width: 280px; }
 .layout-form { display: flex; flex-direction: column; gap: 10px; padding: 6px; }
 .layout-label { margin: 4px 0 -4px; font-size: 12px; font-weight: 700; color: var(--text2); }
-[data-look='paper'] .layout-label { font-family: var(--title-font); font-style: italic; font-weight: 400; font-size: 14px; color: var(--muted); }
 .split-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 .split-choices button { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; border: 1px solid var(--line2); border-radius: 8px; background: var(--page); color: var(--text2); font-size: 12px; cursor: pointer; }
 .split-choices button[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); color: var(--text); font-weight: 600; }
@@ -1069,14 +1019,6 @@ body.pane-resizing iframe { pointer-events: none; }
 }
 .btn.small { min-height: 28px; padding: 0 10px; font-size: 13px; }
 
-/* Paper on phones: one pane at a time, so no floating sheet. */
-@media (max-width: 759px) {
-  [data-look='paper'] .pane, [data-look='paper'] .pane-empty { margin: 0; border-radius: 0; box-shadow: none; }
-  [data-look='paper'] .note-body { padding: 20px 20px 56px; }
-  [data-look='paper'] .note-title { font-size: 32px; }
-  [data-look='paper'] .topbar { padding: env(safe-area-inset-top, 0px) 8px 0; }
-  [data-look='paper'] .sidebar { background: var(--shell); }
-}
 
 /* ---- The Mac app (desktop/): the window is the window ----
    No frame floating in a wash: the sidebar lets the Mac's own blur through
@@ -1093,8 +1035,6 @@ body.pane-resizing iframe { pointer-events: none; }
 [data-shell='mac'][data-look='crumpet'] .workspace { background: color-mix(in srgb, var(--shell) 55%, var(--page)); }
 [data-shell='mac'] .sidebar { padding-top: 44px; }
 [data-shell='mac'] .rail { padding-top: 44px; }
-/* Other themes in the Mac app: their own solid colours, with the same room for the window buttons. */
-[data-shell='mac']:not([data-look='crumpet']) body { background: var(--shell, var(--page)); }
 /* With the sidebar folded away, the top bar leaves room for the window buttons. */
 [data-shell='mac'] .frame:not(:has(> .sidebar, > .rail)) .topbar { padding-left: 84px; }
 /* Quiet Paper in the Mac app: its sheets float on the wash, so the window buttons get a strip of
@@ -1209,7 +1149,6 @@ body.pane-resizing iframe { pointer-events: none; }
 .note-editor a[href^='note:'].missing-note { color: var(--muted); border-bottom-style: dashed; }
 .backlinks { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
 .backlinks h2 { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--muted); }
-[data-look='paper'] .backlinks h2 { font-family: var(--title-font); font-style: italic; font-weight: 400; font-size: 14px; }
 .backlink-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .backlink { height: 30px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--field); color: var(--text); font-size: 13px; cursor: pointer; }
 .backlink:hover { border-color: var(--accent); }
@@ -1488,7 +1427,6 @@ button.tag-fold:hover { background: var(--side-hover, rgba(0, 0, 0, 0.05)); }
 
 /* On a phone the list is its own screen, so no card looks open. */
 .app.narrow[data-pane='list'] .card.selected { background: transparent; box-shadow: none; }
-[data-look='paper'] .app.narrow[data-pane='list'] .card.selected { border-bottom-color: var(--line); }
 [data-look='crumpet'] .app.narrow[data-pane='list'] .card.selected { background: color-mix(in srgb, var(--page) 78%, transparent); }
 [data-look='crumpet'] .app.narrow[data-pane='list'] .card.selected .card-title::before { display: none; }
 .card-preview mark, .card-title mark { background: var(--accent-soft); color: var(--text); border-radius: 2px; padding: 0 1px; }
@@ -3265,7 +3203,6 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 :root .app.phone .icon-btn.back { width: auto; gap: 2px; padding: 0 8px 0 2px; color: var(--accent-ink); font-size: 16px; font-weight: 500; }
 :root .app.phone .icon-btn.back .back-label { display: inline; }
 /* Looks other than Quiet Paper keep their own paper behind the page. */
-:root:not([data-look='crumpet']) .app.phone .pane { background: var(--page); }
 
 /* ---- Quiet Paper on an iPad (designs 14 and 15) ---- */
 /* The list has the search box; New note waits at the sidebar's foot. */
@@ -3311,17 +3248,19 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .ink-edit-stroke path { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
 .ink-edit-bar { position: absolute; left: 50%; top: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: min(640px, calc(100vw - 32px)); padding: 8px 8px 8px 16px; border-radius: 12px; background: var(--calm-card, var(--page)); box-shadow: var(--shadow); font-size: 13px; color: var(--text2); cursor: default; }
 .ink-edit-bar span { flex: 1; }
-/* The calm layout in the other looks: the list's and the outline's titles keep clear of the window's top. */
-:root:not([data-look='crumpet']) .app.calm:not(.phone) :is(.list, .outline) { padding-top: 16px; }
-/* The calm layout's colours in every other theme come from that theme's own (light or dark),
-   so its rows, cards and lines follow it rather than Quiet Paper's light colours. */
-:root:not([data-look='crumpet']) {
+/* ---- Every other theme: Crumpet's own layout, only in the theme's colours ----
+   The same sheets, spacing, fonts and corners as Crumpet's own; the wash, the
+   sheets, the sidebar and the lines take the theme's colours. (:where keeps
+   these below each theme's own settings, so a theme can set its own wash.) */
+:root:where([data-theme]:not([data-theme='light']):not([data-theme='dark'])) {
+  --wash: radial-gradient(circle at 4% 0%, color-mix(in srgb, var(--accent) 20%, transparent) 0, transparent 42%), var(--shell);
+  --calm-wash: var(--wash);
   --calm-card: var(--page);
-  --calm-side: var(--side-bg, var(--page));
+  --calm-side: var(--side-bg);
   --calm-edge: var(--line);
   --calm-field: var(--field);
-  --calm-sel: var(--side-sel, var(--field));
-  --calm-hover: var(--side-hover, var(--field));
+  --calm-sel: var(--side-sel);
+  --calm-hover: var(--side-hover);
   --calm-nav: var(--text2);
   --calm-muted: var(--muted);
   --calm-icon: var(--text2);
@@ -3329,11 +3268,51 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
   --calm-chip-ink: var(--text2);
   --calm-hair: var(--line);
   --calm-prose: var(--text);
-  --calm-wash: var(--shell, var(--page));
+  --calm-link-line: color-mix(in srgb, var(--accent) 50%, transparent);
+  --edge: var(--line);
+  /* Menus and windows opened from a sidebar keep the page's colours. */
+  --menu-text: var(--text);
+  --menu-muted: var(--muted);
 }
-/* The phone's screens in the other themes: the library on the theme's sidebar colour, lists and books on its list colour. */
-:root:not([data-look='crumpet']) .app.phone .phone-library { background: var(--list-bg, var(--shell, var(--page))); color: var(--text); }
-:root:not([data-look='crumpet']) .app.phone .list { background: var(--list-bg, var(--shell, var(--page))); }
+/* The sidebars (the notes', a book's outline) are in the theme's sidebar colours. */
+:root:where([data-theme]:not([data-theme='light']):not([data-theme='dark'])) .app.calm :is(.sidebar, .rail, .list.outline.book-side) {
+  --calm-nav: var(--side-text);
+  --calm-muted: var(--side-muted);
+  --calm-icon: var(--side-text);
+  --calm-field: var(--side-hover);
+  --calm-hair: color-mix(in srgb, var(--side-text) 14%, transparent);
+  --calm-card: var(--side-sel);
+  --text: var(--side-text);
+  --text2: var(--side-text);
+  --muted: var(--side-muted);
+  --line: color-mix(in srgb, var(--side-text) 14%, transparent);
+  color: var(--side-text);
+}
+:root:where([data-theme]:not([data-theme='light']):not([data-theme='dark'])) .app.calm :is(.sidebar, .rail, .list.outline.book-side) :is(.popover, .context-menu, .inline-input, .dialog) {
+  --text: var(--menu-text);
+  --text2: var(--menu-text);
+  --muted: var(--menu-muted);
+  color: var(--menu-text);
+}
+/* Shadows for the dark themes. */
+:root:is([data-theme='vapor'], [data-theme='console'], [data-theme='midnight']) {
+  --lift: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
+  --window-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --calm-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --calm-sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.4);
+  --calm-sel-shadow: none;
+}
+@media (prefers-color-scheme: dark) {
+  :root:is([data-theme='paper'], [data-theme='mac'], [data-theme='glass']) {
+    --lift: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
+    --window-shadow: 0 30px 80px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --calm-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --calm-sheet-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.4);
+    --calm-sel-shadow: none;
+  }
+}
 
 /* Notes linked into a book from the notebooks: a link in place of the research kind, and the picker's search box. */
 .research-glyph.linked { display: inline-flex; align-items: center; justify-content: center; }

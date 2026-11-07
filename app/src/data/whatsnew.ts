@@ -10,6 +10,15 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-07-themes-colours',
+    date: '7 November 2026',
+    title: 'Themes change only the colours',
+    points: [
+      'Every theme (Paper and ink, Classic, Vapor, Console, Desktop, Liquid glass, Sepia, Midnight) now keeps Crumpet’s own layout, fonts and spacing exactly as they are, and changes only the colours.',
+      'A deleted book that kept coming back after a sync now stays deleted. When a book’s folder couldn’t be removed (a Mac leaves a hidden .DS_Store file in folders, and Google Drive can hold files Crumpet can’t see), the empty folder was read as the book again.',
+    ],
+  },
+  {
     id: '2026-11-07-mac-buttons',
     date: '7 November 2026',
     title: 'Room for the Mac’s window buttons',

@@ -219,9 +219,13 @@ export function remoteTree(snap: Snapshot, base: Base): { tree: Tree; layout: La
   // folder is kept for projects: a stack called Projects goes in "Projects 2".
   // Earlier versions read a project folder without its project.json as a
   // notebook and recorded it in vault.json; it's a project now regardless.)
+  // An empty folder isn't a project, though: a deleted project's folder that
+  // couldn't be removed (the Mac's .DS_Store, or a file Google hides, is left in
+  // it) would otherwise come back as the project again after every delete.
   const projectDirs = new Map<string, Partial<ProjectJson>>();
+  const writing = (dir: string) => Object.keys(snap.files).some((f) => f.startsWith(`${dir}/`));
   for (const e of snap.entries) {
-    if (e.kind === 'folder' && parentOf(e.path) === PROJECTS && !baseName(e.path).startsWith('.')) projectDirs.set(e.path, {});
+    if (e.kind === 'folder' && parentOf(e.path) === PROJECTS && !baseName(e.path).startsWith('.') && writing(e.path)) projectDirs.set(e.path, {});
   }
   for (const [path, f] of Object.entries(snap.projectFiles ?? {})) {
     const json = parseProject(f.text);
