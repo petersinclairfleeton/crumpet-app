@@ -15,7 +15,7 @@ test('a title of several lines shows them all, even after the window narrows', a
   await page.goto('/');
   await expect(page.locator('.app')).toBeVisible();
   await sidebar(page).getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note/ }).click();
+  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note( |$)/ }).click();
   await page.keyboard.type('The keeper of the lighthouse on the far rock writes to his sister about the winter storms');
   expect(await whole(page, 'Title')).toBe(true);
   await page.setViewportSize({ width: 900, height: 720 });

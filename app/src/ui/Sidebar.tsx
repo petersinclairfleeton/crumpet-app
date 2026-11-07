@@ -675,6 +675,11 @@ function SearchRow() {
           }
         }}
       />
+      {!state.query && (
+        <button type="button" className="find-key" aria-label="Find anything" title="Find anything: notes, chapters and commands" onMouseDown={(e) => e.preventDefault()} onClick={openFinder}>
+          {isMac ? '⌘K' : 'Ctrl K'}
+        </button>
+      )}
     </label>
   );
 }

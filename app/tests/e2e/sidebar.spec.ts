@@ -47,7 +47,7 @@ test('New makes notes, notebooks, stacks and manuscripts; a notebook goes into a
   const side = sidebar(page);
   const make = async (what: string, name?: string) => {
     await side.getByRole('button', { name: 'New', exact: true }).click();
-    await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: new RegExp(`^${what}`) }).click();
+    await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: what, exact: true }).click();
     if (name) {
       await page.keyboard.type(name);
       await page.keyboard.press('Enter');

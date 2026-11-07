@@ -133,7 +133,7 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
           title="Open the sidebar"
           onClick={() => {
             if (graphOpen) panes.closeActive();
-            store.updateLayout(state.view.kind === 'project' && (state.settings.layout?.sidebar ?? 'full') === 'full' ? { bookSidebar: 'full' } : { sidebar: 'full', list: true });
+            store.updateLayout(state.view.kind === 'project' && (state.settings.layout?.sidebar ?? 'full') === 'full' ? { bookSidebar: 'full', list: true } : { sidebar: 'full', list: true });
           }}
         >
           <IconSidebar size={18} />

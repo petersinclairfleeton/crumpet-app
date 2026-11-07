@@ -69,7 +69,7 @@ test('connect Google Drive in two clicks, then a second device finds the same no
 
   await mac.keyboard.press('Escape');
   await sidebar(mac).getByRole('button', { name: 'New', exact: true }).click();
-  await mac.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note/ }).click();
+  await mac.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note( |$)/ }).click();
   await mac.keyboard.type('Hello Drive');
   await mac.keyboard.press('Enter');
   await mac.keyboard.type('Written on the Mac.');
@@ -142,7 +142,7 @@ test('keep notes in a folder on this computer: files written there, changes made
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: 'Notebooks' })).toBeVisible();
   await sidebar(page).getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note/ }).click();
+  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note( |$)/ }).click();
   await page.keyboard.type('Harbour');
   await page.keyboard.press('Enter');
   await page.keyboard.type('The boats come in at dusk.');
@@ -204,7 +204,7 @@ test('closing the tab before the changes have synced asks first', async ({ brows
   expect(await asks()).toBe(false);
 
   await sidebar(page).getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note/ }).click();
+  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note( |$)/ }).click();
   await page.keyboard.type('Not yet synced');
   expect(await asks()).toBe(true);
   // Asking also syncs straight away, so once it's in the folder closing is fine again.
@@ -223,7 +223,7 @@ test('“Syncing…” shows while changes are on their way, then “Synced”, 
   const note = page.locator('.sync-note');
   // With the sidebar showing, its foot says it, so the note keeps out of the way.
   await sidebar(page).getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note/ }).click();
+  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note( |$)/ }).click();
   await page.keyboard.type('On its way');
   await expect(sidebar(page).locator('.side-foot')).toContainText('Syncing…');
   await expect(note).toHaveCount(0);
@@ -246,7 +246,7 @@ test('share a note with readers as a Google Doc, then bring their comments back 
   const drive = new FakeDrive();
   const page = await device(browser, drive);
   await sidebar(page).getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note/ }).click();
+  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note( |$)/ }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.keyboard.type('The lamp had not been lit. The keeper waited by the stove.');
