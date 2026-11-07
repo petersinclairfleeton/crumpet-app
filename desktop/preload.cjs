@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('crumpetDesktop', {
   version,
   /** The app's Help menu → Report a Problem…: the page opens its report window. */
   onFeedback: (fn) => ipcRenderer.on('crumpet-feedback', () => fn()),
+  /** A menu bar item (File → New Note, Format → Bold…): the page does what its own button or shortcut does. */
+  onCommand: (fn) => ipcRenderer.on('crumpet-command', (_e, id) => fn(String(id))),
   /** A bug report or feedback: opens the computer's email app with it written in. */
   openMail: (url) => ipcRenderer.invoke('open-mail', String(url)),
   /** A web page clipped with the bookmark while the app is open (as it travels in the address). */

@@ -45,6 +45,8 @@ export interface Note {
   extra?: string;
   /** A reminder: when, and whether it's been dealt with. */
   reminder?: { at: number; done?: boolean };
+  /** A daily note: the day it's for (YYYY-MM-DD). Kept under Today until it's filed in a notebook. */
+  daily?: string;
   /**
    * An uploaded file this note is (a picture, PDF, Word document...): its
    * path in Attachments. Shown as what it is; a Word document is edited here
@@ -334,6 +336,10 @@ export type View =
   | { kind: 'inbox' }
   | { kind: 'favorites' }
   | { kind: 'reminders' }
+  /** Daily notes not filed in a notebook. */
+  | { kind: 'today' }
+  /** Boards: notes laid out as cards and arrows. */
+  | { kind: 'boards' }
   | { kind: 'notebook'; id: string }
   | { kind: 'stack'; id: string }
   | { kind: 'tag'; tag: string }

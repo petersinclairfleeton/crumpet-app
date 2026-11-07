@@ -10,6 +10,20 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-07-code-sidebar',
+    date: '7 November 2026',
+    title: 'A tidier sidebar, built on CODE',
+    points: [
+      'The sidebar follows Tiago Forte’s CODE: Capture (Inbox, Today, Reminders), Organise (All notes, your notebooks and stacks), Distill (Boards, Graph of links) and Express (your manuscripts and Submissions). Favourites sits at the very top. Click any heading to fold its section away.',
+      'One quiet New button makes everything: a note, a daily note, a notebook, a notebook stack, a manuscript, a board, or a note from a template, and uploads files. (The + beside Writing is gone.)',
+      'Today no longer makes a note by itself, or a Daily notes notebook. It lists your daily notes, with New daily note to start today’s. Move any of them into a notebook whenever you like (from the notebook’s name above the title, or by dragging it).',
+      'Search is a row like the others, and opens into a search box when you click it. Tags moved to the # at the foot of the sidebar, beside a clearer settings cog. The top shows Crumpet’s own logo.',
+      'Stacks hold notebooks only: clicking a stack shows or hides its notebooks. Drag a notebook onto a stack, or use New → Notebook stack.',
+      'The note list and a book’s outline each have a button to fold them away, and the outline has more room at its top.',
+      'In the Mac and Windows apps, the menu bar is full: File (new notes, notebooks, manuscripts, Today, upload, export, print), Edit (find, search, go to, footnotes, comments, thesaurus), Format (bold, italic, headings, lists, alignment, font), View (sidebars, focus mode, page view, the graph) and Help.',
+    ],
+  },
+  {
     id: '2026-11-07-themes-colours',
     date: '7 November 2026',
     title: 'Themes change only the colours',

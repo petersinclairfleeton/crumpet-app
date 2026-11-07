@@ -83,6 +83,23 @@ describe('syncing two devices through files', () => {
     expect(phone.store.getState().notebooks[0]).toMatchObject({ id: nb.id, name: 'Novel', stackId: stack.id, color: nb.color });
   });
 
+  it('keeps a daily note a daily note on the other device, until it’s filed in a notebook', async () => {
+    const cloud = new MemoryProvider(now);
+    const mac = await device(cloud);
+    const phone = await device(cloud);
+    const day = mac.store.newDailyNote();
+    mac.store.flush();
+    await mac.engine.sync();
+    expect(cloud.files.get(`${day.title}.md`)!.text).toContain(`daily: ${day.daily}`);
+    await phone.engine.sync();
+    expect(phone.store.note(day.id)?.daily).toBe(day.daily);
+    const nb = phone.store.createNotebook('Journal');
+    phone.store.moveNote(day.id, nb.id);
+    await phone.engine.sync();
+    await mac.engine.sync();
+    expect(mac.store.note(day.id)?.notebookId).toBe(nb.id);
+  });
+
   it('does nothing when nothing changed', async () => {
     const cloud = new MemoryProvider(now);
     const mac = await device(cloud);

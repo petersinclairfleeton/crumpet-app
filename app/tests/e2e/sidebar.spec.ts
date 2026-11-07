@@ -1,0 +1,133 @@
+import { type Page, expect, test } from '@playwright/test';
+
+// The calm sidebar: CODE's four sections (Capture, Organise, Distill, Express) under
+// Favourites, one New button, Search as a row, tags and settings at the foot.
+
+type Crumpet = Record<string, (...a: unknown[]) => { id: string }> & { getState(): { notes: { id: string; title: string; notebookId: string | null; daily?: string }[]; notebooks: { id: string; name: string; stackId: string | null }[]; stacks: { id: string; name: string }[]; projects: { name: string }[] } };
+const sidebar = (page: Page) => page.getByRole('navigation', { name: 'Notebooks' });
+const list = (page: Page) => page.getByRole('region', { name: 'Notes', exact: true });
+const state = (page: Page) => page.evaluate(() => (window as unknown as { crumpet: Crumpet }).crumpet.getState());
+
+async function calm(page: Page) {
+  await page.goto('/');
+  await expect(page.locator('.app')).toBeVisible();
+  await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: Crumpet }).crumpet;
+    c.updateSettings({ guideSeen: true, toolbarAll: false });
+    c.createNote({ title: 'First thought', notebookId: null });
+  });
+  await expect(page.locator('.sidebar.calm')).toBeVisible();
+}
+
+test('the calm sidebar: Favourites on top, then Capture, Organise, Distill and Express, each folding away', async ({ page }) => {
+  await calm(page);
+  const side = sidebar(page);
+  // The app's own logo at the top.
+  await expect(side.locator('.brand img.logo')).toBeVisible();
+  const order = await side.locator('.side-scroll > :is(.side-row, .side-section)').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label') ?? e.textContent?.trim().split(/\d/)[0]));
+  expect(order).toEqual(['Favourites', 'Capture', 'Organise', 'Distill', 'Express']);
+  const capture = side.getByRole('region', { name: 'Capture' });
+  await expect(capture.getByRole('button', { name: /^Inbox/ })).toBeVisible();
+  await capture.getByRole('button', { name: 'Capture' }).click();
+  await expect(capture.getByRole('button', { name: /^Inbox/ })).toHaveCount(0);
+  await capture.getByRole('button', { name: 'Capture' }).click();
+  await expect(capture.getByRole('button', { name: /^Inbox/ })).toBeVisible();
+  // No + beside the manuscripts: they're made from New.
+  await expect(side.getByRole('region', { name: 'Express' }).getByRole('button', { name: 'New project' })).toHaveCount(0);
+  // Search is a row that opens into a box.
+  await side.getByRole('button', { name: 'Search', exact: true }).click();
+  await page.keyboard.type('First');
+  await expect(list(page)).toContainText('First thought');
+  await page.keyboard.press('Escape');
+  await expect(side.getByRole('button', { name: 'Search', exact: true })).toBeVisible();
+});
+
+test('New makes notes, notebooks, stacks and manuscripts; a notebook goes into a stack, and a stack holds only notebooks', async ({ page }) => {
+  await calm(page);
+  const side = sidebar(page);
+  const make = async (what: string, name?: string) => {
+    await side.getByRole('button', { name: 'New', exact: true }).click();
+    await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: new RegExp(`^${what}`) }).click();
+    if (name) {
+      await page.keyboard.type(name);
+      await page.keyboard.press('Enter');
+    }
+  };
+  await make('Notebook', 'Journal');
+  await make('Notebook stack', 'Writing');
+  await make('Manuscript', 'The Lighthouse');
+  await expect.poll(async () => (await state(page)).projects.map((p) => p.name)).toEqual(['The Lighthouse']);
+  await page.evaluate(() => (window as unknown as { crumpet: Crumpet }).crumpet.setView({ kind: 'all' }));
+  const organise = side.getByRole('region', { name: 'Organise' });
+  await expect(organise.locator('.nb-row', { hasText: 'Journal' })).toBeVisible();
+  // Drag the notebook onto the stack.
+  await organise.locator('.nb-row', { hasText: 'Journal' }).dragTo(organise.locator('.stack-row', { hasText: 'Writing' }));
+  await expect.poll(async () => {
+    const st = await state(page);
+    return st.notebooks.find((n) => n.name === 'Journal')?.stackId === st.stacks.find((s) => s.name === 'Writing')?.id;
+  }).toBe(true);
+  // Clicking the stack shows or hides its notebooks; it doesn't open a list of notes.
+  const view = async () => page.evaluate(() => (window as unknown as { crumpet: { getState(): { view: { kind: string } } } }).crumpet.getState().view.kind);
+  await organise.locator('.stack-row .row-main').click();
+  await expect(organise.locator('.nb-row', { hasText: 'Journal' })).toHaveCount(0);
+  expect(await view()).toBe('all');
+  await organise.locator('.stack-row .row-main').click();
+  await expect(organise.locator('.nb-row', { hasText: 'Journal' })).toBeVisible();
+});
+
+test('Today lists daily notes and makes none by itself; New daily note starts today’s, which can move to a notebook', async ({ page }) => {
+  await calm(page);
+  const side = sidebar(page);
+  await side.getByRole('button', { name: /^Today/ }).click();
+  await expect(list(page).getByRole('heading', { name: 'Today' })).toBeVisible();
+  expect((await state(page)).notes.filter((n) => n.daily)).toEqual([]);
+  expect((await state(page)).notebooks).toEqual([]);
+  await list(page).getByRole('button', { name: 'New daily note' }).click();
+  await expect.poll(async () => (await state(page)).notes.filter((n) => n.daily).length).toBe(1);
+  const day = (await state(page)).notes.find((n) => n.daily)!;
+  expect(day.notebookId).toBeNull();
+  await expect(list(page)).toContainText(day.title);
+  // Not in the Inbox, and no Daily notes notebook.
+  await side.getByRole('button', { name: /^Inbox/ }).click();
+  await expect(list(page)).not.toContainText(day.title);
+  expect((await state(page)).notebooks).toEqual([]);
+  // Filed in a notebook, it leaves Today.
+  await page.evaluate((id) => {
+    const c = (window as unknown as { crumpet: Crumpet }).crumpet;
+    c.moveNote(id, c.createNotebook('Journal').id);
+    c.setView({ kind: 'today' });
+  }, day.id);
+  await expect(list(page)).not.toContainText(day.title);
+});
+
+test('tags are under the # at the sidebar’s foot, beside the settings cog', async ({ page }) => {
+  await calm(page);
+  await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: Crumpet }).crumpet;
+    c.addTag(c.getState().notes[0].id, 'idea');
+  });
+  const side = sidebar(page);
+  await expect(side.getByRole('region', { name: 'Organise' }).getByRole('button', { name: 'Tags' })).toHaveCount(0);
+  await side.getByRole('button', { name: 'Tags' }).click();
+  await page.getByRole('dialog', { name: 'Tags' }).getByRole('button', { name: /#idea/ }).click();
+  await expect(list(page).getByRole('heading', { name: '#idea' })).toBeVisible();
+  await side.getByRole('button', { name: 'Settings and more' }).click();
+  await expect(page.getByRole('dialog', { name: 'Settings and more' }).getByRole('button', { name: /Settings…/ })).toBeVisible();
+});
+
+test('the note list and a book’s outline fold away with a button of their own', async ({ page }) => {
+  await calm(page);
+  await list(page).getByRole('button', { name: 'Hide the note list' }).click();
+  await expect(list(page)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Back to the list' }).click();
+  await expect(list(page)).toBeVisible();
+  await page.evaluate(() => {
+    const c = (window as unknown as { crumpet: Crumpet }).crumpet;
+    c.setView({ kind: 'project', id: c.createProject('The Lighthouse').id });
+  });
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await outline.getByRole('button', { name: 'Hide the outline' }).click();
+  await expect(outline).toHaveCount(0);
+  await page.getByRole('button', { name: 'Open the sidebar' }).click();
+  await expect(outline).toBeVisible();
+});

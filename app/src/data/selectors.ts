@@ -244,6 +244,10 @@ export function viewTitle(view: View, state: Pick<AppState, 'notebooks' | 'stack
       return 'Favourites';
     case 'reminders':
       return 'Reminders';
+    case 'today':
+      return 'Today';
+    case 'boards':
+      return 'Boards';
     case 'trash':
       return 'Trash';
     case 'tag':

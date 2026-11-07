@@ -27,11 +27,12 @@ import { Guide, onOpenGuide, shouldOpenGuide } from './guide';
 import { Tour } from './Tour';
 import { applyTheme } from './theme';
 import { startSession } from './writingtab';
-import { useTodayWords } from './stats-ui';
+import { StatsDialog, useTodayWords } from './stats-ui';
+import { useDesktopMenu } from './desktopmenu';
 import { SpeechBar, startReading, toggleDictation } from './speech';
 import { CompareDocs } from './comparedocs';
 import { useFileIndex } from './fileindex';
-import { useWordSaving } from './uploads';
+import { chooseUploads, uploadFiles, useWordSaving } from './uploads';
 import { ReminderAlerts } from './reminders';
 import { GoToHost, openGoTo } from './goto';
 import { PictureAltHost } from './picture';
@@ -148,8 +149,13 @@ export function App() {
     [store],
   );
 
+  // Today: the list of daily notes (makes nothing; the list has New daily note).
   const openToday = useCallback(() => {
     store.openToday();
+    setPane('list');
+  }, [store]);
+  const newDailyNote = useCallback(() => {
+    store.newDailyNote();
     setPane('note');
   }, [store]);
 
@@ -359,6 +365,23 @@ export function App() {
   // Crumpet's calm look on a computer: the sidebar, the list and the page, as separate sheets over the wash.
   const calm = !narrow && !state.settings.toolbarAll;
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
+  // The Mac and Windows apps' menu bar.
+  const [statsOpen, setStatsOpen] = useState(false);
+  useDesktopMenu({
+    newNote,
+    newDailyNote,
+    newProject,
+    openToday,
+    openSettings: () => setSettingsOpen(true),
+    openCommands: () => setFinder('commands'),
+    openStats: () => setStatsOpen(true),
+    upload: () =>
+      chooseUploads(async (files) => {
+        const made = await uploadFiles(store, files, {});
+        if (made.length) openNote(made[made.length - 1].id);
+      }),
+    store,
+  });
 
   return (
     <NavContext.Provider value={nav}>
@@ -391,6 +414,7 @@ export function App() {
             newNote,
             newProject,
             openToday,
+            newDailyNote,
             openSettings: () => setSettingsOpen(true),
             compareFrom: (id) => {
               setCompareFrom(id);
@@ -403,6 +427,7 @@ export function App() {
       )}
       {compare && <CompareDocs a={compare.a} b={compare.b} onSwap={() => setCompare({ a: compare.b, b: compare.a })} onClose={() => setCompare(null)} />}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {statsOpen && <StatsDialog onClose={() => setStatsOpen(false)} />}
       {guide && <Guide onClose={() => setGuide(false)} onNewNote={newNote} onNewProject={newProject} onConnect={() => setSettingsOpen(true)} onTour={() => setTouring(true)} />}
       {touring && <Tour onDone={() => setTouring(false)} />}
       <SpeechBar />
@@ -437,10 +462,10 @@ export function App() {
         {peekable && sidebarMode === 'hidden' && <div className="peek-edge" aria-hidden="true" onMouseEnter={() => peekCtl.open('sidebar')} onMouseLeave={peekCtl.leave} />}
         {peekable && peek === 'sidebar' && sidebarMode === 'hidden' && (
           <div className="peek-panel sidebar-peek" onMouseEnter={peekCtl.stay} onMouseLeave={peekCtl.leave}>
-            <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={peekCtl.close} onToday={openToday} onTemplate={newFromTemplate} onImport={importNote} />
+            <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={peekCtl.close} onToday={openToday} onNewDaily={newDailyNote} onTemplate={newFromTemplate} onImport={importNote} />
           </div>
         )}
-        {sidebarMode === 'full' && (phoneCalm ? <PhoneLibrary onOpenView={openView} onToday={openToday} /> : <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} onToday={openToday} onTemplate={newFromTemplate} onImport={importNote} />)}
+        {sidebarMode === 'full' && (phoneCalm ? <PhoneLibrary onOpenView={openView} onToday={openToday} /> : <Sidebar onOpenView={openView} onOpenNote={openNote} onNewNote={newNote} onClose={() => setPane('list')} onToday={openToday} onNewDaily={newDailyNote} onTemplate={newFromTemplate} onImport={importNote} />)}
         {sidebarMode === 'full' && !narrow && <Resizer label="Sidebar width" value={sideW} {...SIDEBAR} cssVar="--side-w" target={target} onChange={(v) => store.updateLayout({ sidebarWidth: Math.round(v) })} />}
         {sidebarMode === 'icons' && <SidebarRail onOpenView={openView} onNewNote={newNote} onToday={openToday} />}
         <div className="workspace">

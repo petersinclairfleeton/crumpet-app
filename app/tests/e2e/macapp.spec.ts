@@ -73,3 +73,37 @@ test('the Windows app and the website keep no strip for window buttons', async (
   await expect(page.locator('.sidebar.calm')).toBeVisible();
   expect((await page.locator('.sidebar.calm').boundingBox())!.y).toBeLessThan(20);
 });
+
+test('the menu bar: File, Format and View items do what their buttons and shortcuts do', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.addInitScript(() => {
+    const w = window as unknown as { crumpetDesktop: object; menu?: (id: string) => void };
+    w.crumpetDesktop = { platform: 'darwin', onCommand: (fn: (id: string) => void) => { w.menu = fn; } };
+  });
+  await page.goto('/');
+  await expect(page.locator('.app')).toBeVisible();
+  const menu = (id: string) => page.evaluate((x) => (window as unknown as { menu(id: string): void }).menu(x), id);
+  const st = () => page.evaluate(() => (window as unknown as { crumpet: { getState(): { notes: { title: string; daily?: string }[]; notebooks: { name: string }[]; settings: { layout?: { sidebar?: string } } } } }).crumpet.getState());
+  await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ guideSeen: true, toolbarAll: false }));
+  // File → New Note, then Format → Bold on what's typed.
+  await menu('new-note');
+  await expect.poll(async () => (await st()).notes.length).toBe(1);
+  await page.keyboard.type('Title');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Strong words');
+  await page.keyboard.press('Shift+Home');
+  await menu('bold');
+  await expect(page.locator('.editor strong, .editor b').first()).toHaveText('Strong words');
+  // File → New Daily Note: under Today, no notebook made.
+  await menu('new-daily');
+  await expect.poll(async () => (await st()).notes.filter((n) => n.daily).length).toBe(1);
+  expect((await st()).notebooks).toEqual([]);
+  // File → New Notebook…: named in the sidebar.
+  await menu('new-notebook');
+  await page.keyboard.type('Journal');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await st()).notebooks.map((n) => n.name)).toEqual(['Journal']);
+  // View → the sidebar.
+  await menu('toggle-sidebar');
+  await expect.poll(async () => (await st()).settings.layout?.sidebar).toBe('hidden');
+});

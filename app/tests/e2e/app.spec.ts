@@ -451,8 +451,7 @@ test('example notes from the first version are cleared on upgrade, but your own 
   await page.goto('/');
   await expect(list(page).locator('.card')).toHaveCount(1);
   await expect(list(page)).toContainText('Sonnet');
-  // The calm sidebar keeps notebooks folded under one row.
-  await sidebar(page).getByRole('button', { name: 'Notebooks', exact: true }).click();
+  // The calm sidebar lists notebooks and stacks under Organise.
   await expect(sidebar(page).locator('.stack-row')).toContainText('2 Areas');
   await expect(sidebar(page).locator('.nb-row')).toHaveText(/Poems/);
   await sidebar(page).getByRole('button', { name: /^Favourites/ }).click();
@@ -1078,10 +1077,10 @@ test('the guide: opens by itself on a first visit, chapter by chapter with pictu
   await expect(guide).toBeVisible();
   // Workflows open one at a time.
   await guide.getByRole('navigation').getByRole('button', { name: /Workflows/ }).click();
-  await expect(guide).toContainText('Click + next to Writing in the sidebar');
+  await expect(guide).toContainText('Choose New → Manuscript in the sidebar');
   await guide.getByRole('button', { name: /Keep a journal/ }).click();
   await expect(guide).toContainText('Click Today in the sidebar');
-  await expect(guide).not.toContainText('Click + next to Writing in the sidebar');
+  await expect(guide).not.toContainText('Choose New → Manuscript in the sidebar');
   // Ready: a first note (no sign-in and no name asked for).
   await guide.getByRole('button', { name: /^Next/ }).click();
   await expect(guide.getByLabel('Your name')).toHaveCount(0);
@@ -1172,14 +1171,20 @@ test('the / menu adds headings, lists and more as you write', async ({ page }) =
 
 test('today’s note, and new notes from templates', async ({ page }) => {
   await open(page);
+  // Today lists the daily notes and makes none by itself.
   await sidebar(page).getByRole('button', { name: /^Today/ }).click();
+  await expect(list(page).locator('h1')).toHaveText('Today');
+  await expect(list(page).locator('.card')).toHaveCount(0);
+  await list(page).getByRole('button', { name: 'New daily note' }).click();
   const title = page.getByLabel('Title');
   const today = await page.evaluate(() => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
   await expect(title).toHaveValue(today);
-  await expect(sidebar(page).locator('.nb-row')).toContainText('Daily notes');
+  // No Daily notes notebook: it waits under Today.
+  await expect(sidebar(page).locator('.nb-row')).toHaveCount(0);
   // Again: the same note.
   await sidebar(page).getByRole('button', { name: /^All notes/ }).click();
   await sidebar(page).getByRole('button', { name: /^Today/ }).click();
+  await list(page).getByRole('button', { name: 'New daily note' }).click();
   await expect(list(page).locator('.card')).toHaveCount(1);
   // From a template.
   await sidebar(page).getByRole('button', { name: 'New from a template' }).click();

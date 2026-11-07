@@ -1,3 +1,4 @@
+import { boardDoc, emptyBoard } from '../data/board';
 import { useEffect, useRef, useState } from 'react';
 import { mediaUrl } from '../data/files';
 import { useAppState, useAppStore, useMedia } from './hooks';
@@ -122,7 +123,12 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
           {nb && <NotebookIcon color={nb.color} size={15} cut="var(--list-bg)" />}
           <h1>{title}</h1>
           <span className="grow" />
-          {phone ? null : calm ? !trash && !reminders && <ListMenu sort={sort} sortName={sortName} /> : <FoldButton what="list" />}
+          {phone ? null : calm ? (
+            <>
+              {!trash && !reminders && <ListMenu sort={sort} sortName={sortName} />}
+              <FoldButton what="list" />
+            </>
+          ) : <FoldButton what="list" />}
         </div>
         {tablet && (
           <label className="phone-search tablet-search">
@@ -149,6 +155,16 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
           {trash && notes.length > 0 && (
             <button type="button" className="link-btn" onClick={() => store.emptyTrash()}>
               Empty Trash
+            </button>
+          )}
+          {state.view.kind === 'today' && !searching && store.oldDailyNotebook() && (
+            <button type="button" className="link-btn" title="Moves the notes in your Daily notes notebook here, and the empty notebook goes" onClick={() => store.adoptDailyNotebook()}>
+              Bring in your Daily notes notebook
+            </button>
+          )}
+          {state.view.kind === 'today' && !searching && notes.length > 0 && (
+            <button type="button" className="btn small new-daily" onClick={() => (store.newDailyNote(), onOpenNote(store.getState().selectedId!))}>
+              <IconPlus size={13} /> New daily note
             </button>
           )}
           <span className="grow" />
@@ -243,7 +259,7 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
       )}
 
       {notes.length === 0 ? (
-        chapters.length === 0 && <Empty view={state.view} searching={searching} query={state.query} onNewNote={onNewNote} />
+        chapters.length === 0 && <Empty view={state.view} searching={searching} query={state.query} onNewNote={state.view.kind === 'today' ? () => (store.newDailyNote(), onOpenNote(store.getState().selectedId!)) : state.view.kind === 'boards' ? () => onOpenNote(store.createNote({ doc: boardDoc(emptyBoard()) }).id) : onNewNote} />
       ) : style === 'table' && !phone ? (
         <div className="list-table">
           <table className="note-table">
@@ -456,6 +472,8 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
   }
   else if (view.kind === 'stack') text = 'No notes in this stack’s notebooks yet.';
   else if (view.kind === 'tag') text = 'No notes have this tag any more.';
+  else if (view.kind === 'boards') text = 'Boards lay out ideas as cards joined by arrows, to see what matters and how it fits together.';
+  else if (view.kind === 'today') text = 'Daily notes wait here, one for each day. Move one into a notebook whenever you like.';
   else if (view.kind === 'inbox') text = 'Your inbox is clear. Notes you haven’t put in a notebook wait here.';
   else if (view.kind === 'all') text = 'No notes yet. Write your first one, then file it in a notebook whenever you like.';
   else text = 'No notes here yet.';
@@ -467,7 +485,7 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
       <p>{text}</p>
       {action && (
         <button type="button" className="btn primary" onClick={onNewNote}>
-          <IconPlus size={14} /> New note
+          <IconPlus size={14} /> {view.kind === 'today' ? 'New daily note' : view.kind === 'boards' ? 'New board' : 'New note'}
         </button>
       )}
     </div>

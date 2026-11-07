@@ -1,3 +1,5 @@
+import { currentHelped } from './helpers';
+import { NOTE_MENU } from './desktopmenu';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { defaultPage, fullSheet } from '../data/styles';
 import { AUTHOR } from '../data/types';
@@ -81,6 +83,22 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [reading]);
+
+  // The menu bar's File → Print… and Export… (the desktop apps): the note being written in answers.
+  useEffect(() => {
+    const on = (e: Event) => {
+      const want = (e as CustomEvent<string>).detail;
+      const here = currentHelped()?.docId ?? state.selectedId;
+      if (!note || here !== note.id) return;
+      if (want === 'print') setPrinting('print');
+      else {
+        setDownloads(true);
+        setMenu(true);
+      }
+    };
+    window.addEventListener(NOTE_MENU, on);
+    return () => window.removeEventListener(NOTE_MENU, on);
+  }, [note, state.selectedId]);
 
   // The title wraps onto more lines as needed.
   useAutoHeight(titleRef);
@@ -412,7 +430,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
 
   const nbSelect = (
     <select value={note.notebookId ?? ''} disabled={trashed} onChange={(e) => store.moveNote(note.id, e.target.value || null)}>
-      <option value="">No notebook (Inbox)</option>
+      <option value="">{note.daily ? 'No notebook (Today)' : 'No notebook (Inbox)'}</option>
       {loose.map((n) => (
         <option key={n.id} value={n.id}>
           {n.name}
@@ -438,13 +456,13 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               {nb ? <span className="kicker-mark" style={{ background: nb.color }} aria-hidden="true" /> : <IconInbox size={13} />}
               <span className="visually-hidden">Notebook</span>
               {nbSelect}
-              <span aria-hidden="true">{nb?.name ?? 'Inbox'}</span>
+              <span aria-hidden="true">{nb?.name ?? (note.daily ? 'Today' : 'Inbox')}</span>
             </label>
             <span aria-hidden="true">·</span>
             <span>{editedText(note.updatedAt, Date.now())}</span>
           </p>
         ) : (
-          <p className="note-kicker">{phone ? `${nb?.name ?? 'Inbox'} · ${editedText(note.updatedAt, Date.now())}` : editedText(note.updatedAt, Date.now())}</p>
+          <p className="note-kicker">{phone ? `${nb?.name ?? (note.daily ? 'Today' : 'Inbox')} · ${editedText(note.updatedAt, Date.now())}` : editedText(note.updatedAt, Date.now())}</p>
         )}
     </>
   );

@@ -69,12 +69,17 @@ export const IconLink = icon(
 export const IconUndo = icon(<path d="M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3" />);
 export const IconRedo = icon(<path d="M15 14l5-5-5-5M20 9H9a5 5 0 0 0 0 10h3" />);
 export const IconRestore = icon(<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />);
+/** A cog: Settings. */
 export const IconSettings = icon(
   <>
     <circle cx="12" cy="12" r="3" />
-    <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </>,
 );
+/** A hash sign: tags. */
+export const IconHash = icon(<path d="M5 9h14M5 15h14M10 4 8 20M16 4l-2 16" />);
+/** Cards on a board, joined by a line. */
+export const IconBoard = icon(<path d="M3 5h7v6H3zM14 13h7v6h-7zM10 8h4v8" />);
 export const IconSun = icon(
   <>
     <circle cx="12" cy="12" r="4" />

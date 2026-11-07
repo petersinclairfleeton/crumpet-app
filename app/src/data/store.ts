@@ -26,6 +26,7 @@ import { inOrder, moveInOrder, notebookTree, projectsInOrder } from './selectors
 import { type BookPlan, tidyPlan } from './plan';
 import type { BookDesign } from './bookdesign';
 import { activeTab, tidyWorkspace } from './panes';
+import { isBoard } from './board';
 
 export interface AppState {
   ready: boolean;
@@ -291,7 +292,7 @@ export class AppStore {
 
   // ---------- notes ----------
 
-  createNote(init: Partial<Pick<Note, 'title' | 'doc' | 'notebookId' | 'tags' | 'favorite' | 'file'>> = {}, open = true): Note {
+  createNote(init: Partial<Pick<Note, 'title' | 'doc' | 'notebookId' | 'tags' | 'favorite' | 'file' | 'daily'>> = {}, open = true): Note {
     const view = this.state.view;
     const t = this.now();
     const note: Note = {
@@ -305,10 +306,12 @@ export class AppStore {
       updatedAt: t,
       trashedAt: null,
       ...(init.file ? { file: init.file } : {}),
+      ...(init.daily ? { daily: init.daily } : {}),
     };
-    // Show the new note where it lives: its notebook, or All Notes if it isn't in one.
+    // Show the new note where it lives: its notebook, or All Notes if it isn't in one
+    // (a note that isn't a daily note doesn't wait under Today: it's in the Inbox).
     const nextView: View =
-      view.kind === 'trash' || view.kind === 'stack' || view.kind === 'project' ? (note.notebookId ? { kind: 'notebook', id: note.notebookId } : { kind: 'all' }) : view;
+      (view.kind === 'today' && !note.daily) || (view.kind === 'boards' && !isBoard(note)) ? (note.notebookId ? { kind: 'notebook', id: note.notebookId } : { kind: 'inbox' }) : view.kind === 'trash' || view.kind === 'stack' || view.kind === 'project' ? (note.notebookId ? { kind: 'notebook', id: note.notebookId } : { kind: 'all' }) : view;
     this.set({ notes: [note, ...this.state.notes], ...(open ? { selectedId: note.id, view: nextView, query: '' } : {}) });
     this.save(this.storage.putNote(note));
     return note;
@@ -337,19 +340,45 @@ export class AppStore {
   }
 
   /** Today's note in Daily notes: opened if it's there, made (from your "Daily note" template, if any) if not. */
-  openToday(): Note {
+  /** Today: the daily notes not yet filed in a notebook, today's chosen if there is one. Makes nothing. */
+  openToday(): Note | undefined {
+    this.flush();
+    const list = visibleIn(this.state, { kind: 'today' });
+    const pick = list.find((n) => n.daily === dayKey(this.now())) ?? list[0];
+    this.set({ view: { kind: 'today' }, query: '', selectedId: pick?.id ?? null });
+    return pick;
+  }
+
+  /** The "Daily notes" notebook earlier versions made, if it's still there with notes in it. */
+  oldDailyNotebook(): Notebook | undefined {
+    const nb = this.state.notebooks.find((n) => n.name.toLowerCase() === DAILY_NOTEBOOK.toLowerCase());
+    return nb && this.state.notes.some((n) => n.notebookId === nb.id && n.trashedAt === null) ? nb : undefined;
+  }
+
+  /** Brings the notes in that notebook under Today (each a daily note for the day it was made), and the emptied notebook goes. */
+  adoptDailyNotebook(): number {
+    const nb = this.oldDailyNotebook();
+    if (!nb) return 0;
+    const notes = this.state.notes.filter((n) => n.notebookId === nb.id && n.trashedAt === null);
+    for (const n of notes) this.updateNote(n.id, { notebookId: null, daily: n.daily ?? dayKey(n.createdAt) }, { touch: false });
+    if (!this.state.notes.some((n) => n.notebookId === nb.id)) this.deleteNotebook(nb.id);
+    this.set({ view: { kind: 'today' } });
+    return notes.length;
+  }
+
+  /** Today's daily note (made from your Daily note template, if you have one), or the one already made today. */
+  newDailyNote(): Note {
     this.flush();
     const t = this.now();
-    const title = longDate(t);
-    const nb = this.notebookNamed(DAILY_NOTEBOOK);
-    const existing = this.state.notes.find((n) => n.notebookId === nb.id && n.trashedAt === null && n.title === title);
+    const day = dayKey(t);
+    const existing = this.state.notes.find((n) => n.daily === day && n.trashedAt === null && !n.projectId);
     if (existing) {
-      this.set({ view: { kind: 'notebook', id: nb.id }, query: '', selectedId: existing.id });
+      this.set({ view: existing.notebookId ? { kind: 'notebook', id: existing.notebookId } : { kind: 'today' }, query: '', selectedId: existing.id });
       return existing;
     }
     const tpl = this.state.notes.find((n) => n.trashedAt === null && n.title.toLowerCase() === DAILY_TEMPLATE.toLowerCase() && this.notebook(n.notebookId)?.name.toLowerCase() === TEMPLATES_NOTEBOOK.toLowerCase());
-    this.set({ view: { kind: 'notebook', id: nb.id } });
-    return this.createNote({ title, notebookId: nb.id, doc: tpl ? templateDoc(toMarkdown(tpl.doc), t) : undefined });
+    this.set({ view: { kind: 'today' } });
+    return this.createNote({ title: longDate(t), notebookId: null, daily: day, doc: tpl ? templateDoc(toMarkdown(tpl.doc), t) : undefined });
   }
 
   private updateNote(id: string, patch: Partial<Note>, opts: { touch?: boolean; delaySave?: boolean } = {}): void {
@@ -670,6 +699,7 @@ export class AppStore {
         tags: t.tags,
         favorite: t.favorite,
         ...(decodeReminder(t.reminder) ? { reminder: decodeReminder(t.reminder) } : {}),
+        ...(t.daily ? { daily: t.daily } : {}),
         ...(t.file ? { file: t.file } : {}),
         createdAt: t.created,
         updatedAt: t.updated,
@@ -1500,6 +1530,7 @@ function sameNoteRecord(a: Note, b: Note): boolean {
     a.tags.every((t, i) => t === b.tags[i]) &&
     a.favorite === b.favorite &&
     JSON.stringify(a.reminder ?? null) === JSON.stringify(b.reminder ?? null) &&
+    (a.daily ?? null) === (b.daily ?? null) &&
     (a.file ?? null) === (b.file ?? null) &&
     a.createdAt === b.createdAt &&
     a.updatedAt === b.updatedAt &&
@@ -1537,8 +1568,15 @@ export function visibleIn(state: Pick<AppState, 'notes' | 'notebooks'>, view: Vi
       out = search ? live : live.filter((n) => !n.projectId);
       break;
     case 'inbox':
-      out = live.filter((n) => !n.notebookId && !n.projectId);
+      // Daily notes wait under Today instead.
+      out = live.filter((n) => !n.notebookId && !n.projectId && !n.daily);
       break;
+    case 'boards':
+      out = live.filter((n) => !n.projectId && isBoard(n));
+      break;
+    case 'today':
+      out = live.filter((n) => n.daily && !n.notebookId && !n.projectId).sort((a, b) => (a.daily! < b.daily! ? 1 : a.daily! > b.daily! ? -1 : b.updatedAt - a.updatedAt));
+      return out;
     case 'favorites':
       out = live.filter((n) => n.favorite);
       break;
