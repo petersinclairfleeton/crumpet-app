@@ -7,9 +7,9 @@ import type { LayoutPrefs, View } from '../data/types';
 import { sameView } from '../data/selectors';
 import { useAppState, useAppStore } from './hooks';
 import { openFinder } from './finder';
-import { IconGraph, IconCrumpet, IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash } from './icons';
+import { IconGraph, Logo, IconBook, IconSun, IconLayout, IconNote, IconNotebook as IconNotebookTab, IconPlus, IconSearch, IconSidebar, IconStar, IconTrash } from './icons';
 import { SettingsDialog } from './Settings';
-import { Popover } from './Sidebar';
+import { Popover, focusSearch } from './Sidebar';
 import { useActiveTab, usePanes } from './panes';
 
 export const SIDEBAR = { min: 180, max: 420, normal: 236 };
@@ -110,7 +110,7 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
     return (
       <nav className="rail calm" aria-label="Notebooks">
         <span className="rail-mark" aria-hidden="true">
-          <IconCrumpet size={18} />
+          <Logo size={28} />
         </span>
         <button type="button" className="rail-btn" aria-label="New note" title="New note" onClick={onNewNote}>
           <IconPlus size={18} />
@@ -133,7 +133,7 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
           title="Open the sidebar"
           onClick={() => {
             if (graphOpen) panes.closeActive();
-            store.updateLayout(state.view.kind === 'project' && (state.settings.layout?.sidebar ?? 'full') === 'full' ? { bookSidebar: 'full' } : { sidebar: 'full', list: true });
+            store.updateLayout(state.view.kind === 'project' && (state.settings.layout?.sidebar ?? 'full') === 'full' ? { bookSidebar: 'full', list: true } : { sidebar: 'full', list: true });
           }}
         >
           <IconSidebar size={18} />
@@ -154,16 +154,13 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
         className="rail-btn"
         aria-label="Search"
         title="Search"
-        onClick={() => {
-          const search = document.getElementById('search') as HTMLInputElement | null;
-          search?.focus();
-        }}
+        onClick={focusSearch}
       >
         <IconSearch size={18} />
       </button>
       <span className="rail-gap" />
       {item({ kind: 'all' }, 'All notes', <IconNote size={18} />)}
-      <button type="button" className="rail-btn" aria-label="Today" title="Today’s note" onClick={onToday}>
+      <button type="button" className="rail-btn" aria-label="Today" title="Today: daily notes" onClick={onToday}>
         <IconSun size={18} />
       </button>
       {item({ kind: 'favorites' }, 'Favourites', <IconStar size={18} />)}

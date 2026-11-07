@@ -415,7 +415,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
               </Popover>
             )}
           </div>
-          {!calm && <FoldButton what="list" />}
+          {!phone && <FoldButton what="list" />}
         </div>
         {project.draft &&
           (menu === 'draftnote' ? (

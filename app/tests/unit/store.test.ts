@@ -385,19 +385,45 @@ describe('saving', () => {
 });
 
 describe('templates and the daily note', () => {
-  it('opens one note per day in Daily notes, made from your Daily note template if you have one', async () => {
+  it('keeps daily notes under Today, out of any notebook, one per day, made from your Daily note template if you have one', async () => {
     const { store } = await fresh();
-    const first = store.openToday();
-    expect(store.notebook(first.notebookId)?.name).toBe('Daily notes');
+    // Opening Today makes nothing.
+    expect(store.openToday()).toBeUndefined();
+    expect(store.getState().view).toEqual({ kind: 'today' });
+    expect(store.getState().notes).toEqual([]);
+    const first = store.newDailyNote();
+    expect(first.notebookId).toBeNull();
+    expect(first.daily).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(first.title).toBe(longDate(first.createdAt));
-    expect(store.openToday().id).toBe(first.id);
+    expect(store.getState().notebooks).toEqual([]);
+    expect(store.newDailyNote().id).toBe(first.id);
+    expect(store.openToday()?.id).toBe(first.id);
     expect(store.getState().selectedId).toBe(first.id);
-    // Tomorrow, with a template of your own.
+    // Under Today, not in the Inbox.
+    expect(visibleIn(store.getState(), { kind: 'today' }).map((n) => n.id)).toEqual([first.id]);
+    expect(visibleIn(store.getState(), { kind: 'inbox' })).toEqual([]);
+    // Filed in a notebook, it leaves Today.
+    const journal = store.createNotebook('Journal');
+    store.moveNote(first.id, journal.id);
+    expect(visibleIn(store.getState(), { kind: 'today' })).toEqual([]);
+    // With a template of your own.
     store.createNote({ title: 'Daily note', notebookId: store.createNotebook('Templates').id, doc: fromMarkdown('## Plans for {{date}}\n') });
     store.trashNote(first.id);
-    const next = store.openToday();
+    const next = store.newDailyNote();
     expect(next.id).not.toBe(first.id);
     expect(toMarkdown(next.doc)).toBe(`## Plans for ${longDate(next.createdAt)}\n`);
+  });
+
+  it('brings the notes of an old Daily notes notebook under Today when asked, and the empty notebook goes', async () => {
+    const { store } = await fresh();
+    const nb = store.createNotebook('Daily notes');
+    const a = store.createNote({ title: 'Monday', notebookId: nb.id });
+    expect(store.oldDailyNotebook()?.id).toBe(nb.id);
+    expect(store.adoptDailyNotebook()).toBe(1);
+    expect(store.note(a.id)?.notebookId).toBeNull();
+    expect(store.note(a.id)?.daily).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(store.getState().notebooks).toEqual([]);
+    expect(store.oldDailyNotebook()).toBeUndefined();
   });
 
   it('starts notes from templates, and saves a note as one without leaving it', async () => {

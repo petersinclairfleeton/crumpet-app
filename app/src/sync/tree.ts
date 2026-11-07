@@ -33,6 +33,8 @@ export interface TNote {
   favorite: boolean;
   /** A reminder, as one string ("ISO date", " done" once dealt with). */
   reminder?: string;
+  /** A daily note's day (YYYY-MM-DD). */
+  daily?: string;
   /** An uploaded file the note is (its path in Attachments). */
   file?: string;
   created: number;
@@ -146,6 +148,7 @@ export function localTree(state: Pick<AppState, 'stacks' | 'notebooks' | 'notes'
       tags: n.tags,
       favorite: n.favorite,
       ...(n.reminder ? { reminder: encodeReminder(n.reminder) } : {}),
+      ...(n.daily ? { daily: n.daily } : {}),
       ...(n.file ? { file: n.file } : {}),
       created: n.createdAt,
       updated: n.updatedAt,
@@ -225,6 +228,7 @@ export function sameNote(a: TNote | undefined, b: TNote | undefined): boolean {
       sameTags(a.tags, b.tags) &&
       a.favorite === b.favorite &&
       (a.reminder ?? null) === (b.reminder ?? null) &&
+      (a.daily ?? null) === (b.daily ?? null) &&
       (a.file ?? null) === (b.file ?? null) &&
       a.created === b.created &&
       a.updated === b.updated &&

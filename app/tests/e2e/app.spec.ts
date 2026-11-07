@@ -19,8 +19,17 @@ async function open(page: Page) {
   await expect(list(page)).toBeVisible();
 }
 
+/** Clicks New note: the full bar's button, or New → Note in the calm sidebar. */
+async function clickNewNote(page: Page) {
+  const calmNew = sidebar(page).getByRole('button', { name: 'New', exact: true });
+  if (await calmNew.count()) {
+    await calmNew.click();
+    await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note( |$)/ }).click();
+  } else await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+}
+
 async function newNote(page: Page, title: string, body = '') {
-  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await clickNewNote(page);
   await expect(page.getByLabel('Title')).toBeFocused();
   await page.keyboard.type(title);
   if (body) {
@@ -451,8 +460,7 @@ test('example notes from the first version are cleared on upgrade, but your own 
   await page.goto('/');
   await expect(list(page).locator('.card')).toHaveCount(1);
   await expect(list(page)).toContainText('Sonnet');
-  // The calm sidebar keeps notebooks folded under one row.
-  await sidebar(page).getByRole('button', { name: 'Notebooks', exact: true }).click();
+  // The calm sidebar lists notebooks and stacks under Organise.
   await expect(sidebar(page).locator('.stack-row')).toContainText('2 Areas');
   await expect(sidebar(page).locator('.nb-row')).toHaveText(/Poems/);
   await sidebar(page).getByRole('button', { name: /^Favourites/ }).click();
@@ -1078,10 +1086,10 @@ test('the guide: opens by itself on a first visit, chapter by chapter with pictu
   await expect(guide).toBeVisible();
   // Workflows open one at a time.
   await guide.getByRole('navigation').getByRole('button', { name: /Workflows/ }).click();
-  await expect(guide).toContainText('Click + next to Writing in the sidebar');
+  await expect(guide).toContainText('Choose New → Manuscript in the sidebar');
   await guide.getByRole('button', { name: /Keep a journal/ }).click();
   await expect(guide).toContainText('Click Today in the sidebar');
-  await expect(guide).not.toContainText('Click + next to Writing in the sidebar');
+  await expect(guide).not.toContainText('Choose New → Manuscript in the sidebar');
   // Ready: a first note (no sign-in and no name asked for).
   await guide.getByRole('button', { name: /^Next/ }).click();
   await expect(guide.getByLabel('Your name')).toHaveCount(0);
@@ -1172,14 +1180,20 @@ test('the / menu adds headings, lists and more as you write', async ({ page }) =
 
 test('today’s note, and new notes from templates', async ({ page }) => {
   await open(page);
+  // Today lists the daily notes and makes none by itself.
   await sidebar(page).getByRole('button', { name: /^Today/ }).click();
+  await expect(list(page).locator('h1')).toHaveText('Today');
+  await expect(list(page).locator('.card')).toHaveCount(0);
+  await list(page).getByRole('button', { name: 'New daily note' }).click();
   const title = page.getByLabel('Title');
   const today = await page.evaluate(() => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
   await expect(title).toHaveValue(today);
-  await expect(sidebar(page).locator('.nb-row')).toContainText('Daily notes');
+  // No Daily notes notebook: it waits under Today.
+  await expect(sidebar(page).locator('.nb-row')).toHaveCount(0);
   // Again: the same note.
   await sidebar(page).getByRole('button', { name: /^All notes/ }).click();
   await sidebar(page).getByRole('button', { name: /^Today/ }).click();
+  await list(page).getByRole('button', { name: 'New daily note' }).click();
   await expect(list(page).locator('.card')).toHaveCount(1);
   // From a template.
   await sidebar(page).getByRole('button', { name: 'New from a template' }).click();
@@ -1731,7 +1745,7 @@ test('pasting from a web page or Word keeps headings, lists and formatting', asy
 
 test('pasting a long piece into an empty note makes its first line the title', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await clickNewNote(page);
   await expect(page.getByLabel('Title')).toBeFocused();
   await page.keyboard.press('Enter');
   const story = 'The rain came down over the hills all night, and in the morning the river had climbed its banks and taken the old bridge with it. Nobody in the village had seen anything like it.';
@@ -1757,13 +1771,13 @@ test('pasting a long piece into an empty note makes its first line the title', a
   await expect(body.locator('h1')).toHaveText('The night the bridge went');
   await expect(body.locator('.blk')).toHaveCount(3);
   // Something short, or a first line that's a sentence, stays in the text.
-  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await clickNewNote(page);
   await page.keyboard.press('Enter');
   await paste('.note-editor', '', `It rained all night.\n${story}`);
   await expect(page.getByLabel('Title')).toHaveValue('');
   await expect(body.locator('.blk').first()).toHaveText('It rained all night.');
   // Several lines pasted into an empty title box: the first stays there, the rest goes to the text.
-  await sidebar(page).getByRole('button', { name: 'New note', exact: true }).click();
+  await clickNewNote(page);
   await expect(page.getByLabel('Title')).toBeFocused();
   await paste('.note-title', '', 'Shopping\nEggs\nMilk');
   await expect(page.getByLabel('Title')).toHaveValue('Shopping');
@@ -5876,7 +5890,7 @@ test('the calm sidebar: Inbox, folded notebooks, search, and the menu at its foo
   const side = sidebar(page);
   // No bar across the top: search is in the sidebar, and the top bar is gone.
   await expect(page.locator('.topbar')).toHaveCount(0);
-  await expect(side.getByRole('button', { name: 'New note', exact: true })).toBeVisible();
+  await expect(side.getByRole('button', { name: 'New', exact: true })).toBeVisible();
   // The Inbox holds notes not in a notebook.
   await side.getByRole('button', { name: /^Inbox/ }).click();
   await expect(list(page).locator('h1')).toHaveText('Inbox');
@@ -5886,15 +5900,18 @@ test('the calm sidebar: Inbox, folded notebooks, search, and the menu at its foo
   await page.locator('.kicker-nb select').selectOption({ label: 'Ideas' });
   await side.getByRole('button', { name: /^Inbox/ }).click();
   await expect(list(page)).toContainText('Your inbox is clear');
-  // Notebooks fold under one row.
+  // Notebooks are listed under Organise, which folds away.
+  const organise = side.getByRole('region', { name: 'Organise' });
+  await organise.getByRole('button', { name: 'Organise' }).click();
   await expect(side.getByRole('button', { name: 'Ideas', exact: true })).toHaveCount(0);
-  await side.getByRole('button', { name: 'Notebooks', exact: true }).click();
+  await organise.getByRole('button', { name: 'Organise' }).click();
   await side.getByRole('button', { name: 'Ideas', exact: true }).click();
   await expect(list(page).locator('h1')).toHaveText('Ideas');
   // Typing in the sidebar's search filters the list; its key opens Find anything.
-  await side.getByPlaceholder('Search').fill('loose');
+  await side.getByRole('button', { name: 'Search', exact: true }).click();
+  await side.getByPlaceholder('Search notes').fill('loose');
   await expect(list(page).locator('h1')).toHaveText('Search results');
-  await side.getByPlaceholder('Search').fill('');
+  await side.getByPlaceholder('Search notes').fill('');
   await side.getByRole('button', { name: 'Find anything' }).click();
   await expect(page.getByRole('dialog').getByRole('combobox')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -5993,7 +6010,7 @@ test('calm Settings, Find and a first visit, as designed', async ({ page }) => {
   // A first visit: the sidebar keeps to New note and All notes, with a word about the rest; three ways to start.
   const side = sidebar(page);
   await expect(side.getByRole('button', { name: 'Inbox' })).toHaveCount(0);
-  await expect(side).toContainText('Notebooks, tags and projects appear here once you make them.');
+  await expect(side).toContainText('Notebooks, tags and manuscripts appear here once you make them.');
   const welcome = page.getByRole('region', { name: 'Welcome' });
   await expect(welcome.getByRole('listitem')).toHaveCount(3);
   await expect(welcome.getByRole('button', { name: 'Take the two-minute tour' })).toBeVisible();
@@ -6272,7 +6289,7 @@ test.describe('on an iPad, in the calm look', () => {
     // The outline comes out beside it.
     await page.getByRole('button', { name: 'Show the outline' }).click();
     await expect(page.getByRole('region', { name: 'Outline' })).toBeVisible();
-    await page.getByRole('button', { name: 'Hide the outline' }).click();
+    await page.getByRole('region', { name: 'Chapter' }).getByRole('button', { name: 'Hide the outline' }).click();
     await expect(page.getByRole('region', { name: 'Outline' })).toHaveCount(0);
     // The inspector is a drawer at the foot.
     await page.getByRole('button', { name: 'Chapter options' }).click();

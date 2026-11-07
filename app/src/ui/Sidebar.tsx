@@ -9,7 +9,7 @@ import { openReminders } from '../data/reminders';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
 import { allTags, tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectWords, projectsInOrder, recentNotes, sameView } from '../data/selectors';
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
-import { BUILT_IN_TEMPLATES, DAILY_NOTEBOOK, TEMPLATES_NOTEBOOK, longDate } from '../data/templates';
+import { BUILT_IN_TEMPLATES, TEMPLATES_NOTEBOOK } from '../data/templates';
 import { toMarkdown } from '@crumpet/editor/markdown';
 import { StatsDialog, useTodayWords } from './stats-ui';
 import { FoldButton } from './fold';
@@ -19,8 +19,8 @@ import { NoteMenu, type NoteMenuAt, noteMenuAt } from './notemenu';
 import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
-import { boardDoc, emptyBoard } from '../data/board';
-import { IconBell, IconBook, IconChart, IconGraph, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconCrumpet, IconSettings, IconSend, Logo, NotebookIcon } from './icons';
+import { boardDoc, emptyBoard, isBoard } from '../data/board';
+import { IconBell, IconBoard, IconBook, IconChart, IconGraph, IconHash, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconSettings, IconSend, Logo, NotebookIcon } from './icons';
 import { openFinder } from './finder';
 import { HelpItems } from './help';
 import { openSubmissions } from './submissions';
@@ -33,12 +33,14 @@ interface Props {
   onNewNote(): void;
   onClose(): void;
   onToday(): void;
+  /** Today's daily note, made if there isn't one yet. */
+  onNewDaily?(): void;
   onTemplate(t: { title: string; body: string }): void;
   /** A Word document opened as a new note. */
   onImport(note: { title: string; doc: Doc }): void;
 }
 
-export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, onTemplate, onImport }: Props) {
+export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, onNewDaily = onToday, onTemplate, onImport }: Props) {
   const state = useAppState();
   const store = useAppStore();
   const [collapsed, setCollapsed] = useState<string[]>(() => remember('collapsedStacks', []));
@@ -46,9 +48,14 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   // Recent notes, Writing stats and the Graph fold away under Explore.
   const [moreOpen, setMoreOpen] = useState<boolean>(() => remember('sideMore', false));
   const [creating, setCreating] = useState<null | 'menu' | 'notebook' | 'stack' | 'project'>(null);
-  // The calm sidebar folds the notebooks under one row; its menu at the foot holds the rest.
-  const [notebooksOpen, setNotebooksOpen] = useState<boolean>(() => remember('notebooksOpen', false));
-  const [footMenu, setFootMenu] = useState<null | 'menu' | 'templates'>(null);
+  // The calm sidebar's sections (Capture, Organise, Distill, Express) each fold away.
+  const [folded, setFolded] = useState<string[]>(() => remember('sideFolded', []));
+  const toggleSection = (name: string) => {
+    const next = folded.includes(name) ? folded.filter((n) => n !== name) : [...folded, name];
+    setFolded(next);
+    keep('sideFolded', next);
+  };
+  const [footMenu, setFootMenu] = useState<null | 'menu'>(null);
   // A link ending in #connect opens straight to connecting Google Drive.
   const [settingsOpen, setSettingsOpen] = useState(() => typeof location !== 'undefined' && location.hash === '#connect');
   // Where Settings opens: where the notes are kept, from the foot's status or a #connect link.
@@ -85,14 +92,20 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const tagCount = allTags(state.notes).length;
   const active = (v: View) => !state.query && sameView(state.view, v);
   const nothingYet = !state.notebooks.length && !state.stacks.length;
-  const daily = state.notebooks.find((n) => n.name.toLowerCase() === DAILY_NOTEBOOK.toLowerCase());
-  const todayOpen = !!daily && !state.query && state.view.kind === 'notebook' && state.view.id === daily.id && store.note(state.selectedId)?.title === longDate();
+  const todayOpen = active({ kind: 'today' });
 
   // Notes dragged from the list (or Recent Notes) and dropped on the sidebar.
   const live = (ids: string[]) => ids.map((id) => store.note(id)).filter((n) => !!n);
   const toTrash = (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && store.trashNote(n.id));
   const toFavorites = (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && !n.favorite && store.toggleFavorite(n.id));
   const toTag = (tag: string) => (ids: string[]) => live(ids).forEach((n) => n.trashedAt === null && store.addTag(n.id, tag));
+  // Notes dropped on the Inbox come out of their notebook (or the Trash) to be filed later.
+  const toInbox = (ids: string[]) =>
+    live(ids).forEach((n) => {
+      if (n.trashedAt !== null) store.restoreNote(n.id);
+      if (n.projectId) store.setResearchProject(n.id, null, null);
+      else if (n.notebookId) store.moveNote(n.id, null);
+    });
   // Files from the computer: each becomes a note (in a notebook, or a project's research), and the last one opens.
   const upload = (where: { notebookId?: string | null; projectId?: string }) => async (files: File[]) => {
     const made = await uploadFiles(store, files, where);
@@ -194,10 +207,10 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         </div>
       )}
       {loose.map((nb) => (
-        <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={calm ? 1 : 0} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
+        <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={0} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
       ))}
       {stacks.map(({ stack, notebooks }) => (
-        <StackGroup key={stack.id} stack={stack} notebooks={notebooks} counts={counts} open={!collapsed.includes(stack.id)} onToggle={() => toggleStack(stack.id)} active={active} onOpenView={onOpenView} />
+        <StackGroup key={stack.id} calm={calm} stack={stack} notebooks={notebooks} counts={counts} open={!collapsed.includes(stack.id)} onToggle={() => toggleStack(stack.id)} active={active} onOpenView={onOpenView} />
       ))}
     </>
   );
@@ -259,16 +272,39 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
     </button>
   );
 
-  // A first visit (design 6): nothing to find yet, so just New note and All notes, and a word about the rest.
+  // A first visit (design 6): nothing to find yet, so just New and All notes, and a word about the rest.
   const fresh = !state.notes.length && !state.notebooks.length && !state.stacks.length && !state.projects.length && !sync.config;
+  const boardCount = state.notes.filter((n) => n.trashedAt === null && !n.projectId && isBoard(n)).length;
+  const todayCount = state.notes.filter((n) => n.trashedAt === null && !n.projectId && !n.notebookId && n.daily).length;
+  /** Makes something new from the New menu; names are typed in place, in the section it goes in. */
+  const make = (what: NewKind) => {
+    if (what === 'note') onNewNote();
+    else if (what === 'daily') onNewDaily();
+    else if (what === 'board') onImport({ title: '', doc: boardDoc(emptyBoard()) });
+    else if (what === 'upload') chooseUploads(upload({}));
+    else if (what === 'template') window.dispatchEvent(new Event(NEW_TEMPLATE));
+    else {
+      const section = what === 'project' ? 'Express' : 'Organise';
+      if (folded.includes(section)) toggleSection(section);
+      setCreating(what);
+    }
+  };
+  // The menu bar's File → New Notebook… and so on (ui/desktopmenu.ts) come here.
+  const makeRef = useRef(make);
+  makeRef.current = make;
+  useEffect(() => {
+    if (!calm) return;
+    maker = (k) => makeRef.current(k);
+    return () => {
+      maker = null;
+    };
+  }, [calm]);
   if (calm)
     return (
       <nav className={`sidebar calm${fresh ? ' fresh' : ''}`} aria-label="Notebooks">
         <div className="side-top">
           <span className="brand">
-            <span className="brand-mark" aria-hidden="true">
-              <IconCrumpet size={16} />
-            </span>
+            <Logo size={28} />
             Crumpet
           </span>
           <FoldButton what="sidebar" />
@@ -281,104 +317,56 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         {menuAt && <NoteMenu at={menuAt} onClose={() => setMenuAt(null)} />}
 
         <div className={`side-start${touch ? ' touch' : ''}`}>
-          <button type="button" className="new-note" onClick={onNewNote} onContextMenu={(e) => (e.preventDefault(), setFootMenu('templates'))}>
-            <IconPlus size={18} />
-            New note
-          </button>
-          {!fresh && !touch && <label className="side-search">
-            <IconSearch size={18} />
-            <span className="visually-hidden">Search notes</span>
-            <input
-              id="search"
-              type="search"
-              autoComplete="off"
-              placeholder="Search"
-              value={state.query}
-              onChange={(e) => store.setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  store.setQuery('');
-                  (e.target as HTMLInputElement).blur();
-                }
-              }}
-            />
-            {!state.query && (
-              <button type="button" className="find-key" aria-label="Find anything" title="Find anything: notes, chapters and commands" onClick={openFinder}>
-                {isMac ? '⌘K' : 'Ctrl K'}
-              </button>
-            )}
-          </label>}
+          <NewMenu onPick={make} onTemplate={onTemplate} onImport={onImport} onUpload={() => chooseUploads(upload({}))} />
+          {!fresh && !touch && <SearchRow />}
         </div>
 
+        <div className="side-scroll">
         <Bookmarks />
 
         {fresh ? (
-          <section className="side-section" aria-label="Library">
-            <h2 className="side-label">Library</h2>
+          <section className="side-section" aria-label="Organise">
             <SideRow icon={<IconNote size={18} />} label="All notes" active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong />
           </section>
         ) : (
         <>
-        <section className="side-section" aria-label="Capture">
-          <h2 className="side-label">Capture</h2>
-          <SideRow icon={<IconInbox size={18} />} label="Inbox" count={inboxCount || undefined} active={active({ kind: 'inbox' })} onClick={() => onOpenView({ kind: 'inbox' })} strong files={upload({ notebookId: null })} />
-          <SideRow icon={<IconSun size={18} />} label="Today" active={todayOpen} onClick={onToday} strong />
+        <SideRow icon={<IconStar size={18} />} label="Favourites" count={favCount || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong drop={toFavorites} />
+
+        <SideSection name="Capture" hint="Get things in quickly: notes not filed yet, and each day’s note" folded={folded} onToggle={toggleSection}>
+          <SideRow icon={<IconInbox size={18} />} label="Inbox" count={inboxCount || undefined} active={active({ kind: 'inbox' })} onClick={() => onOpenView({ kind: 'inbox' })} strong files={upload({ notebookId: null })} drop={toInbox} />
+          <SideRow icon={<IconSun size={18} />} label="Today" count={todayCount || undefined} active={active({ kind: 'today' })} onClick={onToday} strong />
           {reminders}
-        </section>
+        </SideSection>
 
-        <section className="side-section" aria-label="Library">
-          <h2 className="side-label">Library</h2>
+        <SideSection name="Organise" hint="Your notes, filed in notebooks and stacks" folded={folded} onToggle={toggleSection} drop={notebooksHead}>
           <SideRow icon={<IconNote size={18} />} label="All notes" count={allCount} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong files={upload({ notebookId: null })} />
-          <SideRow icon={<IconStar size={18} />} label="Favourites" count={favCount || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong drop={toFavorites} />
-          <div className={`side-row strong fold-row${notebooksHead.over ? ' drop-over' : ''}`} {...notebooksHead.props}>
-            <button
-              type="button"
-              className="row-main"
-              aria-expanded={notebooksOpen}
-              onClick={() => {
-                setNotebooksOpen(!notebooksOpen);
-                keep('notebooksOpen', !notebooksOpen);
-              }}
-            >
-              <IconChevron size={18} className={notebooksOpen ? 'rot90' : ''} />
-              <span className="grow">Notebooks</span>
-            </button>
-            {state.notebooks.length > 0 && <span className="count">{state.notebooks.length}</span>}
-            <button type="button" className="icon-btn row-more" aria-label="New notebook or stack" title="New notebook or stack" aria-expanded={creating === 'menu'} onClick={() => (setNotebooksOpen(true), setCreating(creating ? null : 'menu'))}>
-              <IconPlus size={14} />
-            </button>
-          </div>
-          {notebooksOpen && <div className="side-folded">{notebookRows}</div>}
-          {tagsRow}
+          {notebookRows}
           {savedSearches}
-        </section>
+        </SideSection>
 
-        <section className="side-section" aria-label="Writing">
-          <div className={`side-heading${projectsHead.over ? ' drop-over' : ''}`} {...projectsHead.props}>
-            <h2 className="side-label">Writing</h2>
-            <button type="button" className="icon-btn" aria-label="New project" title="New project" onClick={() => setCreating(creating === 'project' ? null : 'project')}>
-              <IconPlus size={14} />
-            </button>
-          </div>
+        <SideSection name="Distill" hint="Draw out what matters: boards of ideas and how your notes link up" folded={folded} onToggle={toggleSection}>
+          <SideRow icon={<IconBoard size={18} />} label="Boards" count={boardCount || undefined} active={active({ kind: 'boards' })} onClick={() => onOpenView({ kind: 'boards' })} strong />
+          <SideRow icon={<IconGraph size={18} />} label="Graph of links" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
+        </SideSection>
+
+        <SideSection name="Express" hint="Your manuscripts, and where you’ve sent them" folded={folded} onToggle={toggleSection} drop={projectsHead}>
           {newProject}
-          {state.projects.length === 0 && creating !== 'project' && (
-            <button type="button" className="side-row strong quiet-row" onClick={() => setCreating('project')}>
-              <IconBook size={18} />
-              <span className="grow">Start a book</span>
-            </button>
-          )}
+          {state.projects.length === 0 && creating !== 'project' && <p className="side-empty indent">Start a manuscript from New.</p>}
           {projectRows}
-        </section>
+          <SideRow icon={<IconSend size={18} />} label="Submissions" active={false} onClick={() => openSubmissions()} strong />
+        </SideSection>
         </>
         )}
+        </div>
 
         <div className="side-foot">
           {/* Where the notes are kept; clicking it opens Settings to keep them in Google Drive or a folder. */}
-          {fresh ? <p className="side-hint">Notebooks, tags and projects appear here once you make them.</p> : <button type="button" className="foot-status" title={sync.config ? 'Where your notes are kept' : 'Keep your notes in Google Drive or a folder'} onClick={() => (setSettingsAt('sync'), setSettingsOpen(true))}>
+          {fresh ? <p className="side-hint">Notebooks, tags and manuscripts appear here once you make them.</p> : <button type="button" className="foot-status" title={sync.config ? 'Where your notes are kept' : 'Keep your notes in Google Drive or a folder'} onClick={() => (setSettingsAt('sync'), setSettingsOpen(true))}>
             <IconCheck size={16} className="saved-tick" />
             <span aria-live="polite">{calmFootText(state.temporary, sync)}</span>
           </button>}
           {fixSync}
+          {!fresh && <TagsMenu count={tagCount} active={active} onOpenView={onOpenView} onDropTag={toTag} />}
           <SideMenu
             open={footMenu}
             onOpen={setFootMenu}
@@ -386,11 +374,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             todayWords={todayWords}
             onSettings={() => setSettingsOpen(true)}
             onStats={() => setStatsOpen(true)}
-            onGraph={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')}
             onTrash={() => onOpenView({ kind: 'trash' })}
-            onUpload={() => chooseUploads(upload({}))}
-            onTemplate={onTemplate}
-            onImport={onImport}
           />
         </div>
       </nav>
@@ -517,72 +501,210 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
 /** The calm sidebar's menu at its foot: Settings, help, and what the sidebar leaves out. */
 function SideMenu(props: {
-  open: null | 'menu' | 'templates';
-  onOpen(m: null | 'menu' | 'templates'): void;
+  open: null | 'menu';
+  onOpen(m: null | 'menu'): void;
   trashCount: number;
   todayWords: number;
   onSettings(): void;
   onStats(): void;
-  onGraph(): void;
   onTrash(): void;
-  onUpload(): void;
-  onTemplate(t: { title: string; body: string }): void;
-  onImport(note: { title: string; doc: Doc }): void;
 }) {
   const { open, onOpen } = props;
-  const button = useRef<HTMLButtonElement>(null);
-  // The menu opens up from the button, over everything (the frosted sidebar would clip it).
-  const at = button.current?.getBoundingClientRect();
-  const place = at ? { left: Math.max(8, at.left - 8), bottom: window.innerHeight - at.top + 8 } : { left: 16, bottom: 64 };
   const pick = (f: () => void) => () => {
     onOpen(null);
     f();
   };
   return (
+    <FootPopover label="Settings and more" title="Settings, writing stats, Trash and help" icon={<IconSettings size={18} />} open={!!open} onOpen={(o) => onOpen(o ? 'menu' : null)}>
+      <button type="button" className="menu-item" onClick={pick(props.onSettings)}>
+        <IconSettings size={14} /> Settings…
+      </button>
+      <hr className="menu-sep" />
+      <button type="button" className="menu-item" onClick={pick(props.onStats)}>
+        <IconChart size={14} /> Writing stats {props.todayWords > 0 && <small className="menu-hint">{props.todayWords.toLocaleString()} words today</small>}
+      </button>
+      <button type="button" className="menu-item" onClick={pick(props.onTrash)}>
+        <IconTrash size={14} /> Trash {props.trashCount > 0 && <small className="menu-hint">{props.trashCount}</small>}
+      </button>
+      <hr className="menu-sep" />
+      <HelpItems onPick={() => onOpen(null)} />
+    </FootPopover>
+  );
+}
+
+/** A button at the sidebar's foot with a menu that opens up from it, over everything (the frosted sidebar would clip it). */
+function FootPopover({ label, title, icon, open, onOpen, children, className = '' }: { label: string; title: string; icon: React.ReactNode; open: boolean; onOpen(open: boolean): void; children: React.ReactNode; className?: string }) {
+  const button = useRef<HTMLButtonElement>(null);
+  const at = button.current?.getBoundingClientRect();
+  const place = at ? { left: Math.max(8, at.left - 8), bottom: window.innerHeight - at.top + 8 } : { left: 16, bottom: 64 };
+  return (
     <span className="side-menu">
-      <button ref={button} type="button" className="icon-btn" aria-label="Settings and more" title="Settings and more" aria-expanded={!!open} onClick={() => onOpen(open ? null : 'menu')}>
-        <IconSettings size={18} />
+      <button ref={button} type="button" className="icon-btn" aria-label={label} title={title} aria-expanded={open} onClick={() => onOpen(!open)}>
+        {icon}
       </button>
       {open &&
         createPortal(
-        <div className="context-menu side-menu-pop" style={{ left: place.left, bottom: place.bottom }}>
-        <Popover label={open === 'templates' ? 'New from a template' : 'Settings and more'} onClose={() => onOpen(null)}>
-          {open === 'templates' ? (
-            <TemplateList onTemplate={pick2(onOpen, props.onTemplate)} onImport={pick2(onOpen, props.onImport)} onUpload={pick(props.onUpload)} />
-          ) : (
-            <>
-              <button type="button" className="menu-item" onClick={pick(props.onSettings)}>
-                Settings…
-              </button>
-              <hr className="menu-sep" />
-              <button type="button" className="menu-item" onClick={() => onOpen('templates')}>
-                New from a template…
-              </button>
-              <button type="button" className="menu-item" onClick={pick(props.onUpload)}>
-                Upload files…
-              </button>
-              <hr className="menu-sep" />
-              <button type="button" className="menu-item" onClick={pick(props.onStats)}>
-                Writing stats {props.todayWords > 0 && <small className="menu-hint">{props.todayWords.toLocaleString()} words today</small>}
-              </button>
-              <button type="button" className="menu-item" onClick={pick(props.onGraph)}>
-                Graph of links
-              </button>
-              <button type="button" className="menu-item" onClick={pick(() => openSubmissions())}>
-                Submissions
-              </button>
-              <button type="button" className="menu-item" onClick={pick(props.onTrash)}>
-                Trash {props.trashCount > 0 && <small className="menu-hint">{props.trashCount}</small>}
-              </button>
-              <hr className="menu-sep" />
-              <HelpItems onPick={() => onOpen(null)} />
-            </>
-          )}
-        </Popover>
-        </div>,
+          <div className={`context-menu side-menu-pop ${className}`} style={{ left: Math.min(place.left, window.innerWidth - 276), bottom: place.bottom }}>
+            <Popover label={label} onClose={() => onOpen(false)}>
+              {children}
+            </Popover>
+          </div>,
           document.body,
         )}
     </span>
+  );
+}
+
+/** Tags, from the # at the sidebar's foot: every tag, nested ones folded under theirs. */
+function TagsMenu({ count, active, onOpenView, onDropTag }: { count: number; active(v: View): boolean; onOpenView(v: View): void; onDropTag(tag: string): (ids: string[]) => void }) {
+  const state = useAppState();
+  const [open, setOpen] = useState(false);
+  const tags = tagTree(state.notes);
+  const on = state.view.kind === 'tag' && !state.query;
+  return (
+    <span className={`tags-foot${on ? ' on' : ''}`}>
+      <FootPopover label="Tags" title={count ? `Tags (${count})` : 'Tags'} icon={<IconHash size={18} />} open={open} onOpen={setOpen} className="tags-pop">
+        <p className="menu-label">Tags</p>
+        <div className="tag-list" onClick={(e) => (e.target as Element).closest('.side-row') && setOpen(false)}>
+          {tags.length === 0 && <p className="menu-hint">Tags you add to notes show up here.</p>}
+          <TagRows nodes={tags} depth={0} active={active} onOpenView={onOpenView} onDropTag={onDropTag} />
+        </div>
+      </FootPopover>
+    </span>
+  );
+}
+
+type NewKind = 'note' | 'daily' | 'notebook' | 'stack' | 'project' | 'board' | 'upload' | 'template';
+let maker: ((k: NewKind) => void) | null = null;
+const NEW_TEMPLATE = 'crumpet-new-template';
+
+/** Makes a notebook, stack, board or a note from a template through the calm sidebar's New. False if the sidebar isn't there. */
+export function newThing(k: 'notebook' | 'stack' | 'board' | 'template'): boolean {
+  if (!maker) return false;
+  maker(k);
+  return true;
+}
+
+/** New: a small menu of the things there are to make. */
+function NewMenu({ onPick, onTemplate, onImport, onUpload }: { onPick(k: NewKind): void; onTemplate(t: { title: string; body: string }): void; onImport(note: { title: string; doc: Doc }): void; onUpload(): void }) {
+  const [open, setOpen] = useState<null | 'menu' | 'templates'>(null);
+  useEffect(() => {
+    const on = () => setOpen('templates');
+    window.addEventListener(NEW_TEMPLATE, on);
+    return () => window.removeEventListener(NEW_TEMPLATE, on);
+  }, []);
+  const pick = (k: NewKind) => () => {
+    setOpen(null);
+    onPick(k);
+  };
+  const item = (k: NewKind, icon: React.ReactNode, label: string, hint?: string) => (
+    <button type="button" className="menu-item" onClick={pick(k)}>
+      {icon} {label} {hint && <small className="menu-hint">{hint}</small>}
+    </button>
+  );
+  return (
+    <div className="new-wrap">
+      <button type="button" className="new-btn" aria-haspopup="menu" aria-expanded={!!open} onClick={() => setOpen(open ? null : 'menu')} onContextMenu={(e) => (e.preventDefault(), setOpen('templates'))}>
+        <IconPlus size={16} />
+        New
+      </button>
+      {open && (
+        <Popover label={open === 'templates' ? 'New from a template' : 'New'} onClose={() => setOpen(null)}>
+          {open === 'templates' ? (
+            <TemplateList onTemplate={pick2(() => setOpen(null), onTemplate)} onImport={pick2(() => setOpen(null), onImport)} onUpload={() => (setOpen(null), onUpload())} />
+          ) : (
+            <>
+              {item('note', <IconNote size={14} />, 'Note', isMac ? '⌘N' : 'Ctrl+N')}
+              {item('daily', <IconSun size={14} />, 'Daily note')}
+              {item('notebook', <IconNotebook size={14} />, 'Notebook')}
+              {item('stack', <IconStack size={14} />, 'Notebook stack')}
+              {item('project', <IconBook size={14} />, 'Manuscript')}
+              {item('board', <IconBoard size={14} />, 'Board')}
+              <hr className="menu-sep" />
+              <button type="button" className="menu-item" onClick={() => setOpen('templates')}>
+                <IconChevron size={14} /> From a template…
+              </button>
+              {item('upload', <IconUpload size={14} />, 'Upload files…')}
+            </>
+          )}
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+/** Search, as a row like the others; it becomes a search box when clicked (or with / or a shortcut). */
+function SearchRow() {
+  const state = useAppState();
+  const store = useAppStore();
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const on = () => setTyping(true);
+    window.addEventListener(SEARCH_EVENT, on);
+    return () => window.removeEventListener(SEARCH_EVENT, on);
+  }, []);
+  if (!typing && !state.query)
+    return (
+      <div className="side-row search-row">
+        <button type="button" className="row-main" onClick={() => setTyping(true)}>
+          <IconSearch size={18} />
+          <span className="grow">Search</span>
+        </button>
+        <button type="button" className="find-key" aria-label="Find anything" title="Find anything: notes, chapters and commands" onClick={openFinder}>
+          {isMac ? '⌘K' : 'Ctrl K'}
+        </button>
+      </div>
+    );
+  return (
+    <label className="side-search">
+      <IconSearch size={18} />
+      <span className="visually-hidden">Search notes</span>
+      <input
+        id="search"
+        type="search"
+        autoComplete="off"
+        autoFocus
+        placeholder="Search notes"
+        value={state.query}
+        onChange={(e) => store.setQuery(e.target.value)}
+        onBlur={() => !state.query && setTyping(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            store.setQuery('');
+            setTyping(false);
+          }
+        }}
+      />
+      {!state.query && (
+        <button type="button" className="find-key" aria-label="Find anything" title="Find anything: notes, chapters and commands" onMouseDown={(e) => e.preventDefault()} onClick={openFinder}>
+          {isMac ? '⌘K' : 'Ctrl K'}
+        </button>
+      )}
+    </label>
+  );
+}
+
+const SEARCH_EVENT = 'crumpet-search';
+/** Puts the cursor in the notes' search box (the calm sidebar's Search row opens into one). */
+export function focusSearch(): void {
+  const box = document.getElementById('search') as HTMLInputElement | null;
+  if (box) box.focus();
+  else window.dispatchEvent(new Event(SEARCH_EVENT));
+}
+
+/** One of the calm sidebar's sections, folded away by its heading. */
+function SideSection({ name, hint, folded, onToggle, drop, children }: { name: string; hint: string; folded: string[]; onToggle(name: string): void; drop?: ReturnType<typeof useFolderDrop>; children: React.ReactNode }) {
+  const open = !folded.includes(name);
+  return (
+    <section className="side-section" aria-label={name}>
+      <h2 className={`side-label fold-head${drop?.over ? ' drop-over' : ''}`} {...(drop?.props ?? {})}>
+        <button type="button" aria-expanded={open} title={hint} onClick={() => onToggle(name)}>
+          <span className="grow">{name}</span>
+          <IconChevron size={14} className={open ? 'rot90' : ''} />
+        </button>
+      </h2>
+      {open && children}
+    </section>
   );
 }
 
@@ -654,7 +776,9 @@ function StackGroup({
   onToggle,
   active,
   onOpenView,
+  calm = false,
 }: {
+  calm?: boolean;
   stack: Stack;
   notebooks: Notebook[];
   counts: Map<string, number>;
@@ -686,7 +810,8 @@ function StackGroup({
         <button type="button" className="disclosure" aria-label={open ? `Collapse ${stack.name}` : `Expand ${stack.name}`} aria-expanded={open} onClick={onToggle}>
           <IconChevron size={10} className={open ? 'rot90' : ''} />
         </button>
-        <button type="button" className="row-main" onClick={() => onOpenView({ kind: 'stack', id: stack.id })}>
+        {/* In the calm look a stack holds notebooks, not notes: its row shows or hides them. */}
+        <button type="button" className="row-main" aria-expanded={calm ? open : undefined} onClick={calm ? onToggle : () => onOpenView({ kind: 'stack', id: stack.id })}>
           <IconStack size={12} />
           <span className="ellipsis">{stack.name}</span>
         </button>
@@ -814,7 +939,7 @@ function NotebookRow({ nb, count, depth, active, onOpen }: { nb: Notebook; count
   });
   return (
     <div className="nb">
-      <div className={`side-row nb-row${active ? ' active' : ''}${drop.over || files.over ? ' drop-over' : ''}${place.over ? ' drop-before' : ''}`} style={{ paddingLeft: 8 + depth * 18 }}
+      <div className={`side-row nb-row${active ? ' active' : ''}${drop.over || files.over ? ' drop-over' : ''}${place.over ? ' drop-before' : ''}`} style={{ paddingLeft: 8 + depth * 18, '--depth': depth } as React.CSSProperties}
         {...folderDrag({ kind: 'notebook', id: nb.id }, nb.name)}
         {...bothDrops(files.props, place.props, drop.props)}
         onContextMenu={(e) => {

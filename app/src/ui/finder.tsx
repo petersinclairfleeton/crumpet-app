@@ -1,3 +1,4 @@
+import { focusSearch } from './Sidebar';
 // The quick switcher (Ctrl+O) and command palette (Ctrl+P), like Obsidian's
 // and VS Code's: type a few letters to open any note, chapter, project or
 // card, or to run any command. Typing > in the switcher turns it into the
@@ -102,6 +103,7 @@ export interface Actions {
   newNote(): void;
   newProject(): void;
   openToday(): void;
+  newDailyNote(): void;
   openSettings(): void;
   /** Picks another note or chapter to compare `docId` with. */
   compareFrom(docId: string): void;
@@ -147,11 +149,9 @@ function useCommands(actions: Actions): Item[] {
   const list: Item[] = [
     cmd('New note', actions.newNote, 'N'),
     cmd('New project', actions.newProject),
-    cmd('Open today’s note', actions.openToday),
-    cmd('Search notes', () => {
-      const search = document.getElementById('search') as HTMLInputElement | null;
-      search?.focus();
-    }),
+    cmd('Today: daily notes', actions.openToday),
+    cmd('New daily note', actions.newDailyNote),
+    cmd('Search notes', focusSearch),
     cmd(layout.sidebar === 'hidden' ? 'Show the sidebar' : 'Hide the sidebar', () => set({ sidebar: layout.sidebar === 'hidden' ? 'full' : 'hidden' }), `${mod}\\`),
     cmd(layout.list === false ? 'Show the note list' : 'Hide the note list', () => set({ list: layout.list === false }), `${isMac ? '⌘⇧' : 'Ctrl+Shift+'}\\`),
     cmd(layout.right ? 'Hide the right sidebar' : 'Show the right sidebar', () => set({ right: !layout.right }), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}\\`),

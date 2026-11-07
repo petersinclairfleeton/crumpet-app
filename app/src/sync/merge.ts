@@ -92,6 +92,7 @@ export function mergeTrees(base: Tree, local: Tree, remote: Tree, opts: MergeOpt
         favorite: field(b?.favorite, l.favorite, r.favorite, newer.favorite),
         ...withValue('reminder', field(b ? (b.reminder ?? null) : undefined, l.reminder ?? null, r.reminder ?? null, newer.reminder ?? null) ?? undefined),
         ...withValue('file', field(b ? (b.file ?? null) : undefined, l.file ?? null, r.file ?? null, newer.file ?? null) ?? undefined),
+        ...withValue('daily', field(b ? (b.daily ?? null) : undefined, l.daily ?? null, r.daily ?? null, newer.daily ?? null) ?? undefined),
         created: Math.min(l.created, r.created),
         updated: Math.max(l.updated, r.updated),
         trashed: field(b?.trashed, l.trashed, r.trashed, newer.trashed),
