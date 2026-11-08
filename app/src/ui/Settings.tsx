@@ -131,14 +131,13 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
                   <b>Size of everything</b>
                   <small>How large the whole app is: the sidebar, lists, menus and writing. A note’s or chapter’s own text size is in its ··· menu.</small>
                 </span>
-                <span className="size-pick">
-                  <small aria-hidden="true">A</small>
-                  <input className="range" type="range" aria-label={`Size of everything, ${ui}%`} min={UI_SCALE.min} max={UI_SCALE.max} step={5} value={ui} style={{ '--pct': `${((ui - UI_SCALE.min) / (UI_SCALE.max - UI_SCALE.min)) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ uiScale: Number(e.target.value) === 100 ? undefined : Number(e.target.value) })} />
-                  <big aria-hidden="true">A</big>
-                  <button type="button" className="link-btn ui-scale-now" title="Back to 100%" onClick={() => store.updateSettings({ uiScale: undefined })}>
-                    {ui}%
-                  </button>
-                </span>
+                <select className="size-select" aria-label="Size of everything" value={nearestScale(ui)} onChange={(e) => store.updateSettings({ uiScale: Number(e.target.value) === 100 ? undefined : Number(e.target.value) })}>
+                  {UI_SCALES.map(([pct, name]) => (
+                    <option key={pct} value={pct}>
+                      {name} ({pct}%)
+                    </option>
+                  ))}
+                </select>
               </label>
             )}
             {/* A phone's writing size is its own (the pinch, or ··· → Text size). */}
@@ -387,8 +386,19 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
 }
 
 const MAIN_THEMES = ['system', 'light', 'dark', 'paper'];
-/** Settings → Size of everything, in per cent. */
-const UI_SCALE = { min: 80, max: 140 };
+/** Settings → Size of everything: the sizes offered, in per cent. */
+const UI_SCALES: [number, string][] = [
+  [80, 'Smallest'],
+  [90, 'Small'],
+  [100, 'Standard'],
+  [110, 'Large'],
+  [125, 'Larger'],
+  [140, 'Largest'],
+];
+/** The offered size nearest one chosen before (the old slider went in steps of 5). */
+function nearestScale(pct: number): number {
+  return UI_SCALES.reduce((best, [p]) => (Math.abs(p - pct) < Math.abs(best - pct) ? p : best), 100);
+}
 const TYPEWRITER = [
   ['scroll', 'Keep your line in the middle', 'The page scrolls so the line you’re typing stays in the middle of the screen.'],
   ['fade', 'Fade the other paragraphs', 'Only the one you’re writing in stays dark.'],

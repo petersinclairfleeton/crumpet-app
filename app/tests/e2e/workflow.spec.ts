@@ -102,8 +102,20 @@ test('a document’s own text size and the typewriter are in its ··· menu; Se
   await expect(menu.getByRole('menuitemcheckbox', { name: 'Keep the line in the middle' })).toHaveAttribute('aria-checked', 'true');
   expect(((await settings(page)).typewriter as { scroll?: boolean }).scroll).toBe(true);
   await page.keyboard.press('Escape');
-  // The whole app.
-  await page.evaluate(() => (window as unknown as { crumpet: Crumpet }).crumpet.updateSettings({ uiScale: 120 }));
+  // The whole app: a dropdown of named sizes in Settings → Appearance.
+  await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();
+  await page.getByRole('button', { name: /Settings…/ }).click();
+  await page.getByRole('tab', { name: 'Appearance' }).click();
+  const size = page.getByRole('combobox', { name: 'Size of everything' });
+  await expect(size).toHaveValue('100');
+  expect(await size.locator('option').allTextContents()).toEqual(['Smallest (80%)', 'Small (90%)', 'Standard (100%)', 'Large (110%)', 'Larger (125%)', 'Largest (140%)']);
+  await size.selectOption({ label: 'Larger (125%)' });
+  expect((await settings(page)).uiScale).toBe(125);
   await expect(page.locator('html')).toHaveAttribute('data-ui-scale', '');
-  expect(await page.locator('#root').evaluate((e) => getComputedStyle(e).zoom)).toBe('1.2');
+  expect(await page.locator('#root').evaluate((e) => getComputedStyle(e).zoom)).toBe('1.25');
+  await size.selectOption('100');
+  expect((await settings(page)).uiScale).toBeUndefined();
+  // A size chosen with the old slider shows as the nearest one offered.
+  await page.evaluate(() => (window as unknown as { crumpet: Crumpet }).crumpet.updateSettings({ uiScale: 115 }));
+  await expect(size).toHaveValue('110');
 });
