@@ -135,7 +135,7 @@ test('the note list and a book’s outline fold away with a button of their own'
   const outline = page.getByRole('region', { name: 'Outline' });
   await outline.getByRole('button', { name: 'Hide the outline' }).click();
   await expect(outline).toHaveCount(0);
-  await page.getByRole('button', { name: 'Open the sidebar' }).click();
+  await page.getByRole('button', { name: 'Show the outline' }).click();
   await expect(outline).toBeVisible();
 });
 
@@ -179,7 +179,7 @@ test('Read in a book is for reading: nothing can be typed, and it looks like a p
 });
 
 test('Read on a wide screen: two facing pages, turned with the arrow keys or the buttons, a chapter starting on a new page', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 860 });
+  await page.setViewportSize({ width: 1600, height: 900 });
   await calm(page);
   await page.evaluate(async () => {
     const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
@@ -207,7 +207,7 @@ test('Read on a wide screen: two facing pages, turned with the arrow keys or the
   await expect(at).toContainText(/^Pages 1–2 of/);
   // Each pair of pages is exactly the screen: the text's columns sit at whole halves of it.
   const lefts = await ms.locator('.note-scroll').evaluate((el) => [...el.querySelectorAll('p.blk-paragraph')].map((p) => Math.round(p.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft)).map((x) => ((x % (el.clientWidth / 2)) + el.clientWidth / 2) % (el.clientWidth / 2)));
-  expect(lefts.filter((x) => Math.abs(x - 60) > 3), String(lefts)).toEqual([]);
+  expect(lefts.filter((x) => Math.abs(x - lefts[0]) > 3), String(lefts)).toEqual([]);
   // The second chapter starts at the top of a page.
   const top = await ms.locator('.ms-chapter').nth(1).evaluate((el) => el.getBoundingClientRect().top - el.closest('.note-scroll')!.getBoundingClientRect().top);
   expect(top).toBeLessThan(60);

@@ -284,8 +284,22 @@ export interface Settings {
   macros?: { id: string; name: string; steps: import('@crumpet/editor/editor').MacroStep[]; key?: number }[];
   /** The formatting bar as you like it: buttons hidden, and buttons kept on the bar (never moved under More). */
   toolbarCustom?: { hide?: string[]; pin?: string[] };
-  /** Every formatting button on the bar (true), or the calm bar: five buttons and the rest under More, in groups. */
+  /**
+   * The older layout (a bar across the top, the frame of panels) with every
+   * formatting button. No longer offered in Settings (it's what "Show every
+   * formatting tool" used to turn on); kept for the browser tests, which reach
+   * every button through it. An old true becomes `allTools` on load.
+   */
   toolbarAll?: boolean;
+  /** Every formatting button on the bar (true), or the calm bar: five buttons and the rest under More, in groups. */
+  allTools?: boolean;
+  /** Text size per note or chapter (its id), in per cent; 100 when missing. Kept on this device. */
+  docSizes?: Record<string, number>;
+  /** Parts of the app switched off (data/workmodes.ts), and the work mode chosen. */
+  partsOff?: import('./workmodes').Part[];
+  workMode?: string;
+  /** How large everything in the app is, in per cent (100 when missing). */
+  uiScale?: number;
   /** What a book's Cards show (all shown unless false). */
   cardShow?: { synopsis?: boolean; status?: boolean; keywords?: boolean };
   /** Turn off sliding and fading in the app. */

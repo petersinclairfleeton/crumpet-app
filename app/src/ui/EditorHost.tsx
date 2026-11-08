@@ -1,3 +1,4 @@
+import { useDocScale } from './docview';
 import { useOfferHelped } from './helpers';
 import { usePinchTextSize } from './iphone';
 import { MathBlockBar, MathCard } from './mathtools';
@@ -84,6 +85,8 @@ export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp,
   const floating = !tablet && !narrow && !readOnly && !reading && (state.focusMode || floatTools || (calm ? state.settings.toolbar === 'selection' : state.settings.toolbar !== 'always'));
   const styles = useSheetClass(sheet);
   const paged = !!page && !reading;
+  // The text size chosen for this document from its ··· menu (pages have their own zoom).
+  const docScale = useDocScale(docId);
   const { host, editor: ed } = useDocEditor({
     docId: loadKey ?? docId,
     doc,
@@ -222,7 +225,7 @@ export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp,
       {prot && ed && !reading && <ProtectBanner editor={ed} kind={prot} lock={p0?.plock} />}
       <div className="note-main" onMouseDown={(e) => (pressedBelow.current = below(e))} onClick={carryOn}>
       <div className="note-scroll" ref={scrollBox}>
-        <article className={`note-body${paged ? ' paged' : ''}`}>
+        <article className={`note-body${paged ? ' paged' : ''}`} style={!paged && docScale !== 1 ? { zoom: docScale } : undefined}>
           {header}
           <PageView enabled={paged} editor={ed} page={page ?? defaultPage()} sheetClass={styles} onPage={onPage} fields={pageFields} place={pagePlace} chapters={chapters} onPages={onPages} sheet={sheet}>
             <div ref={host} className="note-editor" aria-label={label} />

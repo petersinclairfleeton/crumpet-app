@@ -162,7 +162,7 @@ function deviceInfo(state: AppState, sync: ReturnType<typeof useSync>['state']):
     system: navigator.userAgent,
     window: `${window.innerWidth}×${window.innerHeight} at ${window.devicePixelRatio || 1}×`,
     language: navigator.language,
-    look: `${state.settings.theme}${state.settings.toolbarAll ? ', every formatting tool' : ', calm'}`,
+    look: `${state.settings.theme}${state.settings.toolbarAll ? ', older layout' : ''}${state.settings.allTools ? ', every formatting tool' : ''}`,
     sync: `${where}${status}`,
     size: `${notes.toLocaleString('en')} ${notes === 1 ? 'note' : 'notes'}, ${books} ${books === 1 ? 'book' : 'books'}`,
     errors: recentErrors(),

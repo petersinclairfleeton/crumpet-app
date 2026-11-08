@@ -34,7 +34,7 @@ test('1 · the writing room, nothing writing for you', async ({ page }) => {
 
 test('2 · your files, in your own Drive or folder', async ({ page }) => {
   await start(page);
-  await outline(page).getByRole('button', { name: 'Back to notes' }).click();
+  await page.evaluate(() => (window as unknown as { crumpet: { setView(v: object): void } }).crumpet.setView({ kind: 'all' }));
   await page.getByRole('navigation', { name: 'Notebooks' }).getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Settings…' }).click();
   await page.getByRole('tab', { name: 'Sync and storage' }).click();

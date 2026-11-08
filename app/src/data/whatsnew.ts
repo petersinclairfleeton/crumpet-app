@@ -10,6 +10,18 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-08-workflow',
+    date: '8 November 2026',
+    title: 'Work modes, a roomier book, and sizes where they belong',
+    points: [
+      'Work modes: Settings → Your workflow (or the ⚙ menu) picks Everything, Notes, Writing a book, Research or Journal, each showing only what that work needs. Or switch parts off one by one: Today, Reminders, Favourites, the graph, Distill, books, Submissions, tags, boards, writing stats. Nothing is deleted; switched back on, it’s all there.',
+      'A book opens like a notebook does: the sidebar stays until you fold it, and the book’s outline sits beside it with room for the book’s name. New chapter is at the top, in honey like New; each chapter’s title shows whole, with its words in small letters beneath.',
+      '“Show every formatting tool” now only puts every tool on the bar. It no longer changes the whole layout back to an older one (if you had it on, your layout is as it should be now, with every tool).',
+      'Each note’s and chapter’s ··· menu has its own Text size (70% to 200%, remembered for that document) and the typewriter’s switches: keep the line in the middle, fade the other paragraphs, typing sounds. The typewriter also keeps working when a note moves into page view or another document opens.',
+      'Settings → Appearance → Size of everything makes the whole app bigger or smaller: sidebar, lists, menus and writing.',
+    ],
+  },
+  {
     id: '2026-11-08-facing-pages',
     date: '8 November 2026',
     title: 'Read your book as an open book',

@@ -1,3 +1,4 @@
+import { MODES, currentMode, modeSettings, partOn, type Part } from '../data/workmodes';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { Doc } from '@crumpet/editor/model';
@@ -95,6 +96,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const favCount = state.notes.filter((n) => n.favorite && n.trashedAt === null).length;
   const tagCount = allTags(state.notes).length;
   const active = (v: View) => !state.query && sameView(state.view, v);
+  // Parts switched off in Settings → Your workflow stay out of sight.
+  const on = (p: Part) => partOn(state.settings, p);
   const nothingYet = !state.notebooks.length && !state.stacks.length;
   const todayOpen = active({ kind: 'today' });
 
@@ -277,7 +280,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
       ))}
     </>
   );
-  const reminders = state.notes.some((n) => n.reminder && n.trashedAt === null) && (
+  const reminders = on('reminders') && state.notes.some((n) => n.reminder && n.trashedAt === null) && (
     <SideRow icon={<IconBell size={calm ? 18 : 13} />} label="Reminders" count={openReminders(state.notes) || undefined} active={active({ kind: 'reminders' })} onClick={() => onOpenView({ kind: 'reminders' })} strong />
   );
   const fixSync = sync.config && ((sync.status?.phase === 'error' && sync.status.error?.kind !== 'offline') || !!sync.status?.unseen?.length) && (
@@ -315,8 +318,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   // Under New and Search (on an iPad, where New sits at the foot, at the top of the list).
   const topRows = !fresh && (
     <>
-      <SideRow icon={<IconStar size={18} />} label="Favourites" count={favCount || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong drop={toFavorites} />
-      <SideRow icon={<IconGraph size={18} />} label="Graph of links" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />
+      {on('favourites') && <SideRow icon={<IconStar size={18} />} label="Favourites" count={favCount || undefined} active={active({ kind: 'favorites' })} onClick={() => onOpenView({ kind: 'favorites' })} strong drop={toFavorites} />}
+      {on('graph') && <SideRow icon={<IconGraph size={18} />} label="Graph of links" active={false} onClick={() => panes.open({ kind: 'graph', id: 'graph' }, 'tab')} strong drag={{ kind: 'graph', id: 'graph' }} />}
     </>
   );
   if (calm)
@@ -338,7 +341,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
         {/* The top list: New, Search, Favourites and the graph, one under the other. */}
         <div className={`side-start${touch ? ' touch' : ''}`}>
-          <NewMenu onPick={make} onTemplate={onTemplate} onImport={onImport} onUpload={() => chooseUploads(upload({}))} />
+          <NewMenu on={on} onPick={make} onTemplate={onTemplate} onImport={onImport} onUpload={() => chooseUploads(upload({}))} />
           {!fresh && !touch && <SearchRow />}
           {!touch && topRows}
         </div>
@@ -355,26 +358,26 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         <>
         <SideSection name="Capture" hint="Get things in quickly: notes not filed yet, and each day’s note" folded={folded} onToggle={toggleSection}>
           <SideRow icon={<IconInbox size={18} />} label="Inbox" count={inboxCount || undefined} active={active({ kind: 'inbox' })} onClick={() => onOpenView({ kind: 'inbox' })} strong files={upload({ notebookId: null })} drop={toInbox} />
-          <SideRow icon={<IconSun size={18} />} label="Today" count={todayCount || undefined} active={active({ kind: 'today' })} onClick={onToday} strong />
+          {on('today') && <SideRow icon={<IconSun size={18} />} label="Today" count={todayCount || undefined} active={active({ kind: 'today' })} onClick={onToday} strong />}
           {reminders}
         </SideSection>
 
         <SideSection name="Organise" hint="What you take notes on or save: notebooks and stacks of things you gather" folded={folded} onToggle={toggleSection} drop={notebooksHead}>
           <SideRow icon={<IconNote size={18} />} label="All notes" count={allCount} active={active({ kind: 'all' })} onClick={() => onOpenView({ kind: 'all' })} strong files={upload({ notebookId: null })} />
-          {notebookRows('organise')}
+          {notebookRows(on('distill') ? 'organise' : undefined)}
           {savedSearches}
         </SideSection>
 
-        <SideSection name="Distill" hint="Your own thoughts: notebooks and stacks of your own thinking" folded={folded} onToggle={toggleSection} drop={distillHead}>
+        {on('distill') && <SideSection name="Distill" hint="Your own thoughts: notebooks and stacks of your own thinking" folded={folded} onToggle={toggleSection} drop={distillHead}>
           {notebookRows('distill')}
-        </SideSection>
+        </SideSection>}
 
-        <SideSection name="Express" hint="Your manuscripts, and where you’ve sent them" folded={folded} onToggle={toggleSection} drop={projectsHead}>
-          {newProject}
-          {state.projects.length === 0 && creating !== 'project' && <p className="side-empty indent">Start a manuscript from New.</p>}
-          {projectRows}
-          <SideRow icon={<IconSend size={18} />} label="Submissions" active={false} onClick={() => openSubmissions()} strong />
-        </SideSection>
+        {(on('express') || on('submissions')) && <SideSection name="Express" hint="Your manuscripts, and where you’ve sent them" folded={folded} onToggle={toggleSection} drop={projectsHead}>
+          {on('express') && newProject}
+          {on('express') && state.projects.length === 0 && creating !== 'project' && <p className="side-empty indent">Start a manuscript from New.</p>}
+          {on('express') && projectRows}
+          {on('submissions') && <SideRow icon={<IconSend size={18} />} label="Submissions" active={false} onClick={() => openSubmissions()} strong />}
+        </SideSection>}
         </>
         )}
         </div>
@@ -386,7 +389,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             <span aria-live="polite">{calmFootText(state.temporary, sync)}</span>
           </button>}
           {fixSync}
-          {!fresh && <TagsMenu count={tagCount} active={active} onOpenView={onOpenView} onDropTag={toTag} />}
+          {!fresh && on('tags') && <TagsMenu count={tagCount} active={active} onOpenView={onOpenView} onDropTag={toTag} />}
           <SideMenu
             open={footMenu}
             onOpen={setFootMenu}
@@ -395,6 +398,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
             onSettings={() => setSettingsOpen(true)}
             onStats={() => setStatsOpen(true)}
             onTrash={() => onOpenView({ kind: 'trash' })}
+            stats={on('stats')}
           />
         </div>
       </nav>
@@ -528,6 +532,7 @@ function SideMenu(props: {
   onSettings(): void;
   onStats(): void;
   onTrash(): void;
+  stats: boolean;
 }) {
   const { open, onOpen } = props;
   const pick = (f: () => void) => () => {
@@ -540,9 +545,11 @@ function SideMenu(props: {
         <IconSettings size={14} /> Settings…
       </button>
       <hr className="menu-sep" />
-      <button type="button" className="menu-item" onClick={pick(props.onStats)}>
+      <WorkModeItems onPick={() => onOpen(null)} />
+      <hr className="menu-sep" />
+      {props.stats && <button type="button" className="menu-item" onClick={pick(props.onStats)}>
         <IconChart size={14} /> Writing stats {props.todayWords > 0 && <small className="menu-hint">{props.todayWords.toLocaleString()} words today</small>}
-      </button>
+      </button>}
       <button type="button" className="menu-item" onClick={pick(props.onTrash)}>
         <IconTrash size={14} /> Trash {props.trashCount > 0 && <small className="menu-hint">{props.trashCount}</small>}
       </button>
@@ -606,7 +613,7 @@ export function newThing(k: 'notebook' | 'stack' | 'board' | 'template'): boolea
 }
 
 /** New: a small menu of the things there are to make. */
-function NewMenu({ onPick, onTemplate, onImport, onUpload }: { onPick(k: NewKind): void; onTemplate(t: { title: string; body: string }): void; onImport(note: { title: string; doc: Doc }): void; onUpload(): void }) {
+function NewMenu({ on, onPick, onTemplate, onImport, onUpload }: { on(p: Part): boolean; onPick(k: NewKind): void; onTemplate(t: { title: string; body: string }): void; onImport(note: { title: string; doc: Doc }): void; onUpload(): void }) {
   const [open, setOpen] = useState<null | 'menu' | 'templates'>(null);
   useEffect(() => {
     const on = () => setOpen('templates');
@@ -635,13 +642,13 @@ function NewMenu({ onPick, onTemplate, onImport, onUpload }: { onPick(k: NewKind
           ) : (
             <>
               {item('note', <IconNote size={14} />, 'Note', isMac ? '⌘N' : 'Ctrl+N')}
-              {item('daily', <IconSun size={14} />, 'Daily note')}
+              {on('today') && item('daily', <IconSun size={14} />, 'Daily note')}
               {item('notebook', <IconNotebook size={14} />, 'Notebook')}
               {item('stack', <IconStack size={14} />, 'Notebook stack')}
-              {item('dnotebook', <IconNotebook size={14} />, 'Distill notebook')}
-              {item('dstack', <IconStack size={14} />, 'Distill stack')}
-              {item('project', <IconBook size={14} />, 'Manuscript')}
-              {item('board', <IconBoard size={14} />, 'Board')}
+              {on('distill') && item('dnotebook', <IconNotebook size={14} />, 'Distill notebook')}
+              {on('distill') && item('dstack', <IconStack size={14} />, 'Distill stack')}
+              {on('express') && item('project', <IconBook size={14} />, 'Manuscript')}
+              {on('boards') && item('board', <IconBoard size={14} />, 'Board')}
               <hr className="menu-sep" />
               <button type="button" className="menu-item" onClick={() => setOpen('templates')}>
                 <IconChevron size={14} /> From a template…
@@ -1232,6 +1239,26 @@ function TemplateList({ onTemplate, onImport, onUpload }: { onTemplate(t: { titl
       <button type="button" className="menu-item" onClick={() => onImport({ title: '', doc: boardDoc(emptyBoard()) })}>
         New board (cards and arrows)
       </button>
+    </>
+  );
+}
+
+/** The ⚙ menu's work modes: one click to show only what a kind of work needs (Settings → Your workflow has the rest). */
+function WorkModeItems({ onPick }: { onPick(): void }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const mode = currentMode(state.settings);
+  return (
+    <>
+      <p className="menu-label">Work mode</p>
+      {MODES.map((m) => (
+        <button key={m.id} type="button" className="menu-item" role="menuitemradio" aria-checked={mode === m.id} title={m.hint} onClick={() => (store.updateSettings(modeSettings(m.id)), onPick())}>
+          <span className="menu-on" aria-hidden="true">{mode === m.id ? '✓' : ''}</span> {m.label}
+        </button>
+      ))}
+      {!mode && (
+        <p className="menu-hint">Your own mix (Settings → Your workflow)</p>
+      )}
     </>
   );
 }

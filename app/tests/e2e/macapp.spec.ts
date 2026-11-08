@@ -100,6 +100,7 @@ test('the menu bar: File, Format and View items do what their buttons and shortc
   expect((await st()).notebooks).toEqual([]);
   // File → New Notebook…: named in the sidebar.
   await menu('new-notebook');
+  await expect(page.getByLabel('Notebook name', { exact: true })).toBeFocused();
   await page.keyboard.type('Journal');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await st()).notebooks.map((n) => n.name)).toEqual(['Journal']);

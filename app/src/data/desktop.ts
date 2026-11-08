@@ -12,6 +12,8 @@ export interface DesktopInfo {
   onFeedback?(fn: () => void): void;
   /** The menu bar's items (File → New Note, Format → Bold…), by id (ui/desktopmenu.ts; older apps lack it). */
   onCommand?(fn: (id: string) => void): void;
+  /** Zooms the whole window (older apps lack it). */
+  setZoom?(factor: number): void;
   /** Opens a mailto: address in the computer's email app (older apps lack it). */
   openMail?(url: string): Promise<void>;
   /** Told when the window goes in or out of full screen (older apps don't offer it). */

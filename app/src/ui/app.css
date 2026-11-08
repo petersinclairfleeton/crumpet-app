@@ -3750,9 +3750,9 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
    the height of the page, two to a screen, and the box moves sideways a pair of
    pages at a time. Gap = the margins either side of the spine; half of it at
    each edge, so a pair of pages is exactly one screen wide. */
-.note-pane.manuscript.reading.spread { --spine: 120px; }
+.note-pane.manuscript.reading.spread .manuscript-body { --spine: clamp(72px, 9cqw, 120px); }
 .note-pane.manuscript.reading.spread .note-main { position: relative; }
-.note-pane.manuscript.reading.spread .note-scroll { overflow: hidden; padding: 0 !important; }
+.note-pane.manuscript.reading.spread .note-scroll { overflow: hidden; padding: 0 !important; container-type: inline-size; }
 .note-pane.manuscript.reading.spread .manuscript-body { display: block; box-sizing: border-box; height: 100%; max-width: none; width: 100%; margin: 0; padding: 48px calc(var(--spine) / 2) 56px; column-count: 2; column-gap: var(--spine); column-fill: auto; }
 .note-pane.manuscript.reading.spread .manuscript-title { margin: 30% 0 0; break-after: column; }
 .note-pane.manuscript.reading.spread .ms-chapter { break-before: column; padding-top: 14%; margin-bottom: 0; }
@@ -3770,3 +3770,30 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .note-pane.manuscript.reading .turn-back { left: 8px; }
 .note-pane.manuscript.reading .turn-on { right: 8px; }
 .note-pane.manuscript.reading .spread-at { font-variant-numeric: tabular-nums; }
+
+/* The calm book outline (8 November): New chapter at the top in honey, as the sidebar's New;
+   the book's name given room (it wraps); each chapter's title whole, its words small beneath. */
+.book-side .book-new { flex: none; height: 36px; background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.book-side .book-new:hover { background: color-mix(in srgb, var(--accent) 88%, #000); color: var(--on-accent); }
+[data-look='crumpet'] .app.calm .book-side .book-name h1 { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.book-side .outline-open { height: auto; min-height: 36px; padding-top: 6px; padding-bottom: 6px; align-items: stretch; }
+.book-side .outline-row { align-items: flex-start; }
+.book-side .outline-row .status-dot { margin-top: 6px; }
+.book-side .outline-title { white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+.book-side .outline-words.below { display: block; margin: 1px 0 0 calc(8px + 12px + 1.4em); font-size: 11.5px; line-height: 1.3; color: var(--calm-muted); text-align: left; }
+
+/* A document's ··· menu: its text size, and the typewriter's switches. */
+.menu-on { display: inline-block; width: 14px; text-align: center; color: var(--accent-ink); font-weight: 600; }
+.text-size-row button.text-size-now { border: none; background: none; font: inherit; min-width: 44px; padding: 2px 4px; border-radius: 6px; cursor: pointer; }
+.text-size-row button.text-size-now:hover { background: var(--field); color: var(--text); }
+
+/* Settings → Size of everything, in a browser (the desktop apps zoom the window instead). */
+html[data-ui-scale] #root, html[data-ui-scale] body > .dialog-backdrop { zoom: var(--ui-scale, 1); }
+
+/* Settings → Your workflow: the work modes as cards to pick from. */
+.work-modes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin: 4px 0 8px; }
+.work-mode { display: flex; flex-direction: column; gap: 4px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--page); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.work-mode small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.work-mode:hover { border-color: var(--line2); }
+.work-mode.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.ui-scale-now { min-width: 44px; font-variant-numeric: tabular-nums; }

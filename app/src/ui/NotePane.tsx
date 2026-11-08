@@ -1,3 +1,5 @@
+import { partOn } from '../data/workmodes';
+import { DocViewItems } from './docview';
 import { currentHelped } from './helpers';
 import { NOTE_MENU } from './desktopmenu';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -242,7 +244,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           </button>
         </>
       )}
-      {!note.projectId && <ReminderButton note={note} quiet={calm} ask={remind} />}
+      {!note.projectId && partOn(state.settings, 'reminders') && <ReminderButton note={note} quiet={calm} ask={remind} />}
       {phone ? (
         <button type="button" className="icon-btn" aria-label="Share" onClick={share}>
           <IconShare size={18} />
@@ -311,6 +313,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
                   </button>
                 </>
               )}
+              {!narrow && <DocViewItems docId={note.id} />}
               {calm && !narrow && (
                 <button type="button" className="menu-item" aria-pressed={toolsAtRest} onClick={() => (setMenu(false), store.updateSettings({ toolbar: toolsAtRest ? 'selection' : 'always' }))}>
                   <span className="menu-aa" aria-hidden="true">Aa</span> {toolsAtRest ? 'Formatting only on selected text' : 'Formatting bar always on show'}
@@ -339,7 +342,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           >
             <IconPicture size={14} /> Add a picture or file…
           </button>
-          {calm && !note.projectId && !note.reminder && (
+          {calm && !note.projectId && !note.reminder && partOn(state.settings, 'reminders') && (
             <button type="button" className="menu-item" onClick={() => (setMenu(false), setRemind((n) => n + 1))}>
               <IconBell size={14} /> Add a reminder…
             </button>
