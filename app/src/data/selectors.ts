@@ -371,3 +371,15 @@ export function numberInWords(n: number): string {
   if (n > 20 && n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? `-${NUMBER_WORDS[n % 10].toLowerCase()}` : '');
   return String(n);
 }
+
+/** New notebooks and stacks waiting in the Inbox until they're filed (settings.inboxFolders), oldest first. */
+export function waitingFolders(state: Pick<AppState, 'notebooks' | 'stacks' | 'settings'>): ({ kind: 'notebook'; notebook: Notebook } | { kind: 'stack'; stack: Stack })[] {
+  const out: ({ kind: 'notebook'; notebook: Notebook } | { kind: 'stack'; stack: Stack })[] = [];
+  for (const id of state.settings.inboxFolders ?? []) {
+    const nb = state.notebooks.find((n) => n.id === id);
+    if (nb && !nb.stackId) out.push({ kind: 'notebook', notebook: nb });
+    const st = state.stacks.find((s) => s.id === id);
+    if (st) out.push({ kind: 'stack', stack: st });
+  }
+  return out;
+}

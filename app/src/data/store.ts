@@ -326,9 +326,10 @@ export class AppStore {
     return this.state.notebooks.find((n) => n.name.toLowerCase() === name.toLowerCase()) ?? this.createNotebook(name);
   }
 
-  /** A new note from a template, in the notebook being looked at. */
+  /** A new note from a template, in the Inbox. */
   newFromTemplate(t: { title: string; body: string }): Note {
-    return this.createNote({ title: fillIn(t.title, this.now()), doc: templateDoc(t.body, this.now()) });
+    this.showInbox();
+    return this.createNote({ title: fillIn(t.title, this.now()), doc: templateDoc(t.body, this.now()), notebookId: null });
   }
 
   /** Keeps a copy of a note in the Templates notebook, to start new notes from. */
@@ -556,7 +557,8 @@ export class AppStore {
 
   // ---------- notebooks ----------
 
-  createNotebook(name: string, stackId: string | null = null, distill = false): Notebook {
+  /** A new notebook; `inbox` keeps it in the Inbox (as well as the sidebar) until it's filed. */
+  createNotebook(name: string, stackId: string | null = null, distill = false, inbox = false): Notebook {
     const used = new Set(this.state.notebooks.map((n) => n.color));
     const nb: Notebook = {
       id: newId(),
@@ -568,6 +570,7 @@ export class AppStore {
     };
     this.set({ notebooks: [...this.state.notebooks, nb] });
     this.save(this.storage.putNotebook(nb));
+    if (inbox && !nb.stackId) this.waitInInbox(nb.id);
     return nb;
   }
 
@@ -603,7 +606,10 @@ export class AppStore {
 
   /** Puts a notebook in a stack, or takes it out with null. */
   setStack(id: string, stackId: string | null): void {
-    this.updateNotebook(id, { stackId: this.stack(stackId) ? stackId : null });
+    const into = this.stack(stackId) ? stackId : null;
+    this.updateNotebook(id, { stackId: into });
+    // Put in a stack, the notebook is filed, and the stack has something in it.
+    if (into) this.fileFolder(id, into);
   }
 
   /** Deletes a notebook and moves its notes to the Trash (restoring one brings it back without a notebook). */
@@ -615,6 +621,7 @@ export class AppStore {
     const view: View = this.state.view.kind === 'notebook' && this.state.view.id === id ? { kind: 'all' } : this.state.view;
     this.set({ notes, notebooks, view });
     this.save(this.storage.deleteNotebook(id));
+    this.fileFolder(id);
     this.reselectIfHidden();
   }
 
@@ -650,11 +657,35 @@ export class AppStore {
 
   // ---------- stacks ----------
 
-  createStack(name: string, distill = false): Stack {
+  /** A new stack; `inbox` keeps it in the Inbox (as well as the sidebar) until it's filed. */
+  createStack(name: string, distill = false, inbox = false): Stack {
     const st: Stack = { id: newId(), name: name.trim() || 'Untitled stack', createdAt: this.now(), ...(distill ? { distill: true } : {}) };
     this.set({ stacks: [...this.state.stacks, st] });
     this.save(this.storage.putStack(st));
+    if (inbox) this.waitInInbox(st.id);
     return st;
+  }
+
+  // ---------- the Inbox ----------
+
+  /** Keeps a new notebook or stack in the Inbox until it's filed. */
+  private waitInInbox(id: string): void {
+    const now = this.state.settings.inboxFolders ?? [];
+    if (!now.includes(id)) this.updateSettings({ inboxFolders: [...now, id] });
+  }
+
+  /** Takes notebooks or stacks out of the Inbox: filed (or put in a stack, or deleted). */
+  fileFolder(...ids: string[]): void {
+    const now = this.state.settings.inboxFolders ?? [];
+    if (!ids.some((id) => now.includes(id))) return;
+    const left = now.filter((id) => !ids.includes(id));
+    this.updateSettings({ inboxFolders: left.length ? left : undefined });
+  }
+
+  /** A note made from New (or a template, a board, an upload…): it waits in the Inbox, which shows unless the list already does. */
+  showInbox(): void {
+    const kind = this.state.view.kind;
+    if (kind !== 'inbox' && kind !== 'all') this.setView({ kind: 'inbox' });
   }
 
   renameStack(id: string, name: string): void {
@@ -673,6 +704,7 @@ export class AppStore {
     const view: View = this.state.view.kind === 'stack' && this.state.view.id === id ? { kind: 'all' } : this.state.view;
     this.set({ stacks: this.state.stacks.filter((s) => s.id !== id), view });
     this.save(this.storage.deleteStack(id));
+    this.fileFolder(id);
     this.reselectIfHidden();
   }
 

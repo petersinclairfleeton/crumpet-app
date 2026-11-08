@@ -168,22 +168,21 @@ export function App() {
 
   const importNote = useCallback(
     (n: { title: string; doc: Doc }) => {
-      store.createNote(n);
+      // New things wait in the Inbox.
+      store.showInbox();
+      store.createNote({ ...n, notebookId: null });
       setPane('note');
     },
     [store],
   );
 
+  // A new note waits in the Inbox, whatever list is showing (Inbox shows, unless All notes is).
   const newNote = useCallback(() => {
-    store.createNote();
+    store.showInbox();
+    store.createNote({ notebookId: null });
     setPane('note');
     // The title field focuses itself when a new, empty note opens.
   }, [store]);
-  /** A note caught from the phone's library: in Inbox, to be filed later. */
-  const quickNote = useCallback(() => {
-    store.setView({ kind: 'inbox' });
-    newNote();
-  }, [store, newNote]);
 
   // A folded-away sidebar or list peeks out while the mouse rests on its edge or its button.
   const [peek, setPeek] = useState<Peek>(null);
@@ -314,8 +313,8 @@ export function App() {
     openStats: () => setStatsOpen(true),
     upload: () =>
       chooseUploads(async (files) => {
-        const made = await uploadFiles(store, files, {});
-        if (made.length) openNote(made[made.length - 1].id);
+        const made = await uploadFiles(store, files, { notebookId: null });
+        if (made.length) (store.showInbox(), openNote(made[made.length - 1].id));
       }),
     store,
   };
@@ -462,7 +461,7 @@ export function App() {
       {/* (A book's is the outline's own, which knows which of its tabs is open.) */}
       {/* The library's makes a quick note in Inbox, whichever list was open last. */}
       {phoneCalm && !state.focusMode && (pane === 'sidebar' || (pane === 'list' && !state.query && !project)) && (
-        <button type="button" className={`fab${pane === 'sidebar' ? ' on-library' : ''}`} aria-label="New note" onClick={pane === 'sidebar' ? quickNote : newNote}>
+        <button type="button" className={`fab${pane === 'sidebar' ? ' on-library' : ''}`} aria-label="New note" onClick={newNote}>
           <IconPlus size={26} />
         </button>
       )}

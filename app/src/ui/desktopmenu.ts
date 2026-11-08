@@ -110,9 +110,9 @@ export function runMenuCommand(id: string, a: MenuActions): void {
         setTimeout(() => {
           if (newThing(kind)) return;
           const st = a.store;
-          if (kind === 'notebook' || kind === 'dnotebook') st.setView({ kind: 'notebook', id: st.createNotebook('Untitled notebook', null, kind === 'dnotebook').id });
-          else if (kind === 'stack' || kind === 'dstack') st.createStack('Untitled stack', kind === 'dstack');
-          else if (kind === 'board') st.createNote({ doc: boardDoc(emptyBoard()) });
+          if (kind === 'notebook' || kind === 'dnotebook') st.setView({ kind: 'notebook', id: st.createNotebook('Untitled notebook', null, kind === 'dnotebook', true).id });
+          else if (kind === 'stack' || kind === 'dstack') st.createStack('Untitled stack', kind === 'dstack', true);
+          else if (kind === 'board') (st.showInbox(), st.createNote({ doc: boardDoc(emptyBoard()), notebookId: null }));
           else a.newNote();
         }, 100);
       }
