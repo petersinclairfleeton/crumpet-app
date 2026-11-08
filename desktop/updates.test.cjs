@@ -7,7 +7,36 @@ const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
 const crypto = require('node:crypto');
+const zlib = require('node:zlib');
 const { execFileSync } = require('node:child_process');
+
+/** A .tar.gz as `tar -czf` makes it (POSIX ustar), from { name: text } (a name ending in / is a folder). */
+function tarOf(entries) {
+  const blocks = [];
+  for (const [name, text] of Object.entries(entries)) {
+    const body = Buffer.from(name.endsWith('/') ? '' : text);
+    const head = Buffer.alloc(512);
+    head.write(name, 0, 100);
+    head.write('0000644\0', 100);
+    head.write('0000000\0', 108);
+    head.write('0000000\0', 116);
+    head.write(`${body.length.toString(8).padStart(11, '0')}\0`, 124);
+    head.write('00000000000\0', 136);
+    head.write('        ', 148);
+    head.write(name.endsWith('/') ? '5' : '0', 156);
+    head.write('ustar\0' + '00', 257);
+    let sum = 0;
+    for (const b of head) sum += b;
+    head.write(`${sum.toString(8).padStart(6, '0')}\0 `, 148);
+    blocks.push(head, body, Buffer.alloc((512 - (body.length % 512)) % 512));
+  }
+  blocks.push(Buffer.alloc(1024));
+  return zlib.gzipSync(Buffer.concat(blocks));
+}
+
+const SHELL = 'a'.repeat(64);
+const webLabel = (version, shell = SHELL) => JSON.stringify({ version, shell });
+const webTar = tarOf({ './': '', './index.html': '<div id="root"></div> new', './assets/': '', './assets/app.js': 'new code', './crumpet-web.json': webLabel('1.1.20') });
 
 const exe = Buffer.from('the new Crumpet for Windows');
 const zip = Buffer.from('the new Crumpet for Mac');
@@ -17,6 +46,9 @@ const server = http.createServer((req, res) => {
   if (req.url === '/latest') return res.end(JSON.stringify(release));
   if (req.url === '/Crumpet-Windows.exe') return res.end(exe);
   if (req.url === '/Crumpet-Mac.zip') return res.end(zip);
+  if (req.url === '/Crumpet-Web.tar.gz') return res.end(webTar);
+  if (req.url === '/crumpet-web.json') return res.end(webLabel('1.1.20'));
+  if (req.url === '/other-window.json') return res.end(webLabel('1.1.20', 'b'.repeat(64)));
   res.statusCode = 404;
   res.end();
 });
@@ -35,6 +67,8 @@ test.before(async () => {
     assets: [
       { name: 'Crumpet-Windows.exe', browser_download_url: `${base}/Crumpet-Windows.exe`, size: exe.length, digest: `sha256:${sha(exe)}` },
       { name: 'Crumpet-Mac.zip', browser_download_url: `${base}/Crumpet-Mac.zip`, size: zip.length, digest: `sha256:${sha(zip)}` },
+      { name: 'Crumpet-Web.tar.gz', browser_download_url: `${base}/Crumpet-Web.tar.gz`, size: webTar.length, digest: `sha256:${sha(webTar)}` },
+      { name: 'crumpet-web.json', browser_download_url: `${base}/crumpet-web.json`, size: 0 },
     ],
   };
 });
@@ -149,4 +183,97 @@ test('the check on Windows: downloads the installer and says it’s ready, witho
   // Once that version is installed, its download is tidied away.
   await updates.checkForUpdates({ app: { ...app, getVersion: () => '1.1.20' }, shell: {}, platform: 'win32', force: true, none: () => {}, ask: async () => {}, ready: async () => {} });
   assert.deepEqual(fs.readdirSync(path.join(data, 'updates')), []);
+});
+
+// Small updates: only Crumpet's own files, when the new Crumpet fits this window.
+
+test('unpacks Crumpet’s own files, and nothing outside the folder', () => {
+  const dir = tmp();
+  updates.untar(webTar, dir);
+  assert.equal(fs.readFileSync(path.join(dir, 'assets', 'app.js'), 'utf8'), 'new code');
+  assert.deepEqual(updates.readLabel(dir), { version: '1.1.20', shell: SHELL });
+  assert.throws(() => updates.untar(tarOf({ '../escaped.txt': 'no' }), tmp()), /Not unpacked/);
+  assert.throws(() => updates.untar(tarOf({ '/etc/escaped.txt': 'no' }), tmp()), /Not unpacked/);
+  const damaged = zlib.gunzipSync(webTar);
+  damaged[600] ^= 1;
+  damaged[0] ^= 1;
+  assert.throws(() => updates.untar(zlib.gzipSync(damaged), tmp()), /damaged/);
+});
+
+test('unpacks what the computer’s own tar makes, long names too', { skip: process.platform === 'win32' && 'tar differs on Windows' }, () => {
+  const src = tmp();
+  const deep = path.join('assets', 'a-rather-long-folder-name-for-testing', 'and-another-one-inside-it-to-pass-a-hundred');
+  fs.mkdirSync(path.join(src, deep), { recursive: true });
+  fs.writeFileSync(path.join(src, deep, 'with-a-long-file-name-at-the-end-of-it.js'), 'deep');
+  fs.writeFileSync(path.join(src, 'index.html'), 'page');
+  const gz = path.join(tmp(), 'web.tar.gz');
+  execFileSync('tar', ['-czf', gz, '-C', src, '.']);
+  const dir = tmp();
+  updates.untar(fs.readFileSync(gz), dir);
+  assert.equal(fs.readFileSync(path.join(dir, deep, 'with-a-long-file-name-at-the-end-of-it.js'), 'utf8'), 'deep');
+  assert.equal(fs.readFileSync(path.join(dir, 'index.html'), 'utf8'), 'page');
+});
+
+test('a small update is downloaded, checked and unpacked only when it fits this window', async () => {
+  const dir = tmp();
+  const webDir = tmp();
+  const rel = await updates.newerRelease('1.1.16', 'linux');
+  assert.equal(rel.web.asset.name, 'Crumpet-Web.tar.gz');
+  assert.equal(await updates.prepareWeb(rel, dir, webDir, 'b'.repeat(64)), null);
+  assert.deepEqual(fs.readdirSync(webDir), []);
+  const done = await updates.prepareWeb(rel, dir, webDir, SHELL);
+  assert.deepEqual(done, { version: '1.1.20', file: path.join(webDir, '1.1.20'), web: true });
+  assert.equal(fs.readFileSync(path.join(webDir, '1.1.20', 'assets', 'app.js'), 'utf8'), 'new code');
+  // The download itself is taken away once unpacked.
+  assert.deepEqual(fs.readdirSync(path.join(dir, '1.1.20')), []);
+  // A damaged download isn't used.
+  const bad = { ...rel, web: { ...rel.web, asset: { ...rel.web.asset, sha256: sha(Buffer.from('else')) } } };
+  assert.equal(await updates.prepareWeb(bad, tmp(), tmp(), SHELL), null);
+  // Nor files whose label inside says otherwise.
+  const other = { ...rel, web: { ...rel.web, label: { ...rel.web.label, url: `${base}/other-window.json` } } };
+  assert.equal(await updates.prepareWeb(other, tmp(), tmp(), SHELL), null);
+});
+
+test('as it opens, Crumpet uses the newest downloaded files that fit, and takes away the rest', () => {
+  const webDir = tmp();
+  const make = (version, shell = SHELL) => {
+    fs.mkdirSync(path.join(webDir, version));
+    fs.writeFileSync(path.join(webDir, version, 'index.html'), version);
+    fs.writeFileSync(path.join(webDir, version, 'crumpet-web.json'), webLabel(version, shell));
+  };
+  const shipped = { folder: '/inside/the/app', version: '1.1.18', shell: SHELL };
+  make('1.1.17');
+  make('1.1.19');
+  make('1.1.21');
+  make('1.1.22', 'b'.repeat(64));
+  fs.mkdirSync(path.join(webDir, '1.1.23.part'));
+  assert.deepEqual(updates.activeWeb(webDir, shipped), { folder: path.join(webDir, '1.1.21'), version: '1.1.21' });
+  assert.deepEqual(fs.readdirSync(webDir), ['1.1.21']);
+  // Files that didn't start aren't used again.
+  updates.markDidNotStart(path.join(webDir, '1.1.21'));
+  assert.deepEqual(updates.activeWeb(webDir, shipped), { folder: '/inside/the/app', version: '1.1.18' });
+  assert.deepEqual(fs.readdirSync(webDir), []);
+  // An app without a label (run from the code) never uses downloaded files.
+  make('1.1.30');
+  assert.deepEqual(updates.activeWeb(webDir, { ...shipped, shell: null }), { folder: '/inside/the/app', version: '1.1.18' });
+});
+
+test('the check: a small update even where the app can’t replace itself, and the whole app when the window has changed', async () => {
+  const data = tmp();
+  const app = { getPath: () => data, getVersion: () => '1.1.16' };
+  const shell = { openExternal: () => {} };
+  const linux = { platform: 'linux', execPath: '/opt/Crumpet/crumpet' };
+  const ready = [];
+  const web = { dir: path.join(data, 'web'), shell: SHELL, version: '1.1.16' };
+  const done = await updates.checkForUpdates({ app, shell, ...linux, web, force: true, busy: () => {}, ask: async () => assert.fail('asked'), ready: async (u) => ready.push(u) });
+  assert.deepEqual(done, { version: '1.1.20', file: path.join(data, 'web', '1.1.20'), web: true });
+  assert.equal(ready[0].news, 'The update message says what’s new');
+  // Already on that version through a small update: up to date.
+  let none = 0;
+  await updates.checkForUpdates({ app, shell, ...linux, web: { ...web, version: '1.1.20' }, force: true, none: () => none++, ask: async () => assert.fail('asked'), ready: async () => assert.fail('ready') });
+  assert.equal(none, 1);
+  // Another window: the whole app, as before (on Linux, by hand).
+  const asked = [];
+  await updates.checkForUpdates({ app, shell, ...linux, web: { ...web, dir: path.join(tmp(), 'web'), shell: 'b'.repeat(64) }, force: true, ask: async (r) => (asked.push(r.version), 'later'), ready: async () => assert.fail('ready') });
+  assert.deepEqual(asked, ['1.1.20']);
 });

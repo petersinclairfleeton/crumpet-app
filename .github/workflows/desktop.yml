@@ -8,6 +8,11 @@
 # Both update themselves (desktop/updates.cjs): they download the newest
 # release's Crumpet-Mac.zip or Crumpet-Windows.exe, check its SHA-256, and
 # install it on Restart Now or when Crumpet quits. Each build tries that too.
+# When the window around Crumpet (desktop/) hasn't changed since their copy,
+# they download only Crumpet's own files instead (Crumpet-Web.tar.gz, labelled
+# by crumpet-web.json: version and the window's fingerprint, made by
+# desktop/web-manifest.mjs), a much smaller download, used the next time
+# Crumpet opens.
 #
 # Released on purpose: it publishes only when started (Actions → Desktop apps
 # → Run workflow, or Claude with actions_run_trigger on main). A pull request
@@ -57,6 +62,17 @@ jobs:
           npx tsc --noEmit
           npx vite build
 
+      # The label on Crumpet's own files (inside the apps, and beside them in
+      # the release), and those files on their own for small updates.
+      - name: Label Crumpet's own files and pack them for small updates
+        run: |
+          node desktop/web-manifest.mjs "$VERSION" > app/dist/crumpet-web.json
+          cat app/dist/crumpet-web.json
+          mkdir web-update
+          tar -czf web-update/Crumpet-Web.tar.gz -C app/dist .
+          cp app/dist/crumpet-web.json web-update/
+          ls -la web-update
+
       - name: Build the AI connection (MCP server and Claude extension)
         working-directory: app
         run: node mcp/build.mjs
@@ -66,6 +82,11 @@ jobs:
           name: web
           path: app/dist
           retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-update
+          path: web-update
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         with:
           name: mcp
@@ -110,6 +131,8 @@ jobs:
           ln -s /Applications dmg/Applications
           hdiutil create -volname Crumpet -srcfolder dmg -ov -format UDZO Crumpet-Mac.dmg
           ditto -c -k --keepParent "$APP" Crumpet-Mac.zip
+          # The label that lets it take small updates later.
+          test -s "$APP/Contents/Resources/web/crumpet-web.json"
 
       # The app updates itself (updates.cjs): its tests, then the real thing on
       # this Mac: the zip unpacked as the app does it, put in the place of an
@@ -266,5 +289,7 @@ jobs:
             out/Crumpet-Mac.dmg
             out/Crumpet-Mac.zip
             out/Crumpet-Windows.exe
+            out/Crumpet-Web.tar.gz
+            out/crumpet-web.json
             out/Crumpet.mcpb
             out/crumpet-mcp.mjs

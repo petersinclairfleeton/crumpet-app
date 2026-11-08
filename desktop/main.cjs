@@ -16,7 +16,13 @@ const { pathToFileURL } = require('node:url');
 
 const ORIGIN = 'app://crumpet';
 // The built web app: inside the app when packaged, else the app folder's build.
-const WEB = app.isPackaged ? path.join(process.resourcesPath, 'web') : path.join(__dirname, '..', 'app', 'dist');
+const SHIPPED = app.isPackaged ? path.join(process.resourcesPath, 'web') : path.join(__dirname, '..', 'app', 'dist');
+/** Crumpet's own files as they came inside the app: where, their version, and the window they fit (updates.cjs). */
+const shipped = { folder: SHIPPED, version: app.getVersion(), shell: updates.readLabel(SHIPPED)?.shell ?? null };
+/** The files in use: those inside the app, or newer ones a small update downloaded (chosen as Crumpet opens). */
+let web = { folder: SHIPPED, version: app.getVersion() };
+/** Where small updates are kept. */
+const webDir = () => path.join(app.getPath('userData'), 'web');
 const isMac = process.platform === 'darwin';
 const isWindows = process.platform === 'win32';
 /** What to call the computer in messages. */
@@ -111,7 +117,7 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       spellcheck: true,
-      additionalArguments: [`--crumpet-version=${app.getVersion()}`],
+      additionalArguments: [`--crumpet-version=${web.version}`],
     },
   });
   if (bounds?.maximized) win.maximize();
@@ -155,7 +161,14 @@ function createWindow() {
     if (choice === 1) e.preventDefault();
   });
 
-  win.webContents.on('did-finish-load', () => (loaded = true));
+  win.webContents.on('did-finish-load', () => {
+    loaded = true;
+    if (web.folder !== SHIPPED) setTimeout(() => void checkStarted(), 10000);
+  });
+  win.webContents.on('did-fail-load', (_e, code, _what, _url, mainFrame) => {
+    // (-3 is a load stopped on purpose, by a new one.)
+    if (mainFrame && code !== -3) backToShipped();
+  });
   win.webContents.on('did-start-loading', () => (loaded = false));
   // Started by a clip: the app opens with it.
   void win.loadURL(`${ORIGIN}/${pendingClip ? `#clip=${pendingClip}` : ''}`);
@@ -164,6 +177,34 @@ function createWindow() {
     win = null;
     loaded = false;
   });
+}
+
+/**
+ * Files from a small update that didn't start (the page failed to load, or
+ * drew nothing): marked, so they're not used again, and the window opens
+ * again with the files that came inside the app.
+ */
+function backToShipped() {
+  if (web.folder === SHIPPED) return;
+  updates.markDidNotStart(web.folder);
+  web = { folder: SHIPPED, version: app.getVersion() };
+  // The new window first: closing the only one would quit Crumpet on Windows.
+  const old = win;
+  if (!old || old.isDestroyed()) return;
+  old.removeAllListeners('closed');
+  createWindow();
+  old.destroy();
+}
+
+/** Some seconds after loading, the page should have drawn the app; if not, back to the files inside the app. */
+async function checkStarted() {
+  if (!win || win.isDestroyed() || web.folder === SHIPPED) return;
+  try {
+    const drawn = await win.webContents.executeJavaScript("!!document.getElementById('root')?.children.length");
+    if (!drawn) backToShipped();
+  } catch {
+    backToShipped();
+  }
 }
 
 /**
@@ -362,6 +403,14 @@ let installing = false;
 /** Installs the waiting update once Crumpet has closed; `reopen` restarts it straight away. */
 function installUpdate(reopen) {
   if (!pending || installing) return;
+  // A small update needs nothing installing: Crumpet uses the new files when it next opens.
+  if (pending.web) {
+    if (!reopen) return;
+    installing = true;
+    app.relaunch();
+    app.quit();
+    return;
+  }
   installing = updates.install(pending, { reopen });
   if (installing && reopen) app.quit();
 }
@@ -378,6 +427,7 @@ function checkForUpdates(force) {
     app,
     shell,
     force,
+    web: { dir: webDir(), shell: shipped.shell, version: web.version },
     busy: ({ version }) => void show({ type: 'info', buttons: ['OK'], message: `Downloading Crumpet ${version}…`, detail: 'It downloads in the background, and Crumpet says when it’s ready to install.' }),
     ready: async (update) => {
       pending = update;
@@ -387,7 +437,7 @@ function checkForUpdates(force) {
         defaultId: 0,
         cancelId: 1,
         message: `Crumpet ${update.version} is ready`,
-        detail: `${update.news ? `What’s new: ${update.news}.\n\n` : ''}You have ${app.getVersion()}. Restart now to use it (it takes a few seconds), or it installs itself the next time you quit Crumpet. Your notes stay as they are.`,
+        detail: `${update.news ? `What’s new: ${update.news}.\n\n` : ''}You have ${web.version}. ${update.web ? 'Restart now to use it (it takes a moment), or it’s used the next time you open Crumpet.' : 'Restart now to use it (it takes a few seconds), or it installs itself the next time you quit Crumpet.'} Your notes stay as they are.`,
       });
       if (response === 0) installUpdate(true);
     },
@@ -398,11 +448,11 @@ function checkForUpdates(force) {
         defaultId: 0,
         cancelId: 1,
         message: `Crumpet ${version} is out`,
-        detail: `You have ${app.getVersion()}. ${why ? `${why} ` : ''}Download the new one and install it over this one: your notes stay as they are.`,
+        detail: `You have ${web.version}. ${why ? `${why} ` : ''}Download the new one and install it over this one: your notes stay as they are.`,
       });
       return ['download', 'later', 'skip'][response];
     },
-    none: () => void show({ type: 'info', buttons: ['OK'], message: 'You have the newest Crumpet', detail: `Version ${app.getVersion()}.` }),
+    none: () => void show({ type: 'info', buttons: ['OK'], message: 'You have the newest Crumpet', detail: `Version ${web.version}.` }),
   });
 }
 
@@ -421,12 +471,16 @@ else {
   if (!app.isPackaged && process.defaultApp && process.argv.length >= 2) app.setAsDefaultProtocolClient(SCHEME, process.execPath, [path.resolve(process.argv[1])]);
   else app.setAsDefaultProtocolClient(SCHEME);
   app.whenReady().then(() => {
-    // The app's own files; any other path is the app itself (it finds its way from the address).
+    // Crumpet's own files: newer ones from a small update if there are any (updates.cjs), else those inside the app.
+    web = updates.activeWeb(webDir(), shipped);
+    if (isMac) app.setAboutPanelOptions({ applicationVersion: web.version });
+    // Any other path is the app itself (it finds its way from the address).
     protocol.handle('app', (req) => {
       const { pathname } = new URL(req.url);
-      let file = path.normalize(path.join(WEB, decodeURIComponent(pathname)));
-      if (!file.startsWith(WEB)) return new Response('Not found', { status: 404 });
-      if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(WEB, 'index.html');
+      const root = web.folder;
+      let file = path.normalize(path.join(root, decodeURIComponent(pathname)));
+      if (!file.startsWith(root)) return new Response('Not found', { status: 404 });
+      if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(root, 'index.html');
       return net.fetch(pathToFileURL(file).toString());
     });
     // Drive's API answers the website's address; the app's own (app://crumpet) is let through too.
