@@ -10,6 +10,14 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-08-new-shortcuts',
+    date: '8 November 2026',
+    title: 'A simpler New, and sizes from a list',
+    points: [
+      'Settings → Appearance → Size of everything is now a list of six sizes, from Smallest (80%) to Largest (140%), instead of a slider that jumped about under the mouse as the app changed size.',
+    ],
+  },
+  {
     id: '2026-11-08-workflow',
     date: '8 November 2026',
     title: 'Work modes, a roomier book, and sizes where they belong',
