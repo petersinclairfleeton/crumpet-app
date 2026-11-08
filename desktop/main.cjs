@@ -355,33 +355,54 @@ function menu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+/** A downloaded update waiting to be installed: on Restart Now, or when Crumpet quits. */
+let pending = null;
+let installing = false;
+
+/** Installs the waiting update once Crumpet has closed; `reopen` restarts it straight away. */
+function installUpdate(reopen) {
+  if (!pending || installing) return;
+  installing = updates.install(pending, { reopen });
+  if (installing && reopen) app.quit();
+}
+
 /**
- * Says when a newer Crumpet is out (see updates.cjs): by itself once a day,
- * or when asked from the Help menu (`force`), which also says when it's up to date.
+ * Keeps Crumpet up to date (see updates.cjs): by itself once a day, or when
+ * asked from the Help menu (`force`), which also says when it's up to date.
  */
 function checkForUpdates(force) {
   if (!app.isPackaged && !process.env.CRUMPET_RELEASES_URL) return;
+  if (pending && !force) return;
+  const show = (opts) => (win ? dialog.showMessageBox(win, opts) : dialog.showMessageBox(opts));
   return updates.checkForUpdates({
     app,
     shell,
     force,
-    ask: async ({ version }) => {
-      const opts = {
+    busy: ({ version }) => void show({ type: 'info', buttons: ['OK'], message: `Downloading Crumpet ${version}…`, detail: 'It downloads in the background, and Crumpet says when it’s ready to install.' }),
+    ready: async (update) => {
+      pending = update;
+      const { response } = await show({
+        type: 'info',
+        buttons: ['Restart Now', 'Later'],
+        defaultId: 0,
+        cancelId: 1,
+        message: `Crumpet ${update.version} is ready`,
+        detail: `You have ${app.getVersion()}. Restart now to use it (it takes a few seconds), or it installs itself the next time you quit Crumpet. Your notes stay as they are.`,
+      });
+      if (response === 0) installUpdate(true);
+    },
+    ask: async ({ version }, why) => {
+      const { response } = await show({
         type: 'info',
         buttons: ['Download', 'Later', 'Skip This Version'],
         defaultId: 0,
         cancelId: 1,
         message: `Crumpet ${version} is out`,
-        detail: `You have ${app.getVersion()}. Download the new one and install it over this one: your notes stay as they are.`,
-      };
-      const { response } = win ? await dialog.showMessageBox(win, opts) : await dialog.showMessageBox(opts);
+        detail: `You have ${app.getVersion()}. ${why ? `${why} ` : ''}Download the new one and install it over this one: your notes stay as they are.`,
+      });
       return ['download', 'later', 'skip'][response];
     },
-    none: () => {
-      const opts = { type: 'info', buttons: ['OK'], message: 'You have the newest Crumpet', detail: `Version ${app.getVersion()}.` };
-      if (win) void dialog.showMessageBox(win, opts);
-      else void dialog.showMessageBox(opts);
-    },
+    none: () => void show({ type: 'info', buttons: ['OK'], message: 'You have the newest Crumpet', detail: `Version ${app.getVersion()}.` }),
   });
 }
 
@@ -419,12 +440,16 @@ else {
     });
     menu();
     createWindow();
-    // A few seconds in, so it never slows the app's start.
+    // A few seconds in, so it never slows the app's start; then every few hours, for a Crumpet left open for days.
     setTimeout(() => void checkForUpdates(false), 8000);
+    setInterval(() => void checkForUpdates(false), 6 * 60 * 60 * 1000);
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
   });
+
+  // A downloaded update installs itself as Crumpet quits.
+  app.on('will-quit', () => installUpdate(false));
 
   app.on('window-all-closed', () => {
     if (!isMac) app.quit();

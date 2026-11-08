@@ -17,7 +17,7 @@ const lines = [
   '',
   '**Windows** (Windows 10 and 11): download **Crumpet-Windows.exe** and open it; Crumpet installs itself (no administrator needed) and opens, with shortcuts on the Start menu and the desktop. The first time, Windows may say “Windows protected your PC”: click **More info**, then **Run anyway**. (It isn’t signed with a code-signing certificate yet.)',
   '',
-  'Already have Crumpet? Install the new one over it: your notes stay as they are. The app tells you when a newer version is out (Help → Check for a Newer Version).',
+  'Already have Crumpet? Crumpet now updates itself: a new version downloads in the background and installs when you restart or quit Crumpet (or Help → Check for a Newer Version). With an older copy, install the new one over it once: your notes stay as they are.',
   '',
   'Your notes are kept on the computer. To have them on your other devices too, choose Settings → Sync and storage → **Continue with Google** (the same Google Drive folder as the website), or “A folder on this computer”.',
   '',

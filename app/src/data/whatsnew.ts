@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-08-desktop-updates',
+    date: '8 November 2026',
+    title: 'The Mac and Windows apps update themselves',
+    points: [
+      'Crumpet for Mac and Crumpet for Windows now keep themselves up to date. Once a day they look for a newer version, download it in the background and check it’s whole and genuine, then say it’s ready: Restart Now, or it installs itself the next time you quit Crumpet. Your notes stay as they are.',
+      'Help → Check for a Newer Version still looks straight away.',
+      'This starts from this version: if your copy is older, install this one over it once, and after that it updates by itself. (On a Mac it updates itself when it’s in Applications, not while it’s running from the downloaded disk image.)',
+    ],
+  },
+  {
     id: '2026-11-08-new-inbox',
     date: '8 November 2026',
     title: 'A simpler New, and everything new in the Inbox',

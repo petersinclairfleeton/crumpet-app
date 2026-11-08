@@ -5,6 +5,10 @@
 # https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Mac.dmg
 # https://github.com/petersinclairfleeton/crumpet-app/releases/latest/download/Crumpet-Windows.exe
 #
+# Both update themselves (desktop/updates.cjs): they download the newest
+# release's Crumpet-Mac.zip or Crumpet-Windows.exe, check its SHA-256, and
+# install it on Restart Now or when Crumpet quits. Each build tries that too.
+#
 # Released on purpose: it publishes only when started (Actions → Desktop apps
 # → Run workflow, or Claude with actions_run_trigger on main). A pull request
 # that changes desktop/ or this file builds both apps as a check, without
@@ -107,6 +111,34 @@ jobs:
           hdiutil create -volname Crumpet -srcfolder dmg -ov -format UDZO Crumpet-Mac.dmg
           ditto -c -k --keepParent "$APP" Crumpet-Mac.zip
 
+      # The app updates itself (updates.cjs): its tests, then the real thing on
+      # this Mac: the zip unpacked as the app does it, put in the place of an
+      # older copy in an Applications folder, and still signed and whole after.
+      - name: Check it can update itself
+        working-directory: desktop
+        run: |
+          npm test
+          node -e '
+            const fs = require("fs"), path = require("path"), os = require("os"), { execFileSync } = require("child_process");
+            const u = require("./updates.cjs");
+            (async () => {
+              const t = fs.mkdtempSync(path.join(os.tmpdir(), "update-"));
+              fs.copyFileSync("release/Crumpet-Mac.zip", path.join(t, "Crumpet-Mac.zip"));
+              const fresh = await u.unpackMac(path.join(t, "Crumpet-Mac.zip"));
+              if (!fresh) throw new Error("The zip did not unpack");
+              const apps = path.join(t, "Applications");
+              fs.mkdirSync(apps);
+              const app = path.join(apps, "Crumpet.app");
+              execFileSync("ditto", ["release/mac-universal/Crumpet.app", app]);
+              const why = u.cannotUpdate("darwin", path.join(app, "Contents/MacOS/Crumpet"));
+              if (why) throw new Error(why);
+              execFileSync("/bin/sh", ["-c", u.MAC_SWAP, "crumpet-update", "999999", app, fresh, "0"]);
+              execFileSync("codesign", ["--verify", "--deep", "--strict", app]);
+              if (fs.readdirSync(apps).join() !== "Crumpet.app") throw new Error("Left behind: " + fs.readdirSync(apps));
+              console.log("Updated in place, and still signed:", app);
+            })().catch((e) => { console.error(e); process.exit(1); });
+          '
+
       - uses: actions/upload-artifact@v4
         with:
           name: mac
@@ -177,6 +209,26 @@ jobs:
           $running = Get-Process Crumpet -ErrorAction SilentlyContinue
           if (-not $running) { throw 'Crumpet closed by itself' }
           "Running: $($running.Count) processes"
+          $running | Stop-Process -Force
+
+      # How the app updates itself (updates.cjs): with Crumpet open, the new
+      # installer runs silently (/S --updated --force-run) and Crumpet quits;
+      # the installer puts the new one in place and opens it again.
+      - name: Check it can update itself
+        shell: pwsh
+        working-directory: desktop/release
+        run: |
+          Push-Location ..; npm test; if ($LASTEXITCODE) { throw 'The update tests failed' }; Pop-Location
+          $exe = (Get-ChildItem (Join-Path $env:LOCALAPPDATA 'Programs') -Recurse -Depth 2 -Filter Crumpet.exe | Select-Object -First 1).FullName
+          Start-Process -FilePath $exe
+          Start-Sleep -Seconds 10
+          $before = (Get-Item $exe).LastWriteTimeUtc
+          Start-Process -FilePath .\Crumpet-Windows.exe -ArgumentList '/S', '--updated', '--force-run'
+          Get-Process Crumpet -ErrorAction SilentlyContinue | Stop-Process -Force
+          $running = $null
+          for ($i = 0; $i -lt 45 -and -not $running; $i++) { Start-Sleep -Seconds 2; $running = Get-Process Crumpet -ErrorAction SilentlyContinue }
+          if (-not $running) { throw 'Crumpet did not open again after updating' }
+          "Updated and open again: $($running.Count) processes (Crumpet.exe written $before, now $((Get-Item $exe).LastWriteTimeUtc))"
           $running | Stop-Process -Force
 
       - uses: actions/upload-artifact@v4

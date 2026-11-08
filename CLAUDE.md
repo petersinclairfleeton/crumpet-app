@@ -539,9 +539,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx
   newest What's new entries (`desktop/release-notes.mjs`). Mac: one app for Apple
   silicon and Intel, signed ad hoc, no Apple Developer ID yet. Windows: an NSIS
   installer for 64-bit Windows (`Crumpet-Windows.exe`, per person, no admin),
-  unsigned (SmartScreen's "More info" → "Run anyway"). Neither updates itself:
-  `desktop/updates.cjs` asks GitHub for the latest release once a day and offers
-  Download / Later / Skip This Version (also Help → Check for a Newer Version).
+  unsigned (SmartScreen's "More info" → "Run anyway"). Both update themselves (`desktop/updates.cjs`, no signing needed): once a day (and every six hours while open) they ask GitHub for the latest release, download this computer's file (`Crumpet-Mac.zip` / `Crumpet-Windows.exe`) into `userData/updates/<version>/`, check its SHA-256 (the release asset's `digest`), and offer Restart Now / Later; a waiting update installs on quit (`will-quit`). Mac: the unpacked Crumpet.app replaces the running one after it exits (`MAC_SWAP`, a shell script; not from the disk image or an unwritable folder, where it falls back to Download / Later / Skip). Windows: the installer runs `/S --updated [--force-run]`. Tests: `npm test` in desktop/ (`updates.test.cjs`), and each build tries the real update on GitHub's Mac and Windows (Help → Check for a Newer Version looks at once).
   Settings → Clipper & app offers `releases/latest/download/Crumpet-Mac.dmg` on
   a Mac and `Crumpet-Windows.exe` on Windows (`data/desktop.ts`). The Windows
   installer can't be finished here (NSIS needs Wine), but `--win dir` packs the app. Try it here with
