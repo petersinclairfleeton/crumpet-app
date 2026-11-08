@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-08-new-inbox',
+    date: '8 November 2026',
+    title: 'A simpler New, and everything new in the Inbox',
+    points: [
+      'New makes five things: Upload, Note, Notebook, Notebook stack and Manuscript, each with its shortcut beside it (Ctrl+Alt+Shift+U, N, B, K and M; ⌥⇧⌘ and the letter on a Mac).',
+      'Everything new goes into the Inbox, whichever notebook is open: notes and uploads wait there until you file them in a notebook. Manuscripts go straight under Express.',
+      'New notebooks and stacks wait at the top of the Inbox too (as well as in the sidebar) until you put them in a stack or click Filed.',
+      'Daily notes, boards, Distill notebooks and stacks, and notes from templates are in the command palette (Ctrl+P, ⌘P) and have shortcuts of their own; Today still has New daily note.',
+    ],
+  },
+  {
     id: '2026-11-08-shortcuts',
     date: '8 November 2026',
     title: 'Keyboard shortcuts for everything',
@@ -23,7 +34,7 @@ export const WHATS_NEW: WhatsNew[] = [
   {
     id: '2026-11-08-new-shortcuts',
     date: '8 November 2026',
-    title: 'A simpler New, and sizes from a list',
+    title: 'Sizes from a list',
     points: [
       'Settings → Appearance → Size of everything is now a list of six sizes, from Smallest (80%) to Largest (140%), instead of a slider that jumped about under the mouse as the app changed size.',
     ],

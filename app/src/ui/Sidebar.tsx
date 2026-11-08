@@ -1,5 +1,6 @@
 import { MODES, currentMode, modeSettings, partOn, type Part } from '../data/workmodes';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FIXED_COMMANDS, bindingsFor, showCombo } from '../data/shortcuts';
 import { createPortal } from 'react-dom';
 import type { Doc } from '@crumpet/editor/model';
 import { useAppState, useAppStore, useMedia, useSync, keep, remember } from './hooks';
@@ -8,7 +9,7 @@ import { SettingsDialog, type SettingsSection } from './Settings';
 import { canUseFolder } from '../sync/folder';
 import { openReminders } from '../data/reminders';
 import { BUILT_IN_CLIENT_ID } from '../sync/connection';
-import { allTags, tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectWords, projectsInOrder, recentNotes, sameView } from '../data/selectors';
+import { allTags, tagTree, type TagNode, displayTitle, noteCounts, notebookTree, projectWords, projectsInOrder, recentNotes, sameView, waitingFolders } from '../data/selectors';
 import { NOTEBOOK_COLORS, type Notebook, type Stack, type View } from '../data/types';
 import { BUILT_IN_TEMPLATES, TEMPLATES_NOTEBOOK } from '../data/templates';
 import { toMarkdown } from '@crumpet/editor/markdown';
@@ -21,7 +22,7 @@ import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
 import { boardDoc, emptyBoard } from '../data/board';
-import { IconBell, IconBoard, IconBook, IconChart, IconGraph, IconHash, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconSettings, IconSend, Logo, NotebookIcon } from './icons';
+import { IconBell, IconBook, IconChart, IconGraph, IconHash, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconSettings, IconSend, Logo, NotebookIcon } from './icons';
 import { openFinder } from './finder';
 import { HelpItems } from './help';
 import { openSubmissions } from './submissions';
@@ -92,7 +93,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const recent = recentNotes(state.notes);
   const trashCount = state.notes.filter((n) => n.trashedAt !== null).length;
   const allCount = state.notes.filter((n) => n.trashedAt === null && !n.projectId).length;
-  const inboxCount = state.notes.filter((n) => n.trashedAt === null && !n.projectId && !n.notebookId).length;
+  const inboxCount = state.notes.filter((n) => n.trashedAt === null && !n.projectId && !n.notebookId).length + waitingFolders(state).length;
   const favCount = state.notes.filter((n) => n.favorite && n.trashedAt === null).length;
   const tagCount = allTags(state.notes).length;
   const active = (v: View) => !state.query && sameView(state.view, v);
@@ -118,6 +119,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
     const made = await uploadFiles(store, files, where);
     const last = made[made.length - 1];
     if (!last) return;
+    // New things wait in the Inbox.
+    if (where.notebookId === null && !where.projectId) store.showInbox();
     if (where.projectId) {
       onOpenView({ kind: 'project', id: where.projectId });
       store.openResearch(last.id);
@@ -197,7 +200,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           placeholder="Notebook name"
           onDone={(name) => {
             setCreating(null);
-            if (name) onOpenView({ kind: 'notebook', id: store.createNotebook(name, null, distill).id });
+            if (name) onOpenView({ kind: 'notebook', id: store.createNotebook(name, null, distill, true).id });
           }}
         />
       )}
@@ -207,7 +210,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           placeholder="Stack name"
           onDone={(name) => {
             setCreating(null);
-            if (name) store.createStack(name, distill);
+            if (name) store.createStack(name, distill, true);
           }}
         />
       )}
@@ -297,7 +300,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
     if (what === 'note') onNewNote();
     else if (what === 'daily') onNewDaily();
     else if (what === 'board') onImport({ title: '', doc: boardDoc(emptyBoard()) });
-    else if (what === 'upload') chooseUploads(upload({}));
+    else if (what === 'upload') chooseUploads(upload({ notebookId: null }));
     else if (what === 'template') window.dispatchEvent(new Event(NEW_TEMPLATE));
     else {
       const section = what === 'project' ? 'Express' : what === 'dnotebook' || what === 'dstack' ? 'Distill' : 'Organise';
@@ -341,7 +344,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
         {/* The top list: New, Search, Favourites and the graph, one under the other. */}
         <div className={`side-start${touch ? ' touch' : ''}`}>
-          <NewMenu on={on} onPick={make} onTemplate={onTemplate} onImport={onImport} onUpload={() => chooseUploads(upload({}))} />
+          <NewMenu on={on} onPick={make} onTemplate={onTemplate} onImport={onImport} onUpload={() => chooseUploads(upload({ notebookId: null }))} />
           {!fresh && !touch && <SearchRow />}
           {!touch && topRows}
         </div>
@@ -624,9 +627,15 @@ function NewMenu({ on, onPick, onTemplate, onImport, onUpload }: { on(p: Part): 
     setOpen(null);
     onPick(k);
   };
+  // Each with its shortcut (Settings → Shortcuts).
+  const settings = useAppState().settings;
+  const keys = useMemo(() => {
+    const b = bindingsFor(FIXED_COMMANDS, settings.shortcuts, isMac);
+    return new Map([...b].map(([id, c]) => [id, c ? showCombo(c, isMac) : undefined]));
+  }, [settings.shortcuts]);
   const item = (k: NewKind, icon: React.ReactNode, label: string, hint?: string) => (
-    <button type="button" className="menu-item" onClick={pick(k)}>
-      {icon} {label} {hint && <small className="menu-hint">{hint}</small>}
+    <button type="button" className="menu-item" aria-keyshortcuts={hint} onClick={pick(k)}>
+      {icon} {label} {hint && <small className="menu-hint" aria-hidden="true">{hint}</small>}
     </button>
   );
   return (
@@ -641,19 +650,11 @@ function NewMenu({ on, onPick, onTemplate, onImport, onUpload }: { on(p: Part): 
             <TemplateList onTemplate={pick2(() => setOpen(null), onTemplate)} onImport={pick2(() => setOpen(null), onImport)} onUpload={() => (setOpen(null), onUpload())} />
           ) : (
             <>
-              {item('note', <IconNote size={14} />, 'Note', isMac ? '⌘N' : 'Ctrl+N')}
-              {on('today') && item('daily', <IconSun size={14} />, 'Daily note')}
-              {item('notebook', <IconNotebook size={14} />, 'Notebook')}
-              {item('stack', <IconStack size={14} />, 'Notebook stack')}
-              {on('distill') && item('dnotebook', <IconNotebook size={14} />, 'Distill notebook')}
-              {on('distill') && item('dstack', <IconStack size={14} />, 'Distill stack')}
-              {on('express') && item('project', <IconBook size={14} />, 'Manuscript')}
-              {on('boards') && item('board', <IconBoard size={14} />, 'Board')}
-              <hr className="menu-sep" />
-              <button type="button" className="menu-item" onClick={() => setOpen('templates')}>
-                <IconChevron size={14} /> From a template…
-              </button>
-              {item('upload', <IconUpload size={14} />, 'Upload files…')}
+              {item('upload', <IconUpload size={14} />, 'Upload', keys.get('new.upload'))}
+              {item('note', <IconNote size={14} />, 'Note', keys.get('new.note'))}
+              {item('notebook', <IconNotebook size={14} />, 'Notebook', keys.get('new.notebook'))}
+              {item('stack', <IconStack size={14} />, 'Notebook stack', keys.get('new.stack'))}
+              {on('express') && item('project', <IconBook size={14} />, 'Manuscript', keys.get('new.manuscript'))}
             </>
           )}
         </Popover>

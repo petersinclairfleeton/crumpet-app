@@ -2,14 +2,14 @@ import { boardDoc, emptyBoard } from '../data/board';
 import { useEffect, useRef, useState } from 'react';
 import { mediaUrl } from '../data/files';
 import { useAppState, useAppStore, useMedia } from './hooks';
-import { type Group, type SnippetPart, chapterText, displayTitle, groupByDate, listedNotes, matchingChapters, matchingNotebooks, noteText, preview, shortTime, snippet, viewTitle } from '../data/selectors';
+import { type Group, type SnippetPart, chapterText, displayTitle, groupByDate, listedNotes, matchingChapters, matchingNotebooks, noteText, preview, shortTime, snippet, viewTitle, waitingFolders } from '../data/selectors';
 import type { Note, View } from '../data/types';
 import { reminderGroups } from '../data/reminders';
 import { ReminderTag } from './reminders';
 import { type SortBy, parseQuery, quoted, sortNotes, withToken, withoutToken } from '../data/search';
 import { allTags } from '../data/selectors';
 import { InlineInput, Popover } from './Sidebar';
-import { IconStarFilled, IconTag, IconTrash } from './icons';
+import { IconCheck, IconStack, IconStarFilled, IconTag, IconTrash } from './icons';
 import { FoldButton } from './fold';
 import { tabDrag, useFileDrop } from './tabdrag';
 import { uploadFiles } from './uploads';
@@ -258,8 +258,10 @@ export function NoteList({ onOpenNote, onNewNote, onOpenView, onBack }: Props) {
         </div>
       )}
 
+      {state.view.kind === 'inbox' && !searching && <InboxFolders onOpenView={onOpenView} />}
+
       {notes.length === 0 ? (
-        chapters.length === 0 && <Empty view={state.view} searching={searching} query={state.query} onNewNote={state.view.kind === 'today' ? () => (store.newDailyNote(), onOpenNote(store.getState().selectedId!)) : state.view.kind === 'boards' ? () => onOpenNote(store.createNote({ doc: boardDoc(emptyBoard()) }).id) : onNewNote} />
+        chapters.length === 0 && !(state.view.kind === 'inbox' && !searching && waitingFolders(state).length) && <Empty view={state.view} searching={searching} query={state.query} onNewNote={state.view.kind === 'today' ? () => (store.newDailyNote(), onOpenNote(store.getState().selectedId!)) : state.view.kind === 'boards' ? () => onOpenNote(store.createNote({ doc: boardDoc(emptyBoard()) }).id) : onNewNote} />
       ) : style === 'table' && !phone ? (
         <div className="list-table">
           <table className="note-table">
@@ -456,6 +458,40 @@ function ListMenu({ sort, sortName, phone = false }: { sort: SortBy; sortName: s
   );
 }
 
+/** New notebooks and stacks at the top of the Inbox, until they're filed (put in a stack, or marked Filed). */
+function InboxFolders({ onOpenView }: { onOpenView(v: View): void }) {
+  const state = useAppState();
+  const store = useAppStore();
+  const folders = waitingFolders(state);
+  if (!folders.length) return null;
+  const live = state.notes.filter((n) => n.trashedAt === null);
+  return (
+    <div className="group inbox-folders" role="group" aria-label="New notebooks and stacks">
+      <h2 className="group-label">New notebooks and stacks</h2>
+      {folders.map((f) => {
+        const id = f.kind === 'notebook' ? f.notebook.id : f.stack.id;
+        const name = f.kind === 'notebook' ? f.notebook.name : f.stack.name;
+        const inside = f.kind === 'notebook' ? live.filter((n) => n.notebookId === id).length : state.notebooks.filter((nb) => nb.stackId === id).length;
+        const what = f.kind === 'notebook' ? `${inside} note${inside === 1 ? '' : 's'}` : `Notebook stack · ${inside} notebook${inside === 1 ? '' : 's'}`;
+        return (
+          <div key={id} className="inbox-folder">
+            <button type="button" className="row-main" onClick={() => onOpenView(f.kind === 'notebook' ? { kind: 'notebook', id } : { kind: 'stack', id })}>
+              {f.kind === 'notebook' ? <NotebookIcon color={f.notebook.color} size={16} cut="var(--page)" /> : <IconStack size={16} />}
+              <span className="inbox-folder-name">
+                <b>{name}</b>
+                <small>{what}</small>
+              </span>
+            </button>
+            <button type="button" className="btn quiet small" aria-label={`Filed: take ${name} out of the Inbox`} title="It stays where it is in the sidebar" onClick={() => store.fileFolder(id)}>
+              <IconCheck size={14} /> Filed
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Empty({ view, searching, query, onNewNote }: { view: View; searching: boolean; query: string; onNewNote(): void }) {
   let text: string;
   let action = true;
@@ -474,7 +510,7 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
   else if (view.kind === 'tag') text = 'No notes have this tag any more.';
   else if (view.kind === 'boards') text = 'Boards lay out ideas as cards joined by arrows, to see what matters and how it fits together.';
   else if (view.kind === 'today') text = 'Daily notes wait here, one for each day. Move one into a notebook whenever you like.';
-  else if (view.kind === 'inbox') text = 'Your inbox is clear. Notes you haven’t put in a notebook wait here.';
+  else if (view.kind === 'inbox') text = 'Your inbox is clear. New notes, uploads, notebooks and stacks wait here until you file them.';
   else if (view.kind === 'all') text = 'No notes yet. Write your first one, then file it in a notebook whenever you like.';
   else text = 'No notes here yet.';
   return (

@@ -38,6 +38,12 @@ async function newNote(page: Page, title: string, body = '') {
   }
 }
 
+/** A new note (which goes into the Inbox), then filed in a notebook from the picker above its title. */
+async function newNoteIn(page: Page, notebook: string, title: string, body = '') {
+  await newNote(page, title, body);
+  await page.locator('.nb-picker select').selectOption({ label: notebook });
+}
+
 /** A formatting button in the pinned bar, looking under More when there isn't room for it. */
 async function toolButton(page: Page, name: RegExp | string) {
   const inBar = page.locator('.note-toolbar .tools.fit > .tool').getByRole('button', { name });
@@ -98,10 +104,10 @@ test('create notebooks and stacks, file notes, and see a stack’s notes togethe
   await page.keyboard.type('Novel');
   await page.keyboard.press('Enter');
   await expect(list(page).locator('h1')).toHaveText('Novel');
-  await newNote(page, 'Opening scene', 'She counted the steps.');
+  await newNoteIn(page, 'Novel', 'Opening scene', 'She counted the steps.');
 
   await newNotebook(page, 'Recipes');
-  await newNote(page, 'Soda bread', 'Buttermilk and flour.');
+  await newNoteIn(page, 'Recipes', 'Soda bread', 'Buttermilk and flour.');
   // Put Recipes in the stack through its menu.
   await sidebar(page).getByRole('button', { name: 'Recipes options' }).click();
   await page.getByRole('button', { name: 'Put in a stack…' }).click();
@@ -126,7 +132,7 @@ test('rename and delete stacks and notebooks', async ({ page }) => {
   await page.getByRole('button', { name: 'New notebook in this stack…' }).click();
   await page.keyboard.type('Journal');
   await page.keyboard.press('Enter');
-  await newNote(page, 'Monday', 'Rain all day.');
+  await newNoteIn(page, 'Journal', 'Monday', 'Rain all day.');
 
   await sidebar(page).getByRole('button', { name: 'Areas options' }).click();
   await page.getByRole('button', { name: 'Rename stack…' }).click();
@@ -174,8 +180,8 @@ test('tags: add one, find it in the sidebar, remove it', async ({ page }) => {
 test('search finds notes across notebooks and offers notebooks to jump to', async ({ page }) => {
   await open(page);
   await newNotebook(page, 'Lighthouse');
-  await newNote(page, 'Opening', 'She counted the steps every night.');
-  await newNote(page, 'Tides', 'The causeway floods twice.');
+  await newNoteIn(page, 'Lighthouse', 'Opening', 'She counted the steps every night.');
+  await newNoteIn(page, 'Lighthouse', 'Tides', 'The causeway floods twice.');
   await sidebar(page).getByRole('button', { name: 'All notes' }).click();
   await newNote(page, 'Groceries', 'Milk.');
   await page.locator('.note-editor').click();
@@ -1231,9 +1237,11 @@ test('links between notes: [[ to link, click to open, linked-from at the bottom'
 test('search: filters, saving a search, sorting, and working on several notes at once', async ({ page }) => {
   await open(page);
   await newNotebook(page, 'Journal');
-  await newNote(page, 'Banana', 'yellow');
-  await newNote(page, 'apple', 'red');
-  await newNote(page, 'Cherry', 'red too');
+  await newNoteIn(page, 'Journal', 'Banana', 'yellow');
+  await newNoteIn(page, 'Journal', 'apple', 'red');
+  await newNoteIn(page, 'Journal', 'Cherry', 'red too');
+  await sidebar(page).locator('.nb-row', { hasText: 'Journal' }).locator('.row-main').click();
+  await expect(list(page).locator('h1')).toHaveText('Journal');
   // Sort by title.
   await list(page).getByLabel('Sort by').selectOption('title');
   await expect(list(page).locator('.card-title')).toHaveText(['apple', 'Banana', 'Cherry']);

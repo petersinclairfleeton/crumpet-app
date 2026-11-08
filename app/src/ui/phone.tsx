@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { useAppState, useAppStore, useSync } from './hooks';
-import { type TagNode, projectWords, sameView, tagTree } from '../data/selectors';
+import { type TagNode, projectWords, sameView, tagTree, waitingFolders } from '../data/selectors';
 import type { View } from '../data/types';
 import { SettingsDialog } from './Settings';
 import { statusText } from './SyncSettings';
@@ -52,7 +52,7 @@ export function PhoneLibrary({ onOpenView, onToday }: { onOpenView(v: View): voi
       <section aria-label="Capture">
         <h2 className="phone-label">Capture</h2>
         <ul className="phone-group">
-          {row('inbox', <IconInbox size={20} />, 'Inbox', count((n) => !n.notebookId && !n.projectId), () => onOpenView({ kind: 'inbox' }), on({ kind: 'inbox' }))}
+          {row('inbox', <IconInbox size={20} />, 'Inbox', count((n) => !n.notebookId && !n.projectId) + waitingFolders(state).length, () => onOpenView({ kind: 'inbox' }), on({ kind: 'inbox' }))}
           {row('today', <IconSun size={20} />, 'Today', undefined, onToday)}
         </ul>
       </section>

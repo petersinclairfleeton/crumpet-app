@@ -60,10 +60,27 @@ test('New makes notes, notebooks, stacks and manuscripts; a notebook goes into a
       await page.keyboard.press('Enter');
     }
   };
+  // New offers five things, each with its shortcut.
+  await side.getByRole('button', { name: 'New', exact: true }).click();
+  const menu = page.getByRole('dialog', { name: 'New' }).getByRole('button');
+  await expect(menu).toHaveText(['Upload Ctrl+Alt+Shift+U', 'Note Ctrl+Alt+Shift+N', 'Notebook Ctrl+Alt+Shift+B', 'Notebook stack Ctrl+Alt+Shift+K', 'Manuscript Ctrl+Alt+Shift+M']);
+  await expect(menu.nth(1)).toHaveAttribute('aria-keyshortcuts', 'Ctrl+Alt+Shift+N');
+  await page.keyboard.press('Escape');
   await make('Notebook', 'Journal');
   await make('Notebook stack', 'Writing');
   await make('Manuscript', 'The Lighthouse');
   await expect.poll(async () => (await state(page)).projects.map((p) => p.name)).toEqual(['The Lighthouse']);
+  // A note made from New goes into the Inbox, though the notebook Journal was open; so do the new notebook and stack.
+  const journal = (await state(page)).notebooks.find((n) => n.name === 'Journal')!;
+  await page.evaluate((id) => (window as unknown as { crumpet: Crumpet }).crumpet.setView({ kind: 'notebook', id }), journal.id);
+  await make('Note');
+  await page.keyboard.type('Stray thought');
+  await expect.poll(async () => (await state(page)).notes.find((n) => n.title === 'Stray thought')?.notebookId).toBeNull();
+  await expect(list(page).getByRole('heading', { name: 'Inbox' })).toBeVisible();
+  const waiting = list(page).getByRole('group', { name: 'New notebooks and stacks' });
+  await expect(waiting).toContainText('Journal');
+  await expect(waiting).toContainText('Writing');
+  await expect(side.getByRole('button', { name: /^Inbox/ })).toContainText('4');
   await page.evaluate(() => (window as unknown as { crumpet: Crumpet }).crumpet.setView({ kind: 'all' }));
   const organise = side.getByRole('region', { name: 'Organise' });
   await expect(organise.locator('.nb-row', { hasText: 'Journal' })).toBeVisible();
@@ -80,6 +97,35 @@ test('New makes notes, notebooks, stacks and manuscripts; a notebook goes into a
   expect(await view()).toBe('all');
   await organise.locator('.stack-row .row-main').click();
   await expect(organise.locator('.nb-row', { hasText: 'Journal' })).toBeVisible();
+  // In the stack, both are filed: the Inbox has only the note now.
+  await side.getByRole('button', { name: /^Inbox/ }).click();
+  await expect(list(page).getByRole('group', { name: 'New notebooks and stacks' })).toHaveCount(0);
+  await expect(list(page)).toContainText('Stray thought');
+});
+
+test('a new notebook waits in the Inbox until marked Filed; uploads and templates go to the Inbox too', async ({ page }) => {
+  await calm(page);
+  const side = sidebar(page);
+  await page.keyboard.press('Control+Alt+Shift+B');
+  await page.keyboard.type('Recipes');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await state(page)).notebooks.map((n) => n.name)).toEqual(['Recipes']);
+  await side.getByRole('button', { name: /^Inbox/ }).click();
+  const waiting = list(page).getByRole('group', { name: 'New notebooks and stacks' });
+  await expect(waiting).toContainText('Recipes0 notes');
+  await waiting.getByRole('button', { name: 'Filed: take Recipes out of the Inbox' }).click();
+  await expect(waiting).toHaveCount(0);
+  // Still in the sidebar.
+  await expect(side.getByRole('region', { name: 'Organise' }).locator('.nb-row', { hasText: 'Recipes' })).toBeVisible();
+  // Uploaded from New while the notebook is open: into the Inbox.
+  const recipes = (await state(page)).notebooks[0];
+  await page.evaluate((id) => (window as unknown as { crumpet: Crumpet }).crumpet.setView({ kind: 'notebook', id }), recipes.id);
+  await side.getByRole('button', { name: 'New', exact: true }).click();
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: 'Upload', exact: true }).click()]);
+  const Bytes = (globalThis as unknown as { Buffer: { from(s: string): never } }).Buffer;
+  await chooser.setFiles({ name: 'shopping.txt', mimeType: 'text/plain', buffer: Bytes.from('Flour, eggs') });
+  await expect.poll(async () => (await state(page)).notes.find((n) => /shopping/.test(n.title))?.notebookId).toBeNull();
+  await expect(list(page).getByRole('heading', { name: 'Inbox' })).toBeVisible();
 });
 
 test('Today lists daily notes and makes none by itself; New daily note starts today’s, which can move to a notebook', async ({ page }) => {
@@ -146,8 +192,12 @@ test('Distill holds notebooks and stacks of your own thinking; Organise what you
   const distill = side.getByRole('region', { name: 'Distill' });
   await expect(distill).not.toContainText('Boards');
   await expect(distill).not.toContainText('Graph');
-  await side.getByRole('button', { name: 'New', exact: true }).click();
-  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: 'Distill notebook', exact: true }).click();
+  // From the command palette (New keeps to five things).
+  await page.keyboard.press('Control+P');
+  await page.keyboard.type('New Distill notebook');
+  await expect(page.getByRole('dialog', { name: 'Command palette' }).getByRole('option').first()).toContainText('New Distill notebook');
+  await page.keyboard.press('Enter');
+  await expect(side.getByLabel('Distill notebook name')).toBeFocused();
   await page.keyboard.type('Reflections');
   await page.keyboard.press('Enter');
   await expect(distill.locator('.nb-row', { hasText: 'Reflections' })).toBeVisible();

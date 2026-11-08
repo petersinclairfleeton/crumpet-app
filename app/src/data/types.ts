@@ -192,7 +192,7 @@ export interface Snippet {
 }
 
 /** Settings shared by every device through the synced folder (the rest stay on this device). */
-export const SHARED_SETTINGS = ['noteStyles', 'notePage', 'sideOrder', 'defaultStyles', 'sources', 'citeStyle', 'snippets', 'shares', 'submissions'] as const;
+export const SHARED_SETTINGS = ['noteStyles', 'notePage', 'sideOrder', 'inboxFolders', 'defaultStyles', 'sources', 'citeStyle', 'snippets', 'shares', 'submissions'] as const;
 export type SharedSetting = (typeof SHARED_SETTINGS)[number];
 
 /**
@@ -281,6 +281,8 @@ export interface Settings {
   /** The newest What's new entry seen on this device. */
   whatsNewSeen?: string;
   /** Macros (Word's Record Macro): their steps, played back in the editor, and an Alt+Shift number to run each. */
+  /** New notebooks and stacks waiting in the Inbox until they're filed (put in a stack, or marked Filed): their ids. */
+  inboxFolders?: string[];
   /** Keyboard shortcuts changed in Settings → Shortcuts: a command's id → its keys ("Mod+Alt+N"), or null for none (data/shortcuts.ts). */
   shortcuts?: Record<string, string | null>;
   macros?: { id: string; name: string; steps: import('@crumpet/editor/editor').MacroStep[]; key?: number }[];
