@@ -77,17 +77,22 @@ test('a Windows update is downloaded into its own folder, and old ones are tidie
   assert.deepEqual(fs.readdirSync(dir), []);
 });
 
+const notWindows = { skip: process.platform === 'win32' && 'Mac paths and the shell are for Macs (and Linux)' };
+
 test('says when it can’t put a new copy in its own place', () => {
   assert.match(updates.cannotUpdate('linux', '/opt/Crumpet/crumpet'), /by hand/);
+  assert.equal(updates.cannotUpdate('win32', 'C:\\Users\\p\\AppData\\Local\\Programs\\crumpet-desktop\\Crumpet.exe'), null);
+});
+
+test('a Mac copy in Applications can update itself; one on the disk image can’t', notWindows, () => {
   assert.match(updates.cannotUpdate('darwin', '/Volumes/Crumpet/Crumpet.app/Contents/MacOS/Crumpet'), /disk image/);
   const apps = tmp();
   const app = path.join(apps, 'Crumpet.app');
   fs.mkdirSync(path.join(app, 'Contents', 'MacOS'), { recursive: true });
   assert.equal(updates.cannotUpdate('darwin', path.join(app, 'Contents', 'MacOS', 'Crumpet')), null);
-  assert.equal(updates.cannotUpdate('win32', 'C:\\Users\\p\\AppData\\Local\\Programs\\crumpet-desktop\\Crumpet.exe'), null);
 });
 
-test('on a Mac, the new Crumpet.app takes the old one’s place once the app has closed', () => {
+test('on a Mac, the new Crumpet.app takes the old one’s place once the app has closed', notWindows, () => {
   const apps = tmp();
   const app = path.join(apps, 'Crumpet.app');
   const fresh = path.join(tmp(), 'Crumpet.app');
@@ -108,15 +113,32 @@ test('the check: one that can’t update itself offers the download page, and sk
   const opened = [];
   const asked = [];
   const shell = { openExternal: (u) => opened.push(u) };
-  // This test runs on Linux, which updates by hand.
-  await updates.checkForUpdates({ app, shell, ask: async (r, why) => (asked.push([r.version, why]), 'skip'), ready: async () => assert.fail('not on Linux') });
+  // As on Linux, which updates by hand.
+  const linux = { platform: 'linux', execPath: '/opt/Crumpet/crumpet' };
+  await updates.checkForUpdates({ app, shell, ...linux, ask: async (r, why) => (asked.push([r.version, why]), 'skip'), ready: async () => assert.fail('not on Linux') });
   assert.deepEqual(asked, [['1.1.20', 'This kind of computer gets new versions by hand.']]);
   // Skipped, and checked today: not asked again, even on another day.
-  await updates.checkForUpdates({ app, shell, ask: async () => assert.fail('asked twice'), ready: async () => {} });
+  await updates.checkForUpdates({ app, shell, ...linux, ask: async () => assert.fail('asked twice'), ready: async () => {} });
   const state = path.join(data, 'updates.json');
   fs.writeFileSync(state, JSON.stringify({ ...JSON.parse(fs.readFileSync(state, 'utf8')), checked: 0 }));
-  await updates.checkForUpdates({ app, shell, ask: async () => assert.fail('asked about a skipped version'), ready: async () => {} });
+  await updates.checkForUpdates({ app, shell, ...linux, ask: async () => assert.fail('asked about a skipped version'), ready: async () => {} });
   // Help → Check for a Newer Version asks anyway.
-  await updates.checkForUpdates({ app, shell, force: true, ask: async () => 'download', ready: async () => {} });
+  await updates.checkForUpdates({ app, shell, ...linux, force: true, ask: async () => 'download', ready: async () => {} });
   assert.deepEqual(opened, [`${base}/page`]);
+});
+
+test('the check on Windows: downloads the installer and says it’s ready, without asking to download', async () => {
+  const data = tmp();
+  const app = { getPath: () => data, getVersion: () => '1.1.16' };
+  const ready = [];
+  const busy = [];
+  const done = await updates.checkForUpdates({ app, shell: { openExternal: () => assert.fail('no download page') }, platform: 'win32', execPath: 'C:\\Crumpet\\Crumpet.exe', force: true, busy: (r) => busy.push(r.version), ask: async () => assert.fail('asked'), ready: async (u) => ready.push(u) });
+  const file = path.join(data, 'updates', '1.1.20', 'Crumpet-Windows.exe');
+  assert.deepEqual(busy, ['1.1.20']);
+  assert.deepEqual(ready, [{ version: '1.1.20', file }]);
+  assert.deepEqual(done, ready[0]);
+  assert.deepEqual(fs.readFileSync(file), exe);
+  // Once that version is installed, its download is tidied away.
+  await updates.checkForUpdates({ app: { ...app, getVersion: () => '1.1.20' }, shell: {}, platform: 'win32', force: true, none: () => {}, ask: async () => {}, ready: async () => {} });
+  assert.deepEqual(fs.readdirSync(path.join(data, 'updates')), []);
 });

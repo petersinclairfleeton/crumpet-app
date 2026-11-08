@@ -210,25 +210,26 @@ function install(ready, { reopen, platform = process.platform, execPath = proces
  * to install ({ version, file }); `ask(release, why)` (when it can't update
  * itself) resolves with 'download', 'later' or 'skip'. `force` (Help → Check
  * for a Newer Version) ignores the once-a-day limit and skipped versions;
- * `busy()` says it's downloading and `none()` that it's up to date.
+ * `busy()` says it's downloading and `none()` that it's up to date
+ * (`platform` and `execPath` are this copy's, unless a test says otherwise).
  * Resolves with the prepared update ({ version, file }) if there is one.
  */
-async function checkForUpdates({ app, shell, ask, ready, busy, none, force = false }) {
+async function checkForUpdates({ app, shell, ask, ready, busy, none, force = false, platform = process.platform, execPath = process.execPath }) {
   const file = path.join(app.getPath('userData'), 'updates.json');
   const dir = path.join(app.getPath('userData'), 'updates');
   const state = readState(file);
   tidy(dir, app.getVersion());
   if (!force && state.checked && Date.now() - state.checked < DAY) return null;
-  const release = await newerRelease(app.getVersion());
+  const release = await newerRelease(app.getVersion(), platform);
   writeState(file, { ...state, checked: Date.now() });
   if (!release) {
     if (force && none) none();
     return null;
   }
-  const why = cannotUpdate();
+  const why = cannotUpdate(platform, execPath);
   if (!why && release.asset) {
     if (force && busy) busy(release);
-    const done = await prepare(release, dir);
+    const done = await prepare(release, dir, platform);
     if (done) {
       await ready(done);
       return done;
