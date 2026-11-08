@@ -387,7 +387,7 @@ function checkForUpdates(force) {
         defaultId: 0,
         cancelId: 1,
         message: `Crumpet ${update.version} is ready`,
-        detail: `You have ${app.getVersion()}. Restart now to use it (it takes a few seconds), or it installs itself the next time you quit Crumpet. Your notes stay as they are.`,
+        detail: `${update.news ? `What’s new: ${update.news}.\n\n` : ''}You have ${app.getVersion()}. Restart now to use it (it takes a few seconds), or it installs itself the next time you quit Crumpet. Your notes stay as they are.`,
       });
       if (response === 0) installUpdate(true);
     },

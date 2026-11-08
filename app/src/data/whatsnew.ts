@@ -10,6 +10,14 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-09-update-news',
+    date: '9 November 2026',
+    title: 'Updates say what they bring',
+    points: [
+      'When a new Crumpet for Mac or Windows has downloaded itself, its “ready” message now says what’s new in it, so you can decide whether to restart now or let it install when you quit.',
+    ],
+  },
+  {
     id: '2026-11-08-desktop-updates',
     date: '8 November 2026',
     title: 'The Mac and Windows apps update themselves',

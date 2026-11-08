@@ -31,6 +31,7 @@ test.before(async () => {
   release = {
     tag_name: 'v1.1.20',
     html_url: `${base}/page`,
+    body: 'Crumpet 1.1.20.\n\n## What’s new lately\n\n### The update message says what’s new (9 November 2026)\n\n- A point.\n\n### Older things (8 November 2026)\n',
     assets: [
       { name: 'Crumpet-Windows.exe', browser_download_url: `${base}/Crumpet-Windows.exe`, size: exe.length, digest: `sha256:${sha(exe)}` },
       { name: 'Crumpet-Mac.zip', browser_download_url: `${base}/Crumpet-Mac.zip`, size: zip.length, digest: `sha256:${sha(zip)}` },
@@ -40,6 +41,13 @@ test.before(async () => {
 test.after(() => server.close());
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'crumpet-updates-'));
+
+test('a release’s news is its first What’s new heading, without the date', () => {
+  assert.equal(updates.newsOf('Intro\n\n### Keyboard shortcuts for everything (8 November 2026)\n\n- …'), 'Keyboard shortcuts for everything');
+  assert.equal(updates.newsOf('### Sizes (and more)'), 'Sizes (and more)');
+  assert.equal(updates.newsOf('No headings here'), null);
+  assert.equal(updates.newsOf(undefined), null);
+});
 
 test('versions compare by number', () => {
   assert.equal(updates.isNewer('v1.1.10', '1.1.9'), true);
@@ -135,8 +143,8 @@ test('the check on Windows: downloads the installer and says it’s ready, witho
   const done = await updates.checkForUpdates({ app, shell: { openExternal: () => assert.fail('no download page') }, platform: 'win32', execPath: 'C:\\Crumpet\\Crumpet.exe', force: true, busy: (r) => busy.push(r.version), ask: async () => assert.fail('asked'), ready: async (u) => ready.push(u) });
   const file = path.join(data, 'updates', '1.1.20', 'Crumpet-Windows.exe');
   assert.deepEqual(busy, ['1.1.20']);
-  assert.deepEqual(ready, [{ version: '1.1.20', file }]);
-  assert.deepEqual(done, ready[0]);
+  assert.deepEqual(ready, [{ version: '1.1.20', file, news: 'The update message says what’s new' }]);
+  assert.deepEqual(done, { version: '1.1.20', file });
   assert.deepEqual(fs.readFileSync(file), exe);
   // Once that version is installed, its download is tidied away.
   await updates.checkForUpdates({ app: { ...app, getVersion: () => '1.1.20' }, shell: {}, platform: 'win32', force: true, none: () => {}, ask: async () => {}, ready: async () => {} });

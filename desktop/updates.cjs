@@ -57,10 +57,17 @@ function writeState(file, state) {
   }
 }
 
+/** What a release brings, in a few words: the first What's new heading in its notes (without its date), or null. */
+function newsOf(body) {
+  const m = /^###\s+(.+?)(?:\s+\([^)]*\d{4}\))?\s*$/m.exec(String(body ?? ''));
+  return m ? m[1].trim() : null;
+}
+
 /**
  * Asks GitHub for the newest release. Resolves with { version, url, asset }
  * when it's newer than `current` (`asset`: this computer's file, { name, url,
- * size, sha256 }, if the release has one), else null (also when offline).
+ * size, sha256 }, if the release has one; `news`: what it brings), else null
+ * (also when offline).
  */
 async function newerRelease(current, platform = process.platform) {
   try {
@@ -75,6 +82,7 @@ async function newerRelease(current, platform = process.platform) {
       version,
       url: typeof json.html_url === 'string' ? json.html_url : `https://github.com/${REPO}/releases/latest`,
       asset: file && typeof file.browser_download_url === 'string' ? { name: file.name, url: file.browser_download_url, size: Number(file.size) || 0, sha256: sha ?? null } : null,
+      news: newsOf(json.body),
     };
   } catch {
     return null;
@@ -231,7 +239,7 @@ async function checkForUpdates({ app, shell, ask, ready, busy, none, force = fal
     if (force && busy) busy(release);
     const done = await prepare(release, dir, platform);
     if (done) {
-      await ready(done);
+      await ready({ ...done, news: release.news });
       return done;
     }
   }
@@ -243,4 +251,4 @@ async function checkForUpdates({ app, shell, ask, ready, busy, none, force = fal
   return null;
 }
 
-module.exports = { parseVersion, isNewer, newerRelease, download, prepare, unpackMac, install, cannotUpdate, macAppPath, tidy, checkForUpdates, MAC_SWAP, REPO, ASSET };
+module.exports = { parseVersion, isNewer, newsOf, newerRelease, download, prepare, unpackMac, install, cannotUpdate, macAppPath, tidy, checkForUpdates, MAC_SWAP, REPO, ASSET };
