@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-08-shortcuts',
+    date: '8 November 2026',
+    title: 'Keyboard shortcuts for everything',
+    points: [
+      'Settings → Shortcuts lists every command in Crumpet, in groups: making things, finding and going, showing and hiding, writing, formatting, review, tools, themes and help. Find one by name or by its keys.',
+      'The everyday ones have a standard shortcut: for example Ctrl+Alt+Shift+N (⌥⇧⌘N on a Mac) for a new note, Ctrl+Alt+Shift+B a notebook, Ctrl+Alt+Shift+M a manuscript, Ctrl+Alt+Shift+I the Inbox, and Ctrl+/ (⌘/) for the list of shortcuts itself.',
+      'Click a shortcut and press the keys to change it, or give any other command one of your own. If another command had those keys, Crumpet says so and moves them; keys your browser keeps for itself (like Ctrl+N) or that copy and paste need can’t be used. “Put every shortcut back” returns to the standard ones.',
+      'The command palette (Ctrl+P, ⌘P) shows each command’s shortcut beside it, and the Help menu has Keyboard shortcuts.',
+    ],
+  },
+  {
     id: '2026-11-08-new-shortcuts',
     date: '8 November 2026',
     title: 'A simpler New, and sizes from a list',

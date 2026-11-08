@@ -16,7 +16,7 @@ import { nearNames } from '../data/glossary';
 import { applyFix, grammarAt, ignoreIssue } from './grammar';
 import { useClips } from './clipboard';
 import { openFontDialog } from './fontdialog';
-import { isMac } from './editing';
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 import { openGuide } from './guide';
 import { currentHelped } from './helpers';
 import { useAppState, useAppStore } from './hooks';

@@ -20,7 +20,8 @@ import { PaneArea, PanesContext, usePanesState } from './panes';
 import { activeTab, groups } from '../data/panes';
 import { isBoard } from '../data/board';
 import { RightSidebar } from './rightside';
-import { Finder, onOpenFinder } from './finder';
+import { type Actions, CommandKeys, Finder, onOpenFinder } from './finder';
+import type { SettingsSection } from './Settings';
 import { currentHelped } from './helpers';
 import { SettingsDialog } from './Settings';
 import { Guide, onOpenGuide, shouldOpenGuide } from './guide';
@@ -28,17 +29,17 @@ import { Tour } from './Tour';
 import { applyTheme } from './theme';
 import { startSession } from './writingtab';
 import { StatsDialog, useTodayWords } from './stats-ui';
-import { useDesktopMenu } from './desktopmenu';
-import { SpeechBar, startReading, toggleDictation } from './speech';
+import { type MenuActions, runMenuCommand, useDesktopMenu } from './desktopmenu';
+import { SpeechBar } from './speech';
 import { CompareDocs } from './comparedocs';
 import { useFileIndex } from './fileindex';
 import { chooseUploads, uploadFiles, useWordSaving } from './uploads';
 import { ReminderAlerts } from './reminders';
-import { GoToHost, openGoTo } from './goto';
+import { GoToHost } from './goto';
 import { PictureAltHost } from './picture';
 import { ReaderHost } from './reader';
 import { MacroHost } from './macros';
-import { HelpHost } from './help';
+import { HelpHost, onOpenShortcuts } from './help';
 import { SubmissionsHost } from './submissions';
 import { SyncScroll } from './viewtools';
 import { CombineHost } from './comparedocs';
@@ -64,8 +65,6 @@ export function App() {
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
   const midWidth = useMedia(MEDIUM);
   const panes = usePanesState();
-  const panesRef = useRef(panes);
-  panesRef.current = panes;
   useFileIndex();
   useWordSaving();
 
@@ -206,52 +205,12 @@ export function App() {
   }, []);
   useEffect(() => () => clearTimeout(peekTimer.current), []);
 
-  // Ctrl+\ (⌘\ on a Mac): show or hide the sidebar; with Shift, the note list.
+  // Escape puts a peeking sidebar or list away. (Every other shortcut is ui/shortcuts.tsx's.)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.code === 'Backslash' || e.key === '\\')) {
-        e.preventDefault();
-        setPeek(null);
-        const layout = store.getState().settings.layout;
-        if (e.altKey) store.updateLayout({ right: !layout?.right });
-        else if (e.shiftKey) store.updateLayout({ list: layout?.list === false });
-        else store.updateLayout({ sidebar: (layout?.sidebar ?? 'full') === 'hidden' ? 'full' : 'hidden' });
-      }
-      if (e.key === 'Escape') setPeek(null);
-      // Ctrl+G (⌘G): the graph view, as in Obsidian.
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'g') {
-        e.preventDefault();
-        panesRef.current.open({ kind: 'graph', id: 'graph' }, 'tab');
-      }
-      // F5: Go To, as in Word (in the text being written).
-      if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !e.altKey && currentHelped()) {
-        e.preventDefault();
-        openGoTo(e.shiftKey ? 'heading' : 'page');
-      }
-      // Shift+F7: the thesaurus, as in Word.
-      if (e.shiftKey && e.key === 'F7') {
-        e.preventDefault();
-        store.updateLayout({ right: true, rightTab: 'thesaurus' });
-      }
-      // Ctrl+Alt+Space (⌘⌥Space): read aloud; Ctrl+Alt+D (⌘⌥D): dictate.
-      if ((e.metaKey || e.ctrlKey) && e.altKey && (e.code === 'Space' || e.code === 'KeyD')) {
-        const h = currentHelped();
-        if (!h) return;
-        e.preventDefault();
-        if (e.code === 'Space') startReading(h.editor, store.getState().settings);
-        else toggleDictation(h.editor);
-      }
-      // Ctrl+Alt+S (⌘⌥S): a snapshot of what you're writing, shown in the right sidebar.
-      if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === 'KeyS') {
-        const h = currentHelped();
-        if (!h) return;
-        e.preventDefault();
-        if (store.takeSnapshot(h.docId)) store.updateLayout({ right: true, rightTab: 'snapshots' });
-      }
-    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setPeek(null);
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [store]);
+  }, []);
 
   // N, when not typing: a new note.
   useEffect(() => {
@@ -268,27 +227,23 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, [newNote]);
 
-  // Focus mode: Ctrl+Shift+F (⌘⇧F) in and out; Escape out.
+  // Focus mode: Escape out (in with its shortcut, ui/shortcuts.tsx).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const focus = store.getState().focusMode;
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault();
-        store.setFocusMode(!focus);
-      } else if (focus && e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('.popover, .dialog')) {
-        store.setFocusMode(false);
-      }
+      if (store.getState().focusMode && e.key === 'Escape' && !e.defaultPrevented && !document.querySelector('.popover, .dialog')) store.setFocusMode(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [store]);
 
-  // Ctrl+O (⌘O): the quick switcher; Ctrl+P (⌘P) or Ctrl+Shift+P: the command palette.
+  // Find anything (⌘K) and the command palette (⌘P).
   const [finder, setFinder] = useState<null | 'switch' | 'commands' | 'compare'>(null);
   const [compareFrom, setCompareFrom] = useState<string | null>(null);
   const [compare, setCompare] = useState<{ a: string; b: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsAt, setSettingsAt] = useState<SettingsSection | undefined>(undefined);
   useEffect(() => onOpenFinder(() => setFinder('switch')), []);
+  useEffect(() => onOpenShortcuts(() => (setSettingsAt('keys'), setSettingsOpen(true))), []);
   // The guide: by itself on a first visit, and from the ? button or the command palette.
   const [guide, setGuide] = useState(false);
   const [touring, setTouring] = useState(false);
@@ -296,25 +251,6 @@ export function App() {
   useEffect(() => {
     if (state.ready && shouldOpenGuide(store.getState())) setGuide(true);
   }, [state.ready]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.altKey) return;
-      const k = e.key.toLowerCase();
-      // Remember the selected text, for commands that act on it once the window closes.
-      if (k === 'o' || k === 'p' || k === 'k') currentHelped()?.editor.currentSelection();
-      // ⌘K / Ctrl+K (unless the editor took it for a link) and ⌘O: Find anything.
-      if ((k === 'o' || k === 'k') && !e.shiftKey && !e.defaultPrevented) {
-        e.preventDefault();
-        setFinder('switch');
-      } else if (k === 'p') {
-        e.preventDefault();
-        setFinder('commands');
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
-
   // The session target counts from when Crumpet opened.
   const todayAtStart = useTodayWords();
   useEffect(() => {
@@ -368,7 +304,7 @@ export function App() {
   const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
   // The Mac and Windows apps' menu bar.
   const [statsOpen, setStatsOpen] = useState(false);
-  useDesktopMenu({
+  const menuActions: MenuActions = {
     newNote,
     newDailyNote,
     newProject,
@@ -382,7 +318,28 @@ export function App() {
         if (made.length) openNote(made[made.length - 1].id);
       }),
     store,
-  });
+  };
+  useDesktopMenu(menuActions);
+  // What the command palette and the keyboard shortcuts do.
+  const actions: Actions = {
+    newNote,
+    newProject,
+    openToday,
+    newDailyNote,
+    openSettings: (section) => (setSettingsAt(section), setSettingsOpen(true)),
+    openView,
+    make: (what) => runMenuCommand(what, menuActions),
+    openFinder: (mode) => {
+      // Remember the selected text, for commands that act on it once the window closes.
+      currentHelped()?.editor.currentSelection();
+      setFinder(mode);
+    },
+    compareFrom: (id) => {
+      setCompareFrom(id);
+      setTimeout(() => setFinder('compare'));
+    },
+    compare: (a, b) => setCompare({ a, b }),
+  };
 
   return (
     <NavContext.Provider value={nav}>
@@ -411,23 +368,13 @@ export function App() {
         <Finder
           mode={finder}
           compareFrom={compareFrom ?? undefined}
-          actions={{
-            newNote,
-            newProject,
-            openToday,
-            newDailyNote,
-            openSettings: () => setSettingsOpen(true),
-            compareFrom: (id) => {
-              setCompareFrom(id);
-              setTimeout(() => setFinder('compare'));
-            },
-            compare: (a, b) => setCompare({ a, b }),
-          }}
+          actions={actions}
           onClose={() => setFinder(null)}
         />
       )}
       {compare && <CompareDocs a={compare.a} b={compare.b} onSwap={() => setCompare({ a: compare.b, b: compare.a })} onClose={() => setCompare(null)} />}
-      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsDialog section={settingsAt} onClose={() => (setSettingsOpen(false), setSettingsAt(undefined))} />}
+      <CommandKeys actions={actions} />
       {statsOpen && <StatsDialog onClose={() => setStatsOpen(false)} />}
       {guide && <Guide onClose={() => setGuide(false)} onNewNote={newNote} onNewProject={newProject} onConnect={() => setSettingsOpen(true)} onTour={() => setTouring(true)} />}
       {touring && <Tour onDone={() => setTouring(false)} />}

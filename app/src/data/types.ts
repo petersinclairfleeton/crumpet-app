@@ -281,6 +281,8 @@ export interface Settings {
   /** The newest What's new entry seen on this device. */
   whatsNewSeen?: string;
   /** Macros (Word's Record Macro): their steps, played back in the editor, and an Alt+Shift number to run each. */
+  /** Keyboard shortcuts changed in Settings → Shortcuts: a command's id → its keys ("Mod+Alt+N"), or null for none (data/shortcuts.ts). */
+  shortcuts?: Record<string, string | null>;
   macros?: { id: string; name: string; steps: import('@crumpet/editor/editor').MacroStep[]; key?: number }[];
   /** The formatting bar as you like it: buttons hidden, and buttons kept on the bar (never moved under More). */
   toolbarCustom?: { hide?: string[]; pin?: string[] };

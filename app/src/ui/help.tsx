@@ -21,6 +21,14 @@ const SUPPORT_URL = (import.meta.env?.VITE_SUPPORT_URL as string | undefined) ??
 
 const OPEN_NEWS = 'crumpet:whats-new';
 const OPEN_FEEDBACK = 'crumpet:feedback';
+const OPEN_SHORTCUTS = 'crumpet:shortcuts';
+/** Opens Settings → Shortcuts. */
+export const openShortcuts = () => window.dispatchEvent(new Event(OPEN_SHORTCUTS));
+/** Calls `fn` whenever Settings → Shortcuts is asked for. */
+export function onOpenShortcuts(fn: () => void): () => void {
+  window.addEventListener(OPEN_SHORTCUTS, fn);
+  return () => window.removeEventListener(OPEN_SHORTCUTS, fn);
+}
 export const openWhatsNew = () => window.dispatchEvent(new Event(OPEN_NEWS));
 /** Reports and feedback can be sent from this copy of Crumpet. */
 export const canSendFeedback = !!FEEDBACK_EMAIL;
@@ -39,6 +47,9 @@ export function HelpItems({ onPick }: { onPick(): void }) {
     <>
       <button type="button" className="menu-item" onClick={pick(openGuide)}>
         Guide to Crumpet
+      </button>
+      <button type="button" className="menu-item" onClick={pick(openShortcuts)}>
+        Keyboard shortcuts
       </button>
       <button type="button" className="menu-item" onClick={pick(openWhatsNew)}>
         What’s new {news && <small className="menu-hint news-new">New</small>}

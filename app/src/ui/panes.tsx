@@ -22,7 +22,7 @@ import { hasFiles, uploadFiles } from './uploads';
 
 // ---------------------------------------------------------------- the workspace
 
-interface Panes {
+export interface Panes {
   /** Opens something where you're working: in place of the tab showing, or as a new tab. */
   open(tab: Tab, how?: 'replace' | 'tab'): void;
   /** Opens something in a new pane beside the one you're working in. */
