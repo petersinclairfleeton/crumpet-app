@@ -26,6 +26,7 @@ import { useParaKeys } from './paratools';
 import { StatusBar } from './statusbar';
 import { useAppState, useAppStore, useAutoHeight, useMedia, useNav } from './hooks';
 import { TextSizeRow } from './iphone';
+import { useSpreadWidth, useSpreads } from './bookspread';
 import { IconBack, IconBox, IconChevron, IconRightPanel, IconSidebar, IconFocus, IconMore, IconPeople, IconPlus, IconSearch } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
@@ -1367,15 +1368,21 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
     [editors],
   );
 
-  // Choosing a chapter in the outline scrolls to it.
+  // Read on a wide screen: two facing pages, turned like a book's (bookspread.ts).
+  const spreadOn = useSpreadWidth(scroll, reading && !narrow);
+  const book = useSpreads(scroll, spreadOn);
+
+  // Choosing a chapter in the outline scrolls to it (or, as facing pages, turns to it).
   const target = state.chapterId;
   useEffect(() => {
     if (!target) return;
     const box = scroll.current;
     const el = box?.querySelector<HTMLElement>(`[data-chapter="${target}"]`);
+    if (!box || !el || el.contains(document.activeElement)) return;
+    if (spreadOn) return book.show(el);
     // Scroll only the manuscript (scrollIntoView would move the whole window too).
-    if (box && el && !el.contains(document.activeElement)) box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 8, behavior: 'smooth' });
-  }, [target]);
+    box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 8, behavior: 'smooth' });
+  }, [target, spreadOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let number = 0;
   let offset = 0;
@@ -1405,7 +1412,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           onDefault={() => store.updateSettings({ defaultStyles: sheet })}
         />
       )}
-      <div className={`note-pane manuscript ${styles}${reading ? ' reading' : ''}`}>
+      <div className={`note-pane manuscript ${styles}${reading ? ' reading' : ''}${spreadOn ? ' spread' : ''}`}>
         <div className="note-toolbar" role="toolbar" aria-label="Formatting">
           {narrow && (
             <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
@@ -1415,7 +1422,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           )}
           {!reading && !floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
           <span className="grow" />
-          <span className="manuscript-count">{words(total)}</span>
+          {spreadOn ? <span className="manuscript-count spread-at" aria-live="polite">{book.label}</span> : <span className="manuscript-count">{words(total)}</span>}
           {!reading && <RevisionChip />}
           {!reading && <TrackToggle editor={active} />}
           <button type="button" className="icon-btn" aria-label="Find and replace" data-tip={`Find and replace · ${isMac ? '⌘F' : 'Ctrl+F'}`} onClick={() => setFinding(true)}>
@@ -1447,6 +1454,16 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
         )}
         {linkOpen && active && <LinkBar editor={active} onClose={() => setLinkOpen(false)} />}
         <div className="note-main">
+        {spreadOn && (
+          <>
+            <button type="button" className="turn turn-back" aria-label="Previous pages" title="Previous pages (←)" disabled={book.at === 0} onClick={() => book.turn(-1)}>
+              <IconBack size={22} />
+            </button>
+            <button type="button" className="turn turn-on" aria-label="Next pages" title="Next pages (→ or space)" disabled={book.at >= book.count - 1} onClick={() => book.turn(1)}>
+              <IconChevron size={22} />
+            </button>
+          </>
+        )}
         <div className="note-scroll" ref={scroll}>
           <article className={`note-body manuscript-body${paged ? ' paged' : ''}`}>
             <h1 className="manuscript-title">{project.name}</h1>
