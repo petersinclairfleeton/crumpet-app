@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-08-facing-pages',
+    date: '8 November 2026',
+    title: 'Read your book as an open book',
+    points: [
+      'On a wide screen, a book’s Read view shows two facing pages, like a printed book lying open, with a soft fold down the middle. Each chapter starts on a new page.',
+      'Turn the pages with the arrow keys, Page Up and Page Down, the space bar, the mouse wheel or the arrows at the sides; Home and End go to the start and the end. The top shows which pages you’re on.',
+      'On a narrower window it’s one column that scrolls, as before.',
+    ],
+  },
+  {
     id: '2026-11-07-distill',
     date: '7 November 2026',
     title: 'Distill for your own thinking, and Read like a book',

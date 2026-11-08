@@ -177,3 +177,38 @@ test('Read in a book is for reading: nothing can be typed, and it looks like a p
   await expect(ms.getByRole('button', { name: /Add a chapter/ })).toHaveCount(0);
   await expect(ms.getByRole('toolbar', { name: 'Formatting' }).getByRole('button', { name: 'Bold', exact: true })).toHaveCount(0);
 });
+
+test('Read on a wide screen: two facing pages, turned with the arrow keys or the buttons, a chapter starting on a new page', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 860 });
+  await calm(page);
+  await page.evaluate(async () => {
+    const md = await import('/@fs' + '/home/user/crumpet-app/packages/editor/src/markdown.ts' as string);
+    const c = (window as unknown as { crumpet: Crumpet }).crumpet;
+    const p = c.createProject('The Lighthouse');
+    const para = 'The logbook lay open on the kitchen table where Tam had left it, its pages soft and swollen with salt. Mara did not mean to read it.';
+    const st = c.getState() as unknown as { chapters: { id: string; projectId: string }[] };
+    const first = st.chapters.find((x) => x.projectId === p.id)!;
+    c.setChapterDoc(first.id, md.fromMarkdown(Array(30).fill(para).join('\n\n') + '\n'));
+    const second = c.addChapter(p.id, first.id);
+    c.setChapterTitle(second.id, 'Second');
+    c.setChapterDoc(second.id, md.fromMarkdown(para + '\n'));
+    c.setView({ kind: 'project', id: p.id });
+    c.selectChapter(null);
+  });
+  await page.getByRole('group', { name: 'Writing view' }).getByRole('button', { name: 'Read' }).click();
+  const ms = page.getByRole('region', { name: 'Manuscript' });
+  await expect(ms.locator('.note-pane.spread')).toBeVisible();
+  const at = ms.locator('.spread-at');
+  await expect(at).toContainText(/^Pages 1–2 of \d+$/);
+  await expect(ms.getByRole('button', { name: 'Previous pages' })).toBeDisabled();
+  await page.keyboard.press('ArrowRight');
+  await expect(at).toContainText(/^Pages 3–4 of/);
+  await ms.getByRole('button', { name: 'Previous pages' }).click();
+  await expect(at).toContainText(/^Pages 1–2 of/);
+  // Each pair of pages is exactly the screen: the text's columns sit at whole halves of it.
+  const lefts = await ms.locator('.note-scroll').evaluate((el) => [...el.querySelectorAll('p.blk-paragraph')].map((p) => Math.round(p.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft)).map((x) => ((x % (el.clientWidth / 2)) + el.clientWidth / 2) % (el.clientWidth / 2)));
+  expect(lefts.filter((x) => Math.abs(x - 60) > 3), String(lefts)).toEqual([]);
+  // The second chapter starts at the top of a page.
+  const top = await ms.locator('.ms-chapter').nth(1).evaluate((el) => el.getBoundingClientRect().top - el.closest('.note-scroll')!.getBoundingClientRect().top);
+  expect(top).toBeLessThan(60);
+});

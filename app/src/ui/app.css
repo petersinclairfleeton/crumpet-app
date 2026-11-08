@@ -3745,3 +3745,28 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .note-pane.manuscript.reading del.trk, .note-pane.manuscript.reading .brk { display: none; }
 .note-pane.manuscript.reading mark.cmt { background: none; border-bottom: none; }
 .note-pane.manuscript.reading .ms-filter { text-align: center; }
+
+/* Facing pages (Read on a wide screen, bookspread.ts): the text runs in columns
+   the height of the page, two to a screen, and the box moves sideways a pair of
+   pages at a time. Gap = the margins either side of the spine; half of it at
+   each edge, so a pair of pages is exactly one screen wide. */
+.note-pane.manuscript.reading.spread { --spine: 120px; }
+.note-pane.manuscript.reading.spread .note-main { position: relative; }
+.note-pane.manuscript.reading.spread .note-scroll { overflow: hidden; padding: 0 !important; }
+.note-pane.manuscript.reading.spread .manuscript-body { display: block; box-sizing: border-box; height: 100%; max-width: none; width: 100%; margin: 0; padding: 48px calc(var(--spine) / 2) 56px; column-count: 2; column-gap: var(--spine); column-fill: auto; }
+.note-pane.manuscript.reading.spread .manuscript-title { margin: 30% 0 0; break-after: column; }
+.note-pane.manuscript.reading.spread .ms-chapter { break-before: column; padding-top: 14%; margin-bottom: 0; }
+.note-pane.manuscript.reading.spread .ms-part { break-before: column; margin-top: 30%; }
+.note-pane.manuscript.reading.spread .ms-part + .ms-chapter { break-before: column; }
+.note-pane.manuscript.reading.spread .note-editor :is(p, li, blockquote) { font-size: 17px !important; }
+.note-pane.manuscript.reading.spread .note-editor :is(img, figure, table, .blk-image, .blk-table) { max-height: calc(100vh - 240px); break-inside: avoid; }
+.note-pane.manuscript.reading.spread .note-editor p { orphans: 2; widows: 2; }
+/* The spine: a soft fold down the middle. */
+.note-pane.manuscript.reading.spread .note-main::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 56px; transform: translateX(-50%); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--text) 5%, transparent) 46%, color-mix(in srgb, var(--text) 11%, transparent) 50%, color-mix(in srgb, var(--text) 5%, transparent) 54%, transparent); pointer-events: none; z-index: 1; }
+/* Turning the pages. */
+.note-pane.manuscript.reading .turn { position: absolute; top: 50%; z-index: 2; width: 40px; height: 40px; margin-top: -20px; display: grid; place-items: center; border: none; border-radius: 50%; background: transparent; color: var(--muted); cursor: pointer; opacity: 0.55; transition: opacity 0.15s, background 0.15s; }
+.note-pane.manuscript.reading .turn:hover:not(:disabled) { opacity: 1; background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
+.note-pane.manuscript.reading .turn:disabled { opacity: 0; cursor: default; }
+.note-pane.manuscript.reading .turn-back { left: 8px; }
+.note-pane.manuscript.reading .turn-on { right: 8px; }
+.note-pane.manuscript.reading .spread-at { font-variant-numeric: tabular-nums; }
