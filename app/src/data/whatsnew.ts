@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-09-small-updates',
+    date: '9 November 2026',
+    title: 'Much smaller updates for the Mac and Windows apps',
+    points: [
+      'Most new versions of Crumpet for Mac and Windows now download only Crumpet itself, about 20 MB, instead of the whole app (250 MB on a Mac, 130 MB on Windows). Nothing in the app is replaced: Restart Now, or the new version is there the next time you open Crumpet.',
+      'This works on a Mac even when Crumpet runs from the disk image or a folder it can’t change. Now and then, when the app around Crumpet itself changes, it downloads the whole app as before.',
+      'If a new version ever fails to start, Crumpet goes back to the one it came with by itself. Your notes stay as they are either way.',
+    ],
+  },
+  {
     id: '2026-11-09-update-news',
     date: '9 November 2026',
     title: 'Updates say what they bring',
