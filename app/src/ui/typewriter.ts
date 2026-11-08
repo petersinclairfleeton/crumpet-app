@@ -18,9 +18,20 @@ export function useTypewriter(editor: Editor | null): void {
   useEffect(() => {
     if (!editor || !(scroll || fade || sound)) return;
     const root = editor.view.root;
-    const scroller = root.closest<HTMLElement>('.note-scroll');
     root.classList.toggle('tw-fade', fade);
-    if (scroll) scroller?.classList.add('tw-scroll');
+    // The box that scrolls is looked up each time: page view and a switch of
+    // document move the text into another one after this starts.
+    let scroller: HTMLElement | null = null;
+    const box = () => {
+      const now = root.closest<HTMLElement>('.note-scroll');
+      if (now !== scroller) {
+        scroller?.classList.remove('tw-scroll');
+        scroller = now;
+        if (scroll) scroller?.classList.add('tw-scroll');
+      }
+      return scroller;
+    };
+    box();
 
     let current: Element | null = null;
     const update = () => {
@@ -33,6 +44,7 @@ export function useTypewriter(editor: Editor | null): void {
         block?.classList.add('tw-current');
         current = block;
       }
+      const scroller = box();
       if (scroll && scroller) {
         const range = sel.getRangeAt(0).cloneRange();
         range.collapse(false);
@@ -61,7 +73,7 @@ export function useTypewriter(editor: Editor | null): void {
       off();
       doc.removeEventListener('selectionchange', update);
       root.removeEventListener('keydown', onKey);
-      root.classList.remove('tw-fade');
+      root.classList.toggle('tw-fade', false);
       current?.classList.remove('tw-current');
       scroller?.classList.remove('tw-scroll');
     };

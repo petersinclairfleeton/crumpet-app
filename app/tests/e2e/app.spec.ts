@@ -2415,7 +2415,8 @@ test('first-line indents in a book: Backspace takes one away, Tab brings it back
 });
 
 test('page view zoom works with One page and Two pages, steps from the size on screen, and keeps the page in the middle', async ({ page }) => {
-  await page.setViewportSize({ width: 1400, height: 900 });
+  // Wide enough for the sidebar, the outline and a page at real size side by side.
+  await page.setViewportSize({ width: 1700, height: 900 });
   await page.goto('/');
   await expect(page.locator('.app')).toBeVisible();
   // The calm look's status bar: One page / Two pages and − Fit +.
@@ -5974,8 +5975,8 @@ test('a book in the calm look: the outline is the sidebar, chapters open as plai
     c.updateSettings({ toolbarAll: false });
   });
   const outline = page.getByRole('region', { name: 'Outline' });
-  // No notes sidebar or strip: the outline is the side, with Write, Cards and Read, and the goal.
-  await expect(page.locator('nav.sidebar, nav.rail')).toHaveCount(0);
+  // The notes sidebar stays (fold it yourself); the outline is beside it, with Write, Cards and Read, and the goal.
+  await expect(page.locator('nav.sidebar.calm')).toBeVisible();
   await expect(outline.getByRole('button', { name: 'Write', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(outline.getByRole('progressbar', { name: 'Project progress' })).toBeVisible();
   await expect(outline).toContainText('of 80,000');
@@ -5999,9 +6000,9 @@ test('a book in the calm look: the outline is the sidebar, chapters open as plai
   await expect(page.getByRole('region', { name: 'Corkboard' })).toBeVisible();
   await outline.getByLabel('Synopsis').uncheck();
   await expect(page.getByRole('region', { name: 'Corkboard' }).getByLabel('Synopsis of chapter 1')).toHaveCount(0);
-  // Back to the notes.
-  await outline.getByRole('button', { name: 'Back to notes' }).click();
-  await expect(page.locator('nav.sidebar')).toBeVisible();
+  // Back to the notes, from the sidebar beside it.
+  await sidebar(page).getByRole('button', { name: /^All notes/ }).click();
+  await expect(outline).toHaveCount(0);
 });
 
 test('calm Settings, Find and a first visit, as designed', async ({ page }) => {

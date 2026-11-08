@@ -338,7 +338,8 @@ export function App() {
   // A note in page view has the room to itself in the calm look, as Word's pages do: the sidebar
   // steps back to its strip and the list folds away (the edge still peeks it out).
   const pagedNote = !narrow && !state.settings.toolbarAll && !!state.settings.pageView?.notes && state.view.kind !== 'project' && !!state.selectedId;
-  // The calm look in a book: the book's outline is the sidebar (its strip only while the outline is folded away).
+  // The calm look in a book: the Crumpet sidebar stays as you left it (fold it yourself), and the
+  // book's outline takes the list's place beside it.
   const calmBook = !narrow && !state.settings.toolbarAll && state.view.kind === 'project' && !state.query.trim();
   // An iPad held upright, or any window this narrow (design 15): the chapter has the window; the
   // outline comes out beside it from the chapter's sidebar button, and the inspector is a drawer.
@@ -350,7 +351,7 @@ export function App() {
   const noteNow = tabNow?.kind === 'note' ? state.notes.find((n) => n.id === tabNow.id) : undefined;
   const calmWide = !narrow && !state.settings.toolbarAll && single && !state.focusMode;
   const whole = !calmWide ? null : tabNow?.kind === 'graph' ? 'graph' : noteNow && isBoard(noteNow) ? 'board' : pagedNote ? 'page' : null;
-  const sidebarMode = whole === 'graph' ? 'icons' : whole ? 'none' : compactBook ? 'none' : calmBook ? (layout.list === false ? 'icons' : 'none') : chosenSidebar === 'full' && !narrow && ((state.view.kind === 'project' && layout.bookSidebar !== 'full') || pagedNote) ? 'icons' : chosenSidebar;
+  const sidebarMode = whole === 'graph' ? 'icons' : whole ? 'none' : compactBook ? 'none' : calmBook ? chosenSidebar : chosenSidebar === 'full' && !narrow && ((state.view.kind === 'project' && layout.bookSidebar !== 'full') || pagedNote) ? 'icons' : chosenSidebar;
   // Before the first note there's nothing to list: the welcome has the room.
   const noNotesYet = !narrow && !state.settings.toolbarAll && state.notes.length === 0 && state.view.kind === 'all' && !state.query;
   const showList = (compactBook ? layout.list === true : layout.list !== false) && !pagedNote && !noNotesYet && !whole;

@@ -191,7 +191,7 @@ test('1 · the writing room', async ({ page }) => {
 
 test('2 · your own folder', async ({ page }) => {
   await ready(page);
-  await outline(page).getByRole('button', { name: 'Back to notes' }).click();
+  await page.evaluate(() => (window as unknown as { crumpet: { setView(v: object): void } }).crumpet.setView({ kind: 'all' }));
   await page.waitForTimeout(600);
   await record(page, '02-your-own-folder', HD, async () => {
     await caption(page, 'No account. Nothing kept about you.');

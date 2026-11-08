@@ -6,8 +6,8 @@
 
 import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 
-/** Wide enough for two pages side by side (each about 30 em of text). */
-export const SPREAD_MIN_WIDTH = 960;
+/** Wide enough for two pages side by side (each about 25 em of text or more). */
+export const SPREAD_MIN_WIDTH = 820;
 
 /** Whether the scroll box is wide enough for facing pages (and `want`ed). */
 export function useSpreadWidth(box: RefObject<HTMLElement | null>, want: boolean): boolean {

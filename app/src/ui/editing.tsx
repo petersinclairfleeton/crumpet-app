@@ -292,7 +292,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       tool('redo', 1, 'Redo', `Redo (${mod}⇧Z)`, '↷', () => ed?.redo(), { disabled: !ed?.history.canRedo }),
     );
   // The calm bar keeps Track changes in More (the bar shows it only while it's on).
-  if (!settings.toolbarAll && !compact)
+  if (!(settings.toolbarAll || settings.allTools) && !compact)
     items.push(
       tool(
         'track',
@@ -313,7 +313,7 @@ export function FormatTools({ editor: ed, readOnly, onLink, sheet, onEditStyles,
       <OverflowRow
         items={customised(items, settings.toolbarCustom)}
         fit={fit}
-        calm={!settings.toolbarAll && (!compact || !attach || keyboard)}
+        calm={!(settings.toolbarAll || settings.allTools) && (!compact || !attach || keyboard)}
         menus={menus}
         core={tablet ? TABLET_TOOLS : keyboard ? PHONE_TOOLS : compact && !attach ? SELECTION_TOOLS : undefined}
         quickMenu={keyboard ? undefined : (showAll) => <QuickMenu ed={ed} off={off} items={items} onAll={showAll} />}

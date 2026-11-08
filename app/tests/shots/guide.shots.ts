@@ -161,7 +161,7 @@ test('the guide’s pictures', async ({ page }) => {
   await page.keyboard.press('Escape');
 
   // Links between notes: the graph.
-  await page.getByRole('region', { name: 'Outline' }).getByRole('button', { name: 'Back to notes' }).click();
+  await page.evaluate(() => (window as unknown as { crumpet: { setView(v: object): void } }).crumpet.setView({ kind: 'all' }));
   await sidebar(page).getByRole('button', { name: 'Settings and more' }).click();
   await page.getByRole('button', { name: 'Graph of links' }).click();
   await page.waitForTimeout(2500);

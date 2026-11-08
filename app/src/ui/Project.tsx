@@ -1,3 +1,4 @@
+import { DocViewItems } from './docview';
 // A project (a book, an essay, a thesis): its outline of parts and chapters,
 // and the writing, one chapter at a time or as one long manuscript.
 
@@ -284,7 +285,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
           </div>
         )}
         <div className="list-title">
-          {calm && (
+          {calm && state.settings.layout?.sidebar === 'hidden' && (
             <button type="button" className="icon-btn" aria-label="Back to notes" title="Back to notes" onClick={() => store.setView({ kind: 'all' })}>
               <IconBack size={18} />
             </button>
@@ -541,6 +542,11 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
       ) : (
       <>
       {state.keywordFilter && shownItems.size === 0 && <p className="outline-filter-empty">No chapters have “{state.keywordFilter}” yet.</p>}
+      {calm && (
+        <button type="button" className="book-new" aria-label="Add chapter" onClick={() => store.addChapter(project.id)}>
+          <IconPlus size={16} /> New chapter
+        </button>
+      )}
       <ol className="outline-items" onDragOver={(e) => dragging && e.preventDefault()} onDrop={drop}>
         {project.outline.map((item, index) => {
           // Filtered by a keyword: only its chapters, and the parts they're in.
@@ -646,10 +652,12 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                 <span className="outline-row">
                   <span className={`status-dot ${c.status}`} title={STATUSES.find((s) => s.id === c.status)?.label} />
                   {!phone && <span className="outline-num">{number}.</span>}
-                  <span className="grow ellipsis outline-title">{phone && `${number}. `}{c.title || 'Untitled chapter'}</span>
+                  <span className={`grow outline-title${calm ? '' : ' ellipsis'}`}>{phone && `${number}. `}{c.title || 'Untitled chapter'}</span>
                   {c.drafts?.length ? <DraftBadge chapter={c} /> : null}
-                  <span className="outline-words">{c.goal ? `${n.toLocaleString()} / ${c.goal.toLocaleString()}` : n.toLocaleString()}</span>
+                  {!calm && <span className="outline-words">{c.goal ? `${n.toLocaleString()} / ${c.goal.toLocaleString()}` : n.toLocaleString()}</span>}
                 </span>
+                {/* The calm outline: the title whole, its words small beneath it. */}
+                {calm && <span className="outline-words below">{c.goal ? `${n.toLocaleString()} of ${c.goal.toLocaleString()} words` : words(n)}</span>}
                 {(!calm || phone) && c.synopsis && <span className="outline-synopsis">{c.synopsis}</span>}
                 {!calm && !phone && <KeywordChips chapter={c} />}
                 {!calm && !phone && c.goal ? <Progress value={n} goal={c.goal} label={`Progress of ${c.title || 'chapter'}`} /> : null}
@@ -687,11 +695,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
         />
       )}
 
-      {phone ? null : calm ? (
-        <button type="button" className="book-new" aria-label="Add chapter" onClick={() => store.addChapter(project.id)}>
-          <IconPlus size={16} /> New chapter
-        </button>
-      ) : (
+      {phone || calm ? null : (
       <div className="outline-add">
         <button type="button" className="btn" aria-label="Add chapter" onClick={() => store.addChapter(project.id)}>
           <IconPlus size={13} /> Chapter
@@ -1007,6 +1011,12 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
     </>
   ) : calm ? (
     <p className="chapter-line">
+      {/* The outline folded away (its « button): this brings it back. */}
+      {state.settings.layout?.list === false && (
+        <button type="button" className="icon-btn show-outline" aria-label="Show the outline" title="Show the outline" onClick={() => store.updateLayout({ list: true })}>
+          <IconSidebar size={18} />
+        </button>
+      )}
       {statusPick}
       <span aria-hidden="true">·</span>
       <span className="chapter-words">{chapter.goal ? `${n.toLocaleString()} of ${chapter.goal.toLocaleString()} words` : words(n)}</span>
@@ -1055,6 +1065,12 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
                       {paged ? 'Page view: on' : 'Page view'}
                     </button>
                   )}
+                  <hr className="menu-sep" />
+                </>
+              )}
+              {!narrow && (
+                <>
+                  <DocViewItems docId={draftDocId(chapter, shown.id)} />
                   <hr className="menu-sep" />
                 </>
               )}

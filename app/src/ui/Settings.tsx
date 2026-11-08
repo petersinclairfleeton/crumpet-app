@@ -1,3 +1,4 @@
+import { MODES, PARTS, currentMode, modeSettings, partOn, withPart } from '../data/workmodes';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ClipperSettings } from './clipper';
@@ -27,6 +28,7 @@ const SECTIONS = [
 const CALM_SECTIONS = [
   { id: 'look', label: 'Appearance' },
   { id: 'writing', label: 'Writing' },
+  { id: 'workflow', label: 'Your workflow' },
   { id: 'bar', label: 'Formatting bar' },
   { id: 'sync', label: 'Sync and storage' },
   { id: 'app', label: 'Clipper & app' },
@@ -56,6 +58,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
   const [allThemes, setAllThemes] = useState(false);
   const shownThemes = allThemes || !MAIN_THEMES.includes(s.theme) ? THEMES : THEMES.filter((t) => MAIN_THEMES.includes(t.id));
   const size = s.noteSize ?? DEFAULT_NOTE_SIZE;
+  const ui = s.uiScale ?? 100;
 
   // The window takes the focus once, when it opens: the app redraws on every
   // change (each letter typed in a box), and taking it again would pull the
@@ -122,17 +125,36 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               </button>
             </div>
             {fontOpen && <FontPicker value={s.noteFont ?? DEFAULT_FONT} onChange={(f) => store.updateSettings({ noteFont: f })} />}
-            <label className="settings-row">
-              <span>
-                <b>Text size</b>
-                <small>The writing only. The interface follows your device.</small>
-              </span>
-              <span className="size-pick">
-                <small aria-hidden="true">A</small>
-                <input className="range" type="range" aria-label={`Text size, ${size}px`} min={TEXT_SIZES.min} max={TEXT_SIZES.max} step={1} value={size} style={{ '--pct': `${((size - TEXT_SIZES.min) / (TEXT_SIZES.max - TEXT_SIZES.min)) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
-                <big aria-hidden="true">A</big>
-              </span>
-            </label>
+            {!phone && (
+              <label className="settings-row">
+                <span>
+                  <b>Size of everything</b>
+                  <small>How large the whole app is: the sidebar, lists, menus and writing. A note’s or chapter’s own text size is in its ··· menu.</small>
+                </span>
+                <span className="size-pick">
+                  <small aria-hidden="true">A</small>
+                  <input className="range" type="range" aria-label={`Size of everything, ${ui}%`} min={UI_SCALE.min} max={UI_SCALE.max} step={5} value={ui} style={{ '--pct': `${((ui - UI_SCALE.min) / (UI_SCALE.max - UI_SCALE.min)) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ uiScale: Number(e.target.value) === 100 ? undefined : Number(e.target.value) })} />
+                  <big aria-hidden="true">A</big>
+                  <button type="button" className="link-btn ui-scale-now" title="Back to 100%" onClick={() => store.updateSettings({ uiScale: undefined })}>
+                    {ui}%
+                  </button>
+                </span>
+              </label>
+            )}
+            {/* A phone's writing size is its own (the pinch, or ··· → Text size). */}
+            {phone && (
+              <label className="settings-row">
+                <span>
+                  <b>Text size</b>
+                  <small>The writing only. The interface follows your device.</small>
+                </span>
+                <span className="size-pick">
+                  <small aria-hidden="true">A</small>
+                  <input className="range" type="range" aria-label={`Text size, ${size}px`} min={TEXT_SIZES.min} max={TEXT_SIZES.max} step={1} value={size} style={{ '--pct': `${((size - TEXT_SIZES.min) / (TEXT_SIZES.max - TEXT_SIZES.min)) * 100}%` } as React.CSSProperties} onChange={(e) => store.updateSettings({ noteSize: Number(e.target.value) })} />
+                  <big aria-hidden="true">A</big>
+                </span>
+              </label>
+            )}
             {/* A phone has no inspector. */}
             {!phone && <Switch label="Open the inspector with every note" hint="Off means it opens only when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />}
             <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
@@ -155,7 +177,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
         )}
         {shown === 'bar' && (
           <>
-            <Switch label="Show every formatting tool" hint={phone ? 'Off keeps the few tools above the keyboard and puts the rest under ···.' : 'Off keeps the bar to five tools and puts the rest under More.'} on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
+            <Switch label="Show every formatting tool" hint={phone ? 'Off keeps the few tools above the keyboard and puts the rest under ···.' : 'Off keeps the bar to five tools and puts the rest under More.'} on={!!s.allTools} onChange={(v) => store.updateSettings({ allTools: v })} />
             {/* A phone's bar is the one above the keyboard: these shape the computer's. */}
             {!phone && (
               <>
@@ -177,6 +199,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
             {!phone && <AiSettings />}
           </>
         )}
+        {shown === 'workflow' && <WorkflowSettings />}
         {shown === 'advanced' && (
           <>
             <Switch label="Keep earlier versions as you write" hint="Crumpet keeps the text as it was, at most every ten minutes, to compare and go back to." on={s.autoVersions !== false} onChange={(v) => store.updateSettings({ autoVersions: v })} />
@@ -324,7 +347,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
 
               <div className="field" role="group" aria-label="Calm">
                 <span>Calm</span>
-                <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.toolbarAll} onChange={(v) => store.updateSettings({ toolbarAll: v })} />
+                <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.allTools} onChange={(v) => store.updateSettings({ allTools: v })} />
                 <Switch label="Keep the right sidebar open" hint="Outline, review, styles and more beside the writing. Off means it opens when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
                 <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
               </div>
@@ -364,6 +387,8 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
 }
 
 const MAIN_THEMES = ['system', 'light', 'dark', 'paper'];
+/** Settings → Size of everything, in per cent. */
+const UI_SCALE = { min: 80, max: 140 };
 const TYPEWRITER = [
   ['scroll', 'Keep your line in the middle', 'The page scrolls so the line you’re typing stays in the middle of the screen.'],
   ['fade', 'Fade the other paragraphs', 'Only the one you’re writing in stays dark.'],
@@ -475,5 +500,33 @@ export function FontPicker({ value, onChange, label = 'Writing font' }: { value:
         </div>
       )}
     </div>
+  );
+}
+
+/** Settings → Your workflow: a work mode, and each part of Crumpet on or off. */
+function WorkflowSettings() {
+  const state = useAppState();
+  const store = useAppStore();
+  const s = state.settings;
+  const mode = currentMode(s);
+  return (
+    <>
+      <SettingGroup title="Work mode" hint="Shows only what this kind of work needs. Nothing is deleted: what’s hidden comes back as it was when you switch it on again.">
+        <div className="work-modes" role="radiogroup" aria-label="Work mode">
+          {MODES.map((m) => (
+            <button key={m.id} type="button" role="radio" aria-checked={mode === m.id} className={`work-mode${mode === m.id ? ' on' : ''}`} onClick={() => store.updateSettings(modeSettings(m.id))}>
+              <b>{m.label}</b>
+              <small>{m.hint}</small>
+            </button>
+          ))}
+        </div>
+        {!mode && <p className="setting-group-hint">Your own mix: the parts switched on below.</p>}
+      </SettingGroup>
+      <SettingGroup title="Parts of Crumpet" hint="Switch off what your way of working doesn’t need.">
+        {PARTS.map((p) => (
+          <Switch key={p.id} label={p.label} hint={p.hint} on={partOn(s, p.id)} onChange={(v) => store.updateSettings(withPart(s, p.id, v))} />
+        ))}
+      </SettingGroup>
+    </>
   );
 }

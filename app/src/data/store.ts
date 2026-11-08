@@ -175,9 +175,13 @@ export class AppStore {
     // Crumpet keeps no name for the person any more (it used to): an old one is let go.
     const hadName = 'name' in settings;
     delete (settings as { name?: unknown }).name;
+    // "Show every formatting tool" used to switch to the older layout too: now it shows only the tools.
+    // (Browser tests turn the older layout on themselves, so it's left alone under automation.)
+    const oldLayout = !!settings.toolbarAll && !(typeof navigator !== 'undefined' && navigator.webdriver);
+    if (oldLayout) Object.assign(settings, { toolbarAll: false, allTools: true });
     const projects = [...(data.projects ?? [])].sort((a, b) => a.createdAt - b.createdAt);
     this.set({ ready: true, temporary: this.storage.temporary, stacks: data.stacks, notebooks: data.notebooks, notes, projects, chapters: data.chapters ?? [], settings });
-    if (data.settings?.dataVersion !== DATA_VERSION || hadName) this.save(this.storage.putSettings(settings));
+    if (data.settings?.dataVersion !== DATA_VERSION || hadName || oldLayout) this.save(this.storage.putSettings(settings));
     // The note the panes bring back (the one you had open), so the list lights the same one; else the list's first.
     const shown = visibleIn(this.state, this.state.view);
     const panes = tidyWorkspace(settings.layout?.panes);

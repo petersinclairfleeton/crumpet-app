@@ -2,6 +2,7 @@ import { ACCENTS, DEFAULT_NOTE_SIZE, type Settings } from '../data/types';
 import { fontStack, loadGoogleFont } from './fonts';
 import { themeInfo } from './themes';
 import { inkFor, isHex, luminance } from '../data/paper';
+import { desktop } from '../data/desktop';
 
 function mix(hex: string, toward: string, amt: number): string {
   const a = parseInt(hex.slice(1), 16);
@@ -40,6 +41,19 @@ export function applyTheme(settings: Settings): void {
     root.removeAttribute('data-paper');
     root.style.removeProperty('--paper');
     root.style.removeProperty('--paper-ink');
+  }
+  // How large everything is (Settings → Size of everything): the desktop app zooms its window;
+  // a browser scales the app and its windows (menus placed beside a button stay as they are, and land in the right place).
+  const scale = (settings.uiScale ?? 100) / 100;
+  if (desktop?.setZoom) {
+    desktop.setZoom(scale);
+    root.removeAttribute('data-ui-scale');
+  } else if (scale !== 1) {
+    root.setAttribute('data-ui-scale', '');
+    root.style.setProperty('--ui-scale', String(scale));
+  } else {
+    root.removeAttribute('data-ui-scale');
+    root.style.removeProperty('--ui-scale');
   }
   // Less movement, when asked for in Settings.
   if (settings.reduceMotion) root.setAttribute('data-motion', 'reduce');
