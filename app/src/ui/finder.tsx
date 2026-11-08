@@ -9,17 +9,22 @@ import { ignoreWord, useAddWord } from './spelling';
 import { goToPlace, openGoTo } from './goto';
 import { MARKUP_VIEWS } from './review';
 import { openCombine } from './comparedocs';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { IconBook, IconNote, IconPeople, IconPlus, IconSearch } from './icons';
 import { useAppState, useAppStore } from './hooks';
 import { type Match, rank } from '../data/fuzzy';
 import { type SnippetPart, chapterText, displayTitle, noteText, recentNotes, snippet } from '../data/selectors';
-import type { AppState } from '../data/store';
+import type { AppState, AppStore } from '../data/store';
 import { type Bookmark, bookmarkLabel, toggleBookmark } from '../data/bookmarks';
-import { usePanes } from './panes';
+import { type Panes, usePanes } from './panes';
 import { type Helped, useHelped, whenHelped } from './helpers';
 import { goToLater } from './booktoc';
 import { SLASH_ITEMS } from './slash';
+import { TURN_INTO } from './shortcutlist';
+import { ShortcutKeys, shortcutBindings, shortcutText } from './shortcuts';
+import type { SettingsSection } from './Settings';
+import type { View } from '../data/types';
+import { openFontDialog } from './fontdialog';
 import { THEMES } from './themes';
 import { openGuide } from './guide';
 import { canSendFeedback, openFeedback, openWhatsNew } from './help';
@@ -88,6 +93,8 @@ export function useOpener() {
 
 interface Item {
   key: string;
+  /** A command's id (ui/shortcutlist.ts), for its shortcut. */
+  id?: string;
   label: string;
   /** Where it is (a chapter's project, a heading's note), or a command's shortcut. */
   where?: string;
@@ -104,7 +111,13 @@ export interface Actions {
   newProject(): void;
   openToday(): void;
   newDailyNote(): void;
-  openSettings(): void;
+  openSettings(section?: SettingsSection): void;
+  /** Shows a list of notes (Inbox, All notes, Favourites…). */
+  openView(view: View): void;
+  /** Makes one of the things New makes ('new-notebook', 'new-stack', 'upload'…), as the menu bar does (ui/desktopmenu.ts). */
+  make(what: string): void;
+  /** Opens Find anything or the command palette. */
+  openFinder(mode: 'switch' | 'commands'): void;
   /** Picks another note or chapter to compare `docId` with. */
   compareFrom(docId: string): void;
   /** Compares two notes or chapters. */
@@ -127,16 +140,22 @@ function currentBookmarks(state: AppState, h: Helped | null): { doc?: Bookmark; 
   return { doc, heading: head ? { kind: 'heading', id: h.docId, block: head.id } : undefined };
 }
 
-function useCommands(actions: Actions): Item[] {
-  const state = useAppState();
-  const store = useAppStore();
-  const panes = usePanes();
-  const helped = useHelped();
+interface CommandContext {
+  state: AppState;
+  store: AppStore;
+  panes: Panes;
+  helped: Helped | null;
+  addWord(word: string): void;
+  actions: Actions;
+}
+
+/** Every command there is now, each with its id and shortcut: for the palette and for the keys. */
+function buildCommands({ state, store, panes, helped, addWord, actions }: CommandContext): Item[] {
   const layout = state.settings.layout ?? {};
   const set = (patch: Parameters<typeof store.updateLayout>[0]) => store.updateLayout(patch);
-  const cmd = (label: string, run: () => void, where?: string, glyph = '›'): Item => ({ key: `cmd:${label}`, label, where, glyph, run: () => run() });
+  const keys = shortcutBindings(state.settings);
+  const cmd = (id: string, label: string, run: () => void, glyph = '›'): Item => ({ key: `cmd:${id}`, id, label, where: shortcutText(keys, id), glyph, run: () => run() });
   const ed = helped?.editor ?? null;
-  const addWord = useAddWord();
   // Commands on the text run in the editor, with its selection as it was.
   const onText = (f: (e: NonNullable<typeof ed>) => void) => () => {
     if (!ed) return;
@@ -146,116 +165,177 @@ function useCommands(actions: Actions): Item[] {
   const marks = state.settings.bookmarks ?? [];
   const here = currentBookmarks(state, helped);
   const note = helped ? state.notes.find((n) => n.id === helped.docId) : undefined;
+  const make = (what: string) => () => actions.make(what);
+  const doc = (): Tab | null => (helped ? (here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }) : null);
   const list: Item[] = [
-    cmd('New note', actions.newNote, 'N'),
-    cmd('New project', actions.newProject),
-    cmd('Today: daily notes', actions.openToday),
-    cmd('New daily note', actions.newDailyNote),
-    cmd('Search notes', focusSearch),
-    cmd(layout.sidebar === 'hidden' ? 'Show the sidebar' : 'Hide the sidebar', () => set({ sidebar: layout.sidebar === 'hidden' ? 'full' : 'hidden' }), `${mod}\\`),
-    cmd(layout.list === false ? 'Show the note list' : 'Hide the note list', () => set({ list: layout.list === false }), `${isMac ? '⌘⇧' : 'Ctrl+Shift+'}\\`),
-    cmd(layout.right ? 'Hide the right sidebar' : 'Show the right sidebar', () => set({ right: !layout.right }), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}\\`),
-    ...(['outline', 'styles', 'links', 'snapshots'] as const).map((t) => cmd(`Show ${t === 'styles' ? 'the Styles pane' : t}`, () => set({ right: true, rightTab: t }))),
-    cmd('Text statistics, highlighting and session target', () => set({ right: true, rightTab: 'writing' })),
-    cmd('Thesaurus and definitions', () => set({ right: true, rightTab: 'thesaurus' }), isMac ? '⇧F7' : 'Shift+F7'),
-    cmd('Split right', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'right')),
-    cmd('Split down', () => helped && panes.split(here.doc?.kind === 'chapter' ? { kind: 'chapter', id: helped.docId } : { kind: 'note', id: helped.docId }, 'bottom')),
-    cmd('Close tab', () => panes.closeActive()),
-    cmd('Open graph view', () => panes.open({ kind: 'graph', id: 'graph' }, 'tab'), `${mod}G`),
-    cmd(state.focusMode ? 'Leave focus mode' : 'Focus mode', () => store.setFocusMode(!state.focusMode), `${isMac ? '⌘⇧' : 'Ctrl+Shift+'}F`),
-    cmd(state.settings.trackChanges ? 'Stop tracking changes' : 'Track changes', () => store.updateSettings({ trackChanges: !state.settings.trackChanges })),
-    cmd(state.settings.pageView?.notes ? 'Notes as one long page' : 'Notes as pages (page view)', () => store.updateSettings({ pageView: { ...state.settings.pageView, notes: !state.settings.pageView?.notes } })),
-    cmd(state.settings.ruler ? 'Hide the ruler' : 'Show the ruler', () => store.updateSettings({ ruler: !state.settings.ruler })),
-    cmd(state.settings.toolbar === 'always' ? 'Formatting bar only over selected text' : 'Always show the formatting bar', () => store.updateSettings({ toolbar: state.settings.toolbar === 'always' ? 'selection' : 'always' })),
-    cmd(state.settings.typewriter?.scroll ? 'Typewriter mode off' : 'Typewriter mode', () => store.updateSettings({ typewriter: { ...state.settings.typewriter, scroll: !state.settings.typewriter?.scroll, fade: !state.settings.typewriter?.scroll } })),
+    cmd('new.upload', 'Upload files', make('upload')),
+    cmd('new.note', 'New note', actions.newNote),
+    cmd('new.notebook', 'New notebook', make('new-notebook')),
+    cmd('new.stack', 'New notebook stack', make('new-stack')),
+    cmd('new.manuscript', 'New manuscript', actions.newProject),
+    cmd('new.daily', 'New daily note', actions.newDailyNote),
+    cmd('new.board', 'New board', make('new-board')),
+    cmd('new.template', 'New note from a template', make('new-template')),
+    cmd('new.dnotebook', 'New Distill notebook', make('new-dnotebook')),
+    cmd('new.dstack', 'New Distill stack', make('new-dstack')),
+    cmd('find.anything', 'Find anything (notes, chapters, cards)', () => actions.openFinder('switch')),
+    cmd('find.commands', 'Command palette', () => actions.openFinder('commands')),
+    cmd('find.search', 'Search notes', focusSearch),
+    cmd('go.inbox', 'Go to Inbox', () => actions.openView({ kind: 'inbox' })),
+    cmd('go.all', 'Go to All notes', () => actions.openView({ kind: 'all' })),
+    cmd('go.today', 'Today: daily notes', actions.openToday),
+    cmd('go.favourites', 'Go to Favourites', () => actions.openView({ kind: 'favorites' })),
+    cmd('go.reminders', 'Go to Reminders', () => actions.openView({ kind: 'reminders' })),
+    cmd('go.trash', 'Go to Trash', () => actions.openView({ kind: 'trash' })),
+    cmd('view.sidebar', layout.sidebar === 'hidden' ? 'Show the sidebar' : 'Hide the sidebar', () => set({ sidebar: layout.sidebar === 'hidden' ? 'full' : 'hidden' })),
+    cmd('view.list', layout.list === false ? 'Show the note list' : 'Hide the note list', () => set({ list: layout.list === false })),
+    cmd('view.right', layout.right ? 'Hide the right sidebar' : 'Show the right sidebar', () => set({ right: !layout.right })),
+    ...(['outline', 'styles', 'links', 'snapshots'] as const).map((t) => cmd(`tab.${t}`, `Show ${t === 'styles' ? 'the Styles pane' : t}`, () => set({ right: true, rightTab: t }))),
+    cmd('tab.writing', 'Text statistics, highlighting and session target', () => set({ right: true, rightTab: 'writing' })),
+    cmd('tab.thesaurus', 'Thesaurus and definitions', () => set({ right: true, rightTab: 'thesaurus' })),
+    cmd('tab.splitRight', 'Split right', () => doc() && panes.split(doc()!, 'right')),
+    cmd('tab.splitDown', 'Split down', () => doc() && panes.split(doc()!, 'bottom')),
+    cmd('tab.close', 'Close tab', () => panes.closeActive()),
+    cmd('go.graph', 'Open graph view', () => panes.open({ kind: 'graph', id: 'graph' }, 'tab')),
+    cmd('view.focus', state.focusMode ? 'Leave focus mode' : 'Focus mode', () => store.setFocusMode(!store.getState().focusMode)),
+    cmd('review.track', state.settings.trackChanges ? 'Stop tracking changes' : 'Track changes', () => store.updateSettings({ trackChanges: !store.getState().settings.trackChanges })),
+    cmd('view.pages', state.settings.pageView?.notes ? 'Notes as one long page' : 'Notes as pages (page view)', () => store.updateSettings({ pageView: { ...state.settings.pageView, notes: !state.settings.pageView?.notes } })),
+    cmd('view.ruler', state.settings.ruler ? 'Hide the ruler' : 'Show the ruler', () => store.updateSettings({ ruler: !state.settings.ruler })),
+    cmd('view.marks', state.settings.showMarks ? 'Hide ¶ marks' : 'Show ¶ marks', () => store.updateSettings({ showMarks: !state.settings.showMarks })),
+    cmd('view.toolbar', state.settings.toolbar === 'always' ? 'Formatting bar only over selected text' : 'Always show the formatting bar', () => store.updateSettings({ toolbar: state.settings.toolbar === 'always' ? 'selection' : 'always' })),
+    cmd('view.typewriter', state.settings.typewriter?.scroll ? 'Typewriter mode off' : 'Typewriter mode', () => store.updateSettings({ typewriter: { ...state.settings.typewriter, scroll: !state.settings.typewriter?.scroll, fade: !state.settings.typewriter?.scroll } })),
     ...(state.settings.sprint
-      ? [cmd('Stop the writing sprint', () => stopSprint(store))]
-      : SPRINT_LENGTHS.map((m) => cmd(`Start a ${m}-minute writing sprint`, () => beginSprint(store, m)))),
-    cmd('Submissions: where your writing has been sent', () => openSubmissions()),
-    cmd('Settings', actions.openSettings),
-    cmd('Open the guide to Crumpet', openGuide),
-    cmd('What’s new in Crumpet', openWhatsNew),
-    ...(canSendFeedback ? [cmd('Report a problem (bug report)', () => openFeedback()), cmd('Send an idea or thanks', () => openFeedback('An idea'))] : []),
-    cmd('Customise the formatting bar', openCustomise),
-    ...(state.settings.macros ?? []).map((m) => cmd(`Run macro: ${m.name}`, () => {
+      ? [cmd('sprint.stop', 'Stop the writing sprint', () => stopSprint(store))]
+      : SPRINT_LENGTHS.map((m) => cmd(`sprint:${m}`, `Start a ${m}-minute writing sprint`, () => beginSprint(store, m)))),
+    cmd('tool.submissions', 'Submissions: where your writing has been sent', () => openSubmissions()),
+    cmd('app.settings', 'Settings', () => actions.openSettings()),
+    cmd('help.shortcuts', 'Keyboard shortcuts', () => actions.openSettings('keys')),
+    cmd('help.guide', 'Open the guide to Crumpet', openGuide),
+    cmd('help.whatsNew', 'What’s new in Crumpet', openWhatsNew),
+    ...(canSendFeedback ? [cmd('help.problem', 'Report a problem (bug report)', () => openFeedback()), cmd('help.idea', 'Send an idea or thanks', () => openFeedback('An idea'))] : []),
+    cmd('tool.customise', 'Customise the formatting bar', openCustomise),
+    ...(state.settings.macros ?? []).map((m) => cmd(`macro:${m.id}`, `Run macro: ${m.name}`, () => {
       const ed = currentHelped()?.editor;
       if (ed) {
         ed.focus();
         ed.playMacro(m.steps);
       }
-    }, m.key ? `Alt+Shift+${m.key}` : undefined)),
-    ...REVISIONS.map((r, i) => cmd(`Revision mode: ${r.name.toLowerCase()} round`, () => store.updateSettings({ revision: i + 1 }))),
-    ...(state.settings.revision ? [cmd('Revision mode off', () => store.updateSettings({ revision: 0 }))] : []),
-    ...THEMES.map((t) => cmd(`Theme: ${t.name}`, () => store.updateSettings({ theme: t.id }))),
+    })),
+    ...REVISIONS.map((r, i) => cmd(`revision:${i + 1}`, `Revision mode: ${r.name.toLowerCase()} round`, () => store.updateSettings({ revision: i + 1 }))),
+    ...(state.settings.revision ? [cmd('revision.off', 'Revision mode off', () => store.updateSettings({ revision: 0 }))] : []),
+    ...THEMES.map((t) => cmd(`theme:${t.id}`, `Theme: ${t.name}`, () => store.updateSettings({ theme: t.id }))),
   ];
   if (here.doc) {
     const on = marks.some((m) => m.kind === here.doc!.kind && m.id === here.doc!.id && !m.block);
-    list.push(cmd(on ? `Remove bookmark: ${here.doc.kind === 'note' ? 'this note' : 'this chapter'}` : `Bookmark ${here.doc.kind === 'note' ? 'this note' : 'this chapter'}`, () => store.updateSettings({ bookmarks: toggleBookmark(marks, here.doc!) })));
+    list.push(cmd('bookmark.doc', on ? `Remove bookmark: ${here.doc.kind === 'note' ? 'this note' : 'this chapter'}` : `Bookmark ${here.doc.kind === 'note' ? 'this note' : 'this chapter'}`, () => store.updateSettings({ bookmarks: toggleBookmark(marks, here.doc!) })));
+    list.push(cmd('review.compare', 'Compare with another note or chapter…', () => actions.compareFrom(here.doc!.id)));
+    list.push(cmd('review.combine', 'Combine reviewers’ copies of this…', () => openCombine(here.doc!.id)));
+    list.push(cmd('review.snapshot', 'Take a snapshot', () => {
+      if (store.takeSnapshot(here.doc!.id)) set({ right: true, rightTab: 'snapshots' });
+    }));
   }
-  if (here.doc) {
-    list.push(cmd('Compare with another note or chapter…', () => actions.compareFrom(here.doc!.id)));
-    list.push(cmd('Combine reviewers’ copies of this…', () => openCombine(here.doc!.id)));
-    list.push(cmd('Take a snapshot', () => {
-      store.takeSnapshot(here.doc!.id);
-      set({ right: true, rightTab: 'snapshots' });
-    }, `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}S`));
-  }
-  if (here.doc && helped && hasRevisions(helped.editor.state.doc)) list.push(cmd('Remove revision colours', () => store.removeRevisions(helped.docId)));
+  if (here.doc && helped && hasRevisions(helped.editor.state.doc)) list.push(cmd('review.removeRevisions', 'Remove revision colours', () => store.removeRevisions(helped.docId)));
   if (here.heading) {
     const on = marks.some((m) => m.kind === 'heading' && m.id === here.heading!.id && m.block === here.heading!.block);
-    list.push(cmd(on ? 'Remove bookmark: this heading' : 'Bookmark this heading', () => store.updateSettings({ bookmarks: toggleBookmark(marks, here.heading!) })));
+    list.push(cmd('bookmark.heading', on ? 'Remove bookmark: this heading' : 'Bookmark this heading', () => store.updateSettings({ bookmarks: toggleBookmark(marks, here.heading!) })));
   }
   if (note) {
     list.push(
-      cmd('Download as Word document', async () => download(await noteDocx(store.getState(), note), docxName(displayTitle(note)), DOCX_TYPE)),
-      cmd('Download as e-book (ePub)', async () => download(await noteEpub(store.getState(), note), fileName(displayTitle(note), 'epub'), EPUB_TYPE)),
+      cmd('export.word', 'Download as Word document', async () => download(await noteDocx(store.getState(), note), docxName(displayTitle(note)), DOCX_TYPE)),
+      cmd('export.epub', 'Download as e-book (ePub)', async () => download(await noteEpub(store.getState(), note), fileName(displayTitle(note), 'epub'), EPUB_TYPE)),
     );
   }
   if (ed) {
+    // As if a key were pressed in the text: for what the text's own panes answer (find, replace).
+    const pressIn = (code: string, key: string, mods: { shift?: boolean; ctrl?: boolean } = {}) => () => {
+      ed.focus();
+      const mod = !mods.ctrl;
+      (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { key, code, ctrlKey: mods.ctrl || (mod && !isMac), metaKey: mod && isMac, shiftKey: !!mods.shift, bubbles: true, cancelable: true }));
+    };
     list.push(
-      cmd('Undo', onText((e) => e.undo()), `${mod}Z`),
-      cmd('Redo', onText((e) => e.redo()), isMac ? '⌘⇧Z' : 'Ctrl+Y'),
-      cmd('Bold', onText((e) => e.toggleMark('bold')), `${mod}B`),
-      cmd('Italic', onText((e) => e.toggleMark('italic')), `${mod}I`),
-      cmd('Underline', onText((e) => e.toggleMark('underline')), `${mod}U`),
-      cmd('Strikethrough', onText((e) => e.toggleMark('strike'))),
-      cmd('Clear formatting', onText((e) => e.clearFormatting())),
-      cmd('Format painter', onText((e) => startPainting(e))),
-      cmd('Read aloud', onText((e) => startReading(e, state.settings)), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}Space`),
-      cmd('Dictate', onText((e) => toggleDictation(e)), `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}D`),
-      cmd('Align left', onText((e) => e.setAlign('left'))),
-      cmd('Center', onText((e) => e.setAlign('center'))),
-      cmd('Align right', onText((e) => e.setAlign('right'))),
-      cmd('Justify', onText((e) => e.setAlign('justify'))),
+      cmd('edit.undo', 'Undo', onText((e) => e.undo())),
+      cmd('edit.redo', 'Redo', onText((e) => e.redo())),
+      cmd('fmt.bold', 'Bold', onText((e) => e.toggleMark('bold'))),
+      cmd('fmt.italic', 'Italic', onText((e) => e.toggleMark('italic'))),
+      cmd('fmt.underline', 'Underline', onText((e) => e.toggleMark('underline'))),
+      cmd('fmt.strike', 'Strikethrough', onText((e) => e.toggleMark('strike'))),
+      cmd('fmt.code', 'Code (typewriter letters)', onText((e) => e.toggleMark('code'))),
+      cmd('fmt.superscript', 'Superscript', onText((e) => e.setLook('va', e.lookValue('va') === 'super' ? null : 'super'))),
+      cmd('fmt.subscript', 'Subscript', onText((e) => e.setLook('va', e.lookValue('va') === 'sub' ? null : 'sub'))),
+      cmd('fmt.clear', 'Clear formatting', onText((e) => e.clearFormatting())),
+      cmd('fmt.font', 'Font window', onText((e) => openFontDialog(e))),
+      cmd('edit.painter', 'Format painter', onText((e) => startPainting(e))),
+      cmd('tool.read', 'Read aloud', onText((e) => startReading(e, store.getState().settings))),
+      cmd('tool.dictate', 'Dictate', onText((e) => toggleDictation(e))),
+      cmd('para.left', 'Align left', onText((e) => e.setAlign('left'))),
+      cmd('para.center', 'Centre', onText((e) => e.setAlign('center'))),
+      cmd('para.right', 'Align right', onText((e) => e.setAlign('right'))),
+      cmd('para.justify', 'Justify', onText((e) => e.setAlign('justify'))),
+      cmd('para.single', 'Single line spacing', onText((e) => e.setPara({ line: 1 }))),
+      cmd('para.oneHalf', '1.5 line spacing', onText((e) => e.setPara({ line: 1.5 }))),
+      cmd('para.double', 'Double line spacing', onText((e) => e.setPara({ line: 2 }))),
+      cmd('para.indent', 'Indent more', onText((e) => e.stepIndent(1))),
+      cmd('para.outdent', 'Indent less', onText((e) => e.stepIndent(-1))),
+      cmd('edit.pageBreak', 'Page break', onText((e) => e.insertPageBreak())),
+      cmd('edit.columnBreak', 'Column break', onText((e) => e.insertColumnBreak())),
+      cmd('edit.equation', 'Equation within the line', onText((e) => e.insertMath())),
+      cmd('edit.hyphen', 'Optional hyphen', onText((e) => e.typeText('­'))),
+      cmd('edit.moveUp', 'Move the paragraph up', onText((e) => e.moveParagraph(-1))),
+      cmd('edit.moveDown', 'Move the paragraph down', onText((e) => e.moveParagraph(1))),
+      cmd('edit.promote', 'Promote (a heading up a level)', onText((e) => e.promote(-1))),
+      cmd('edit.demote', 'Demote (a heading down a level)', onText((e) => e.promote(1))),
+      cmd('review.comment', 'New comment', onText((e) => e.onCommentKey?.())),
       ...(() => {
         const w = ed.wordAtCaret();
         return w
           ? [
-              cmd(`Spelling: add “${w}” to your dictionary`, () => addWord(w)),
-              cmd(`Spelling: ignore “${w}” everywhere for now`, () => ignoreWord(w)),
+              cmd('spell.add', `Spelling: add “${w}” to your dictionary`, () => addWord(w)),
+              cmd('spell.ignore', `Spelling: ignore “${w}” everywhere for now`, () => ignoreWord(w)),
             ]
           : [];
       })(),
-      cmd('Go to page, heading, footnote or comment…', () => openGoTo(ed.pageBoxes.length ? 'page' : 'heading'), 'F5'),
-      cmd('Next footnote', onText((e) => goToPlace(e, 'footnote', 'next'))),
-      cmd('Previous footnote', onText((e) => goToPlace(e, 'footnote', 'previous'))),
-      cmd('Next comment', onText((e) => goToPlace(e, 'comment', 'next'))),
-      cmd('Previous comment', onText((e) => goToPlace(e, 'comment', 'previous'))),
-      cmd('Next change', onText((e) => goToPlace(e, 'change', 'next'))),
-      cmd('Previous change', onText((e) => goToPlace(e, 'change', 'previous'))),
-      ...MARKUP_VIEWS.map(([v, name]) => cmd(`Show ${name.toLowerCase()}`, () => store.updateSettings({ markup: v }))),
-      cmd('Reviewing pane: every change and comment', () => set({ right: true, rightTab: 'comments' })),
-      cmd('Next heading', onText((e) => goToPlace(e, 'heading', 'next'))),
-      cmd('Previous heading', onText((e) => goToPlace(e, 'heading', 'previous'))),
-      cmd('Find and replace', () => {
-        ed.focus();
-        // As if Ctrl+H were pressed in the text: its pane opens find and replace.
-        (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { key: 'h', ctrlKey: true, bubbles: true }));
-      }, 'Ctrl+H'),
-      ...SLASH_ITEMS.map((i) => cmd(`${/^h\d$|^text$|^bullet$|^numbered$|^todo$|^quote$|^title$|^toggle$|^note$|^tip$|^warning$|^important$/.test(i.id) ? 'Turn into' : 'Insert'}: ${i.label}`, onText((e) => i.run(e)), undefined, i.glyph)),
+      cmd('go.to', 'Go to page, heading, footnote or comment…', () => openGoTo(ed.pageBoxes.length ? 'page' : 'heading')),
+      cmd('go.nextFootnote', 'Next footnote', onText((e) => goToPlace(e, 'footnote', 'next'))),
+      cmd('go.prevFootnote', 'Previous footnote', onText((e) => goToPlace(e, 'footnote', 'previous'))),
+      cmd('go.nextComment', 'Next comment', onText((e) => goToPlace(e, 'comment', 'next'))),
+      cmd('go.prevComment', 'Previous comment', onText((e) => goToPlace(e, 'comment', 'previous'))),
+      cmd('go.nextChange', 'Next change', onText((e) => goToPlace(e, 'change', 'next'))),
+      cmd('go.prevChange', 'Previous change', onText((e) => goToPlace(e, 'change', 'previous'))),
+      ...MARKUP_VIEWS.map(([v, name]) => cmd(`markup:${v}`, `Show ${name.toLowerCase()}`, () => store.updateSettings({ markup: v }))),
+      cmd('tab.comments', 'Reviewing pane: every change and comment', () => set({ right: true, rightTab: 'comments' })),
+      cmd('go.nextHeading', 'Next heading', onText((e) => goToPlace(e, 'heading', 'next'))),
+      cmd('go.prevHeading', 'Previous heading', onText((e) => goToPlace(e, 'heading', 'previous'))),
+      cmd('find.text', 'Find in this document', pressIn('KeyF', 'f')),
+      // As if Ctrl+H were pressed in the text: its pane opens find and replace.
+      cmd('find.replace', 'Find and replace', pressIn('KeyH', 'h', { ctrl: true })),
+      ...SLASH_ITEMS.map((i) => cmd(`insert:${i.id}`, `${TURN_INTO.test(i.id) ? 'Turn into' : 'Insert'}: ${i.label}`, onText((e) => i.run(e)), i.glyph)),
     );
   }
   return list;
+}
+
+function useCommands(actions: Actions): Item[] {
+  const state = useAppState();
+  const store = useAppStore();
+  const panes = usePanes();
+  const helped = useHelped();
+  const addWord = useAddWord();
+  return buildCommands({ state, store, panes, helped, addWord, actions });
+}
+
+/** The keys that run commands; drawn inside the panes, so commands can open and split them. */
+export function CommandKeys({ actions }: { actions: Actions }) {
+  return <ShortcutKeys build={useCommandBuilder(actions)} />;
+}
+
+/** The commands as they are at this moment, for the keys that run them (ui/shortcuts.tsx). */
+function useCommandBuilder(actions: Actions): () => Item[] {
+  const store = useAppStore();
+  const panes = usePanes();
+  const addWord = useAddWord();
+  const latest = useRef({ actions, panes, addWord });
+  latest.current = { actions, panes, addWord };
+  return useCallback(() => buildCommands({ state: store.getState(), store, helped: currentHelped(), ...latest.current }), [store]);
 }
 
 /** Everything the switcher can open, recent notes first. */

@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'react';
 import { desktop } from '../data/desktop';
 import { currentHelped } from './helpers';
 import { openGuide } from './guide';
-import { openFeedback, openWhatsNew } from './help';
+import { openFeedback, openShortcuts, openWhatsNew } from './help';
 import { openReader } from './reader';
 import { focusSearch, newThing } from './Sidebar';
 import type { AppStore } from '../data/store';
@@ -99,17 +99,19 @@ export function runMenuCommand(id: string, a: MenuActions): void {
     case 'new-notebook':
     case 'new-stack':
     case 'new-board':
-    case 'new-template': {
+    case 'new-template':
+    case 'new-dnotebook':
+    case 'new-dstack': {
       // The sidebar names them in place; with it folded away, it opens first.
-      const kind = id.slice(4) as 'notebook' | 'stack' | 'board' | 'template';
+      const kind = id.slice(4) as 'notebook' | 'stack' | 'board' | 'template' | 'dnotebook' | 'dstack';
       if (!newThing(kind)) {
         a.store.updateLayout({ sidebar: 'full', list: true, bookSidebar: 'full' });
         // In a book the outline is the sidebar: made straight away there instead.
         setTimeout(() => {
           if (newThing(kind)) return;
           const st = a.store;
-          if (kind === 'notebook') st.setView({ kind: 'notebook', id: st.createNotebook('Untitled notebook').id });
-          else if (kind === 'stack') st.createStack('Untitled stack');
+          if (kind === 'notebook' || kind === 'dnotebook') st.setView({ kind: 'notebook', id: st.createNotebook('Untitled notebook', null, kind === 'dnotebook').id });
+          else if (kind === 'stack' || kind === 'dstack') st.createStack('Untitled stack', kind === 'dstack');
           else if (kind === 'board') st.createNote({ doc: boardDoc(emptyBoard()) });
           else a.newNote();
         }, 100);
@@ -145,6 +147,9 @@ export function runMenuCommand(id: string, a: MenuActions): void {
       return;
     case 'guide':
       openGuide();
+      return;
+    case 'shortcuts':
+      openShortcuts();
       return;
     case 'whats-new':
       openWhatsNew();

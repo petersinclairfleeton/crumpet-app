@@ -606,7 +606,7 @@ let maker: ((k: NewKind) => void) | null = null;
 const NEW_TEMPLATE = 'crumpet-new-template';
 
 /** Makes a notebook, stack, board or a note from a template through the calm sidebar's New. False if the sidebar isn't there. */
-export function newThing(k: 'notebook' | 'stack' | 'board' | 'template'): boolean {
+export function newThing(k: 'notebook' | 'stack' | 'board' | 'template' | 'dnotebook' | 'dstack'): boolean {
   if (!maker) return false;
   maker(k);
   return true;

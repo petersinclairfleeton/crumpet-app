@@ -9,7 +9,6 @@ import type { Editor, MacroStep } from '@crumpet/editor/editor';
 import { Popover } from './Sidebar';
 import { type ToolItem, closeMore } from './toolbar';
 import { useAppState, useAppStore } from './hooks';
-import { currentHelped } from './helpers';
 
 /** The macro being recorded, in which editor (one at a time, app-wide). */
 let recording: { ed: Editor; name: string } | null = null;
@@ -139,19 +138,7 @@ export function MacroHost() {
   const rec = useRecording();
   const { settings } = useAppState();
   const store = useAppStore();
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey || !/^Digit[1-9]$/.test(e.code)) return;
-      const m = settings.macros?.find((x) => x.key === Number(e.code.slice(5)));
-      // The editor last typed in.
-      const ed = currentHelped()?.editor;
-      if (!m || !ed || recording) return;
-      e.preventDefault();
-      ed.playMacro(m.steps);
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [settings.macros]);
+  // Alt+Shift+number plays a macro: a shortcut like any other (ui/shortcuts.tsx).
   if (!rec) return null;
   const stop = () => {
     const steps = rec.ed.stopMacro();

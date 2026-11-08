@@ -340,6 +340,7 @@ function menu() {
       role: 'help',
       submenu: [
         item('Guide to Crumpet', 'guide'),
+        item('Keyboard Shortcuts', 'shortcuts'),
         item('What’s New', 'whats-new'),
         sep,
         { label: 'Report a Problem…', click: () => win?.webContents.send('crumpet-feedback') },

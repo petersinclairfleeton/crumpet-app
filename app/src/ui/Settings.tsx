@@ -17,11 +17,13 @@ import { AutoCorrectSettings } from './autocorrect';
 import { SpellingSettings } from './spelling';
 import { GrammarSettings } from './grammar';
 import { SettingGroup, SettingRow, Switch } from './settingrows';
+import { ShortcutSettings } from './shortcuts';
 
 const SECTIONS = [
   { id: 'account', label: 'Sync' },
   { id: 'look', label: 'Appearance' },
   { id: 'writing', label: 'Writing' },
+  { id: 'keys', label: 'Shortcuts' },
   { id: 'app', label: 'Clipper & app' },
 ] as const;
 /** The calm look's sections (design 13): Appearance first, Advanced at the foot. */
@@ -30,6 +32,7 @@ const CALM_SECTIONS = [
   { id: 'writing', label: 'Writing' },
   { id: 'workflow', label: 'Your workflow' },
   { id: 'bar', label: 'Formatting bar' },
+  { id: 'keys', label: 'Shortcuts' },
   { id: 'sync', label: 'Sync and storage' },
   { id: 'app', label: 'Clipper & app' },
 ] as const;
@@ -190,6 +193,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
             )}
           </>
         )}
+        {shown === 'keys' && <ShortcutSettings />}
         {shown === 'sync' && <SyncSettings />}
         {shown === 'app' && (
           <>
@@ -237,7 +241,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
             </div>
           ) : (
             <nav className="phone-settings-list" aria-label="Sections">
-              <ul className="phone-group">{CALM_SECTIONS.map((x) => row(x.id, label(x), x.id === 'look' ? (CALM_THEMES.find(([id]) => id === s.theme)?.[1] ?? themeInfo(s.theme).name) : undefined))}</ul>
+              <ul className="phone-group">{CALM_SECTIONS.filter((x) => x.id !== 'keys').map((x) => row(x.id, label(x), x.id === 'look' ? (CALM_THEMES.find(([id]) => id === s.theme)?.[1] ?? themeInfo(s.theme).name) : undefined))}</ul>
               <ul className="phone-group">{row('advanced', 'Advanced')}</ul>
             </nav>
           )}
@@ -370,6 +374,8 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               <GrammarSettings />
             </>
           )}
+
+          {section === 'keys' && <ShortcutSettings />}
 
           {section === 'app' && (
             <>
