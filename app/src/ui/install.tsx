@@ -11,7 +11,7 @@ export function InstallSettings() {
   if (desktop)
     return (
       <SettingGroup title="The app">
-        <SettingRow title="You’re using the Crumpet app" hint="It says when a newer version is out, or check on its Help menu: Check for a Newer Version." />
+        <SettingRow title="You’re using the Crumpet app" hint="It keeps itself up to date: a new version downloads by itself and installs when you restart or quit Crumpet (or check on its Help menu: Check for a Newer Version)." />
       </SettingGroup>
     );
   if (location.protocol === 'file:') return null;

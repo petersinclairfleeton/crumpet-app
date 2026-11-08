@@ -262,7 +262,7 @@ the top risk.
 - [x] The Mac app released on purpose: `mac.yml` runs only when started
       (`workflow_dispatch`; Claude starts it with `actions_run_trigger` on
       `main`), with release notes from `data/whatsnew.ts`. The Mac app says
-      when a newer version is out (it doesn't update itself). Releases happen
+      when a newer version is out (since 8 Nov it updates itself: `desktop/updates.cjs`). Releases happen
       after changes that matter to the Mac app (the D3 move doesn't). Where: `.github/workflows/mac.yml`, `desktop/main.cjs`,
       `desktop/preload.cjs`, `app/src/data/desktop.ts`.
       Done 1 Nov, together with **Crumpet for Windows** (Peter asked for a free
