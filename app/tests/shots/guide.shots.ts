@@ -102,10 +102,10 @@ test('the guide’s pictures', async ({ page }) => {
   await sidebar(page).getByRole('button', { name: /^The Lighthouse/ }).click();
   const outline = page.getByRole('region', { name: 'Outline' });
   await outline.locator('.outline-chapter', { hasText: 'Arrival' }).click();
-  await page.getByRole('button', { name: 'Open the inspector' }).click();
+  await page.getByRole('button', { name: 'Show the inspector' }).click();
   await expect(page.getByRole('complementary', { name: 'Right sidebar' })).toBeVisible();
   await shot(page, 'book');
-  await page.getByRole('button', { name: 'Close the inspector' }).click();
+  await page.getByRole('button', { name: 'Hide the inspector' }).click();
 
   // The corkboard.
   await outline.getByRole('button', { name: 'Cards' }).click();
@@ -154,7 +154,7 @@ test('the guide’s pictures', async ({ page }) => {
   await page.getByRole('region', { name: 'Research note' }).getByRole('button', { name: 'Close research' }).click();
 
   // Handing it in: Word, PDF, e-book.
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   await expect(page.getByRole('dialog', { name: /^Export/ })).toBeVisible();
   await shot(page, 'export');

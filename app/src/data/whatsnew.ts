@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-09-one-vocabulary',
+    date: '9 November 2026',
+    title: 'The same names everywhere',
+    points: [
+      'A long piece of writing is a book everywhere: New → Book, Book options, Book name.',
+      'On an iPhone the library has the same groups as on a computer: Favourites, then Capture, Organise, Distill (your own thinking) and Express (your books). A book shows its words as words.',
+      'The panel at the right is the inspector everywhere (Show the inspector, Hide the inspector), shortcuts are written one way (Ctrl+K), tags look the same (#draft) on notes and cards, and the themes are Light, Dark and Match my device in every list.',
+      'Honey marks one button per screen, the sidebar’s New: New chapter, New note in an empty list and Event in the Plan are quiet now. A chapter called “Chapter 1” no longer has “Chapter One” above it, and dates follow your device’s own style.',
+    ],
+  },
+  {
     id: '2026-11-08-beta-fixes',
     date: '8 November 2026',
     title: 'Fixes from the first beta test',

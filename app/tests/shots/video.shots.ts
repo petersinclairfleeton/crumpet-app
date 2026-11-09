@@ -374,7 +374,7 @@ test('9 · a print-ready paperback', async ({ page }) => {
   await ready(page);
   await record(page, '09-print-ready', HD, async () => {
     await caption(page, 'A paperback’s pages, for KDP or IngramSpark.');
-    await tap(page, outline(page).getByRole('button', { name: 'Project options' }));
+    await tap(page, outline(page).getByRole('button', { name: 'Book options' }));
     await tap(page, page.getByRole('button', { name: /^Export/ }));
     const dialog = page.getByRole('dialog', { name: /^Export/ });
     await tap(page, dialog.getByRole('radio', { name: /Print-ready book/ }));
@@ -480,7 +480,7 @@ test('the pinned post · 30 seconds of Crumpet', async ({ page }) => {
     await page.waitForTimeout(700);
     // Finished: the paperback.
     await caption(page, 'When it’s done, make the paperback.');
-    await tap(page, outline(page).getByRole('button', { name: 'Project options' }));
+    await tap(page, outline(page).getByRole('button', { name: 'Book options' }));
     await tap(page, page.getByRole('button', { name: /^Export/ }));
     await tap(page, page.getByRole('dialog', { name: /^Export/ }).getByRole('radio', { name: /Print-ready book/ }));
     await expect(page.getByRole('group', { name: 'Book design' })).toBeVisible();

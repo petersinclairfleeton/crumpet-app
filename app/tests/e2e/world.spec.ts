@@ -7,7 +7,7 @@ test('worldbuilding cards: kinds of your world, questions to answer, fields of y
   await page.goto('/');
   await expect(page.locator('.app')).toBeVisible();
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
-  await page.getByRole('navigation', { name: 'Notebooks' }).getByRole('button', { name: 'New project' }).click();
+  await page.getByRole('navigation', { name: 'Notebooks' }).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   const outline = page.getByRole('region', { name: 'Outline' });

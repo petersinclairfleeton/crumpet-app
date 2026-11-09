@@ -9,7 +9,7 @@ async function book(page: Page, calm: boolean) {
   await page.goto('/');
   await expect(page.locator('.app')).toBeVisible();
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbarAll: true }));
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.getByLabel('Chapter title').fill('The Keeper');
@@ -102,7 +102,7 @@ test('a new draft of the whole book, and the old draft open beside the new one',
   await page.keyboard.press('Enter');
   await page.keyboard.type('The glass was furred with salt.');
 
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: 'New draft of the book…' }).click();
   const form = page.getByRole('group', { name: 'New draft of the book' });
   await expect(form.getByLabel('Name')).toHaveValue('Draft 2');

@@ -5,7 +5,7 @@
 // them those aren't offered.
 
 import { useEffect, useState } from 'react';
-import { IconHelp } from './icons';
+import { IconClose, IconHelp } from './icons';
 import { Popover } from './Sidebar';
 import { openGuide } from './guide';
 import { WHATS_NEW, hasNews } from '../data/whatsnew';
@@ -125,15 +125,15 @@ export function HelpHost() {
         <div className="dialog whats-new" role="dialog" aria-modal="true" aria-label="What’s new">
           <header className="dialog-head">
             <h2>What’s new</h2>
-            <button type="button" className="btn quiet small" onClick={close} autoFocus>
-              Close
+            <button type="button" className="icon-btn" aria-label="Close" onClick={close} autoFocus>
+              <IconClose size={18} />
             </button>
           </header>
           <div className="dialog-body">
             {WHATS_NEW.map((n) => (
               <section key={n.id} className="news-item">
                 <h3>
-                  {n.title} <small>{n.date}</small>
+                  {n.title} <small>{localDate(n.date)}</small>
                 </h3>
                 <ul>
                   {n.points.map((p) => (
@@ -207,6 +207,9 @@ function Feedback({ onClose, initial }: { onClose(): void; initial: FeedbackKind
       <div className="dialog small-dialog feedback-sent" role="dialog" aria-modal="true" aria-label="Send it by email">
         <header className="dialog-head">
           <h2>Nearly there</h2>
+          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+            <IconClose size={18} />
+          </button>
         </header>
         <div className="dialog-body">
           <p>Your email should have opened with this written in, ready to send. Thank you!</p>
@@ -251,6 +254,9 @@ function Feedback({ onClose, initial }: { onClose(): void; initial: FeedbackKind
     >
       <header className="dialog-head">
         <h2>{problem ? 'Report a problem' : 'Send feedback'}</h2>
+        <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+          <IconClose size={18} />
+        </button>
       </header>
       <div className="dialog-body">
         <div className="segmented small" role="group" aria-label="Kind of feedback">
@@ -289,4 +295,10 @@ function Feedback({ onClose, initial }: { onClose(): void; initial: FeedbackKind
       </footer>
     </form>
   );
+}
+
+/** "8 November 2026" as this device writes dates (8 November 2026, November 8, 2026…). */
+function localDate(written: string): string {
+  const t = Date.parse(`${written} 12:00`);
+  return Number.isNaN(t) ? written : new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 }

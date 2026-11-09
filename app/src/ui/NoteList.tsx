@@ -526,7 +526,8 @@ function Empty({ view, searching, query, onNewNote }: { view: View; searching: b
       </span>
       <p>{text}</p>
       {action && (
-        <button type="button" className="btn primary" onClick={onNewNote}>
+        // Quiet: the sidebar's New is the one honey button on the screen.
+        <button type="button" className="btn" onClick={onNewNote}>
           <IconPlus size={14} /> {view.kind === 'today' ? 'New daily note' : view.kind === 'boards' ? 'New board' : 'New note'}
         </button>
       )}

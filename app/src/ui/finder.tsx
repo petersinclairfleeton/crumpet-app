@@ -172,7 +172,7 @@ function buildCommands({ state, store, panes, helped, addWord, actions }: Comman
     cmd('new.note', 'New note', actions.newNote),
     cmd('new.notebook', 'New notebook', make('new-notebook')),
     cmd('new.stack', 'New notebook stack', make('new-stack')),
-    cmd('new.manuscript', 'New manuscript', actions.newProject),
+    cmd('new.manuscript', 'New book', actions.newProject),
     cmd('new.daily', 'New daily note', actions.newDailyNote),
     cmd('new.board', 'New board', make('new-board')),
     cmd('new.template', 'New note from a template', make('new-template')),
@@ -189,7 +189,7 @@ function buildCommands({ state, store, panes, helped, addWord, actions }: Comman
     cmd('go.trash', 'Go to Trash', () => actions.openView({ kind: 'trash' })),
     cmd('view.sidebar', layout.sidebar === 'hidden' ? 'Show the sidebar' : 'Hide the sidebar', () => set({ sidebar: layout.sidebar === 'hidden' ? 'full' : 'hidden' })),
     cmd('view.list', layout.list === false ? 'Show the note list' : 'Hide the note list', () => set({ list: layout.list === false })),
-    cmd('view.right', layout.right ? 'Hide the right sidebar' : 'Show the right sidebar', () => set({ right: !layout.right })),
+    cmd('view.right', layout.right ? 'Hide the inspector' : 'Show the inspector', () => set({ right: !layout.right })),
     ...(['outline', 'styles', 'links', 'snapshots'] as const).map((t) => cmd(`tab.${t}`, `Show ${t === 'styles' ? 'the Styles pane' : t}`, () => set({ right: true, rightTab: t }))),
     cmd('tab.writing', 'Text statistics, highlighting and session target', () => set({ right: true, rightTab: 'writing' })),
     cmd('tab.thesaurus', 'Thesaurus and definitions', () => set({ right: true, rightTab: 'thesaurus' })),
@@ -349,7 +349,7 @@ function useTargets(): Item[] {
     const notes = [...recent, ...state.notes.filter((n) => !seen.has(n.id))].filter((n) => n.trashedAt === null);
     for (const n of notes) out.push({ key: `note:${n.id}`, label: displayTitle(n), where: n.projectId ? `Research · ${state.projects.find((p) => p.id === n.projectId)?.name ?? ''}` : undefined, glyph: n.projectId ? '✎' : '¶', group: n.projectId ? 'In your books' : 'Notes', run: (how) => opener.note(n.id, how) });
     for (const p of state.projects) {
-      out.push({ key: `project:${p.id}`, label: p.name || 'Untitled project', where: 'Project', glyph: '▤', group: 'In your books', run: (how) => opener.project(p.id, how) });
+      out.push({ key: `project:${p.id}`, label: p.name || 'Untitled book', where: 'Book', glyph: '▤', group: 'In your books', run: (how) => opener.project(p.id, how) });
       for (const c of state.chapters.filter((x) => x.projectId === p.id)) out.push({ key: `chapter:${c.id}`, label: c.title.trim() || 'Untitled chapter', where: p.name, glyph: '§', group: 'In your books', run: (how) => opener.chapter(c.id, how) });
       for (const m of p.cast ?? []) out.push({ key: `cast:${m.id}`, label: m.name || 'Unnamed', where: `${kindInfo(m.kind).name} · ${p.name}`, glyph: m.kind === 'place' ? '⌂' : '☺', group: 'In your books', run: (how) => opener.cast(p.id, m.id, how) });
     }

@@ -58,7 +58,7 @@ test('Share with readers and other windows close with Escape', async ({ page }) 
   const store = await crumpet(page);
   await store.evaluate((s) => s.createProject('The Glass King'));
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /Share with readers/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Share with readers' });
   await expect(dialog).toBeVisible();

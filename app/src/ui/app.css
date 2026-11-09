@@ -661,7 +661,7 @@ input, select { font: inherit; color: inherit; }
 .note-pane.reading .note-toolbar { border-bottom-color: transparent; }
 .note-pane.reading .note-body { max-width: 36em; padding: 48px 28px 96px; gap: 6px; }
 .note-pane.reading .note-title { text-align: center; font-size: 34px; font-weight: 700; letter-spacing: -0.3px; cursor: default; }
-.note-pane.reading .reading-meta { margin: 0 0 28px; text-align: center; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.note-pane.reading .reading-meta { margin: 0 0 28px; text-align: center; font-size: 13px; color: var(--muted); }
 .note-pane.reading .note-editor.editor { font-size: calc(var(--note-size, 16px) * 1.18); line-height: 1.7; hyphens: auto; text-wrap: pretty; caret-color: transparent; }
 .note-pane.reading .note-editor .blk-paragraph { margin: 0; }
 .note-pane.reading .note-editor .blk-paragraph + .blk-paragraph { text-indent: 1.5em; }
@@ -3779,8 +3779,8 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 
 /* The calm book outline (8 November): New chapter at the top in honey, as the sidebar's New;
    the book's name given room (it wraps); each chapter's title whole, its words small beneath. */
-.book-side .book-new { flex: none; height: 36px; background: var(--accent); color: var(--on-accent); font-weight: 600; }
-.book-side .book-new:hover { background: color-mix(in srgb, var(--accent) 88%, #000); color: var(--on-accent); }
+/* Quiet, as New chapter is in Cards: the sidebar's New is the screen's one honey button. */
+.book-side .book-new { flex: none; height: 36px; border: 1px dashed var(--line2); font-weight: 600; color: var(--text); }
 [data-look='crumpet'] .app.calm .book-side .book-name h1 { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .book-side .outline-open { height: auto; min-height: 36px; padding-top: 6px; padding-bottom: 6px; align-items: stretch; }
 .book-side .outline-row { align-items: flex-start; }

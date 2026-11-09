@@ -27,14 +27,14 @@ test('books in a series share their characters, places and research', async ({ p
   });
   // Book one joins a series, from its menu.
   const outline = page.getByRole('region', { name: 'Outline' });
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: 'Part of a series…' }).click();
   await page.getByLabel('Series').fill('The Gull Rock Books');
   await page.keyboard.press('Enter');
   await expect(outline.locator('.book-name')).toContainText('In The Gull Rock Books');
   // Book two joins the same series (the name offered from the first).
   await page.evaluate((id) => (window as unknown as { crumpet: Crumpet }).crumpet.openProject(id), ids.two);
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: 'Part of a series…' }).click();
   await page.getByLabel('Series').fill('The Gull Rock Books');
   await page.keyboard.press('Enter');

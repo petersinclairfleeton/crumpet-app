@@ -12,9 +12,9 @@ export interface ThemeInfo {
 
 // Inspired-by looks get names of their own: the products they echo are other companies' trademarks.
 export const THEMES: ThemeInfo[] = [
-  { id: 'system', name: 'Crumpet', hint: 'Crumpet’s own: warm paper, light or dark like your device', preview: ['#fbf9f5', '#fbf9f5', '#fffdf8', '#d4a257'] },
-  { id: 'light', name: 'Crumpet light', hint: 'Always light', preview: ['#fbf9f5', '#fbf9f5', '#fffdf8', '#d4a257'] },
-  { id: 'dark', name: 'Crumpet dark', hint: 'Always dark', preview: ['#2a2c32', '#2a2c32', '#1e1d1b', '#d4a257'] },
+  { id: 'system', name: 'Match my device', hint: 'Crumpet’s own: warm paper, light or dark like your device', preview: ['#fbf9f5', '#fbf9f5', '#fffdf8', '#d4a257'] },
+  { id: 'light', name: 'Light', hint: 'Always light', preview: ['#fbf9f5', '#fbf9f5', '#fffdf8', '#d4a257'] },
+  { id: 'dark', name: 'Dark', hint: 'Always dark', preview: ['#2a2c32', '#2a2c32', '#1e1d1b', '#d4a257'] },
   { id: 'paper', name: 'Paper and ink', hint: 'Warm paper and ink colours, light or dark like your device', preview: ['#f3eee5', '#faf7f1', '#fffefb', '#d4a257'] },
   { id: 'classic', name: 'Classic', hint: 'Old-school Evernote, with a dark sidebar', preview: ['#2b2e30', '#f4f4f4', '#ffffff', '#2dbe60'], accent: '#2dbe60' },
   { id: 'vapor', name: 'Vapor', hint: 'Steam’s deep blues', preview: ['#171a21', '#1b2838', '#1e2a36', '#66c0f4'], accent: '#66c0f4' },

@@ -34,7 +34,7 @@ test('a print-ready book: trim size, chapter openings, right-hand chapter starts
     };
   });
   const outline = page.getByRole('region', { name: 'Outline' });
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Export The Lighthouse' });
   await dialog.getByRole('radio', { name: /Print-ready book/ }).click();

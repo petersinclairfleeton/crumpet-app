@@ -23,7 +23,7 @@ test('track where a book has been sent and what came back', async ({ page }) => 
     },
     { old: day(60) },
   );
-  await page.getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: 'Submissions…' }).click();
   const dialog = page.getByRole('dialog', { name: 'Submissions' });
   await expect(dialog.getByRole('status').first()).toContainText('1 submission · 1 still out · 1 past their reply time');

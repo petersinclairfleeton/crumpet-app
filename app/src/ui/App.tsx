@@ -308,7 +308,7 @@ export function App() {
   const phoneCalm = narrow && !state.settings.toolbarAll;
   // Crumpet's calm look on a computer: the sidebar, the list and the page, as separate sheets over the wash.
   const calm = !narrow && !state.settings.toolbarAll;
-  const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled project').id });
+  const newProject = () => openView({ kind: 'project', id: store.createProject('Untitled book').id });
   // The Mac and Windows apps' menu bar.
   const [statsOpen, setStatsOpen] = useState(false);
   const menuActions: MenuActions = {

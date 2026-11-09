@@ -124,7 +124,7 @@ function Timeline({ project, narrow }: { project: Project; narrow: boolean }) {
   return (
     <div className="timeline">
       <div className="plan-tools">
-        <button type="button" className="btn primary small" onClick={() => add()}>
+        <button type="button" className="btn small" onClick={() => add()}>
           <IconPlus size={13} /> Event
         </button>
         {chapters.some((c) => !events.some((e) => e.chapterId === c.chapter.id)) && (

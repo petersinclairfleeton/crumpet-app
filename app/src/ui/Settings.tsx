@@ -121,7 +121,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
             <div className="settings-row" role="group" aria-label="Accent colour">
               <span>
                 <b>Accent</b>
-                <small>{ownAccent ? 'This theme has its own colours.' : 'Used once per screen: the New note button, the chosen dot.'}</small>
+                <small>{ownAccent ? 'This theme has its own colours.' : 'Used once per screen: the New button, and the chosen dot.'}</small>
               </span>
               {!ownAccent && (
                 <span className="accents">
@@ -172,7 +172,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               </label>
             )}
             {/* A phone has no inspector. */}
-            {!phone && <Switch label="Open the inspector with every note" hint="Off means it opens only when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />}
+            {!phone && <Switch label="Show the inspector with every note" hint="Off means it opens only when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />}
             <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
           </>
         )}
@@ -365,7 +365,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               <div className="field" role="group" aria-label="Calm">
                 <span>Calm</span>
                 <Switch label="Show every formatting tool" hint="Off keeps the bar to five tools and puts the rest under More." on={!!s.allTools} onChange={(v) => store.updateSettings({ allTools: v })} />
-                <Switch label="Keep the right sidebar open" hint="Outline, review, styles and more beside the writing. Off means it opens when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
+                <Switch label="Keep the inspector open" hint="Outline, review, styles and more beside the writing. Off means it opens when you ask." on={!!s.layout?.right} onChange={(v) => store.updateLayout({ right: v })} />
                 <Switch label="Reduce motion" hint="Turns off sliding and fading." on={!!s.reduceMotion} onChange={(v) => store.updateSettings({ reduceMotion: v })} />
               </div>
             </>

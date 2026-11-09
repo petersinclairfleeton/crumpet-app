@@ -129,8 +129,8 @@ export function SidebarRail({ onOpenView, onNewNote, onToday }: { onOpenView(v: 
         <button
           type="button"
           className="rail-btn"
-          aria-label="Open the sidebar"
-          title="Open the sidebar"
+          aria-label="Show the sidebar"
+          title="Show the sidebar"
           onClick={() => {
             if (graphOpen) panes.closeActive();
             store.updateLayout(state.view.kind === 'project' && (state.settings.layout?.sidebar ?? 'full') === 'full' ? { bookSidebar: 'full', list: true } : { sidebar: 'full', list: true });

@@ -73,7 +73,7 @@ export function tabTitle(state: AppState, t: Tab): string {
       return n ? displayTitle(n) : 'Gone';
     }
     case 'project':
-      return state.projects.find((p) => p.id === t.id)?.name || 'Untitled project';
+      return state.projects.find((p) => p.id === t.id)?.name || 'Untitled book';
     case 'chapter': {
       const c = state.chapters.find((x) => x.id === t.id);
       const title = c?.title.trim() || 'Untitled chapter';

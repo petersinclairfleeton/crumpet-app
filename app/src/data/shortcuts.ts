@@ -157,7 +157,7 @@ export const FIXED_COMMANDS: ShortcutDef[] = [
     { id: 'new.note', name: 'New note', keys: 'Mod+Alt+Shift+N' },
     { id: 'new.notebook', name: 'New notebook', keys: 'Mod+Alt+Shift+B' },
     { id: 'new.stack', name: 'New notebook stack', keys: 'Mod+Alt+Shift+K' },
-    { id: 'new.manuscript', name: 'New manuscript', keys: 'Mod+Alt+Shift+M' },
+    { id: 'new.manuscript', name: 'New book', keys: 'Mod+Alt+Shift+M' },
     { id: 'new.daily', name: 'New daily note', keys: 'Mod+Alt+Shift+D' },
     { id: 'new.board', name: 'New board', keys: 'Mod+Alt+Shift+O' },
     { id: 'new.template', name: 'New note from a template', keys: 'Mod+Alt+Shift+T' },

@@ -257,7 +257,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
       {/* The inspector's one switch, on the page: open, it stays here to close it (as beside a chapter). */}
       {calm && !narrow && !state.settings.layout?.right && <ShowButton what="right" />}
       {calm && !narrow && state.settings.layout?.right && (
-        <button type="button" className="icon-btn on" aria-pressed="true" aria-label="Close the inspector" data-tip="Close the inspector" onClick={() => store.updateLayout({ right: false })}>
+        <button type="button" className="icon-btn on" aria-pressed="true" aria-label="Hide the inspector" data-tip="Hide the inspector" onClick={() => store.updateLayout({ right: false })}>
           <IconRightPanel size={17} />
         </button>
       )}
@@ -515,7 +515,10 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         )}
         {note.tags.map((t) => (
           <span key={t} className="tag-chip">
-            {calm && !narrow ? <span className="tag-dot" style={{ background: tagColour(t) }} aria-hidden="true" /> : '#'}
+            {/* # as everywhere else (cards, the phone's library), in the tag's own colour in the calm look. */}
+            <span aria-hidden="true" style={calm && !narrow ? { color: tagColour(t) } : undefined}>
+              #
+            </span>
             {t}
             {!trashed && (
               <button type="button" aria-label={`Remove tag ${t}`} onClick={() => store.removeTag(note.id, t)}>
@@ -612,7 +615,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
           <button type="button" className="icon-btn" aria-label="Back to your notes" title="Back to your notes" onClick={leaveBoard}>
             <IconBack size={18} />
           </button>
-          <input className="board-title" aria-label="Title" placeholder="Untitled board" value={note.title} onChange={(e) => store.setTitle(note.id, e.target.value)} />
+          <input className="board-title" aria-label="Title" placeholder="Untitled" value={note.title} onChange={(e) => store.setTitle(note.id, e.target.value)} />
           <span className="board-count">
             Board · {boardOf(note).nodes.length} card{boardOf(note).nodes.length === 1 ? '' : 's'}
           </span>
@@ -738,7 +741,7 @@ function Welcome({ onNewNote, onNewProject }: { onNewNote(): void; onNewProject(
           </li>
         </ol>
         <p className="welcome-keys">
-          Press <kbd>{isMac ? '⌘K' : 'Ctrl K'}</kbd> any time to find a note or a command.{' '}
+          Press <kbd>{isMac ? '⌘K' : 'Ctrl+K'}</kbd> any time to find a note or a command.{' '}
           <button type="button" className="link-btn" onClick={() => setTouring(true)}>
             Take the two-minute tour
           </button>

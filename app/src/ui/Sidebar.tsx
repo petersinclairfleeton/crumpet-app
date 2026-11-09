@@ -168,8 +168,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
   const newProject =
     creating === 'project' ? (
       <InlineInput
-        label="Project name"
-        placeholder="Project name"
+        label="Book name"
+        placeholder="Book name"
         onDone={(name) => {
           setCreating(null);
           if (name) onOpenView({ kind: 'project', id: store.createProject(name).id });
@@ -375,9 +375,9 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           {notebookRows('distill')}
         </SideSection>}
 
-        {(on('express') || on('submissions')) && <SideSection name="Express" hint="Your manuscripts, and where you’ve sent them" folded={folded} onToggle={toggleSection} drop={projectsHead}>
+        {(on('express') || on('submissions')) && <SideSection name="Express" hint="Your books, and where you’ve sent them" folded={folded} onToggle={toggleSection} drop={projectsHead}>
           {on('express') && newProject}
-          {on('express') && state.projects.length === 0 && creating !== 'project' && <p className="side-empty indent">Start a manuscript from New.</p>}
+          {on('express') && state.projects.length === 0 && creating !== 'project' && <p className="side-empty indent">Start a book from New.</p>}
           {on('express') && projectRows}
           {on('submissions') && <SideRow icon={<IconSend size={18} />} label="Submissions" active={false} onClick={() => openSubmissions()} strong />}
         </SideSection>}
@@ -387,7 +387,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
         <div className="side-foot">
           {/* Where the notes are kept; clicking it opens Settings to keep them in Google Drive or a folder. */}
-          {fresh ? <p className="side-hint">Notebooks, tags and manuscripts appear here once you make them.</p> : <button type="button" className="foot-status" title={sync.config ? 'Where your notes are kept' : 'Saved on this device. Click to keep your notes in Google Drive or a folder'} onClick={() => (setSettingsAt('sync'), setSettingsOpen(true))}>
+          {fresh ? <p className="side-hint">Notebooks, tags and books appear here once you make them.</p> : <button type="button" className="foot-status" title={sync.config ? 'Where your notes are kept' : 'Saved on this device. Click to keep your notes in Google Drive or a folder'} onClick={() => (setSettingsAt('sync'), setSettingsOpen(true))}>
             <IconCheck size={16} className="saved-tick" />
             <span aria-live="polite">{calmFootText(state.temporary, sync)}</span>
           </button>}
@@ -451,8 +451,8 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
       <section className="side-section">
         <div className={`side-heading${projectsHead.over ? ' drop-over' : ''}`} {...projectsHead.props}>
-          <span>Projects</span>
-          <button type="button" className="icon-btn" aria-label="New project" title="New project" onClick={() => setCreating(creating === 'project' ? null : 'project')}>
+          <span>Books</span>
+          <button type="button" className="icon-btn" aria-label="New book" title="New book" onClick={() => setCreating(creating === 'project' ? null : 'project')}>
             <IconPlus size={13} />
           </button>
         </div>
@@ -656,7 +656,7 @@ function NewMenu({ on, onPick, onTemplate, onImport, onUpload }: { on(p: Part): 
               {item('stack', <IconStack size={14} />, 'Notebook stack', keys.get('new.stack'))}
               {on('distill') && item('dnotebook', <IconNotebook size={14} />, 'Distill notebook', keys.get('new.dnotebook'))}
               {on('boards') && item('board', <IconBoard size={14} />, 'Board', keys.get('new.board'))}
-              {on('express') && item('project', <IconBook size={14} />, 'Manuscript', keys.get('new.manuscript'))}
+              {on('express') && item('project', <IconBook size={14} />, 'Book', keys.get('new.manuscript'))}
               {item('template', <IconCopy size={14} />, 'From a template…', keys.get('new.template'))}
             </>
           )}
@@ -684,7 +684,7 @@ function SearchRow() {
           <span className="grow">Search</span>
         </button>
         <button type="button" className="find-key" aria-label="Find anything" title="Find anything: notes, chapters and commands" onClick={openFinder}>
-          {isMac ? '⌘K' : 'Ctrl K'}
+          {isMac ? '⌘K' : 'Ctrl+K'}
         </button>
       </div>
     );
@@ -710,7 +710,7 @@ function SearchRow() {
       />
       {!state.query && (
         <button type="button" className="find-key" aria-label="Find anything" title="Find anything: notes, chapters and commands" onMouseDown={(e) => e.preventDefault()} onClick={openFinder}>
-          {isMac ? '⌘K' : 'Ctrl K'}
+          {isMac ? '⌘K' : 'Ctrl+K'}
         </button>
       )}
     </label>

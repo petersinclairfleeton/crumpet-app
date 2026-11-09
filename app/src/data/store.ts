@@ -1063,7 +1063,7 @@ export class AppStore {
   createProject(name: string): Project {
     const t = this.now();
     const first = this.makeChapter('', 'Chapter 1', t);
-    const project: Project = { id: newId(), name: name.trim() || 'Untitled project', goal: null, outline: [{ type: 'chapter', id: first.id }], createdAt: t, updatedAt: t, ...(this.state.settings.defaultStyles ? { styles: structuredClone(this.state.settings.defaultStyles) } : {}) };
+    const project: Project = { id: newId(), name: name.trim() || 'Untitled book', goal: null, outline: [{ type: 'chapter', id: first.id }], createdAt: t, updatedAt: t, ...(this.state.settings.defaultStyles ? { styles: structuredClone(this.state.settings.defaultStyles) } : {}) };
     first.projectId = project.id;
     this.set({ projects: [...this.state.projects, project], chapters: [...this.state.chapters, first] });
     this.save(this.storage.putProject(project));

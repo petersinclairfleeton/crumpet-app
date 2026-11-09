@@ -75,7 +75,7 @@ test('work modes and parts: Journal hides books and the graph; a part switched b
   await expect(side.getByRole('button', { name: 'Graph of links' })).toHaveCount(0);
   await expect(side.getByRole('region', { name: 'Distill' })).toHaveCount(0);
   await side.getByRole('button', { name: 'New', exact: true }).click();
-  await expect(page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: 'Manuscript' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: 'Book', exact: true })).toHaveCount(0);
   await page.keyboard.press('Escape');
   // One part back on, from Settings → Your workflow.
   await side.getByRole('button', { name: 'Settings and more' }).click();
