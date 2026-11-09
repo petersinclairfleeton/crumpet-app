@@ -16,7 +16,7 @@ import { StylesDialog, useStyleSources } from './styles-ui';
 import type { Editor } from '@crumpet/editor/editor';
 import { useAppState, useAppStore, useAutoHeight, useNav, useSync } from './hooks';
 import { TextSizeRow } from './iphone';
-import { recentNotes, viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree, wordCount } from '../data/selectors';
+import { recentNotes, viewTitle, allTags, displayTitle, docWords, editedText, longTime, notebookTree } from '../data/selectors';
 import { backlinks } from '../data/links';
 import { EditorHost } from './EditorHost';
 import { usePasteTitle } from './pastetitle';
@@ -492,7 +492,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
         rows={1}
         value={note.title}
         readOnly={trashed || reading}
-        onChange={(e) => store.setTitle(note.id, e.target.value.replace(/\n/g, ' '))}
+        onChange={(e) => store.setTitle(note.id, e.target.value.replace(/\n/g, ' ').trimStart())}
         onPaste={pasteTitle.onTitlePaste}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || (e.key === 'ArrowDown' && !e.shiftKey)) {
@@ -503,7 +503,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
       />
       {room && kicker}
       <p className="reading-meta">
-        {[nb?.name, longTime(note.updatedAt), `${wordCount(note)} words`].filter(Boolean).join(' · ')}
+        {[nb?.name, longTime(note.updatedAt), `${noteWords.toLocaleString()} word${noteWords === 1 ? '' : 's'}`].filter(Boolean).join(' · ')}
       </p>
       {!(phone && !showMeta) && <div className={`note-meta${calm && !narrow ? ' calm' : ''}`}>
         {!(calm && !narrow) && (

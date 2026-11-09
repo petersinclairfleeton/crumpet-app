@@ -3,6 +3,7 @@
 // (changes and comments), and links.
 
 import { kindInfo } from '../data/world';
+import { isBoard } from '../data/board';
 import { bookCast } from '../data/series';
 import { Popover } from './Sidebar';
 import { useEffect, useState } from 'react';
@@ -64,14 +65,17 @@ export function RightSidebar() {
   const helped = useHelped();
   // In a book's chapter, the first tab shows who and where the chapter mentions.
   const chapter = helped ? state.chapters.find((c) => c.id === docOwner(helped.docId)) : undefined;
+  // A book showing its cards, plan or reading view (no chapter being written): the book's tabs all the same.
+  const bookId = chapter?.projectId ?? (state.view.kind === 'project' && !state.query.trim() ? state.view.id : undefined);
+  const inBook = !!bookId;
   // (A book's notes, its research, are a tab beside a chapter in the calm look.)
-  const calmBook = !!chapter && !state.settings.toolbarAll;
-  const tabs = (chapter ? TABS : TABS.filter((t) => t.key !== 'chapter')).filter((t) => t.key !== 'notes' || calmBook);
-  const chosen: RightTab = state.settings.layout?.rightTab ?? (chapter ? 'chapter' : 'outline');
-  const tab: RightTab = chosen === 'chapter' && !chapter ? 'outline' : chosen;
+  const calmBook = inBook && !state.settings.toolbarAll;
+  const tabs = (inBook ? TABS : TABS.filter((t) => t.key !== 'chapter')).filter((t) => t.key !== 'notes' || calmBook);
+  const chosen: RightTab = state.settings.layout?.rightTab ?? (inBook ? 'chapter' : 'outline');
+  const tab: RightTab = (chosen === 'chapter' && !inBook) || (chosen === 'notes' && !calmBook) ? 'outline' : chosen;
   // The calm look shows three tabs; one opened from More takes the third's place, so the row always fits.
   const calm = !state.settings.toolbarAll;
-  const first: RightTab[] = chapter ? (calm ? ['chapter', 'notes', 'comments'] : ['chapter', 'outline', 'comments']) : ['outline', 'comments', 'links'];
+  const first: RightTab[] = inBook ? (calm ? ['chapter', 'notes', 'comments'] : ['chapter', 'outline', 'comments']) : ['outline', 'comments', 'links'];
   const main: RightTab[] = first.includes(tab) ? first : [...first.slice(0, 2), tab];
   // Beside a chapter the calm inspector calls Review "Comments", as the design does.
   const label = (t: { key: RightTab; label: string }) => (calmBook && t.key === 'comments' ? 'Comments' : t.label);
@@ -108,10 +112,20 @@ export function RightSidebar() {
         <FoldButton what="right" />
       </header>
       <div className="right-body" role="tabpanel" aria-label={TABS.find((t) => t.key === tab)!.label}>
-        {!helped ? <p className="right-empty">Open a note or chapter to see its {tab === 'styles' ? 'styles' : tab} here.</p> : tab === 'chapter' && chapter ? <InThisChapter chapterId={chapter.id} calm={calm} /> : tab === 'notes' && chapter ? <BookNotes projectId={chapter.projectId} /> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'pages' ? <PagesTab editor={helped.editor} /> : tab === 'check' ? <CheckTab editor={helped.editor} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <ReviewPane editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : tab === 'thesaurus' ? <ThesaurusTab editor={helped.editor} /> : tab === 'clipboard' ? <ClipboardPane editor={helped.editor} /> : tab === 'objects' ? <SelectionPane editor={helped.editor} /> : tab === 'search' ? <WebSearchTab editor={helped.editor} docId={helped.docId} /> : <Links docId={helped.docId} />}
+        {tab === 'notes' && bookId && !chapter ? <BookNotes projectId={bookId} /> : !helped ? <p className="right-empty">{emptyText(tab, inBook, state)}</p> : tab === 'chapter' ? (chapter ? <InThisChapter chapterId={chapter.id} calm={calm} /> : <p className="right-empty">{emptyText(tab, inBook, state)}</p>) : tab === 'notes' && bookId ? <BookNotes projectId={bookId} /> : tab === 'outline' ? <Outline editor={helped.editor} docId={helped.docId} /> : tab === 'pages' ? <PagesTab editor={helped.editor} /> : tab === 'check' ? <CheckTab editor={helped.editor} /> : tab === 'styles' ? <StylesPane embedded editor={helped.editor} sheet={helped.sheet} onSheet={helped.onSheet} onEditStyles={helped.onEditStyles} onClose={() => store.updateLayout({ right: false })} /> : tab === 'comments' ? <ReviewPane editor={helped.editor} /> : tab === 'snapshots' ? <SnapshotsPanel docId={helped.docId} editor={helped.editor} /> : tab === 'writing' ? <WritingTab key={helped.docId} editor={helped.editor} docId={helped.docId} /> : tab === 'thesaurus' ? <ThesaurusTab editor={helped.editor} /> : tab === 'clipboard' ? <ClipboardPane editor={helped.editor} /> : tab === 'objects' ? <SelectionPane editor={helped.editor} /> : tab === 'search' ? <WebSearchTab editor={helped.editor} docId={helped.docId} /> : <Links docId={helped.docId} />}
       </div>
     </aside>
   );
+}
+
+/** What the inspector says with nothing to work on: why, and what would fill it. */
+function emptyText(tab: RightTab, inBook: boolean, state: ReturnType<typeof useAppState>): string {
+  const what = tab === 'chapter' ? 'the characters and places it names' : tab === 'comments' ? 'its comments' : `its ${tab}`;
+  if (inBook) return `Open a chapter in Write to see ${what} here.`;
+  const note = state.notes.find((n) => n.id === state.selectedId);
+  if (note && isBoard(note)) return 'A board has no text to look at here: open a note or chapter to see ' + what + '.';
+  if (note) return `Switch from reading back to writing to see ${what} here.`;
+  return `Open a note or chapter to see ${what} here.`;
 }
 
 /** The characters and places a chapter mentions, most mentioned first, as cards to open. */

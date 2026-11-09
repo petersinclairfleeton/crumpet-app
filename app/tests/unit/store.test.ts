@@ -6,6 +6,7 @@ import { BUILT_IN_TEMPLATES, longDate } from '../../src/data/templates';
 import { AppStore, DATA_VERSION, cleanTag, visibleIn } from '../../src/data/store';
 import { groupByDate, inOrder, listedNotes, matches, matchingNotebooks, moveInOrder, notebookTree, preview, projectChapters, projectGoal, projectWords, wordCount } from '../../src/data/selectors';
 import type { Note, Notebook } from '../../src/data/types';
+import { dailyWords, dayKey } from '../../src/data/stats';
 
 const DAY = 86_400_000;
 
@@ -378,6 +379,36 @@ describe('saving', () => {
       await tick();
       expect(storage.notes.get(n.id)?.title).toBe('Unsaved title');
       expect(mem.has('crumpet:unsaved')).toBe(false);
+    } finally {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    }
+  });
+});
+
+describe('saving writing stats', () => {
+  it('keeps the words written just before the page closes', async () => {
+    const mem = new Map<string, string>();
+    const ls = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, v), removeItem: (k: string) => void mem.delete(k) };
+    Object.assign(globalThis, { localStorage: ls });
+    try {
+      const t = 1_700_000_000_000;
+      const { store, storage } = await fresh(() => t);
+      const n = store.createNote({ title: 'Diary' });
+      await tick();
+      store.setDoc(n.id, fromMarkdown('one two three four'));
+      // Stats wait a few seconds to be saved; the page closes first, and its database writes are lost.
+      store.rescue();
+      expect(mem.has('crumpet:unsaved-stats')).toBe(true);
+      const again = new AppStore(storage, () => t);
+      await again.load();
+      expect(dailyWords(again.getState().settings.stats, t)[dayKey(t)]).toBe(4);
+      expect(mem.has('crumpet:unsaved-stats')).toBe(false);
+      // Saved once the page is hidden (not closed): the copy goes, so it can't come back over newer words.
+      again.setDoc(n.id, fromMarkdown('one two three four five'));
+      again.rescue();
+      again.flush();
+      await tick();
+      expect(mem.has('crumpet:unsaved-stats')).toBe(false);
     } finally {
       delete (globalThis as { localStorage?: unknown }).localStorage;
     }

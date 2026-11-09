@@ -368,6 +368,12 @@ function Card({ note, words, selected, now, trash, showNotebook, onOpen, onMenu,
           {!trash && <ReminderTag note={note} now={now} />}
           <span className="card-meta">
             {[shortTime(trash ? (note.trashedAt ?? note.updatedAt) : note.updatedAt, now), nb?.name].filter(Boolean).join(' · ')}
+            {note.tags.slice(0, 3).map((t) => (
+              <span key={t}>
+                {' · '}
+                <span className="card-tag">#{t}</span>
+              </span>
+            ))}
           </span>
         </>
       ) : (

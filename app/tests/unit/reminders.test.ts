@@ -39,6 +39,9 @@ describe('reminders', () => {
     expect(new Date(quick[2].at).getDay()).toBe(1);
     // Late at night there's no "later today".
     expect(quickTimes(new Date(2026, 9, 9, 22, 30).getTime()).map((q) => q.label)).toEqual(['Tomorrow morning', 'Next week']);
+    // On a Sunday, Next week isn't tomorrow: it's the Monday a week on (8 Nov 2026 → 16 Nov).
+    const sunday = quickTimes(new Date(2026, 10, 8, 10).getTime());
+    expect(new Date(sunday.find((q) => q.label === 'Next week')!.at).getDate()).toBe(16);
   });
 
   it('are set, done and taken off in the store, and sync to another device', async () => {

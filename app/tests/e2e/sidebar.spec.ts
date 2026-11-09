@@ -60,19 +60,25 @@ test('New makes notes, notebooks, stacks and manuscripts; a notebook goes into a
       await page.keyboard.press('Enter');
     }
   };
-  // New offers five things, each with its shortcut.
+  // New offers everything the app says to make with it, most with a shortcut.
   await side.getByRole('button', { name: 'New', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'New' }).getByRole('button');
-  await expect(menu).toHaveText(['Upload Ctrl+Alt+Shift+U', 'Note Ctrl+Alt+Shift+N', 'Notebook Ctrl+Alt+Shift+B', 'Notebook stack Ctrl+Alt+Shift+K', 'Manuscript Ctrl+Alt+Shift+M']);
+  await expect(menu).toHaveText(['Upload Ctrl+Alt+Shift+U', 'Note Ctrl+Alt+Shift+N', 'Notebook Ctrl+Alt+Shift+B', 'Notebook stack Ctrl+Alt+Shift+K', 'Distill notebook', 'Board Ctrl+Alt+Shift+O', 'Manuscript Ctrl+Alt+Shift+M', 'From a template… Ctrl+Alt+Shift+T']);
   await expect(menu.nth(1)).toHaveAttribute('aria-keyshortcuts', 'Ctrl+Alt+Shift+N');
   await page.keyboard.press('Escape');
   await make('Notebook', 'Journal');
   await make('Notebook stack', 'Writing');
   await make('Manuscript', 'The Lighthouse');
   await expect.poll(async () => (await state(page)).projects.map((p) => p.name)).toEqual(['The Lighthouse']);
-  // A note made from New goes into the Inbox, though the notebook Journal was open; so do the new notebook and stack.
+  // A note made from New while the notebook Journal is open goes into Journal, and the list stays on it.
   const journal = (await state(page)).notebooks.find((n) => n.name === 'Journal')!;
   await page.evaluate((id) => (window as unknown as { crumpet: Crumpet }).crumpet.setView({ kind: 'notebook', id }), journal.id);
+  await make('Note');
+  await page.keyboard.type('Morning pages');
+  await expect.poll(async () => (await state(page)).notes.find((n) => n.title === 'Morning pages')?.notebookId).toBe(journal.id);
+  await expect(list(page).getByRole('heading', { name: 'Journal' })).toBeVisible();
+  // From anywhere else it goes into the Inbox; so do the new notebook and stack.
+  await page.evaluate(() => (window as unknown as { crumpet: Crumpet }).crumpet.setView({ kind: 'inbox' }));
   await make('Note');
   await page.keyboard.type('Stray thought');
   await expect.poll(async () => (await state(page)).notes.find((n) => n.title === 'Stray thought')?.notebookId).toBeNull();

@@ -1,5 +1,5 @@
 import { MODES, currentMode, modeSettings, partOn, type Part } from '../data/workmodes';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FIXED_COMMANDS, bindingsFor, showCombo } from '../data/shortcuts';
 import { createPortal } from 'react-dom';
 import type { Doc } from '@crumpet/editor/model';
@@ -22,7 +22,7 @@ import type { Tab } from '../data/panes';
 import { Bookmarks } from './bookmarks';
 import { usePanes } from './panes';
 import { boardDoc, emptyBoard } from '../data/board';
-import { IconBell, IconBook, IconChart, IconGraph, IconHash, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconCheck, IconSettings, IconSend, Logo, NotebookIcon } from './icons';
+import { IconBell, IconBook, IconChart, IconGraph, IconHash, IconSearch, IconSun, IconChevronDown, IconChevron, IconClose, IconMore, IconNote, IconNotebook, IconPlus, IconStack, IconStar, IconTag, IconTrash, IconUpload, IconInbox, IconBoard, IconCopy, IconCheck, IconSettings, IconSend, Logo, NotebookIcon } from './icons';
 import { openFinder } from './finder';
 import { HelpItems } from './help';
 import { openSubmissions } from './submissions';
@@ -387,7 +387,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
         <div className="side-foot">
           {/* Where the notes are kept; clicking it opens Settings to keep them in Google Drive or a folder. */}
-          {fresh ? <p className="side-hint">Notebooks, tags and manuscripts appear here once you make them.</p> : <button type="button" className="foot-status" title={sync.config ? 'Where your notes are kept' : 'Keep your notes in Google Drive or a folder'} onClick={() => (setSettingsAt('sync'), setSettingsOpen(true))}>
+          {fresh ? <p className="side-hint">Notebooks, tags and manuscripts appear here once you make them.</p> : <button type="button" className="foot-status" title={sync.config ? 'Where your notes are kept' : 'Saved on this device. Click to keep your notes in Google Drive or a folder'} onClick={() => (setSettingsAt('sync'), setSettingsOpen(true))}>
             <IconCheck size={16} className="saved-tick" />
             <span aria-live="polite">{calmFootText(state.temporary, sync)}</span>
           </button>}
@@ -654,7 +654,10 @@ function NewMenu({ on, onPick, onTemplate, onImport, onUpload }: { on(p: Part): 
               {item('note', <IconNote size={14} />, 'Note', keys.get('new.note'))}
               {item('notebook', <IconNotebook size={14} />, 'Notebook', keys.get('new.notebook'))}
               {item('stack', <IconStack size={14} />, 'Notebook stack', keys.get('new.stack'))}
+              {on('distill') && item('dnotebook', <IconNotebook size={14} />, 'Distill notebook', keys.get('new.dnotebook'))}
+              {on('boards') && item('board', <IconBoard size={14} />, 'Board', keys.get('new.board'))}
               {on('express') && item('project', <IconBook size={14} />, 'Manuscript', keys.get('new.manuscript'))}
+              {item('template', <IconCopy size={14} />, 'From a template…', keys.get('new.template'))}
             </>
           )}
         </Popover>
@@ -1127,6 +1130,26 @@ export function Popover({ children, onClose, label }: { children: React.ReactNod
       document.removeEventListener('keydown', onKey);
     };
   }, [onClose]);
+  // A menu with no room below its button opens above it (or as far up as fits, scrolling if it must).
+  useLayoutEffect(() => {
+    const el = ref.current;
+    // (A right-click menu places itself.)
+    if (!el || el.closest('.context-menu')) return;
+    const r = el.getBoundingClientRect();
+    const over = r.bottom - (window.innerHeight - 8);
+    if (over <= 0) return;
+    const anchor = el.parentElement?.querySelector('[aria-expanded="true"]')?.getBoundingClientRect();
+    if (anchor && anchor.top - 12 >= r.height) {
+      el.style.translate = `0 ${anchor.top - 4 - r.height - r.top}px`;
+      return;
+    }
+    const shift = Math.min(over, r.top - 8);
+    el.style.translate = `0 ${-shift}px`;
+    if (over > shift) {
+      el.style.maxHeight = `${window.innerHeight - 16}px`;
+      el.style.overflowY = 'auto';
+    }
+  }, []);
   return (
     <div className="popover" ref={ref} role="dialog" aria-label={label}>
       {children}
@@ -1184,7 +1207,7 @@ function footText(temporary: boolean, sync: ReturnType<typeof useSync>['state'])
 /** The calm sidebar's foot: where the notes are kept, in a few words. */
 function calmFootText(temporary: boolean, sync: ReturnType<typeof useSync>['state']): string {
   if (temporary) return 'Not saving in this browser';
-  if (!sync.config) return 'Saved on this device';
+  if (!sync.config) return 'Saved here';
   return footText(temporary, sync).replace(/^crumpet · /, '');
 }
 

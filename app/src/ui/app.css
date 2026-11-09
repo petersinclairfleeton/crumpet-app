@@ -2651,7 +2651,7 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .sidebar.calm .side-start { gap: 2px; }
 .sidebar.calm .side-start > .new-wrap { margin-bottom: 4px; }
 .sidebar.calm .side-top-list { display: flex; flex-direction: column; gap: 2px; }
-.sidebar.calm .new-wrap .popover { left: 0; right: 0; z-index: 30; }
+.sidebar.calm .new-wrap .popover { left: 0; right: auto; min-width: 100%; width: max-content; z-index: 30; }
 /* Each item's shortcut, small enough to sit beside it in the sidebar's width. */
 .sidebar.calm .new-wrap .popover .menu-item { gap: 7px; padding: 0 6px 0 8px; }
 .sidebar.calm .new-wrap .popover .menu-hint { margin: 0 0 0 auto; padding-left: 6px; font-size: 10.5px; letter-spacing: -0.01em; white-space: nowrap; }
@@ -2975,8 +2975,11 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 .theme-pic.paper { background: #f3eee5; }
 .theme-pic.paper i { background: #e8dfcf; }
 .theme-pic.paper i:last-child { background: #faf7f1; }
-.theme-pic:not(.light):not(.dark):not(.system):not(.paper) { background: var(--field); }
-.theme-pic:not(.light):not(.dark):not(.system):not(.paper) i { background: var(--page); }
+/* The other themes in their own colours (from ui/themes.ts's previews), whatever theme is in use. */
+.theme-pic:not(.light):not(.dark):not(.system):not(.paper) { background: var(--pic-back, var(--field)); }
+.theme-pic:not(.light):not(.dark):not(.system):not(.paper) i:first-child { background: var(--pic-side, var(--page)); }
+.theme-pic:not(.light):not(.dark):not(.system):not(.paper) i:last-child { background: var(--pic-page, var(--page)); box-shadow: inset 0 3px 0 var(--pic-accent, transparent); }
+
 .settings-row { display: flex; align-items: center; gap: 24px; padding: 16px 0; border-top: 1px solid var(--calm-hair, var(--line)); }
 .settings-dialog.calm .field + .settings-row { border-top: none; }
 .settings-row > span:first-child { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }

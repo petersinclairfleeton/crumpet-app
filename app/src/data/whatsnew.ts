@@ -10,8 +10,19 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-08-beta-fixes',
+    date: '8 November 2026',
+    title: 'Fixes from the first beta test',
+    points: [
+      'Typing straight after New chapter now writes in the new chapter (it used to make more chapters), and pressing N to start a note works only when nothing is selected, so a sentence typed in the wrong place no longer makes notes.',
+      'New note inside a notebook, a tag or Favourites keeps the note there. New also offers a Distill notebook, a board and a note from a template.',
+      'Each Settings page opens at its top, Share with readers closes with Escape, menus near the bottom of the window open upwards, and the theme pictures show their own colours in dark mode.',
+      'Choosing Favourites, Today or another list puts away the book that was open. Empty chapters read as blank in Read, tags show on note cards again, words counted match everywhere, and the last few seconds of writing count in your stats when Crumpet closes.',
+    ],
+  },
+  {
     id: '2026-11-09-small-updates',
-    date: '9 November 2026',
+    date: '8 November 2026',
     title: 'Much smaller updates for the Mac and Windows apps',
     points: [
       'Most new versions of Crumpet for Mac and Windows now download only Crumpet itself, about 20 MB, instead of the whole app (250 MB on a Mac, 130 MB on Windows). Nothing in the app is replaced: Restart Now, or the new version is there the next time you open Crumpet.',
@@ -21,7 +32,7 @@ export const WHATS_NEW: WhatsNew[] = [
   },
   {
     id: '2026-11-09-update-news',
-    date: '9 November 2026',
+    date: '8 November 2026',
     title: 'Updates say what they bring',
     points: [
       'When a new Crumpet for Mac or Windows has downloaded itself, its “ready” message now says what’s new in it, so you can decide whether to restart now or let it install when you quit.',

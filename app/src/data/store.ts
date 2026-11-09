@@ -72,6 +72,7 @@ export const FILE_TEXT_KEY = 'fileText';
 const RELINK_DELAY_MS = 1200;
 const MAX_SAVE_WAIT_MS = 2000;
 const RESCUE_KEY = 'crumpet:unsaved';
+const RESCUE_STATS_KEY = 'crumpet:unsaved-stats';
 const DAY = 24 * 60 * 60 * 1000;
 
 /** A character with these ties (none: the field goes). */
@@ -463,7 +464,16 @@ export class AppStore {
     if (!this.statsTimer) return;
     clearTimeout(this.statsTimer);
     this.statsTimer = null;
-    this.save(this.storage.putSettings(this.state.settings));
+    // Once saved, the copy rescue() kept is no longer needed (and must not come back later over newer words).
+    this.save(
+      this.storage.putSettings(this.state.settings).then(() => {
+        try {
+          localStorage.removeItem(RESCUE_STATS_KEY);
+        } catch {
+          // Nothing to clear.
+        }
+      }),
+    );
   }
 
   /** Files a note in a notebook, or takes it out of any with null. */
@@ -923,6 +933,14 @@ export class AppStore {
    * which writes at once, and picked up again by the next load().
    */
   rescue(): void {
+    // Today's words written since the last save of the stats (they're saved a few seconds after typing).
+    if (this.statsTimer) {
+      try {
+        localStorage.setItem(RESCUE_STATS_KEY, JSON.stringify(this.state.settings.stats ?? null));
+      } catch {
+        // Storage unavailable: the database write is all we have.
+      }
+    }
     const items = [...this.pendingDocs.keys()]
       .map((id) => {
         const note = this.note(id);
@@ -941,6 +959,7 @@ export class AppStore {
 
   /** Brings back edits kept by rescue() that are newer than what the database has. */
   private recover(data: Persisted): Persisted {
+    data = this.recoverStats(data);
     let raw: string | null = null;
     try {
       raw = localStorage.getItem(RESCUE_KEY);
@@ -982,6 +1001,27 @@ export class AppStore {
       (err) => console.error('[crumpet] Could not save recovered edits', err),
     );
     return { ...data, notes, chapters };
+  }
+
+  /** Writing stats kept by rescue(): newer than the database's (they were waiting to be saved as the page closed). */
+  private recoverStats(data: Persisted): Persisted {
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(RESCUE_STATS_KEY);
+      if (raw !== null) localStorage.removeItem(RESCUE_STATS_KEY);
+    } catch {
+      return data;
+    }
+    if (!raw || !data.settings) return data;
+    try {
+      const stats = JSON.parse(raw);
+      if (!stats) return data;
+      const settings = { ...data.settings, stats };
+      this.save(this.storage.putSettings(settings));
+      return { ...data, settings };
+    } catch {
+      return data;
+    }
   }
 
   /** Saves a note or chapter by id. */

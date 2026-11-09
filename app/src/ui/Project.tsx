@@ -881,6 +881,9 @@ function AutoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) 
   return <textarea ref={ref} rows={1} {...props} />;
 }
 
+/** Chapters already given the caret once, as they were made. */
+const caretGiven = new Set<string>();
+
 export function ChapterPane({ project, chapter, narrow, onBack, draft }: { project: Project; chapter: Chapter; narrow: boolean; onBack(): void; draft?: string }) {
   const state = useAppState();
   const store = useAppStore();
@@ -937,6 +940,20 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
     setGoalOpen(false);
     setViewId(draft ?? '');
   }, [chapter.id, draft]);
+
+  // A chapter just made (New chapter) takes the caret, so typing goes into it, not the button again.
+  useEffect(() => {
+    const fresh = Date.now() - chapter.createdAt < 2000 && chapter.createdAt === chapter.updatedAt;
+    if (!chapterEditor || !fresh || draft || caretGiven.has(chapter.id)) return;
+    caretGiven.add(chapter.id);
+    const id = requestAnimationFrame(() => {
+      // Not if typing has already started somewhere else (a title, a research note).
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      chapterEditor.focusAt('end');
+    });
+    return () => cancelAnimationFrame(id);
+  }, [chapterEditor, chapter.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Page numbers carry on from the chapters before (as last laid out, or estimated from their words).
   const [pages, setPages] = useState(0);
