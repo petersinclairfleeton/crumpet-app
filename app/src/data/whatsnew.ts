@@ -10,6 +10,14 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-09-own-fonts',
+    date: '9 November 2026',
+    title: 'Crumpet’s fonts come with it',
+    points: [
+      'Onest and Newsreader, the fonts Crumpet is written in, now come with the app instead of being fetched from Google each time it opens. They show as they should offline, and opening Crumpet no longer tells Google anything. A different writing font you pick from the list still comes from Google Fonts.',
+    ],
+  },
+  {
     id: '2026-11-09-one-vocabulary',
     date: '9 November 2026',
     title: 'The same names everywhere',

@@ -1,6 +1,7 @@
 // Fonts for note text: Crumpet's own, any Google font, or a font installed on
 // this device. Google fonts are fetched from Google only when chosen.
 
+import { BUNDLED_FONTS } from './appfonts';
 import type { NoteFont } from '../data/types';
 
 export const DEFAULT_FONT: NoteFont = { family: 'Newsreader', source: 'default', category: 'serif' };
@@ -74,7 +75,7 @@ const loaded = new Set<string>();
 /** Makes a Google font available on the page (regular, italic, bold and bold italic, as far as it has them). */
 export function loadGoogleFont(family: string, styles = 1, text?: string): void {
   const key = `${family}|${text ?? ''}`;
-  if (loaded.has(key) || typeof document === 'undefined') return;
+  if (loaded.has(key) || typeof document === 'undefined' || BUNDLED_FONTS.has(family)) return;
   loaded.add(key);
   const want: string[] = [];
   if (styles & 1) want.push('0,400');

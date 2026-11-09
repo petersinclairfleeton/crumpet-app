@@ -10,6 +10,7 @@ import { setMediaResolver } from '@crumpet/editor/view';
 import { startClipListener } from './data/clip';
 import './ui/coderender';
 import { startPwa } from './data/pwa';
+import './ui/appfonts';
 import './ui/app.css';
 import { desktop } from './data/desktop';
 import { stopFocusZoom } from './ui/iphone';

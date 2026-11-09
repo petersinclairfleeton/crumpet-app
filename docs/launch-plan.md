@@ -382,7 +382,9 @@ every newsletter, and their rules require it.
 - [ ] A security contact: `SECURITY.md` in the repo and
       `/.well-known/security.txt` on the site with the support address.
 
-- [ ] Fonts from our own address: the interface fonts come from Google's
+- [x] Fonts from our own address (done 9 Nov 2026: Onest and Newsreader from
+      `@fontsource`, imported by `app/src/ui/appfonts.ts`, licences in
+      `app/public/fonts/`; `loadGoogleFont` skips them): the interface fonts come from Google's
       servers, which sends each visitor's IP address to Google (a German court
       called that unlawful without consent). Ship them with the app, with
       their licence files (SIL OFL); fonts a person picks later still come
