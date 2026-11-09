@@ -178,6 +178,12 @@ export function HomeScreenGuide() {
       return true;
     }
   });
+  // While it shows, the library scrolls far enough that its last rows (Trash, Help) come out from under it.
+  useEffect(() => {
+    if (!show) return;
+    document.documentElement.dataset.homeGuide = '1';
+    return () => void delete document.documentElement.dataset.homeGuide;
+  }, [show]);
   if (!show) return null;
   const close = () => {
     try {

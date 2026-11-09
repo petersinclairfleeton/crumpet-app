@@ -462,7 +462,8 @@ export function App() {
       </div>
       </PeekContext.Provider>
       <InkEditHost />
-      {narrow && (pane === 'list' || (phoneCalm && pane === 'sidebar')) && !state.focusMode && <HomeScreenGuide />}
+      {/* Only on the first screen (the library, or the list), not over every screen. */}
+      {narrow && (phoneCalm ? pane === 'sidebar' : pane === 'list') && !state.focusMode && <HomeScreenGuide />}
       {narrow && pane === 'list' && !state.focusMode && !phoneCalm && <TabBar onOpenView={openView} onNotebooks={() => setPane('sidebar')} onNewNote={newNote} onToday={openToday} />}
       {/* The calm phone: no bar of tabs, just the round + on the library and on a list (or a book's chapters). */}
       {/* Out of the way of the results while searching. */}
