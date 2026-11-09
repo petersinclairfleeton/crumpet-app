@@ -11,7 +11,7 @@ import { bibliography, inText } from './citations';
 import { EPUB_TYPE, toEpub } from './epub';
 import { glossaryDoc } from './glossary';
 import { bookCast } from './series';
-import { EXPORT_TYPES, type ExportPart, toHtml, toOdt, toRtf, toText } from './exports';
+import { EXPORT_TYPES, type ExportPart, toHtml, toMarkdownFile, toOdt, toRtf, toText } from './exports';
 import { addFile, mediaUrl } from './files';
 import { type HFContext, type HFRun, cleanHF, fieldValue } from './headers';
 import { docWords, projectChapters } from './selectors';
@@ -153,7 +153,7 @@ export { DOCX_TYPE, EPUB_TYPE };
 /** A note's or project's text in another format (Word's Save As types). */
 export async function exportAs(kind: keyof typeof EXPORT_TYPES, title: string, parts: ExportPart[]): Promise<void> {
   const t = title || 'Untitled';
-  const data = kind === 'fountain' ? toFountain(t, parts) : kind === 'txt' ? toText(t, parts) : kind === 'html' ? await toHtml(t, parts, mediaBytes) : kind === 'rtf' ? toRtf(t, parts) : await toOdt(t, parts, mediaBytes);
+  const data = kind === 'md' ? toMarkdownFile(t, parts) : kind === 'fountain' ? toFountain(t, parts) : kind === 'txt' ? toText(t, parts) : kind === 'html' ? await toHtml(t, parts, mediaBytes) : kind === 'rtf' ? toRtf(t, parts) : await toOdt(t, parts, mediaBytes);
   download(typeof data === 'string' ? new TextEncoder().encode(data) : data, fileName(t, kind), EXPORT_TYPES[kind].type);
 }
 

@@ -2035,7 +2035,7 @@ test('print or save as PDF: the pages as page view shows them, and e-books downl
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download as e-book (ePub)' }).click()]);
   expect(download.suggestedFilename()).toBe('Long essay.epub');
   // Other formats: OpenDocument, Rich Text, a web page and plain text.
-  for (const [name, ext, has] of [['OpenDocument (LibreOffice)', 'odt', 'mimetypeapplication/vnd.oasis.opendocument.text'], ['Rich Text', 'rtf', '{\\rtf1'], ['Web page', 'html', '<p>Line 1 of the essay'], ['Plain text', 'txt', 'Line 50 of the essay']] as const) {
+  for (const [name, ext, has] of [['Markdown', 'md', '# Long essay'], ['OpenDocument (LibreOffice)', 'odt', 'mimetypeapplication/vnd.oasis.opendocument.text'], ['Rich Text', 'rtf', '{\\rtf1'], ['Web page', 'html', '<p>Line 1 of the essay'], ['Plain text', 'txt', 'Line 50 of the essay']] as const) {
     await page.getByRole('button', { name: 'More', exact: true }).click();
     const [file] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: `Download as ${name}` }).click()]);
     expect(file.suggestedFilename()).toBe(`Long essay.${ext}`);
@@ -6405,7 +6405,7 @@ test.describe('on a phone, in Paper and ink', () => {
     await row.locator('.outline-open').click();
     await expect(page.locator('.note-pane .pg')).toHaveCount(0);
     await expect(page.locator('.chapter-meta')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Back to outline' })).toContainText('Outline');
+    await expect(page.getByRole('button', { name: 'Back to outline' })).toContainText('The Lighthouse');
     await page.getByRole('button', { name: 'Chapter options' }).click();
     await expect(page.getByRole('dialog', { name: 'Chapter options' }).getByLabel('Status')).toBeVisible();
   });

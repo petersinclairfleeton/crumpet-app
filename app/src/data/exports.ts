@@ -4,6 +4,7 @@
 // way: headings, paragraphs, lists, quotes, tables, pictures and footnotes,
 // with bold, italic, underline, strikethrough, links and colours in the text.
 
+import { toMarkdown } from '@crumpet/editor/markdown';
 import { chartSvg, parseChart } from '@crumpet/editor/chart';
 import { inkSvg, parseInk } from '@crumpet/editor/ink';
 import type { Block, Doc, Run } from '@crumpet/editor/model';
@@ -411,4 +412,11 @@ export const EXPORT_TYPES = {
   rtf: { type: 'application/rtf', name: 'Rich Text' },
   odt: { type: 'application/vnd.oasis.opendocument.text', name: 'OpenDocument Text' },
   fountain: { type: 'text/plain;charset=utf-8', name: 'Fountain (screenplay)' },
+  md: { type: 'text/markdown;charset=utf-8', name: 'Markdown' },
 } as const;
+
+/** Markdown, Crumpet's own file format: the title, then each part under its heading, as Crumpet writes it. */
+export function toMarkdownFile(title: string, parts: ExportPart[]): string {
+  const body = parts.map((p) => (p.heading ? `## ${p.heading}\n\n` : '') + toMarkdown(p.doc).trim()).join('\n\n');
+  return `# ${title}\n\n${body}\n`;
+}

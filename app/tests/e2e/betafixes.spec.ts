@@ -65,3 +65,38 @@ test('Share with readers and other windows close with Escape', async ({ page }) 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 });
+
+test('a chapter’s ··· menu renames, duplicates and moves it anywhere in the book', async ({ page }) => {
+  await start(page);
+  const store = await crumpet(page);
+  await store.evaluate((s) => s.createProject('The Glass King'));
+  const outline = page.getByRole('region', { name: 'Outline' });
+  await page.getByRole('button', { name: 'Add chapter' }).click();
+  await page.getByRole('button', { name: 'Add chapter' }).click();
+  const titles = () => outline.locator('.outline-title');
+  await expect(titles()).toHaveText(['Chapter 1', 'Chapter 2', 'Chapter 3']);
+  await outline.getByRole('button', { name: 'Options for Chapter 1' }).click();
+  await page.getByRole('menuitem', { name: 'Duplicate chapter' }).click();
+  await expect(titles()).toHaveText(['Chapter 1', 'Chapter 1 (copy)', 'Chapter 2', 'Chapter 3']);
+  await outline.getByRole('button', { name: 'Options for Chapter 1 (copy)' }).click();
+  await page.getByRole('menuitem', { name: 'Move to…' }).click();
+  await page.getByRole('menuitem', { name: 'After Chapter 3' }).click();
+  await expect(titles()).toHaveText(['Chapter 1', 'Chapter 2', 'Chapter 3', 'Chapter 1 (copy)']);
+  await outline.getByRole('button', { name: 'Options for Chapter 1 (copy)' }).click();
+  await page.getByRole('menuitem', { name: 'Move to…' }).click();
+  await page.getByRole('menuitem', { name: 'To the start' }).click();
+  await expect(titles()).toHaveText(['Chapter 1 (copy)', 'Chapter 1', 'Chapter 2', 'Chapter 3']);
+});
+
+test('the formatting tools come back when words are selected with the keyboard', async ({ page }) => {
+  await start(page);
+  await page.getByRole('navigation', { name: 'Notebooks' }).getByRole('button', { name: 'New', exact: true }).click();
+  await page.getByRole('dialog', { name: 'New' }).getByRole('button', { name: /^Note( |$)/ }).click();
+  await page.keyboard.type('Tides');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('The sea came in twice a day.');
+  const pane = page.locator('.note-pane').first();
+  await expect(pane).toHaveClass(/typing/);
+  await page.keyboard.press('Shift+Home');
+  await expect(pane).not.toHaveClass(/typing/);
+});
