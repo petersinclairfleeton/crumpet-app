@@ -2765,7 +2765,6 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 [data-look='crumpet'] .app.calm .note-editor.editor { color: var(--calm-prose); }
 [data-look='crumpet'] .note-editor :is(.blk-heading1, .blk-heading2, .blk-heading3, .blk[data-style='title']) { font-weight: 500; }
 [data-look='crumpet'] .app.calm .note-editor a { text-decoration-color: var(--calm-link-line); text-underline-offset: 3px; }
-.menu-aa { display: inline-block; width: 14px; font-family: var(--title-font); font-size: 13px; text-align: center; }
 
 /* ---- Quiet Paper: the writing room (design 2) ----
    The sidebar folded to its frosted strip, the list away, the page wide; the page's top says where
@@ -3170,9 +3169,8 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 :root[data-calm='phone'] .keyboard-bar .popover { position: absolute; top: auto !important; bottom: calc(100% + 8px) !important; left: 12px !important; right: 12px !important; width: auto !important; min-width: 0; max-height: 60vh; overflow-y: auto; }
 /* Menus on a phone, as on an iPhone: rows a finger tall, the words first and any icon at the end. */
 :root[data-calm='phone'] .popover .menu-item { min-height: 44px; gap: 12px; font-size: 16px; }
-:root[data-calm='phone'] .popover .menu-item:not(.menu-back) > svg:first-child { order: 3; margin-left: auto; }
-:root[data-calm='phone'] .popover .menu-item > .menu-hint { order: 2; }
-:root[data-calm='phone'] .popover .menu-item:has(.menu-hint) > svg:first-child { margin-left: 12px; }
+/* Icons stay on the left, as on a computer (one place on every device); hints go to the right. */
+:root[data-calm='phone'] .popover .menu-item > .menu-hint { margin-left: auto; }
 :root[data-calm='phone'] .popover .menu-label { margin: 10px 12px 4px; font-size: 13px; }
 :root[data-calm='phone'] .keyboard-bar .more-row :is(.menu-item, .more-label) { font-size: 16px; font-weight: 400; }
 :root[data-calm='phone'] .keyboard-bar .style-menu .style-item { min-height: 48px; }

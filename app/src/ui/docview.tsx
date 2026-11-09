@@ -3,6 +3,7 @@
 // the typewriter's three switches (they apply to every note and chapter).
 
 import { useAppState, useAppStore } from './hooks';
+import { IconText } from './icons';
 
 /** Text sizes a document can be shown at, in per cent. */
 export const DOC_SIZES = [70, 80, 90, 100, 110, 125, 150, 175, 200];
@@ -33,6 +34,7 @@ export function DocViewItems({ docId }: { docId: string }) {
   return (
     <>
       <div className="menu-line text-size-row" role="group" aria-label="Text size of this document">
+        <IconText size={14} />
         <span className="grow">Text size</span>
         <button type="button" className="icon-btn" aria-label="Smaller text" disabled={pct <= DOC_SIZES[0]} onClick={() => step(-1)}>
           <small>A</small>−

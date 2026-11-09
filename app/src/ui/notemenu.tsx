@@ -10,7 +10,7 @@ import { useAppState, useAppStore } from './hooks';
 import { usePanes } from './panes';
 import { linkable } from './research';
 import { InlineInput, Popover } from './Sidebar';
-import { IconLink, IconStar, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconBook, IconCopy, IconInbox, IconLink, IconNotebook, IconPen, IconPlus, IconRestore, IconRightPanel, IconStar, IconTag, IconTrash, NotebookIcon } from './icons';
 
 export interface NoteMenuAt {
   ids: string[];
@@ -60,7 +60,7 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
         {mode === 'menu' && trashed && (
           <>
             <button type="button" className="menu-item" onClick={each((n) => store.restoreNote(n.id))}>
-              Restore
+              <IconRestore size={14} /> Restore
             </button>
             <button type="button" className="menu-item danger" onClick={each((n) => store.deleteForever(n.id))}>
               <IconTrash size={14} /> Delete forever
@@ -72,14 +72,14 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
             {one && (
               <>
                 <button type="button" className="menu-item" onClick={done(() => panes.open({ kind: 'note', id: one.id }, 'tab'))}>
-                  Open in a new tab
+                  <IconPlus size={14} /> Open in a new tab
                 </button>
                 <button type="button" className="menu-item" onClick={done(() => panes.split({ kind: 'note', id: one.id }, 'right'))}>
-                  Open to the side
+                  <IconRightPanel size={14} /> Open to the side
                 </button>
                 <hr className="menu-rule" />
                 <button type="button" className="menu-item" onClick={() => setMode('rename')}>
-                  Rename…
+                  <IconPen size={14} /> Rename…
                 </button>
               </>
             )}
@@ -88,7 +88,7 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
             </button>
             {!notes.some((n) => n.projectId) && (
               <button type="button" className="menu-item" onClick={() => setMode('move')}>
-                Move to notebook…
+                <IconNotebook size={14} /> Move to notebook…
               </button>
             )}
             <button type="button" className="menu-item" onClick={() => setMode('tag')}>
@@ -109,7 +109,7 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
                   store.setView(view);
                 })}
               >
-                Duplicate
+                <IconCopy size={14} /> Duplicate
               </button>
             )}
             <hr className="menu-rule" />
@@ -133,7 +133,7 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
           <>
             <p className="menu-label">Move to</p>
             <button type="button" className="menu-item" onClick={each((n) => store.moveNote(n.id, null))}>
-              No notebook
+              <IconInbox size={14} /> No notebook
             </button>
             {state.notebooks.map((nb) => (
               <button key={nb.id} type="button" className="menu-item" onClick={each((n) => store.moveNote(n.id, nb.id))}>
@@ -149,7 +149,7 @@ export function NoteMenu({ at, onClose }: { at: NoteMenuAt; onClose(): void }) {
               const all = notes.every((n) => p.linked?.includes(n.id));
               return (
                 <button key={p.id} type="button" className="menu-item" aria-pressed={all} onClick={each((n) => (all ? store.unlinkNote(p.id, n.id) : store.linkNote(p.id, n.id)))}>
-                  <span className="grow ellipsis">{p.name}</span>
+                  <IconBook size={14} /> <span className="grow ellipsis">{p.name}</span>
                   {all && <span aria-hidden="true">✓</span>}
                 </button>
               );

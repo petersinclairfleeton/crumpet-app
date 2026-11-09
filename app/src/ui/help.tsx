@@ -5,7 +5,7 @@
 // them those aren't offered.
 
 import { useEffect, useState } from 'react';
-import { IconClose, IconHelp } from './icons';
+import { IconClose, IconExternal, IconFlag, IconHeart, IconHelp, IconKeyboard, IconSparkle } from './icons';
 import { Popover } from './Sidebar';
 import { openGuide } from './guide';
 import { WHATS_NEW, hasNews } from '../data/whatsnew';
@@ -46,27 +46,27 @@ export function HelpItems({ onPick }: { onPick(): void }) {
   return (
     <>
       <button type="button" className="menu-item" onClick={pick(openGuide)}>
-        Guide to Crumpet
+        <IconHelp size={14} /> Guide to Crumpet
       </button>
       <button type="button" className="menu-item" onClick={pick(openShortcuts)}>
-        Keyboard shortcuts
+        <IconKeyboard size={14} /> Keyboard shortcuts
       </button>
       <button type="button" className="menu-item" onClick={pick(openWhatsNew)}>
-        What’s new {news && <small className="menu-hint news-new">New</small>}
+        <IconSparkle size={14} /> What’s new {news && <small className="menu-hint news-new">New</small>}
       </button>
       {FEEDBACK_EMAIL && (
         <>
           <button type="button" className="menu-item" onClick={pick(() => openFeedback(PROBLEM))}>
-            Report a problem…
+            <IconFlag size={14} /> Report a problem…
           </button>
           <button type="button" className="menu-item" onClick={pick(() => openFeedback('An idea'))}>
-            Send an idea or thanks…
+            <IconHeart size={14} /> Send an idea or thanks…
           </button>
         </>
       )}
       {SUPPORT_URL && (
         <a className="menu-item" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" onClick={onPick}>
-          Contact support ↗
+          <IconExternal size={14} /> Contact support
         </a>
       )}
     </>

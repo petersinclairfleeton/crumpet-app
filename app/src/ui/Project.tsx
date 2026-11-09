@@ -28,7 +28,7 @@ import { StatusBar } from './statusbar';
 import { useAppState, useAppStore, useAutoHeight, useMedia, useNav } from './hooks';
 import { TextSizeRow } from './iphone';
 import { useSpreadWidth, useSpreads } from './bookspread';
-import { IconBack, IconBox, IconChevron, IconRightPanel, IconSidebar, IconFocus, IconMore, IconPeople, IconPlus, IconSearch } from './icons';
+import { IconBack, IconBox, IconChart, IconChevron, IconCopy, IconNote, IconPage, IconRightPanel, IconShare, IconSidebar, IconFocus, IconMore, IconPeople, IconPlus, IconSearch, IconTag } from './icons';
 import { InlineInput, Popover } from './Sidebar';
 import { SlashMenu } from './slash';
 import { EndnoteList, FootnoteCard, FootnoteList } from './footnotes';
@@ -1083,7 +1083,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
                   {narrow && <TextSizeRow />}
                   {narrow && (
                     <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), setPreviewing(true))}>
-                      Preview pages
+                      <IconPage size={14} /> Preview pages
                     </button>
                   )}
                   <div className="menu-line">
@@ -1098,7 +1098,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
                   )}
                   {!narrow && (
                     <button type="button" className="menu-item" aria-pressed={paged} onClick={() => (setChapterMenu(null), store.updateSettings({ pageView: { ...state.settings.pageView, projects: !paged } }))}>
-                      {paged ? 'Page view: on' : 'Page view'}
+                      <IconPage size={14} /> {paged ? 'Page view: on' : 'Page view'}
                     </button>
                   )}
                   <hr className="menu-sep" />
@@ -1120,20 +1120,20 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
               )}
               <hr className="menu-sep" />
               <button type="button" className="menu-item" onClick={() => setChapterMenu('goal')}>
-                {chapter.goal ? 'Change word goal…' : 'Set word goal…'}
+                <IconChart size={14} /> {chapter.goal ? 'Change word goal…' : 'Set word goal…'}
               </button>
               <button type="button" className="menu-item" onClick={() => setChapterMenu('keywords')}>
-                Keywords…
+                <IconTag size={14} /> Keywords…
               </button>
               <button type="button" className="menu-item" onClick={() => setChapterMenu('draft')}>
-                New draft…
+                <IconCopy size={14} /> New draft…
               </button>
               <button type="button" className="menu-item" onClick={() => (setChapterMenu(null), setSharing(true))}>
-                Share with readers…
+                <IconShare size={14} /> Share with readers…
               </button>
               {phone && (
                 <button type="button" className="menu-item" onClick={() => setChapterMenu('synopsis')}>
-                  Synopsis…
+                  <IconNote size={14} /> Synopsis…
                 </button>
               )}
             </>

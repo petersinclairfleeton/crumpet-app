@@ -4,6 +4,7 @@
 // Safari) a guide to adding Crumpet to the Home Screen, where it opens full
 // screen with its own icon and launch screen.
 
+import { IconText } from './icons';
 import { type RefObject, useEffect, useState } from 'react';
 import { isInstalled, platform } from '../data/pwa';
 import { desktop } from '../data/desktop';
@@ -152,6 +153,7 @@ export function TextSizeRow() {
   const set = (n: number) => store.updateSettings({ noteSize: fitSize(n) });
   return (
     <div className="menu-line text-size-row" role="group" aria-label="Text size">
+      <IconText size={14} />
       <span className="grow">Text size</span>
       <button type="button" className="icon-btn" aria-label="Smaller text" disabled={size <= TEXT_SIZES.min} onClick={() => set(size - 1)}>
         <small>A</small>−
