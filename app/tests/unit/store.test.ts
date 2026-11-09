@@ -301,6 +301,19 @@ describe('projects', () => {
     expect(parts).toEqual([null, 'Part One', 'Coda']);
   });
 
+  it('duplicates a chapter just after it, opened, without its other drafts', async () => {
+    const { store } = await fresh();
+    const p = store.createProject('Novel');
+    const first = p.outline[0].id;
+    store.addChapter(p.id);
+    store.setChapterDoc(first, fromMarkdown('The boat left her at the foot of the steps.'));
+    store.setChapterStatus(first, 'draft');
+    const copy = store.duplicateChapter(first)!;
+    expect(outline(store, p.id)).toEqual(['Chapter 1', 'Chapter 1 (copy)', 'Chapter 2']);
+    expect(toMarkdown(copy.doc).trim()).toBe('The boat left her at the foot of the steps.');
+    expect([copy.status, copy.drafts, store.getState().chapterId]).toEqual(['draft', undefined, copy.id]);
+  });
+
   it('reorder, rename and remove parts and chapters', async () => {
     const { store } = await fresh();
     const p = store.createProject('Essay');

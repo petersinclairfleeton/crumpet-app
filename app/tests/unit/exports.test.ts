@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { fromMarkdown } from '@crumpet/editor/markdown';
-import { toHtml, toOdt, toRtf, toText } from '../../src/data/exports';
+import { toHtml, toMarkdownFile, toOdt, toRtf, toText } from '../../src/data/exports';
 import { readZip } from '../../src/data/zip';
 import { pageRange } from '../../src/ui/print';
 
@@ -57,5 +57,12 @@ describe('the print window’s page ranges', () => {
     expect(pageRange('3–4', 10)).toEqual([3, 4]);
     expect(pageRange('12', 10)).toBeNull();
     expect(pageRange('a', 10)).toBeNull();
+  });
+});
+
+describe('Markdown download', () => {
+  it('writes the title, then each part under its heading, in Crumpet’s own Markdown', () => {
+    const md = toMarkdownFile('Notes on tides', [{ doc: fromMarkdown('Twice a **day**.\n\n- spring\n- neap') }, { heading: 'More', doc: fromMarkdown('See [[Moon]].') }]);
+    expect(md).toBe('# Notes on tides\n\nTwice a **day**.\n\n- spring\n- neap\n\n## More\n\nSee [[Moon]].\n');
   });
 });

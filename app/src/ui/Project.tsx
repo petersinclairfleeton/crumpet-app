@@ -2,7 +2,7 @@ import { DocViewItems } from './docview';
 // A project (a book, an essay, a thesis): its outline of parts and chapters,
 // and the writing, one chapter at a time or as one long manuscript.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import { fullSheet, manuscriptPage } from '../data/styles';
 import { chapterPages, rememberPages } from '../data/pagecount';
 import { type PageFields, PageToggle, PageView } from './pages';
@@ -68,6 +68,8 @@ function OutlineItemMenu({ project, id, x, y, onOpenChapter, onRenamePart, onClo
   const store = useAppStore();
   const panes = usePanes();
   const [renaming, setRenaming] = useState(false);
+  // Move to…: the places it can go, in place of the menu.
+  const [moving, setMoving] = useState(false);
   const index = project.outline.findIndex((x) => x.id === id);
   const item = project.outline[index];
   if (!item) return null;
@@ -101,6 +103,16 @@ function OutlineItemMenu({ project, id, x, y, onOpenChapter, onRenamePart, onClo
             onClose();
           }}
         />
+      ) : moving ? (
+        <>
+          <p className="menu-label">Move “{title}”</p>
+          {row('To the start', () => store.moveOutlineItem(project.id, id, 0), { disabled: index === 0 })}
+          {project.outline.map((x, i) => {
+            if (x.id === id || i === index - 1) return null;
+            const name = x.type === 'part' ? x.title : state.chapters.find((c) => c.id === x.id)?.title || 'Untitled chapter';
+            return <Fragment key={x.id}>{row(`After ${name}`, () => store.moveOutlineItem(project.id, id, i + 1))}</Fragment>;
+          })}
+        </>
       ) : chapter ? (
         <>
           {row('Open', () => onOpenChapter(chapter.id))}
@@ -120,7 +132,11 @@ function OutlineItemMenu({ project, id, x, y, onOpenChapter, onRenamePart, onClo
           </div>
           <hr className="menu-rule" />
           {row('New chapter after this', () => store.addChapter(project.id, chapter.id))}
+          {row('Duplicate chapter', () => store.duplicateChapter(chapter.id))}
           {moves}
+          <button type="button" role="menuitem" className="menu-item" disabled={last === 0} onClick={() => setMoving(true)}>
+            Move to…
+          </button>
           <hr className="menu-rule" />
           {row(
             'Delete chapter',
@@ -663,21 +679,19 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
                 {!calm && !phone && c.goal ? <Progress value={n} goal={c.goal} label={`Progress of ${c.title || 'chapter'}`} /> : null}
               </button>
               <div className="note-actions">
-                <button type="button" className="icon-btn" aria-label={`Options for ${c.title || 'chapter'}`} aria-expanded={itemMenu === item.id} onClick={() => setItemMenu(itemMenu === item.id ? null : item.id)}>
+                {/* The same menu as a right click: rename, status, duplicate, move, delete. */}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={`Options for ${c.title || 'chapter'}`}
+                  aria-expanded={itemAt?.id === item.id}
+                  onClick={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setItemAt(itemAt?.id === item.id ? null : { id: item.id, x: r.left, y: r.bottom + 4 });
+                  }}
+                >
                   <IconMore size={14} />
                 </button>
-                {menuFor(
-                  <button
-                    type="button"
-                    className="menu-item danger"
-                    onClick={() => {
-                      setItemMenu(null);
-                      if (n === 0 || confirm(`Delete “${c.title || 'Untitled chapter'}” and its ${words(n)}?`)) store.deleteChapter(c.id);
-                    }}
-                  >
-                    Delete chapter
-                  </button>,
-                )}
               </div>
             </li>
           );

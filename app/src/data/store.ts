@@ -1289,6 +1289,23 @@ export class AppStore {
     return chapter;
   }
 
+  /** A copy of a chapter (the draft the book uses, its synopsis, status and keywords) just after it; opens it. */
+  duplicateChapter(id: string): Chapter | undefined {
+    const c = this.chapter(id);
+    const project = c && this.project(c.projectId);
+    if (!c || !project) return undefined;
+    const t = this.now();
+    const { draft: _draft, drafts: _drafts, ...rest } = structuredClone(c);
+    const copy: Chapter = { ...rest, id: newId(), title: `${c.title || 'Untitled chapter'} (copy)`, createdAt: t, updatedAt: t };
+    const outline = [...project.outline];
+    outline.splice(outline.findIndex((x) => x.id === id) + 1, 0, { type: 'chapter', id: copy.id });
+    this.set({ chapters: [...this.state.chapters, copy] });
+    this.save(this.storage.putChapter(copy));
+    this.updateProject(project.id, { outline });
+    this.selectChapter(copy.id);
+    return copy;
+  }
+
   /** Adds a part at the end; chapters added after it belong to it. */
   addPart(projectId: string, title?: string): string | undefined {
     const project = this.project(projectId);

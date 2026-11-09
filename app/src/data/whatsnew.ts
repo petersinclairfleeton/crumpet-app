@@ -10,6 +10,17 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-09-chapter-menu',
+    date: '9 November 2026',
+    title: 'A fuller chapter menu, Markdown downloads, and tools on selection',
+    points: [
+      'A chapter’s ··· in the outline now has everything a right click has: rename, status, new chapter after it, and two new ones: Duplicate chapter, and Move to…, which puts it anywhere in the book in one go.',
+      'Download a note as Markdown, Crumpet’s own format, which any notes app opens (··· → Download or print…).',
+      'The formatting tools come back when you select words with the keyboard (Shift and the arrows), not only when you move the mouse.',
+      'On a phone, back buttons name where they go (the list, or the book), and the “Get the Crumpet app” banner shows only on the library.',
+    ],
+  },
+  {
     id: '2026-11-09-own-fonts',
     date: '9 November 2026',
     title: 'Crumpet’s fonts come with it',

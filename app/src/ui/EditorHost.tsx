@@ -153,11 +153,18 @@ export function EditorHost({ docId, loadKey, doc, onDoc, readOnly: readOnlyProp,
       if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) pane.classList.add('typing');
     };
     const awake = () => pane.classList.remove('typing');
+    // Words selected (with Shift and the arrows, or Ctrl+A) bring it back too: they're there to be formatted.
+    const selected = () => {
+      const sel = document.getSelection();
+      if (sel && !sel.isCollapsed && sel.anchorNode && el.contains(sel.anchorNode)) awake();
+    };
     el.addEventListener('keydown', typing);
     window.addEventListener('pointermove', awake);
+    document.addEventListener('selectionchange', selected);
     return () => {
       el.removeEventListener('keydown', typing);
       window.removeEventListener('pointermove', awake);
+      document.removeEventListener('selectionchange', selected);
       awake();
     };
   }, [readOnly, reading]);
