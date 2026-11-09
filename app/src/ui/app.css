@@ -3055,9 +3055,7 @@ input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2
 /* ---- Quiet Paper: the whole window (designs 19, 20 and 22) ---- */
 .graph-view.calm .graph-head { display: flex; align-items: center; gap: 16px; padding: 20px 24px 0; }
 [data-look='crumpet'] .graph-head h1 { margin: 0; font: 500 28px/1.2 var(--title-font); letter-spacing: -0.01em; }
-.graph-chips { display: flex; gap: 6px; }
-.graph-chip { height: 28px; padding: 0 12px; border: none; border-radius: 999px; background: var(--calm-chip); font: 400 13px var(--ui-font); color: var(--calm-chip-ink); cursor: pointer; }
-.graph-chip[aria-pressed='true'] { background: var(--text); color: var(--page); }
+.graph-chips { display: flex; }
 .graph-find { width: 140px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent; font: inherit; font-size: 13px; color: var(--text); }
 .graph-view.calm .graph-head .check-row { font-size: 13px; color: var(--muted); }
 [data-look='crumpet'] .app.calm .board-pane.calm { position: relative; }
@@ -3834,3 +3832,19 @@ html[data-ui-scale] #root, html[data-ui-scale] body > .dialog-backdrop { zoom: v
 html[data-home-guide='1'] .app.phone .phone-library { padding-bottom: calc(200px + env(safe-area-inset-bottom, 0px)); }
 /* A back button names where it goes (a list, a book): long names end in … */
 .icon-btn.back .back-label { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* One switch everywhere in Crumpet's own look (the beta report's D7): Write/Cards/Plan/Read's,
+   a soft tint with the chosen one a raised card. The book's modes and the phone's tabs keep
+   their own sizes, the same look. */
+[data-look='crumpet'] .segmented:not(.phone-tabs):not(.book-modes) { padding: 4px; gap: 4px; border-radius: 8px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+[data-look='crumpet'] .segmented:not(.phone-tabs):not(.book-modes) button { min-height: 28px; padding: 0 10px; border-radius: 8px; font: 500 13px var(--ui-font); color: var(--muted); box-shadow: none; }
+[data-look='crumpet'] .segmented:not(.phone-tabs):not(.book-modes) button:is([aria-pressed='true'], [aria-selected='true'], [aria-checked='true']) { background: var(--calm-card, var(--page)); color: var(--text); box-shadow: 0 1px 2px rgba(31, 35, 40, 0.08); }
+[data-look='crumpet'] .segmented:not(.phone-tabs):not(.book-modes).small button { min-height: 24px; padding: 0 8px; font-size: 12.5px; }
+
+/* One title size per level (D13): a column's or a screen's title, the list's "All notes" and the
+   book's name in its outline alike (long names take two lines). */
+[data-look='crumpet'] .book-side .book-name h1, [data-look='crumpet'] .app.calm .book-side .book-name h1 { font-size: 28px; line-height: 1.15; white-space: normal; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+[data-look='crumpet'] .book-side .book-head .list-title { align-items: flex-start; height: auto; }
+
+/* The Tags menu's empty line sits with the menu's text, not pushed to the right. */
+.tags-pop .tag-list > .menu-hint { margin: 2px 8px 6px; padding: 0; }

@@ -186,7 +186,7 @@ export function GraphView() {
       {calm && (
         <div className="graph-head">
           <h1>Graph</h1>
-          <div className="graph-chips" role="group" aria-label="Which notes">
+          <div className="segmented graph-chips" role="group" aria-label="Which notes">
             {(
               [
                 [0, 'All notes'],
@@ -194,7 +194,7 @@ export function GraphView() {
                 [2, 'Two links away'],
               ] as const
             ).map(([n, label]) => (
-              <button key={n} type="button" className="graph-chip" aria-pressed={local === n} onClick={() => setLocal(n)}>
+              <button key={n} type="button" aria-pressed={local === n} onClick={() => setLocal(n)}>
                 {label}
               </button>
             ))}

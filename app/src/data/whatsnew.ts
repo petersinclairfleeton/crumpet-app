@@ -10,6 +10,16 @@ export interface WhatsNew {
 
 export const WHATS_NEW: WhatsNew[] = [
   {
+    id: '2026-11-09-one-look',
+    date: '9 November 2026',
+    title: 'Menus, switches and titles that match',
+    points: [
+      'Every item in a menu has an icon now (or, in the book’s and notebook’s menus, none do), and on a phone they stay on the left as on a computer.',
+      'The switches (Write, Cards, Plan, Read; the Plan’s tabs; the Graph’s All notes, Near the open note, Two links away) all look the same.',
+      'A book’s name in its outline is as big as a list’s title, on two lines if it’s long. Empty Distill and Express sections in the sidebar offer to make one, as Organise does.',
+    ],
+  },
+  {
     id: '2026-11-09-chapter-menu',
     date: '9 November 2026',
     title: 'A fuller chapter menu, Markdown downloads, and tools on selection',

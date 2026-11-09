@@ -223,7 +223,12 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
         </div>
       )}
       {distill && !loose.some(mine) && !stacks.some((x) => mine(x.stack)) && creating !== nbKind && creating !== stKind && (
-        <p className="side-empty indent">Notebooks for your own thinking. Make one from New, or drag a notebook here.</p>
+        <div className="side-empty">
+          <p>Notebooks for your own thinking. Drag a notebook here, or:</p>
+          <button type="button" className="side-link" onClick={() => setCreating(nbKind)}>
+            Create a Distill notebook
+          </button>
+        </div>
       )}
       {loose.filter(mine).map((nb) => (
         <NotebookRow key={nb.id} nb={nb} count={counts.get(nb.id) ?? 0} depth={0} calm={calm} active={active({ kind: 'notebook', id: nb.id })} onOpen={() => onOpenView({ kind: 'notebook', id: nb.id })} />
@@ -251,7 +256,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
       </button>
       {tagsOpen && (
         <div className="tag-list">
-          {tags.length === 0 && <p className="side-empty indent">Tags you add to notes show up here.</p>}
+          {tags.length === 0 && <p className="side-empty">Tags you add to notes show up here.</p>}
           <TagRows nodes={tags} depth={0} active={active} onOpenView={onOpenView} onDropTag={toTag} />
         </div>
       )}
@@ -377,7 +382,14 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
 
         {(on('express') || on('submissions')) && <SideSection name="Express" hint="Your books, and where you’ve sent them" folded={folded} onToggle={toggleSection} drop={projectsHead}>
           {on('express') && newProject}
-          {on('express') && state.projects.length === 0 && creating !== 'project' && <p className="side-empty indent">Start a book from New.</p>}
+          {on('express') && state.projects.length === 0 && creating !== 'project' && (
+            <div className="side-empty">
+              <p>Books and other long writing, in chapters.</p>
+              <button type="button" className="side-link" onClick={() => setCreating('project')}>
+                Start a book
+              </button>
+            </div>
+          )}
           {on('express') && projectRows}
           {on('submissions') && <SideRow icon={<IconSend size={18} />} label="Submissions" active={false} onClick={() => openSubmissions()} strong />}
         </SideSection>}
@@ -461,7 +473,7 @@ export function Sidebar({ onOpenView, onOpenNote, onNewNote, onClose, onToday, o
           <div className="side-empty">
             <p>Books, essays and other long writing, in chapters.</p>
             <button type="button" className="side-link" onClick={() => setCreating('project')}>
-              Start a project
+              Start a book
             </button>
           </div>
         )}
