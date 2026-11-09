@@ -28,7 +28,7 @@ import { DOCX_TYPE, EPUB_TYPE, docxName, download, fileName, noteDocx, noteEpub 
 import { PrintJob } from './print';
 import { makeBlock } from '@crumpet/editor/model';
 import { ReminderButton } from './reminders';
-import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconLock, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconRightPanel, IconSend, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon } from './icons';
+import { IconInbox, IconPlus, IconBack, IconBell, IconSearch, IconCopy, IconDownload, IconLock, IconFocus, IconPage, IconPicture, IconPrint, IconBook, IconMore, IconNotebook, IconPen, IconRestore, IconRightPanel, IconSend, IconShare, IconStar, IconStarFilled, IconTag, IconTrash, NotebookIcon, IconText } from './icons';
 import { BoardView } from './board';
 import { FileView, WordBanner, chooseUploads, downloadFile, uploadFiles } from './uploads';
 import { fileKind } from '../data/documents';
@@ -316,7 +316,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
               {!narrow && <DocViewItems docId={note.id} />}
               {calm && !narrow && (
                 <button type="button" className="menu-item" aria-pressed={toolsAtRest} onClick={() => (setMenu(false), store.updateSettings({ toolbar: toolsAtRest ? 'selection' : 'always' }))}>
-                  <span className="menu-aa" aria-hidden="true">Aa</span> {toolsAtRest ? 'Formatting only on selected text' : 'Formatting bar always on show'}
+                  <IconText size={14} /> {toolsAtRest ? 'Formatting only on selected text' : 'Formatting bar always on show'}
                 </button>
               )}
               <hr className="menu-sep" />
@@ -381,7 +381,7 @@ export function NotePane({ onBack, narrow, onNewNote, onNewProject, noteId }: Pa
                 <IconLock size={14} /> Lock now
               </button>
               <button type="button" className="menu-item" onClick={() => (setMenu(false), removePassword(note.id, store))}>
-                Remove the password
+                <IconLock size={14} /> Remove the password
               </button>
             </>
           )}

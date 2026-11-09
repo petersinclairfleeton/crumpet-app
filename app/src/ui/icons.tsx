@@ -162,3 +162,11 @@ export const IconHelp = icon(
 export const IconShare = icon(<path d="M12 15V4M8 8l4-4 4 4M6 11H5v9h14v-9h-1" />);
 // An envelope: Submissions, where writing has been sent.
 export const IconSend = icon(<path d="M4 6h16v12H4zM4.5 6.5 12 12.5l7.5-6" />);
+
+// Menus give every item an icon (the beta report's D4): these fill the gaps.
+export const IconKeyboard = icon(<path d="M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10" />);
+export const IconSparkle = icon(<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7z" />);
+export const IconFlag = icon(<path d="M5 21V4M5 4h11l-2 4 2 4H5" />);
+export const IconText = icon(<path d="M4 7V5h16v2M12 5v14M9 19h6" />);
+export const IconExternal = icon(<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6" />);
+export const IconHeart = icon(<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />);
