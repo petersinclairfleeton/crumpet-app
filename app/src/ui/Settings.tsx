@@ -45,6 +45,13 @@ const CALM_THEMES: [string, string][] = [
   ['paper', 'Paper and ink'],
 ];
 
+/** A theme's own colours for its little picture (not the theme in use): sidebar, page, accent. */
+function themePicColours(id: string): React.CSSProperties | undefined {
+  if (['light', 'dark', 'system', 'paper'].includes(id)) return undefined;
+  const [side, list, page, accent] = themeInfo(id as Parameters<typeof themeInfo>[0]).preview;
+  return { '--pic-side': side, '--pic-back': list, '--pic-page': page, '--pic-accent': accent } as React.CSSProperties;
+}
+
 /** Settings, as a window over the app, in a few sections. */
 export function SettingsDialog({ onClose, section: asked }: { onClose(): void; section?: SettingsSection }) {
   const state = useAppState();
@@ -62,6 +69,13 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
   const shownThemes = allThemes || !MAIN_THEMES.includes(s.theme) ? THEMES : THEMES.filter((t) => MAIN_THEMES.includes(t.id));
   const size = s.noteSize ?? DEFAULT_NOTE_SIZE;
   const ui = s.uiScale ?? 100;
+
+  // Each page opens at its top, not as far down as the last one was scrolled.
+  useEffect(() => {
+    const root = panel.current ?? document.querySelector<HTMLElement>('.phone-settings, .settings-dialog');
+    root?.querySelectorAll<HTMLElement>('.settings, .settings-main').forEach((el) => (el.scrollTop = 0));
+    if (root) root.scrollTop = 0;
+  }, [picked]);
 
   // The window takes the focus once, when it opens: the app redraws on every
   // change (each letter typed in a box), and taking it again would pull the
@@ -90,7 +104,7 @@ export function SettingsDialog({ onClose, section: asked }: { onClose(): void; s
               <div className="theme-row">
                 {(allThemes || !CALM_THEMES.some(([id]) => id === s.theme) ? THEMES.map((t) => [t.id, t.name] as [string, string]) : CALM_THEMES).map(([id, name]) => (
                   <button key={id} type="button" className="theme-pick" aria-pressed={s.theme === id} aria-label={name} title={themeInfo(id as typeof s.theme).hint} onClick={() => store.updateSettings({ theme: id as typeof s.theme })}>
-                    <span className={`theme-pic ${id}`} aria-hidden="true">
+                    <span className={`theme-pic ${id}`} aria-hidden="true" style={themePicColours(id)}>
                       <i />
                       <i />
                     </span>

@@ -4,6 +4,7 @@
 // their parents. Click someone in the tree to open their card.
 
 import { useState } from 'react';
+import { useOpenFocus } from './dialogfocus';
 import { createPortal } from 'react-dom';
 import { FAMILY, TIE_KINDS, type Tie, type TieKind, familyTree, tiesOf } from '../data/family';
 import type { CastMember, Project } from '../data/types';
@@ -103,9 +104,10 @@ export function FamilyTreeDialog({ project, onClose }: { project: Project; onClo
   const width = Math.max(320, ...tree.nodes.map((n) => left(n.x) + W + 16));
   const height = Math.max(120, top(tree.gens) - GAP_Y + 16);
   const others = people.some((m) => (m.ties ?? []).some((t) => !FAMILY.includes(t.kind)));
+  const dialogRef = useOpenFocus<HTMLDivElement>();
   return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog family-dialog" role="dialog" aria-modal="true" aria-label="Family tree" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div className="dialog family-dialog" role="dialog" aria-modal="true" aria-label="Family tree" tabIndex={-1} ref={dialogRef} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
         <header className="dialog-head">
           <h2>Family tree</h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>

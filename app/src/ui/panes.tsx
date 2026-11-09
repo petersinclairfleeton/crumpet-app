@@ -154,6 +154,22 @@ export function usePanesState(): Ctl {
     });
   }, [projectId, state.chapterId, update]);
 
+  // Choosing a list of notes (Favourites, Today, a notebook…) shows its selected note where you're working,
+  // or, with none, puts away the book or note that was there, so the page matches the list.
+  const viewKey = state.view.kind === 'project' ? '' : JSON.stringify(state.view);
+  const seenView = useRef(viewKey);
+  useEffect(() => {
+    if (viewKey === seenView.current) return;
+    seenView.current = viewKey;
+    if (!viewKey) return;
+    const id = store.getState().selectedId;
+    update((w) => {
+      const t = activeTab(w);
+      if (id) return sameTab(t, { kind: 'note', id }) ? w : open(w, { kind: 'note', id });
+      return t && (t.kind === 'note' || t.kind === 'project' || t.kind === 'chapter') ? closeTab(w, w.active, activeGroup(w).active) : w;
+    });
+  }, [viewKey, store, update]);
+
   // Tabs for things deleted for good close.
   const sizes = `${state.notes.length}/${state.projects.length}/${state.chapters.length}`;
   useEffect(() => {

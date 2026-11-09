@@ -4,6 +4,7 @@
 // your text, as Crumpet comments. Each share is a copy as the text stood then.
 
 import { useState } from 'react';
+import { useOpenFocus } from './dialogfocus';
 import { createPortal } from 'react-dom';
 import { type Shared, bringBack, bringBackBook, readerComments, shareCopy } from '../data/share';
 import { projectChapters } from '../data/selectors';
@@ -117,9 +118,10 @@ export function ShareDialog({ what, onClose }: { what: ShareWhat; onClose(): voi
     setCopied(s.docId);
   };
 
+  const dialogRef = useOpenFocus<HTMLDivElement>();
   return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="dialog share-dialog" role="dialog" aria-modal="true" aria-label="Share with readers" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div className="dialog share-dialog" role="dialog" aria-modal="true" aria-label="Share with readers" tabIndex={-1} ref={dialogRef} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
         <header className="dialog-head">
           <h2>Share with readers</h2>
           <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>

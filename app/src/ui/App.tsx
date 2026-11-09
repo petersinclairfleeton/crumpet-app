@@ -176,10 +176,16 @@ export function App() {
     [store],
   );
 
-  // A new note waits in the Inbox, whatever list is showing (Inbox shows, unless All notes is).
-  const newNote = useCallback(() => {
+  // A new note made while a notebook, tag or Favourites is showing belongs there and the list stays;
+  // anywhere else it waits in the Inbox (Inbox shows, unless All notes is).
+  const newInboxNote = useCallback(() => {
     store.showInbox();
     store.createNote({ notebookId: null });
+  }, [store]);
+  const newNote = useCallback(() => {
+    const kind = store.getState().view.kind;
+    if (kind === 'notebook' || kind === 'tag' || kind === 'favorites') store.createNote();
+    else newInboxNote();
     setPane('note');
     // The title field focuses itself when a new, empty note opens.
   }, [store]);
@@ -216,8 +222,10 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'n' && e.key !== 'N') return;
       if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return;
+      // Only when nothing has the focus: a writer typing after clicking a button or a list
+      // would otherwise make a note with every n (and the rest of the sentence its title).
       const el = document.activeElement as HTMLElement | null;
-      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (el && el !== document.body && el !== document.documentElement) return;
       if (document.querySelector('.dialog')) return;
       e.preventDefault();
       newNote();
@@ -461,7 +469,7 @@ export function App() {
       {/* (A book's is the outline's own, which knows which of its tabs is open.) */}
       {/* The library's makes a quick note in Inbox, whichever list was open last. */}
       {phoneCalm && !state.focusMode && (pane === 'sidebar' || (pane === 'list' && !state.query && !project)) && (
-        <button type="button" className={`fab${pane === 'sidebar' ? ' on-library' : ''}`} aria-label="New note" onClick={newNote}>
+        <button type="button" className={`fab${pane === 'sidebar' ? ' on-library' : ''}`} aria-label="New note" onClick={pane === 'sidebar' ? () => (newInboxNote(), setPane('note')) : newNote}>
           <IconPlus size={26} />
         </button>
       )}

@@ -20,7 +20,7 @@ function startOfDay(t: number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
-/** The quick choices: later today (in three hours, on the hour), tomorrow at 9, next Monday at 9. */
+/** The quick choices: later today (in three hours, on the hour), tomorrow at 9, next Monday at 9 (the one after tomorrow's, on a Sunday). */
 export function quickTimes(now: number): { label: string; at: number }[] {
   const later = new Date(now + 3 * HOUR);
   later.setMinutes(0, 0, 0);
@@ -28,7 +28,9 @@ export function quickTimes(now: number): { label: string; at: number }[] {
   tomorrow.setDate(tomorrow.getDate() + 1);
   tomorrow.setHours(9, 0, 0, 0);
   const monday = new Date(startOfDay(now));
-  monday.setDate(monday.getDate() + (((8 - monday.getDay()) % 7) || 7));
+  // On a Sunday next Monday is tomorrow, which Tomorrow morning already offers: a week on from it.
+  const ahead = ((8 - monday.getDay()) % 7) || 7;
+  monday.setDate(monday.getDate() + (ahead === 1 ? 8 : ahead));
   monday.setHours(9, 0, 0, 0);
   const out = [
     { label: 'Tomorrow morning', at: tomorrow.getTime() },
