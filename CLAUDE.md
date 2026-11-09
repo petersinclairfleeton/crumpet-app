@@ -465,7 +465,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx
   - Looks: `ui/theme.ts` sets `data-theme` and `data-look` on the page: Crumpet's
     own themes (`system`, `light`, `dark`) get `data-look='crumpet'` (Quiet Paper: the
     frosted window over a wash, warm paper sheets, Onest for the interface and
-    Newsreader for titles, honey once per screen, corners only 8px/12px/round),
+    Newsreader for titles (both shipped with the app, `ui/appfonts.ts`), honey once per screen (the sidebar's New), corners only 8px/12px/round),
     `paper` gets `data-look='paper'` (Paper and ink);
     the rest keep the classic frame. The paper colour (`settings.paper`,
     `data/paper.ts`, `ui/paper.tsx`) sets `--paper`/`--paper-ink` and
@@ -594,8 +594,7 @@ cd app && CHROMIUM_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npx
   once); the Windows app was built and started on GitHub's Windows machines, not
   tried by hand, and its Google sign-in (the same browser round trip as the Mac's)
   is untested on Windows. The Mac app's Google sign-in needs `VITE_GOOGLE_MAC_CLIENT_ID` (docs step 4b),
-  and was tested on Linux with a stand-in for Google, not on a real Mac; its
-  fonts come from the internet (the Mac's own font is used offline).
+  and was tested on Linux with a stand-in for Google, not on a real Mac.
 - Share with readers was tested against a fake Google Drive, not the real one
   yet. Print-ready books were checked as PDFs here (trim size, pages, margins),
   not yet in KDP's or IngramSpark's previewer; their typefaces come from Google
