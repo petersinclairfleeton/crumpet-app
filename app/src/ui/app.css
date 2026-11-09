@@ -3831,3 +3831,8 @@ html[data-ui-scale] #root, html[data-ui-scale] body > .dialog-backdrop { zoom: v
 .inbox-folder-name b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inbox-folder-name small { font-size: 12px; color: var(--muted); }
 .inbox-folder .btn { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+
+/* The Home Screen guide's room at the foot of the phone's library (ui/iphone.tsx). */
+html[data-home-guide='1'] .app.phone .phone-library { padding-bottom: calc(200px + env(safe-area-inset-bottom, 0px)); }
+/* A back button names where it goes (a list, a book): long names end in … */
+.icon-btn.back .back-label { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

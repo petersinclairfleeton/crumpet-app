@@ -1005,7 +1005,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
   const lead = narrow ? (
     <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
       <IconBack size={18} />
-      <span className="back-label">Outline</span>
+      <span className="back-label">{project.name || 'Untitled book'}</span>
     </button>
   ) : compact ? (
     <>
@@ -1459,7 +1459,7 @@ function Manuscript({ project, narrow, onBack }: { project: Project; narrow: boo
           {narrow && (
             <button type="button" className="icon-btn back" aria-label="Back to outline" onClick={onBack}>
               <IconBack size={18} />
-              <span className="back-label">Outline</span>
+              <span className="back-label">{project.name || 'Untitled book'}</span>
             </button>
           )}
           {!reading && !floating && !narrow && <FormatTools fit editor={active} readOnly={false} onLink={() => setLinkOpen(true)} sheet={sheet} onEditStyles={(key?: string) => setStylesOpen(key ?? true)} page={pageSetup} onPage={(pg) => store.setProjectPage(project.id, pg)} chapters />}
