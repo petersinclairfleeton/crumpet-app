@@ -292,7 +292,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
           )}
           {menu === 'rename' ? (
             <InlineInput
-              label="Project name"
+              label="Book name"
               initial={project.name}
               onDone={(name) => {
                 setMenu(null);
@@ -315,11 +315,11 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
           )}
           <span className="grow" />
           <div className="note-actions">
-            <button type="button" className="icon-btn" aria-label="Project options" aria-expanded={menu === 'menu'} onClick={() => setMenu(menu ? null : 'menu')}>
+            <button type="button" className="icon-btn" aria-label="Book options" aria-expanded={menu === 'menu'} onClick={() => setMenu(menu ? null : 'menu')}>
               <IconMore size={16} />
             </button>
             {(menu === 'menu' || menu === 'delete' || menu === 'goal' || menu === 'deadline' || menu === 'draft' || menu === 'series') && (
-              <Popover onClose={() => setMenu(null)} label="Project options">
+              <Popover onClose={() => setMenu(null)} label="Book options">
                 {menu === 'menu' && (
                   <>
                     <button type="button" className="menu-item" onClick={() => setMenu('rename')}>
@@ -483,7 +483,7 @@ export function ProjectOutline({ project, onOpenChapter, onBack }: { project: Pr
               {(
                 [
                   ['chapters', 'Chapters'],
-                  ['cast', 'Cast'],
+                  ['cast', 'Characters'],
                   ['research', 'Research'],
                   ['plan', 'Plan'],
                 ] as const
@@ -881,6 +881,11 @@ function AutoTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) 
   return <textarea ref={ref} rows={1} {...props} />;
 }
 
+/** True when a chapter's title is just its number ("Chapter 3"), so no "Chapter Three" above it. */
+function saysNumber(title: string, n: number): boolean {
+  return title.trim().toLowerCase() === `chapter ${n}`;
+}
+
 /** Chapters already given the caret once, as they were made. */
 const caretGiven = new Set<string>();
 
@@ -1049,7 +1054,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
         <IconChevron size={18} />
       </button>
       {!menuHolds && <PageToggle on={paged} onChange={(on) => store.updateSettings({ pageView: { ...state.settings.pageView, projects: on } })} />}
-      {!menuHolds && <button type="button" className={`icon-btn${state.settings.layout?.right ? ' on' : ''}`} aria-label={state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'} aria-pressed={!!state.settings.layout?.right} data-tip="Inspector: who’s in this chapter, notes and comments" onClick={() => store.updateLayout({ right: !state.settings.layout?.right })}>
+      {!menuHolds && <button type="button" className={`icon-btn${state.settings.layout?.right ? ' on' : ''}`} aria-label={state.settings.layout?.right ? 'Hide the inspector' : 'Show the inspector'} aria-pressed={!!state.settings.layout?.right} data-tip="Inspector: who’s in this chapter, notes and comments" onClick={() => store.updateLayout({ right: !state.settings.layout?.right })}>
         <IconRightPanel size={18} />
       </button>}
       <button type="button" className="icon-btn" aria-label="Chapter options" aria-expanded={!!chapterMenu} onClick={() => setChapterMenu(chapterMenu ? null : 'menu')}>
@@ -1074,7 +1079,7 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
                   {/* A phone has no inspector (it would have no room); an iPad's slides in as a drawer. */}
                   {!phone && (
                     <button type="button" className="menu-item" aria-pressed={!!state.settings.layout?.right} onClick={() => (setChapterMenu(null), store.updateLayout({ right: !state.settings.layout?.right }))}>
-                      <IconPeople size={14} /> {state.settings.layout?.right ? 'Close the inspector' : 'Open the inspector'}
+                      <IconPeople size={14} /> {state.settings.layout?.right ? 'Hide the inspector' : 'Show the inspector'}
                     </button>
                   )}
                   {!narrow && (
@@ -1186,7 +1191,11 @@ export function ChapterPane({ project, chapter, narrow, onBack, draft }: { proje
     <>
       <DraftTabs chapter={chapter} viewing={shown.id} onView={setViewId} onBeside={openBeside} />
       <div className="chapter-opening">
-      <p className="chapter-kicker">{[!calm && !phone && part?.title, `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ')}</p>
+      {/* "Chapter One" above a title that already says "Chapter 1" would say it twice. */}
+      {(() => {
+        const kicker = [!calm && !phone && part?.title, !saysNumber(chapter.title, at + 1) && `Chapter ${numberInWords(at + 1)}`].filter(Boolean).join(' · ');
+        return kicker ? <p className="chapter-kicker">{kicker}</p> : null;
+      })()}
       <AutoTextarea
         className="note-title"
         aria-label="Chapter title"
@@ -1615,7 +1624,7 @@ function ManuscriptChapter({ chapter, number, page, sheetClass, onActive, onEdit
       {!reading && <CommentCard editor={editor} />}
       {!reading && <ChangeCard editor={editor} />}
       {!reading && <ChangesBar doc={chapter.doc} editor={editor} />}
-      <p className="chapter-kicker">Chapter {numberInWords(number)}</p>
+      {!saysNumber(chapter.title, number) && <p className="chapter-kicker">Chapter {numberInWords(number)}</p>}
       {reading ? (
         <h2 className="note-title ms-title">{chapter.title || `Chapter ${number}`}</h2>
       ) : (

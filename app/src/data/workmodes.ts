@@ -11,7 +11,7 @@ export const PARTS = [
   { id: 'favourites', label: 'Favourites', hint: 'Starred notes, at the top of the sidebar.' },
   { id: 'graph', label: 'Graph of links', hint: 'The map of how notes link to each other.' },
   { id: 'distill', label: 'Distill', hint: 'Notebooks and stacks of your own thinking.' },
-  { id: 'express', label: 'Books (Express)', hint: 'Manuscripts in chapters, with cards, a plan and characters.' },
+  { id: 'express', label: 'Books (Express)', hint: 'Books in chapters, with cards, a plan and characters.' },
   { id: 'submissions', label: 'Submissions', hint: 'Where your writing has been sent, and the replies.' },
   { id: 'tags', label: 'Tags', hint: 'The # at the foot of the sidebar.' },
   { id: 'boards', label: 'Boards', hint: 'Cards and arrows, from New → Board.' },

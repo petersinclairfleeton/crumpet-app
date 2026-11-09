@@ -22,7 +22,7 @@ export function useStyleSources(except: string): { label: string; sheet: StyleSh
   return useMemo(
     () => [
       ...(except === 'notes' ? [] : [{ label: 'Notes', sheet: fullSheet(state.settings.noteStyles, 'crumpet') }]),
-      ...state.projects.filter((p) => p.id !== except).map((p) => ({ label: p.name || 'Untitled project', sheet: fullSheet(p.styles, 'manuscript') })),
+      ...state.projects.filter((p) => p.id !== except).map((p) => ({ label: p.name || 'Untitled book', sheet: fullSheet(p.styles, 'manuscript') })),
     ],
     [state.settings.noteStyles, state.projects, except],
   );
@@ -292,7 +292,7 @@ export function StylesDialog({ title, sheet, onChange, page, onPage, onClose, ch
                     setMadeDefault(true);
                   }}
                 >
-                  {madeDefault ? 'Set as default ✓' : 'Set as default for new projects'}
+                  {madeDefault ? 'Set as default ✓' : 'Set as default for new books'}
                 </button>
               )}
             </div>

@@ -294,7 +294,7 @@ test('drag and drop in the sidebar: notebooks into and out of stacks, reordering
   for (const name of ['Novel', 'Essay']) {
     // In a book the sidebar steps back to its strip; bring it back to make another.
     if (await side.getByRole('button', { name: 'Show the sidebar' }).count()) await side.getByRole('button', { name: 'Show the sidebar' }).click();
-    await side.getByRole('button', { name: 'New project' }).click();
+    await side.getByRole('button', { name: 'New book' }).click();
     await page.keyboard.type(name);
     await page.keyboard.press('Enter');
     await expect(side.getByRole('button', { name: new RegExp(`^${name}`) })).toBeVisible();
@@ -398,7 +398,7 @@ test('settings: dark appearance and a different accent', async ({ page }) => {
   await open(page);
   await sidebar(page).locator('.account').click();
   await page.getByRole('tab', { name: 'Appearance' }).click();
-  await page.getByRole('button', { name: 'Crumpet dark', exact: true }).click();
+  await page.getByRole('button', { name: 'Dark', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.getByRole('button', { name: 'Blueberry' }).click();
   await expect.poll(() => page.evaluate(() => document.documentElement.style.getPropertyValue('--accent'))).toBe('#3E6DB5');
@@ -622,7 +622,7 @@ test('reading view shows the note as a book page, and Escape goes back to editin
 
 test('projects: chapters and parts, status, synopsis, goals, reordering and the manuscript', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   const outline = page.getByRole('region', { name: 'Outline' });
@@ -711,7 +711,7 @@ test('styles: apply from the menu, align, and modify a style for every paragraph
 
 test('a chapter’s first paragraph, and the first after a heading or blank line, aren’t indented; a tick box indents them too', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.getByLabel('Chapter title').fill('The Keeper');
@@ -930,7 +930,7 @@ test('headers and footers: page numbers, editing on the page, fields, and differ
 
 test('headers and footers in a project: manuscript format, and page numbers running through the chapters', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   // The book's own Author name (Page setup → Headers and footers): Crumpet keeps no name of its own.
@@ -1092,10 +1092,10 @@ test('the guide: opens by itself on a first visit, chapter by chapter with pictu
   await expect(guide).toBeVisible();
   // Workflows open one at a time.
   await guide.getByRole('navigation').getByRole('button', { name: /Workflows/ }).click();
-  await expect(guide).toContainText('Choose New → Manuscript in the sidebar');
+  await expect(guide).toContainText('Choose New → Book in the sidebar');
   await guide.getByRole('button', { name: /Keep a journal/ }).click();
   await expect(guide).toContainText('Click Today in the sidebar');
-  await expect(guide).not.toContainText('Choose New → Manuscript in the sidebar');
+  await expect(guide).not.toContainText('Choose New → Book in the sidebar');
   // Ready: a first note (no sign-in and no name asked for).
   await guide.getByRole('button', { name: /^Next/ }).click();
   await expect(guide.getByLabel('Your name')).toHaveCount(0);
@@ -2052,7 +2052,7 @@ test('print or save as PDF: the pages as page view shows them, and e-books downl
 
 test('corkboard and research: chapters as cards to edit and reorder, research notes and files beside the writing', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   const outline = page.getByRole('region', { name: 'Outline' });
@@ -2114,7 +2114,7 @@ test('corkboard and research: chapters as cards to edit and reorder, research no
 
 test('characters and places: a card for each, names spotted in the chapters, and a card on hover', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   const outline = page.getByRole('region', { name: 'Outline' });
@@ -2163,7 +2163,7 @@ test('characters and places: a card for each, names spotted in the chapters, and
 test('search finds words in chapters too, highlighted, and opens the chapter', async ({ page }) => {
   await open(page);
   await newNote(page, 'Mara notes', 'Ideas for her voice.');
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.getByLabel('Chapter title').fill('The Keeper');
@@ -2197,7 +2197,7 @@ test('find and replace: in a note with Ctrl+F, and across a whole book', async (
   await expect(page.locator('.note-editor')).toContainText('The lamp and the Lamp and the lampshade.');
 
   // A book: look in every chapter, and replace in all of them.
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.getByLabel('Chapter title').fill('One');
@@ -2224,15 +2224,15 @@ test('find and replace: in a note with Ctrl+F, and across a whole book', async (
 
 test('a deadline: words a day to finish on time, and whether the writing keeps pace', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   const outline = page.getByRole('region', { name: 'Outline' });
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: 'Word goal…' }).click();
   await page.getByLabel('Word goal for the project').fill('1000');
   await page.keyboard.press('Enter');
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: 'Deadline…' }).click();
   // Ten days, today included: 100 words a day.
   const due = await page.evaluate(() => {
@@ -2254,7 +2254,7 @@ test('a deadline: words a day to finish on time, and whether the writing keeps p
 
 test('suggest a name: pick a region and era, click a name to add it to the book', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   const outline = page.getByRole('region', { name: 'Outline' });
@@ -2308,7 +2308,7 @@ test('typewriter mode: the typing line stays mid-screen, other paragraphs fade, 
 test('chapters open as pages, with no “Start writing” on the page, and the pinned bar keeps to one row', async ({ page }) => {
   await open(page);
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await expect(page.locator('.page-view')).toBeVisible();
@@ -2393,7 +2393,7 @@ test('first-line indents in a book: Backspace takes one away, Tab brings it back
   await open(page);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.locator('.note-editor .blk').first().click();
@@ -2463,7 +2463,7 @@ test('page view status bar: page and word count, zoom, ruler indents, headings t
   await open(page);
   await page.setViewportSize({ width: 1600, height: 900 });
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await expect(page.locator('.page-view')).toBeVisible();
@@ -2771,7 +2771,7 @@ test('table styles: pick one from the gallery, and take it off again', async ({ 
 
 test('table of contents: from the / menu, lists the headings with their pages, and goes to one; landscape pages', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await expect(page.locator('.page-view')).toBeVisible();
@@ -2940,7 +2940,7 @@ test('layout: columns, a continuous section break, a column break and a landscap
   await open(page);
   await page.setViewportSize({ width: 1700, height: 900 });
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await expect(page.locator('.page-view')).toBeVisible();
@@ -2986,7 +2986,7 @@ test('page setup: margins for one section from the caret on, and for the whole d
   await open(page);
   await page.setViewportSize({ width: 1700, height: 900 });
   await page.evaluate(() => (window as unknown as { crumpet: { updateSettings(p: object): void } }).crumpet.updateSettings({ toolbar: 'always' }));
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.locator('.note-editor .blk').first().click();
@@ -4007,7 +4007,7 @@ test('the right sidebar: the outline of headings, styles, and links to and from 
   await page.keyboard.type('## Upstairs');
   await page.keyboard.press('Enter');
   await page.keyboard.type('The lens.');
-  await page.getByRole('button', { name: 'Show the right sidebar' }).click();
+  await page.getByRole('button', { name: 'Show the inspector' }).click();
   const right = page.getByRole('complementary', { name: 'Right sidebar' });
   await expect(right.getByRole('tab', { name: 'Outline' })).toHaveAttribute('aria-selected', 'true');
   await expect(right.locator('.right-outline button:not(.outline-mark)')).toHaveText(['Upstairs']);
@@ -4124,7 +4124,7 @@ test('version history: versions kept while writing, compared and gone back to', 
 
 test('chapter keywords: add them, see them in the outline and cards, and show only the chapters with one', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('Book');
   await page.keyboard.press('Enter');
   const outline = page.getByRole('region', { name: 'Outline' });
@@ -4514,7 +4514,7 @@ test('boards: cards and arrows, saved as JSON Canvas in the note', async ({ page
 
 test('footnotes in a book: numbers run on from chapter to chapter', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('Book');
   await page.keyboard.press('Enter');
   await page.getByLabel('Chapter title').fill('One');
@@ -4797,7 +4797,7 @@ test('Go To (F5): pages, headings, footnotes and comments by number or one by on
 
 test('spelling: your dictionary and characters’ names are never marked, a language, and the check turned off', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.evaluate(() => {
@@ -5678,7 +5678,7 @@ test('the bar above a note fades while typing and comes back when the mouse move
 
 test('in a book the sidebar steps back to its strip, and In this chapter lists who the chapter names', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.evaluate(async () => {
@@ -5763,7 +5763,7 @@ test('the calm bar: five buttons, the rest under More in groups, and page view�
 
 test('exporting a book: Word, e-book, PDF or another format, with or without the chapters still to do', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.evaluate(async () => {
@@ -5781,7 +5781,7 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
     c.setChapterStatus(second.id, 'todo');
   });
   const outline = page.getByRole('region', { name: 'Outline' });
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Export The Lighthouse' });
   await expect(dialog).toContainText('2 chapters');
@@ -5795,7 +5795,7 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
   const [docx] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download as Word document' }).click()]);
   expect(docx.suggestedFilename()).toBe('The Lighthouse.docx');
   // Plain text, leaving out the chapter still to do.
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   await dialog.getByLabel(/Chapters marked To do/).uncheck();
   await expect(dialog).toContainText('1 chapter ·');
@@ -5814,7 +5814,7 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
   // A title page comes first (on by default); the book has no parts, so no part pages.
   expect(body).toContain('About 100 words');
   expect(body.indexOf('About 100 words')).toBeLessThan(body.indexOf('The boat left her'));
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   await expect(dialog.getByLabel(/Part headings/)).toBeDisabled();
   await expect(dialog.getByLabel('Comments and tracked changes')).not.toBeChecked();
@@ -5830,7 +5830,7 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
   });
   expect(body2).not.toContain('About 100 words');
   // The e-book.
-  await outline.getByRole('button', { name: 'Project options' }).click();
+  await outline.getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   await dialog.getByRole('radio', { name: /E-book/ }).click();
   const [epub] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Download as e-book (ePub)' }).click()]);
@@ -5839,7 +5839,7 @@ test('exporting a book: Word, e-book, PDF or another format, with or without the
 
 test('a book’s cards: Show picks what each card shows', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   const outline = page.getByRole('region', { name: 'Outline' });
@@ -5961,13 +5961,13 @@ test('the writing room: the sidebar folds to its strip and the list away, the to
   // Back brings the list; the strip's foot brings the sidebar.
   await page.getByRole('button', { name: 'Back to the list' }).click();
   await expect(list(page)).toBeVisible();
-  await page.getByRole('button', { name: 'Open the sidebar' }).click();
+  await page.getByRole('button', { name: 'Show the sidebar' }).click();
   await expect(page.locator('nav.sidebar')).toBeVisible();
 });
 
 test('a book in the calm look: the outline is the sidebar, chapters open as plain writing, and the inspector shows who’s in them', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.evaluate(async () => {
@@ -5992,9 +5992,10 @@ test('a book in the calm look: the outline is the sidebar, chapters open as plai
   await outline.locator('.outline-chapter').first().click();
   await expect(page.locator('.pg')).toHaveCount(0);
   await expect(page.locator('.chapter-line')).toContainText('6 words');
-  await expect(page.locator('.chapter-kicker')).toHaveText(/Chapter one/i);
+  // Its title already says Chapter 1, so no “Chapter One” above it.
+  await expect(page.locator('.chapter-kicker')).toHaveCount(0);
   // The inspector: In this chapter, Notes and Comments.
-  await page.getByRole('button', { name: 'Open the inspector' }).click();
+  await page.getByRole('button', { name: 'Show the inspector' }).click();
   const right = page.getByRole('complementary', { name: 'Right sidebar' });
   for (const t of ['In this chapter', 'Notes', 'Comments']) await expect(right.getByRole('tab', { name: t })).toBeVisible();
   await expect(right.locator('.cast-card')).toContainText('Mara');
@@ -6019,7 +6020,7 @@ test('calm Settings, Find and a first visit, as designed', async ({ page }) => {
   // A first visit: the sidebar keeps to New note and All notes, with a word about the rest; three ways to start.
   const side = sidebar(page);
   await expect(side.getByRole('button', { name: 'Inbox' })).toHaveCount(0);
-  await expect(side).toContainText('Notebooks, tags and manuscripts appear here once you make them.');
+  await expect(side).toContainText('Notebooks, tags and books appear here once you make them.');
   const welcome = page.getByRole('region', { name: 'Welcome' });
   await expect(welcome.getByRole('listitem')).toHaveCount(3);
   await expect(welcome.getByRole('button', { name: 'Take the two-minute tour' })).toBeVisible();
@@ -6110,7 +6111,7 @@ test('the whole window: the graph beside the strip, a board on its own, and Expo
     const c = (window as unknown as { crumpet: { createProject(n: string): { id: string }; setView(v: object): void } }).crumpet;
     c.setView({ kind: 'project', id: c.createProject('The Lighthouse').id });
   });
-  await page.getByRole('region', { name: 'Outline' }).getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('region', { name: 'Outline' }).getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   const box = await page.getByRole('dialog', { name: /^Export/ }).boundingBox();
   expect(box!.width).toBeGreaterThan(500);
@@ -6172,7 +6173,7 @@ test.describe('on a phone, in the calm look', () => {
     await expect(outline.locator('.outline-chapter')).toHaveCount(2);
     await page.getByRole('button', { name: 'New chapter' }).click();
     await expect(outline.locator('.outline-chapter')).toHaveCount(3);
-    await outline.getByRole('button', { name: 'Cast', exact: true }).click();
+    await outline.getByRole('button', { name: 'Characters', exact: true }).click();
     await expect(outline.locator('.outline-chapter')).toHaveCount(0);
     // The cast as rows under a heading with its own +; the round + is for chapters only.
     await expect(outline.getByRole('heading', { name: 'Characters & places' })).toBeVisible();
@@ -6219,7 +6220,7 @@ test.describe('on a phone, in the calm look', () => {
     await settings.getByRole('button', { name: 'Back to Settings' }).click();
     // What a phone can't use isn't offered: the inspector, a folder on the computer.
     await settings.getByRole('button', { name: /^Appearance/ }).click();
-    await expect(settings.getByRole('switch', { name: /Open the inspector/ })).toHaveCount(0);
+    await expect(settings.getByRole('switch', { name: /Show the inspector with every note/ })).toHaveCount(0);
     await settings.getByRole('button', { name: 'Back to Settings' }).click();
     await settings.getByRole('button', { name: /^Sync and storage/ }).click();
     await expect(settings.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
@@ -6302,7 +6303,7 @@ test.describe('on an iPad, in the calm look', () => {
     await expect(page.getByRole('region', { name: 'Outline' })).toHaveCount(0);
     // The inspector is a drawer at the foot.
     await page.getByRole('button', { name: 'Chapter options' }).click();
-    await page.getByRole('button', { name: 'Open the inspector' }).click();
+    await page.getByRole('button', { name: 'Show the inspector' }).click();
     const drawer = page.getByRole('complementary', { name: 'Right sidebar' });
     await expect(drawer).toBeVisible();
     const box = (await drawer.boundingBox())!;

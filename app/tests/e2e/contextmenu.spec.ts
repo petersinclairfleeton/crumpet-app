@@ -139,7 +139,7 @@ test('right click formats the writing, and works on a table’s rows and columns
 
 test('right click on a chapter in a book’s outline', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   await page.getByLabel('Chapter title').fill('The Keeper');
@@ -166,7 +166,7 @@ test('right click on a chapter in a book’s outline', async ({ page }) => {
 
 test('right click on a character, a place and a research note in a book', async ({ page }) => {
   await open(page);
-  await sidebar(page).getByRole('button', { name: 'New project' }).click();
+  await sidebar(page).getByRole('button', { name: 'New book' }).click();
   await page.keyboard.type('The Lighthouse');
   await page.keyboard.press('Enter');
   const cast = page.getByRole('region', { name: 'Characters and places' });

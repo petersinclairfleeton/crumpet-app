@@ -41,7 +41,7 @@ export function bookmarkLabel(state: AppState, b: Bookmark): { title: string; wh
     }
     case 'project': {
       const p = state.projects.find((x) => x.id === b.id);
-      return p ? { title: p.name || 'Untitled project' } : null;
+      return p ? { title: p.name || 'Untitled book' } : null;
     }
     case 'heading': {
       const doc = note?.doc ?? chapter?.doc;

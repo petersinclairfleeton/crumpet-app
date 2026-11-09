@@ -24,7 +24,7 @@ test('the calm sidebar: New, Search, Favourites and the graph in one list, then 
   const side = sidebar(page);
   // The app's own logo at the top.
   await expect(side.locator('.brand img.logo')).toBeVisible();
-  const top = await side.locator('.side-start > *').evaluateAll((els) => els.map((e) => e.textContent?.trim().replace(/(Ctrl K|⌘K|\d+)$/, '')));
+  const top = await side.locator('.side-start > *').evaluateAll((els) => els.map((e) => e.textContent?.trim().replace(/(Ctrl\+K|⌘K|\d+)$/, '')));
   expect(top).toEqual(['New', 'Search', 'Favourites', 'Graph of links']);
   // One under the other, with no gaps.
   const boxes = await side.locator('.side-start > :not(.new-wrap)').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.top, r.bottom]));
@@ -40,7 +40,7 @@ test('the calm sidebar: New, Search, Favourites and the graph in one list, then 
   await capture.getByRole('button', { name: 'Capture' }).click();
   await expect(capture.getByRole('button', { name: /^Inbox/ })).toBeVisible();
   // No + beside the manuscripts: they're made from New.
-  await expect(side.getByRole('region', { name: 'Express' }).getByRole('button', { name: 'New project' })).toHaveCount(0);
+  await expect(side.getByRole('region', { name: 'Express' }).getByRole('button', { name: 'New book' })).toHaveCount(0);
   // Search is a row that opens into a box.
   await side.getByRole('button', { name: 'Search', exact: true }).click();
   await page.keyboard.type('First');
@@ -63,12 +63,12 @@ test('New makes notes, notebooks, stacks and manuscripts; a notebook goes into a
   // New offers everything the app says to make with it, most with a shortcut.
   await side.getByRole('button', { name: 'New', exact: true }).click();
   const menu = page.getByRole('dialog', { name: 'New' }).getByRole('button');
-  await expect(menu).toHaveText(['Upload Ctrl+Alt+Shift+U', 'Note Ctrl+Alt+Shift+N', 'Notebook Ctrl+Alt+Shift+B', 'Notebook stack Ctrl+Alt+Shift+K', 'Distill notebook', 'Board Ctrl+Alt+Shift+O', 'Manuscript Ctrl+Alt+Shift+M', 'From a template… Ctrl+Alt+Shift+T']);
+  await expect(menu).toHaveText(['Upload Ctrl+Alt+Shift+U', 'Note Ctrl+Alt+Shift+N', 'Notebook Ctrl+Alt+Shift+B', 'Notebook stack Ctrl+Alt+Shift+K', 'Distill notebook', 'Board Ctrl+Alt+Shift+O', 'Book Ctrl+Alt+Shift+M', 'From a template… Ctrl+Alt+Shift+T']);
   await expect(menu.nth(1)).toHaveAttribute('aria-keyshortcuts', 'Ctrl+Alt+Shift+N');
   await page.keyboard.press('Escape');
   await make('Notebook', 'Journal');
   await make('Notebook stack', 'Writing');
-  await make('Manuscript', 'The Lighthouse');
+  await make('Book', 'The Lighthouse');
   await expect.poll(async () => (await state(page)).projects.map((p) => p.name)).toEqual(['The Lighthouse']);
   // A note made from New while the notebook Journal is open goes into Journal, and the list stays on it.
   const journal = (await state(page)).notebooks.find((n) => n.name === 'Journal')!;

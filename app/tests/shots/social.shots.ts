@@ -102,7 +102,7 @@ test('8 · grammar, checked on the device', async ({ page }) => {
 
 test('9 · a print-ready paperback', async ({ page }) => {
   await start(page);
-  await outline(page).getByRole('button', { name: 'Project options' }).click();
+  await outline(page).getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   const dialog = page.getByRole('dialog', { name: /^Export/ });
   await expect(dialog).toBeVisible();

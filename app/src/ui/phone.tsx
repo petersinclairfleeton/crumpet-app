@@ -1,7 +1,7 @@
 // Crumpet on an iPhone, in the calm look (designs 4, 16, 17 and 18 of the Quiet
 // Paper canvas): no bar of tabs. The library comes first, like Apple's Notes:
-// grouped rows for Capture, Library, Notebooks and Writing (the computer's
-// sidebar, in its order), tags as chips, then the graph and Trash; a row opens
+// grouped rows for Favourites, then Capture, Organise, Distill and Express (the
+// computer's sidebar, in its order), tags as chips, then the graph and Trash; a row opens
 // its list, a note opens from the list, and Back returns a step at a time.
 
 import { useState } from 'react';
@@ -35,8 +35,15 @@ export function PhoneLibrary({ onOpenView, onToday }: { onOpenView(v: View): voi
     </li>
   );
   const tags = flatTags(tagTree(state.notes));
+  // Distill's notebooks are those marked so, or in a stack marked so (as on the computer).
+  const isDistill = (nb: (typeof state.notebooks)[number]) => !!nb.distill || !!state.stacks.find((x) => x.id === nb.stackId)?.distill;
+  const shown = state.notebooks;
+  const organise = shown.filter((nb) => !isDistill(nb));
+  const distill = shown.filter(isDistill);
+  const notebookRow = (nb: (typeof state.notebooks)[number]) =>
+    row(nb.id, <span className="phone-nb" style={{ background: nb.color }} aria-hidden="true" />, nb.name, count((n) => n.notebookId === nb.id), () => onOpenView({ kind: 'notebook', id: nb.id }), on({ kind: 'notebook', id: nb.id }));
   const newBook = () => onOpenView({ kind: 'project', id: store.createProject('Untitled book').id });
-  const status = state.temporary ? 'Not saving in this browser' : !sync.config ? 'Saved on this device' : statusText(sync.status).replace(/\.$/, '');
+  const status = state.temporary ? 'Not saving in this browser' : !sync.config ? 'Saved here' : statusText(sync.status).replace(/\.$/, '');
   return (
     <nav className="sidebar phone-library" aria-label="Notebooks">
       {settings && <SettingsDialog onClose={() => setSettings(false)} />}
@@ -48,7 +55,11 @@ export function PhoneLibrary({ onOpenView, onToday }: { onOpenView(v: View): voi
       <h1 className="phone-big">Crumpet</h1>
       <p className="phone-sub">{status}</p>
 
-      {/* The same groups as the computer's sidebar, in the same order. */}
+      {/* The same groups as the computer's sidebar (CODE), in the same order: Favourites at the top, then Capture, Organise, Distill and Express. */}
+      <section aria-label="Favourites">
+        <ul className="phone-group">{row('fav', <IconStar size={20} />, 'Favourites', count((n) => n.favorite), () => onOpenView({ kind: 'favorites' }), on({ kind: 'favorites' }))}</ul>
+      </section>
+
       <section aria-label="Capture">
         <h2 className="phone-label">Capture</h2>
         <ul className="phone-group">
@@ -57,28 +68,24 @@ export function PhoneLibrary({ onOpenView, onToday }: { onOpenView(v: View): voi
         </ul>
       </section>
 
-      <section aria-label="Library">
-        <h2 className="phone-label">Library</h2>
+      <section aria-label="Organise">
+        <h2 className="phone-label">Organise</h2>
         <ul className="phone-group">
           {row('all', <IconNote size={20} />, 'All notes', count((n) => !n.projectId), () => onOpenView({ kind: 'all' }), on({ kind: 'all' }))}
-          {row('fav', <IconStar size={20} />, 'Favourites', count((n) => n.favorite), () => onOpenView({ kind: 'favorites' }), on({ kind: 'favorites' }))}
+          {organise.map(notebookRow)}
         </ul>
       </section>
 
-      {state.notebooks.length > 0 && (
-        <section aria-label="Notebooks">
-          <h2 className="phone-label">Notebooks</h2>
-          <ul className="phone-group">
-            {state.notebooks.map((nb) =>
-              row(nb.id, <span className="phone-nb" style={{ background: nb.color }} aria-hidden="true" />, nb.name, count((n) => n.notebookId === nb.id), () => onOpenView({ kind: 'notebook', id: nb.id }), on({ kind: 'notebook', id: nb.id })),
-            )}
-          </ul>
+      {distill.length > 0 && (
+        <section aria-label="Distill">
+          <h2 className="phone-label">Distill</h2>
+          <ul className="phone-group">{distill.map(notebookRow)}</ul>
         </section>
       )}
 
-      <section aria-label="Writing">
+      <section aria-label="Express">
         <div className="phone-label phone-head">
-          <h2>Writing</h2>
+          <h2>Express</h2>
           {state.projects.length > 0 && (
             <button type="button" className="icon-btn" aria-label="New book" onClick={newBook}>
               <IconPlus size={20} />
@@ -86,7 +93,8 @@ export function PhoneLibrary({ onOpenView, onToday }: { onOpenView(v: View): voi
           )}
         </div>
         <ul className="phone-group">
-          {state.projects.map((p) => row(p.id, <IconBook size={20} />, p.name, projectWords(p, state.chapters), () => onOpenView({ kind: 'project', id: p.id })))}
+          {/* A book's number is its words, said as words (beside a notebook the number is its notes). */}
+          {state.projects.map((p) => row(p.id, <IconBook size={20} />, p.name, wordsLabel(projectWords(p, state.chapters)), () => onOpenView({ kind: 'project', id: p.id })))}
           {!state.projects.length && row('newbook', <IconBook size={20} />, 'Start a book', undefined, newBook)}
         </ul>
       </section>
@@ -126,4 +134,9 @@ export function PhoneLibrary({ onOpenView, onToday }: { onOpenView(v: View): voi
 /** Every tag, nested ones after the tag they're in. */
 function flatTags(nodes: TagNode[]): TagNode[] {
   return nodes.flatMap((t) => [t, ...flatTags(t.children)]);
+}
+
+/** 12345 → "12,345 words". */
+function wordsLabel(n: number): string {
+  return `${n.toLocaleString()} word${n === 1 ? '' : 's'}`;
 }

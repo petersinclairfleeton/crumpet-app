@@ -12,7 +12,7 @@ export const PeekContext = createContext<{ peek: Peek; open(p: Peek): void; leav
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 type Panel = 'sidebar' | 'list' | 'right';
-const panelName = (what: Panel, project: boolean) => (what === 'sidebar' ? 'sidebar' : what === 'right' ? 'right sidebar' : project ? 'outline' : 'note list');
+const panelName = (what: Panel, project: boolean) => (what === 'sidebar' ? 'sidebar' : what === 'right' ? 'inspector' : project ? 'outline' : 'note list');
 const shortcut = (what: Panel) => (what === 'sidebar' ? `${isMac ? '⌘' : 'Ctrl+'}\\` : what === 'right' ? `${isMac ? '⌘⌥' : 'Ctrl+Alt+'}\\` : `${isMac ? '⌘⇧' : 'Ctrl+Shift+'}\\`);
 
 /** «: folds the sidebar or the list away. While it's peeking out, » keeps it open instead. */

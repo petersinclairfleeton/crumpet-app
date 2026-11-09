@@ -78,7 +78,7 @@ test('a glossary of invented words: a card, a hover, the right spelling, and the
   await page.mouse.move(5, 5);
 
   // Export with the glossary at the end.
-  await page.getByRole('region', { name: 'Outline' }).getByRole('button', { name: 'Project options' }).click();
+  await page.getByRole('region', { name: 'Outline' }).getByRole('button', { name: 'Book options' }).click();
   await page.getByRole('button', { name: /^Export/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Export The Lighthouse' });
   await dialog.getByLabel(/Glossary at the end/).check();
